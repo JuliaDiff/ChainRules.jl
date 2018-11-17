@@ -136,14 +136,6 @@ Examples:
         return sum(x), (x̄, ȳ) -> reverse_chain!(x̄, @thunk(ȳ))
     end
 
-`@reverse_rule([R]⊗[R] → [R], +(x, y), z̄, z̄, z̄)` expands to:
-
-    function reverse_rule(::@sig([R]⊗[R] → R), ::typeof(+), x, y)
-        return x + y,
-               (x̄, ȳ, z̄) -> (reverse_chain!(x̄, @thunk(z̄)),
-                             reverse_chain!(ȳ, @thunk(z̄)))
-    end
-
 `@reverse_rule([R]⊗[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
 
     function reverse_rule(::@sig([R]⊗[R] → R), ::typeof(*), x, y)
