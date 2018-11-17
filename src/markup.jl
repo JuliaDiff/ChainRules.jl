@@ -104,8 +104,8 @@ const MALFORMED_SIG_ERROR_MESSAGE = "Malformed expression given to `@sig`; see `
 
 function signature_type_from_expr(expr)
     @assert(Meta.isexpr(expr, :call) && expr.args[1] === :→ && length(expr.args) === 3, MALFORMED_SIG_ERROR_MESSAGE)
-    input_types = map(parse_into_markup_type, split_infix_args(expr.args[2], :⊗))
-    output_types = map(parse_into_markup_type, split_infix_args(expr.args[3], :⊗))
+    input_types = map(parse_into_markup_type, split_infix_args(expr.args[2], :⊕))
+    output_types = map(parse_into_markup_type, split_infix_args(expr.args[3], :⊕))
     return :(Signature{<:Tuple{$(input_types...)}, <:Tuple{$(output_types...)}})
 end
 

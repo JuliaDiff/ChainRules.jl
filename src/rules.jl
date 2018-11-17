@@ -86,15 +86,15 @@ Examples:
         return sin(x), ẋ -> forward_chain(@thunk(cos(x)), ẋ)
     end
 
-`@forward_rule(R⊗R → R, *(x, y), (y, x))` expands to:
+`@forward_rule(R⊕R → R, *(x, y), (y, x))` expands to:
 
     function forward_rule(::@sig(R → R), ::typeof(*), x, y)
         return *(x, y), (ẋ, ẏ) -> forward_chain(@thunk(y), ẋ, @thunk(x), ẏ)
     end
 
-`@forward_rule(R⊗R → R, sincos(x), cos(x), -sin(x))` expands to:
+`@forward_rule(R⊕R → R, sincos(x), cos(x), -sin(x))` expands to:
 
-    function forward_rule(::@sig(R → R⊗R), ::typeof(sincos), x)
+    function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
         return sincos(x),
                (ẋ -> forward_chain(ẋ, @thunk(cos(x))),
                 ẋ -> forward_chain(ẋ, @thunk(-sin(x))))
@@ -103,7 +103,7 @@ Examples:
 Note that this last case is a good example of a primitive that is more
 efficiently implemented with a manual `forward_rule` overload:
 
-    function forward_rule(::@sig(R → R⊗R), ::typeof(sincos), x)
+    function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
         sinx, cosx = sincos(x)
         return (sinx, cosx),
                (ẋ -> forward_chain(ẋ, @thunk(cosx)),
@@ -136,9 +136,9 @@ Examples:
         return sum(x), (x̄, ȳ) -> reverse_chain!(x̄, @thunk(ȳ))
     end
 
-`@reverse_rule([R]⊗[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
+`@reverse_rule([R]⊕[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
 
-    function reverse_rule(::@sig([R]⊗[R] → R), ::typeof(*), x, y)
+    function reverse_rule(::@sig([R]⊕[R] → R), ::typeof(*), x, y)
         return x * y,
                ((x̄, z̄) -> reverse_chain!(x̄, @thunk(z̄ * y')),
                 (ȳ, z̄) -> reverse_chain!(ȳ, @thunk(x' * z̄)))
@@ -209,19 +209,19 @@ end
 @forward_rule(R → R, sin(x), cos(x))
 @forward_rule(R → R, cos(x), -sin(x))
 @forward_rule(R → R, log(x), inv(x))
-@forward_rule(R⊗R → R, *(x, y), (y, x))
+@forward_rule(R⊕R → R, *(x, y), (y, x))
 
-function forward_rule(::@sig(R⊗R → R), ::typeof(atan), y, x)
+function forward_rule(::@sig(R⊕R → R), ::typeof(atan), y, x)
     h = hypot(y, x)
     return atan(y, x), (ẏ, ẋ) -> forward_chain(ẏ, @thunk(x / h), ẋ, @thunk(y / h))
 end
 
-function forward_rule(::@sig(R⊗R → R), ::typeof(hypot), x, y)
+function forward_rule(::@sig(R⊕R → R), ::typeof(hypot), x, y)
     h = hypot(x, y)
     return h, (ẋ, ẏ) -> forward_chain(ẋ, @thunk(x / h), ẏ, @thunk(y / h))
 end
 
-function forward_rule(::@sig(R → R⊗R), ::typeof(sincos), x)
+function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
     sinx, cosx = sincos(x)
     return (sinx, cosx),
            (ẋ -> forward_chain(ẋ, @thunk(cosx)),
@@ -235,14 +235,14 @@ forward_rule(::@sig(C → C), ::typeof(conj), x) = conj(x), ẋ -> (false, true)
 #####
 
 @reverse_rule([R] → R, sum(x), ȳ, ȳ)
-@reverse_rule([R]⊗[R] → [R], +(x, y), z̄, z̄, z̄)
-@reverse_rule([R]⊗[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)
+@reverse_rule([R]⊕[R] → [R], +(x, y), z̄, z̄, z̄)
+@reverse_rule([R]⊕[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)
 
 # TODO: This partial derivative extraction should be doable without the extra
 # temporaries or preallocation utilized here, but AFAICT such an approach is
 # hard to write without relying on inference hacks unless we have something
 # akin to https://github.com/JuliaLang/julia/issues/22129
-function reverse_rule(::@sig(_⊗[R] → [R]), ::typeof(broadcast), f, x)
+function reverse_rule(::@sig(_⊕[R] → [R]), ::typeof(broadcast), f, x)
     s = Signature(RealScalar(), RealScalar())
     f_rule = x -> begin
         y, d = forward_rule(s, f, x)
