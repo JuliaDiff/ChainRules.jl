@@ -103,7 +103,7 @@ end
 const MALFORMED_SIG_ERROR_MESSAGE = "Malformed expression given to `@sig`; see `@sig` docstring for proper format."
 
 function signature_type_from_expr(expr)
-    @assert(expr.head === :call && expr.args[1] === :→ && length(expr.args) === 3, MALFORMED_SIG_ERROR_MESSAGE)
+    @assert(Meta.isexpr(expr, :call) && expr.args[1] === :→ && length(expr.args) === 3, MALFORMED_SIG_ERROR_MESSAGE)
     input_types = map(parse_into_markup_type, split_infix_args(expr.args[2], :⊗))
     output_types = map(parse_into_markup_type, split_infix_args(expr.args[3], :⊗))
     return :(Signature{<:Tuple{$(input_types...)}, <:Tuple{$(output_types...)}})
@@ -112,7 +112,7 @@ end
 split_infix_args(invocation::Symbol, ::Symbol) = (invocation,)
 
 function split_infix_args(invocation::Expr, op::Symbol)
-    if invocation.head === :call && invocation.args[1] === op
+    if Meta.isexpr(invocation, :call) && invocation.args[1] === op
         return (split_infix_args(invocation.args[2], op)..., invocation.args[3])
     end
     return (invocation,)
@@ -126,14 +126,14 @@ function parse_into_markup_type(x)
     elseif x === :_
         return :(Ignore)
     elseif isa(x, Expr) && length(x.args) === 1
-        if x.head === :vect
+        if Meta.isexpr(x, :vect)
             domain = x.args[1]
             if domain === :R
                 return :(Tensor{RealDomain})
             elseif domain === :C
                 return :(Tensor{ComplexDomain})
             end
-        elseif x.head === :braces
+        elseif Meta.isexpr(x, :braces)
             vararg_type = parse_into_markup_type(x.args[1])
             return :(Vararg{$vararg_type})
         end

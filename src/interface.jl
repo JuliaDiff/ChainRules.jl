@@ -18,9 +18,9 @@ end
 
 forward_chain(args...) = materialize(_forward_chain(args...))
 
-@inline _forward_chain(∂::Thunk, ẋ::Nothing) = false
-@inline _forward_chain(∂::Thunk, ẋ) = broadcasted(*, ∂(), ẋ)
-_forward_chain(∂::Thunk, ẋ, args...) = broadcasted(+, _forward_chain(∂, ẋ), _forward_chain(args...))
+@inline _forward_chain(ẋ::Nothing, ∂::Thunk) = false
+@inline _forward_chain(ẋ, ∂::Thunk) = broadcasted(*, ẋ, ∂())
+_forward_chain(ẋ, ∂::Thunk, args...) = broadcasted(+, _forward_chain(ẋ, ∂), _forward_chain(args...))
 
 #####
 ##### `reverse_chain!`
