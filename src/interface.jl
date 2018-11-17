@@ -60,7 +60,7 @@ markup(x::AbstractArray{<:Real}) = RealTensor(layout(x))
 markup(x::AbstractArray{<:Complex}) = ComplexTensor(layout(x))
 markup(x::AbstractArray) = error("Cannot infer domain of array from eltype", x)
 
-layout(x::Tuple) = Layout(length(x), (length(x),), CPUDevice(), true)
+layout(x::Tuple) = Layout(length(x), (length(x),), CPUDevice(), false)
 layout(x::Array) = Layout(length(x), size(x), CPUDevice(), true)
 
 should_materialize_into(::Array) = true
