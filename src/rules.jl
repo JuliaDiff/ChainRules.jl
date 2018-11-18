@@ -83,16 +83,16 @@ Examples:
 `@forward_rule(R → R, sin(x), cos(x))` expands to:
 
     function forward_rule(::@sig(R → R), ::typeof(sin), x)
-        return sin(x), ẋ -> forward_chain(@thunk(cos(x)), ẋ)
+        return sin(x), ẋ -> forward_chain(ẋ, @thunk(cos(x)))
     end
 
 `@forward_rule(R⊕R → R, *(x, y), (y, x))` expands to:
 
     function forward_rule(::@sig(R → R), ::typeof(*), x, y)
-        return *(x, y), (ẋ, ẏ) -> forward_chain(@thunk(y), ẋ, @thunk(x), ẏ)
+        return *(x, y), (ẋ, ẏ) -> forward_chain(ẋ, @thunk(y), ẏ, @thunk(x))
     end
 
-`@forward_rule(R⊕R → R, sincos(x), cos(x), -sin(x))` expands to:
+`@forward_rule(R → R⊕R, sincos(x), cos(x), -sin(x))` expands to:
 
     function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
         return sincos(x),
