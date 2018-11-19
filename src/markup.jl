@@ -1,27 +1,4 @@
 #####
-##### `AbstractLayout`
-#####
-
-abstract type AbstractLayout end
-
-struct CPUDevice end
-
-struct Layout{L, S, D} <: AbstractLayout
-    length::L
-    size::S
-    device::D
-    ismutable::Bool
-end
-
-Base.length(layout::Layout) = layout.length
-
-Base.size(layout::Layout) = layout.size
-
-device(layout::Layout) = layout.device
-
-ismutable(layout::Layout) = layout.ismutable
-
-#####
 ##### `AbstractDomain`
 #####
 
@@ -58,8 +35,6 @@ markupify(x) = markup(x)
 
 struct Ignore <: AbstractArgument end
 
-Base.length(::Ignore) = 0
-
 #== `AbstractVariable` ==#
 
 abstract type AbstractVariable <: AbstractArgument end
@@ -76,21 +51,17 @@ const ComplexScalar = Scalar{ComplexDomain}
 
 ComplexScalar() = Scalar(ComplexDomain())
 
-struct Tensor{D <: AbstractDomain, L <: AbstractLayout} <: AbstractVariable
+struct Tensor{D <: AbstractDomain} <: AbstractVariable
     domain::D
-    layout::L
 end
 
 const RealTensor = Tensor{RealDomain}
 
-RealTensor(layout) = Tensor(RealDomain(), layout)
+RealTensor() = Tensor(RealDomain())
 
 const ComplexTensor = Tensor{ComplexDomain}
 
-ComplexTensor(layout) = Tensor(ComplexDomain(), layout)
-
-Base.length(::Scalar) = 1
-Base.length(t::Tensor) = length(t.layout)
+ComplexTensor() = Tensor(ComplexDomain())
 
 #####
 ##### `@sig`

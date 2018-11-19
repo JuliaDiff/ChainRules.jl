@@ -46,7 +46,7 @@ should_increment(::Any) = true
 should_materialize_into(::Any) = false
 
 #####
-##### miscellanous defaults
+##### miscellaneous utilities
 #####
 
 # TODO: More defaults, obviously!
@@ -54,13 +54,18 @@ should_materialize_into(::Any) = false
 markup(::Any) = Ignore()
 markup(::Real) = RealScalar()
 markup(::Complex) = ComplexScalar()
-markup(x::Tuple{Vararg{<:Real}}) = RealTensor(layout(x))
-markup(x::Tuple{Vararg{<:Complex}}) = ComplexTensor(layout(x))
-markup(x::AbstractArray{<:Real}) = RealTensor(layout(x))
-markup(x::AbstractArray{<:Complex}) = ComplexTensor(layout(x))
+markup(x::Tuple{Vararg{<:Real}}) = RealTensor()
+markup(x::Tuple{Vararg{<:Complex}}) = ComplexTensor()
+markup(x::AbstractArray{<:Real}) = RealTensor()
+markup(x::AbstractArray{<:Complex}) = ComplexTensor()
 markup(x::AbstractArray) = error("Cannot infer domain of array from eltype", x)
 
-layout(x::Tuple) = Layout(length(x), (length(x),), CPUDevice(), false)
-layout(x::Array) = Layout(length(x), size(x), CPUDevice(), true)
+struct CPU end
+
+device(::AbstractArray) = CPU()
+
+ismutable(::Array) = true
+
+ismutable(::AbstractArray) = false
 
 should_materialize_into(::Array) = true
