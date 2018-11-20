@@ -70,8 +70,8 @@ end
                   (df₂_dx, df₂_dy, ...),
                   ...)
 
-Define a method for `forward_rule` using the given signature, call expression,
-and derivative expressions.
+Define a method for `forward_rule` using the given domain signature, call
+expression, and derivative expressions.
 
 While this macro is convenient for avoiding boilerplate code when implementing
 simple forward rules, note that more advanced rules will probably require
@@ -117,8 +117,8 @@ end
 """
     @reverse_rule(signature, f(x, y, ...), (f̄₁, f̄₂, ...), df_dx, df_dy, ...)
 
-Define a method for `reverse_rule` using the given signature, call expression,
-and derivative expressions.
+Define a method for `reverse_rule` using the given domain signature, call
+expression, and derivative expressions.
 
 The third argument to the macro is a tuple of symbols naming the adjoints of the
 outputs of `f(x, y, ...)` (or just a single symbol if there is only one output).
