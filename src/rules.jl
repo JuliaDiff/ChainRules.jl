@@ -34,29 +34,29 @@ Cassette.@context MyChainRuleCtx
 my_forward_rule(args...) = Cassette.overdub(MyChainRuleCtx(), forward_rule, args...)
 
 function Cassette.execute(::MyChainRuleCtx, ::typeof(forward_rule)
-                          ::@sig(R → R), f, x)
-    fx, df = forward_rule(sig, f, x)
+                          ::@domain({R → R}), f, x::Number)
+    fx, df = forward_rule(@domain(R → R), f, x)
     if isa(df, Nothing)
-        fx, df = (f(x), ẋ -> ẋ * ForwardDiff.derivative(f, x))
+        fx, df = (f(x), ẋ -> ẋ .* ForwardDiff.derivative(f, x))
     end
     return fx, df
 end
 ```
 =#
 
-forward_rule(::Signature, ::Vararg{Any}) = (nothing, nothing)
+forward_rule(::DomainSignature, ::Vararg{Any}) = (nothing, nothing)
 
-reverse_rule(::Signature, ::Vararg{Any}) = (nothing, nothing)
+reverse_rule(::DomainSignature, ::Vararg{Any}) = (nothing, nothing)
 
 # TODO: Should the default be to whitelist known holomorphic functions, or to
 # blacklist known non-holomorphic functions? This implements the latter.
-function forward_rule(signature::@sig(C → C), f, x)
-    fx, df = forward_rule(Signature(RealScalar(), RealScalar()), f, x)
+function forward_rule(::@domain({C → C}), f, x)
+    fx, df = forward_rule(@domain(R → R), f, x)
     return fx, ẋ -> (df(ẋ), false)
 end
 
-function reverse_rule(signature::@sig(R → R), f, x)
-    fx, df = forward_rule(signature, f, x)
+function reverse_rule(::@domain({R → R}), f, x)
+    fx, df = forward_rule(@domain(R → R), f, x)
     return fx, (x̄, z̄) -> reverse_chain!(x̄, @thunk(df(z̄)))
 end
 
@@ -82,19 +82,19 @@ Examples:
 
 `@forward_rule(R → R, sin(x), cos(x))` expands to:
 
-    function forward_rule(::@sig(R → R), ::typeof(sin), x)
+    function forward_rule(::@domain({R → R}), ::typeof(sin), x)
         return sin(x), ẋ -> forward_chain(ẋ, @thunk(cos(x)))
     end
 
-`@forward_rule(R⊕R → R, *(x, y), (y, x))` expands to:
+`@forward_rule(R×R → R, *(x, y), (y, x))` expands to:
 
-    function forward_rule(::@sig(R → R), ::typeof(*), x, y)
+    function forward_rule(::@domain({R×R → R}), ::typeof(*), x, y)
         return *(x, y), (ẋ, ẏ) -> forward_chain(ẋ, @thunk(y), ẏ, @thunk(x))
     end
 
-`@forward_rule(R → R⊕R, sincos(x), cos(x), -sin(x))` expands to:
+`@forward_rule(R → R×R, sincos(x), cos(x), -sin(x))` expands to:
 
-    function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
+    function forward_rule(::@domain({R → R×R}), ::typeof(sincos), x)
         return sincos(x),
                (ẋ -> forward_chain(ẋ, @thunk(cos(x))),
                 ẋ -> forward_chain(ẋ, @thunk(-sin(x))))
@@ -103,7 +103,7 @@ Examples:
 Note that this last case is a good example of a primitive that is more
 efficiently implemented with a manual `forward_rule` overload:
 
-    function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
+    function forward_rule(::@domain({R → R×R}), ::typeof(sincos), x)
         sinx, cosx = sincos(x)
         return (sinx, cosx),
                (ẋ -> forward_chain(ẋ, @thunk(cosx)),
@@ -130,15 +130,15 @@ supports real-domain rules.
 
 Examples:
 
-`@reverse_rule([R] → R, sum(x), ȳ, ȳ)` expands to:
+`@reverse_rule(R → R, sum(x), ȳ, ȳ)` expands to:
 
-    function reverse_rule(::@sig([R] → R), ::typeof(sum), x)
+    function reverse_rule(::@domain({R → R}), ::typeof(sum), x)
         return sum(x), (x̄, ȳ) -> reverse_chain!(x̄, @thunk(ȳ))
     end
 
-`@reverse_rule([R]⊕[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
+`@reverse_rule(R×R → R, *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
 
-    function reverse_rule(::@sig([R]⊕[R] → R), ::typeof(*), x, y)
+    function reverse_rule(::@domain({R×R → R}), ::typeof(*), x, y)
         return x * y,
                ((x̄, z̄) -> reverse_chain!(x̄, @thunk(z̄ * y')),
                 (ȳ, z̄) -> reverse_chain!(ȳ, @thunk(x' * z̄)))
@@ -189,11 +189,15 @@ function generate_rule_definition(signature, call,
     @assert length(chains) > 0
     chains = length(chains) > 1 ? Expr(:tuple, chains...) : chains[1]
     rule_function = isa(adjoint_names, Nothing) ? :forward_rule : :reverse_rule
+    if Meta.isexpr(signature, :braces)
+        error("domain signature for `@forward_rule`/`@reverse_rule` should NOT be wrapped in {}")
+    end
+    signature = Expr(:braces, signature)
     return quote
-        @assert(@sig($signature) <: Signature{<:Tuple{Vararg{Union{RealTensor,RealScalar,Ignore}}},
-                                              <:Tuple{Vararg{Union{RealTensor,RealScalar,Ignore}}}},
+        @assert(@domain($signature) <: DomainSignature{<:Tuple{Vararg{Union{RealDomain, IgnoreDomain}}},
+                                                       <:Tuple{Vararg{Union{RealDomain, IgnoreDomain}}}},
                 "@forward_rule and @reverse_rule only support real-domain rules right now")
-        function $ChainRules.$rule_function(::@sig($signature),
+        function $ChainRules.$rule_function(::@domain($signature),
                                             ::typeof($call_function),
                                             $(call_args...))
             outputs = $(esc(call))
@@ -209,43 +213,42 @@ end
 @forward_rule(R → R, sin(x), cos(x))
 @forward_rule(R → R, cos(x), -sin(x))
 @forward_rule(R → R, log(x), inv(x))
-@forward_rule(R⊕R → R, *(x, y), (y, x))
+@forward_rule(R×R → R, *(x, y), (y, x))
 
-function forward_rule(::@sig(R⊕R → R), ::typeof(atan), y, x)
+function forward_rule(::@domain({R×R → R}), ::typeof(atan), y, x)
     h = hypot(y, x)
     return atan(y, x), (ẏ, ẋ) -> forward_chain(ẏ, @thunk(x / h), ẋ, @thunk(y / h))
 end
 
-function forward_rule(::@sig(R⊕R → R), ::typeof(hypot), x, y)
+function forward_rule(::@domain({R×R → R}), ::typeof(hypot), x, y)
     h = hypot(x, y)
     return h, (ẋ, ẏ) -> forward_chain(ẋ, @thunk(x / h), ẏ, @thunk(y / h))
 end
 
-function forward_rule(::@sig(R → R⊕R), ::typeof(sincos), x)
+function forward_rule(::@domain({R → R×R}), ::typeof(sincos), x)
     sinx, cosx = sincos(x)
     return (sinx, cosx),
            (ẋ -> forward_chain(ẋ, @thunk(cosx)),
             ẋ -> forward_chain(ẋ, @thunk(-sinx)))
 end
 
-forward_rule(::@sig(C → C), ::typeof(conj), x) = conj(x), ẋ -> (false, true)
+forward_rule(::@domain({C → C}), ::typeof(conj), x) = conj(x), ẋ -> (false, true)
 
 #####
 ##### reverse rules
 #####
 
-@reverse_rule([R] → R, sum(x), ȳ, ȳ)
-@reverse_rule([R]⊕[R] → [R], +(x, y), z̄, z̄, z̄)
-@reverse_rule([R]⊕[R] → [R], *(x, y), z̄, z̄ * y', x' * z̄)
+@reverse_rule(R → R, sum(x), ȳ, ȳ)
+@reverse_rule(R×R → R, +(x, y), z̄, z̄, z̄)
+@reverse_rule(R×R → R, *(x, y), z̄, z̄ * y', x' * z̄)
 
 # TODO: This partial derivative extraction should be doable without the extra
 # temporaries or preallocation utilized here, but AFAICT such an approach is
 # hard to write without relying on inference hacks unless we have something
 # akin to https://github.com/JuliaLang/julia/issues/22129
-function reverse_rule(::@sig(_⊕[R] → [R]), ::typeof(broadcast), f, x)
-    s = Signature(RealScalar(), RealScalar())
+function reverse_rule(::@domain({_×R → R}), ::typeof(broadcast), f, x)
     f_rule = x -> begin
-        y, d = forward_rule(s, f, x)
+        y, d = forward_rule(@domain(R → R), f, x)
         y, d(one(x))
     end
     applied_f_rule = broadcast(f_rule, x)

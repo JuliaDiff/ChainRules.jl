@@ -31,8 +31,8 @@ _forward_chain(ẋ, ∂::Thunk, args...) = broadcasted(+, _forward_chain(ẋ, �
 @inline function reverse_chain!(x̄, ∂::Thunk)
     thunk = ∂()
     x̄_value = adjoint_value(x̄)
-    casted = should_increment(x̄) ? broadcasted(+, x̄_value, thunk) : thunk
-    if should_materialize_into(x̄)
+    casted = should_increment_adjoint(x̄) ? broadcasted(+, x̄_value, thunk) : thunk
+    if should_materialize_adjoint_in_place(x̄)
         return materialize!(x̄_value, casted)
     else
         return materialize(casted)
@@ -41,31 +41,7 @@ end
 
 adjoint_value(x̄) = x̄
 
-should_increment(::Any) = true
+should_increment_adjoint(::Any) = true
 
-should_materialize_into(::Any) = false
-
-#####
-##### miscellaneous utilities
-#####
-
-# TODO: More defaults, obviously!
-
-markup(::Any) = Ignore()
-markup(::Real) = RealScalar()
-markup(::Complex) = ComplexScalar()
-markup(x::Tuple{Vararg{<:Real}}) = RealTensor()
-markup(x::Tuple{Vararg{<:Complex}}) = ComplexTensor()
-markup(x::AbstractArray{<:Real}) = RealTensor()
-markup(x::AbstractArray{<:Complex}) = ComplexTensor()
-markup(x::AbstractArray) = error("Cannot infer domain of array from eltype", x)
-
-struct CPU end
-
-device(::AbstractArray) = CPU()
-
-ismutable(::Array) = true
-
-ismutable(::AbstractArray) = false
-
-should_materialize_into(::Array) = true
+should_materialize_adjoint_in_place(::Any) = false
+should_materialize_adjoint_in_place(::Array) = true

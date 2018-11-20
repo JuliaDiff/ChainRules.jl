@@ -1,14 +1,14 @@
 # TODO: more tests!
 
 using ChainRules, Test
+using ChainRules: reverse_rule, @domain
 
 #####
 ##### `*(x, y)`
 #####
 
 x, y = rand(3, 2), rand(2, 5)
-sig = ChainRules.Signature((x, y), x * y)
-z, (dx!, dy!) = ChainRules.reverse_rule(sig, *, x, y)
+z, (dx!, dy!) = reverse_rule(@domain(R×R → R), *, x, y)
 
 @test z == x * y
 
@@ -32,8 +32,7 @@ ȳ_should_be = ȳ .+ (x' * z̄)
 #####
 
 x = rand(3, 3)
-sig = ChainRules.Signature((sin, x), x)
-fx, dx! = ChainRules.reverse_rule(sig, broadcast, sin, x)
+fx, dx! = reverse_rule(@domain(_×R → R), broadcast, sin, x)
 
 @test fx == sin.(x)
 
