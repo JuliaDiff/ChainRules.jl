@@ -30,7 +30,7 @@ function Seed(value;
     return Seed(value, store_into, increment_adjoint, materialize)
 end
 
-materialize_via_seed(::Nothing, partial) = materialize(partial)
+@inline materialize_via_seed(::Nothing, partial) = materialize(partial)
 
 function materialize_via_seed(seed::Seed, partial)
     if seed.materialize
@@ -62,8 +62,9 @@ end
 end
 
 @inline function _fchain(seed, ẋ, ∂::Thunk, args...)
-    seed, partial = _fchain(seed, ẋ, ∂)
-    return broadcasted(+, partial, _fchain(seed, args...))
+    seed, partial_head = _fchain(seed, ẋ, ∂)
+    seed, partial_tail = _fchain(seed, args...)
+    return seed, broadcasted(+, partial_head, partial_tail)
 end
 
 #####
