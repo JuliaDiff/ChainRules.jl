@@ -55,9 +55,21 @@ function frule(::@domain({C → C}), f, x)
     return fx, ẋ -> (df(ẋ), false)
 end
 
-function rrule(::@domain({R → R}), f, x)
-    fx, df = frule(@domain(R → R), f, x)
+function rrule(d::@domain({R → R}), f, x)
+    fx, df = frule(d, f, x)
     return fx, (x̄, z̄) -> rchain!(x̄, @thunk(df(z̄)))
+end
+
+function rrule(d::@domain({R×R → R}), f, x, y)
+    fxy, df = frule(d, f, x, y)
+    return fxy,
+           ((x̄, z̄) -> rchain!(x̄, @thunk(df(z̄, nothing))),
+            (ȳ, z̄) -> rchain!(ȳ, @thunk(df(nothing, z̄))))
+end
+
+function rrule(d::Union{@domain({R×_ → R}), @domain({_×R → R})}, f, x, y)
+    fxy, df = frule(d, f, x, y)
+    return fxy, (ā, z̄) -> rchain!(ā, @thunk(df(z̄)))
 end
 
 #####
@@ -249,10 +261,18 @@ end
 @frule(R → R, deg2rad(x), π / 180f0)
 @frule(R → R, rad2deg(x), 180f0 / π)
 
+@frule(R×R → R, +(x, y), (one(x), one(y)))
+@frule(R×R → R, -(x, y), (one(x), -one(y)))
+@frule(R×R → R, *(x, y), (y, x))
+@frule(R×R → R, /(x, y), (inv(y), -(x / y / y)))
+@frule(R×R → R, \(x, y), (-(y / x / x), inv(x)))
+
 # manually optimized `frule`s
 
-frule(::@domain({R → R}), ::typeof(+), x) = (x, ẋ -> ifelse(ẋ === nothing, false, ẋ))
-frule(::@domain({R → R}), ::typeof(-), x) = (x, ẋ -> ifelse(ẋ === nothing, false, -ẋ))
+frule(::@domain({R → R}), ::typeof(transpose), x) = (transpose(x), ẋ -> ifelse(ẋ === nothing, false, ẋ))
+frule(::@domain({R → R}), ::typeof(abs), x) = (abs(x), ẋ -> ifelse(ẋ === nothing, false, signbit(x) ? ẋ : -ẋ))
+frule(::@domain({R → R}), ::typeof(+), x) = (+(x), ẋ -> ifelse(ẋ === nothing, false, ẋ))
+frule(::@domain({R → R}), ::typeof(-), x) = (-(x), ẋ -> ifelse(ẋ === nothing, false, -ẋ))
 frule(::@domain({R → R}), ::typeof(inv), x) = (u = inv(x); (u, ẋ -> fchain(ẋ, @thunk(-abs2(u)))))
 frule(::@domain({R → R}), ::typeof(sqrt), x) = (u = sqrt(x); (u, ẋ -> fchain(ẋ, @thunk(inv(2 * u)))))
 frule(::@domain({R → R}), ::typeof(cbrt), x) = (u = cbrt(x); (u, ẋ -> fchain(ẋ, @thunk(inv(3 * u^2)))))
@@ -285,6 +305,39 @@ function frule(::@domain({R → R×R}), ::typeof(sincos), x)
     return (sinx, cosx),
            (ẋ -> fchain(ẋ, @thunk(cosx)),
             ẋ -> fchain(ẋ, @thunk(-sinx)))
+end
+
+function frule(::@domain({R×R → R}), ::typeof(^), x, y)
+    z = x^y
+    return z, (ẋ, ẏ) -> fchain(ẋ, @thunk(y * x^(y - 1)), ẏ, @thunk(z * log(x)))
+end
+
+function frule(::@domain({R×R → R}), ::typeof(mod), x, y)
+    return mod(x, y), (ẋ, ẏ) -> begin
+        z, nan = promote(x / y, NaN16)
+        return fchain(ẋ, @thunk(ifelse(isint, nan, one(z))),
+                      ẏ, @thunk(ifelse(isint, nan, -floor(z))))
+    end
+end
+
+function frule(::@domain({R×R → R}), ::typeof(rem), x, y)
+    return rem(x, y), (ẋ, ẏ) -> begin
+        z, nan = promote(x / y, NaN16)
+        return fchain(ẋ, @thunk(ifelse(isint, nan, one(z))),
+                      ẏ, @thunk(ifelse(isint, nan, -trunc(z))))
+    end
+end
+
+function frule(::@domain({R×_ → R}), ::typeof(rem2pi), x, r)
+    return rem2pi(x, r), ẋ -> ifelse(ẋ === nothing, false, ẋ)
+end
+
+function frule(::@domain({R×R → R}), ::typeof(max), x, y)
+    return max(x, y), (ẋ, ẏ) -> (gt = x > y; fchain(ẋ, @thunk(gt), ẏ, @thunk(!gt)))
+end
+
+function frule(::@domain({R×R → R}), ::typeof(min), x, y)
+    return min(x, y), (ẋ, ẏ) -> (gt = x > y; fchain(ẋ, @thunk(!gt), ẏ, @thunk(gt)))
 end
 
 frule(::@domain({C → C}), ::typeof(conj), x) = conj(x), ẋ -> (false, true)
