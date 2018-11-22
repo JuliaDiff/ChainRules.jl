@@ -57,19 +57,19 @@ end
 
 function rrule(d::@domain({R → R}), f, x)
     fx, df = frule(d, f, x)
-    return fx, (x̄, z̄) -> rchain!(x̄, @thunk(df(z̄)))
+    return fx, (x̄, z̄) -> rchain(x̄, @thunk(df(z̄)))
 end
 
 function rrule(d::@domain({R×R → R}), f, x, y)
     fxy, df = frule(d, f, x, y)
     return fxy,
-           ((x̄, z̄) -> rchain!(x̄, @thunk(df(z̄, nothing))),
-            (ȳ, z̄) -> rchain!(ȳ, @thunk(df(nothing, z̄))))
+           ((x̄, z̄) -> rchain(x̄, @thunk(df(z̄, nothing))),
+            (ȳ, z̄) -> rchain(ȳ, @thunk(df(nothing, z̄))))
 end
 
 function rrule(d::Union{@domain({R×_ → R}), @domain({_×R → R})}, f, x, y)
     fxy, df = frule(d, f, x, y)
-    return fxy, (ā, z̄) -> rchain!(ā, @thunk(df(z̄)))
+    return fxy, (ā, z̄) -> rchain(ā, @thunk(df(z̄)))
 end
 
 #####
@@ -145,15 +145,15 @@ Examples:
 `@rrule(R → R, sum(x), ȳ, ȳ)` expands to:
 
     function rrule(::@domain({R → R}), ::typeof(sum), x)
-        return sum(x), (x̄, ȳ) -> rchain!(x̄, @thunk(ȳ))
+        return sum(x), (x̄, ȳ) -> rchain(x̄, @thunk(ȳ))
     end
 
 `@rrule(R×R → R, *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
 
     function rrule(::@domain({R×R → R}), ::typeof(*), x, y)
         return x * y,
-               ((x̄, z̄) -> rchain!(x̄, @thunk(z̄ * y')),
-                (ȳ, z̄) -> rchain!(ȳ, @thunk(x' * z̄)))
+               ((x̄, z̄) -> rchain(x̄, @thunk(z̄ * y')),
+                (ȳ, z̄) -> rchain(ȳ, @thunk(x' * z̄)))
     end
 """
 macro rrule(signature, call, adjoint_names, derivs...)
@@ -192,7 +192,7 @@ function generate_rule_definition(signature, call,
         adjoint_names = map(esc, adjoint_names)
         for i in 1:length(derivs)
             seed_name = seed_names[i]
-            chain_call = Expr(:call, :rchain!)
+            chain_call = Expr(:call, :rchain)
             push!(chain_call.args, seed_name)
             push!(chain_call.args, :(@thunk($(esc(derivs[i])))))
             push!(chains, :($(Expr(:tuple, seed_name, adjoint_names...)) -> $chain_call))
@@ -362,5 +362,5 @@ function rrule(::@domain({_×R → R}), ::typeof(broadcast), f, x)
     applied_f_rule = broadcast(f_rule, x)
     values = map(first, applied_f_rule)
     derivs = map(last, applied_f_rule)
-    return values, (x̄, z̄) -> rchain!(x̄, @thunk(broadcasted(*, z̄, derivs)))
+    return values, (x̄, z̄) -> rchain(x̄, @thunk(broadcasted(*, z̄, derivs)))
 end

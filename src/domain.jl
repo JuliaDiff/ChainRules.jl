@@ -33,11 +33,14 @@ _domain(x) = domain(x)
 domain(::Any) = IgnoreDomain()
 domain(::Real) = RealDomain()
 domain(::Complex) = ComplexDomain()
-domain(x::Tuple{Vararg{<:Real}}) = RealDomain()
-domain(x::Tuple{Vararg{<:Complex}}) = ComplexDomain()
 domain(x::AbstractArray{<:Real}) = RealDomain()
 domain(x::AbstractArray{<:Complex}) = ComplexDomain()
 domain(x::AbstractArray) = error("Cannot infer domain of this array from its eltype: ", x)
+
+# TODO: Should `DomainSignature` be changed to support destructured tuple
+# elements, e.g. `@domain({R×(R×C×(R...))×(R...) → R})`?
+domain(x::Tuple{Vararg{<:Real}}) = RealDomain()
+domain(x::Tuple{Vararg{<:Complex}}) = ComplexDomain()
 
 #####
 ##### `@domain`

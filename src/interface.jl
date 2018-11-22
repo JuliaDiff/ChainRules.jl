@@ -13,35 +13,70 @@ end
 @inline (thunk::Thunk{F})() where {F} = (thunk.f)()
 
 #####
-##### `fchain`
+##### `Seed`
 #####
 
-fchain(args...) = materialize(_fchain(args...))
+struct Seed{V}
+    value::V
+    use_as_storage::Bool
+    dont_materialize::Bool
+    has_single_dependent::Bool
+end
 
-@inline _fchain(ẋ::Nothing, ∂::Thunk) = false
-@inline _fchain(ẋ, ∂::Thunk) = broadcasted(*, ẋ, ∂())
-_fchain(ẋ, ∂::Thunk, args...) = broadcasted(+, _fchain(ẋ, ∂), _fchain(args...))
+function Seed(value;
+              use_as_storage::Bool = false,
+              dont_materialize::Bool = false,
+              has_single_dependent::Bool = false)
+    return Seed(value, use_as_storage, dont_materialize, has_single_dependent)
+end
 
-#####
-##### `rchain!`
-#####
+materialize_via_seed(::Nothing, partial) = materialize(partial)
 
-@inline rchain!(x̄::Nothing, ∂::Thunk) = false
-
-@inline function rchain!(x̄, ∂::Thunk)
-    thunk = ∂()
-    x̄_value = adjoint_value(x̄)
-    casted = should_increment_adjoint(x̄) ? broadcasted(+, x̄_value, thunk) : thunk
-    if should_materialize_adjoint_in_place(x̄)
-        return materialize!(x̄_value, casted)
+function materialize_via_seed(seed::Seed, partial)
+    if seed.dont_materialize
+        return partial
     else
-        return materialize(casted)
+        if seed.use_as_result_storage
+            return materialize!(seed.value, partial)
+        else
+            return materialize(partial)
+        end
     end
 end
 
-adjoint_value(x̄) = x̄
+#####
+##### `fchain`
+#####
 
-should_increment_adjoint(::Any) = true
+function fchain(args...)
+    seed, partial = _fchain(nothing, args...)
+    return materialize_via_seed(seed, partial)
+end
 
-should_materialize_adjoint_in_place(::Any) = false
-should_materialize_adjoint_in_place(::Array) = true
+@inline _fchain(seed, ẋ::Nothing, ∂::Thunk) = (seed, false)
+@inline _fchain(seed::Nothing, ẋ::Seed, ∂::Thunk) = (ẋ, broadcasted(*, ẋ.value, ∂()))
+
+@inline function _fchain(seed::Seed, ẋ::Seed, ∂::Thunk)
+    error("`fchain` does not support multiple simultaneous `Seed` arguments")
+end
+
+@inline function _fchain(seed, ẋ, ∂::Thunk, args...)
+    seed, partial = _fchain(seed, ẋ, ∂)
+    return broadcasted(+, partial, _fchain(seed, args...))
+end
+
+#####
+##### `rchain`
+#####
+
+@inline rchain(x̄::Nothing, ∂::Thunk) = false
+
+rchain(x̄::Seed, ∂::Thunk) = _rchain(x̄, x̄.value, ∂())
+rchain(x̄, ∂::Thunk) = _rchain(nothing, x̄, ∂())
+
+function _rchain(seed, x̄, partial)
+    if isa(seed, Seed) && seed.has_single_dependent
+        return materialize_via_seed(seed, partial)
+    end
+    return materialize_via_seed(seed, broadcasted(+, x̄, partial))
+end
