@@ -18,29 +18,29 @@ end
 
 struct Seed{V}
     value::V
-    use_as_storage::Bool
-    dont_materialize::Bool
-    has_single_dependent::Bool
+    store_into::Bool
+    increment_adjoint::Bool
+    materialize::Bool
 end
 
 function Seed(value;
-              use_as_storage::Bool = false,
-              dont_materialize::Bool = false,
-              has_single_dependent::Bool = false)
-    return Seed(value, use_as_storage, dont_materialize, has_single_dependent)
+              store_into::Bool = false,
+              increment_adjoint::Bool = true,
+              materialize::Bool = true)
+    return Seed(value, store_into, increment_adjoint, materialize)
 end
 
 materialize_via_seed(::Nothing, partial) = materialize(partial)
 
 function materialize_via_seed(seed::Seed, partial)
-    if seed.dont_materialize
-        return partial
-    else
-        if seed.use_as_result_storage
+    if seed.materialize
+        if seed.store_into
             return materialize!(seed.value, partial)
         else
             return materialize(partial)
         end
+    else
+        return partial
     end
 end
 
@@ -53,6 +53,7 @@ function fchain(args...)
     return materialize_via_seed(seed, partial)
 end
 
+@inline _fchain(seed, ẋ, ∂::Thunk) = (seed, broadcasted(*, ẋ, ∂()))
 @inline _fchain(seed, ẋ::Nothing, ∂::Thunk) = (seed, false)
 @inline _fchain(seed::Nothing, ẋ::Seed, ∂::Thunk) = (ẋ, broadcasted(*, ẋ.value, ∂()))
 
@@ -75,8 +76,8 @@ rchain(x̄::Seed, ∂::Thunk) = _rchain(x̄, x̄.value, ∂())
 rchain(x̄, ∂::Thunk) = _rchain(nothing, x̄, ∂())
 
 function _rchain(seed, x̄, partial)
-    if isa(seed, Seed) && seed.has_single_dependent
-        return materialize_via_seed(seed, partial)
+    if !isa(seed, Seed) || seed.increment_adjoint
+        partial = broadcasted(+, x̄, partial)
     end
-    return materialize_via_seed(seed, broadcasted(+, x̄, partial))
+    return materialize_via_seed(seed, partial)
 end
