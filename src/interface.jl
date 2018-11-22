@@ -13,22 +13,22 @@ end
 @inline (thunk::Thunk{F})() where {F} = (thunk.f)()
 
 #####
-##### `forward_chain`
+##### `fchain`
 #####
 
-forward_chain(args...) = materialize(_forward_chain(args...))
+fchain(args...) = materialize(_fchain(args...))
 
-@inline _forward_chain(ẋ::Nothing, ∂::Thunk) = false
-@inline _forward_chain(ẋ, ∂::Thunk) = broadcasted(*, ẋ, ∂())
-_forward_chain(ẋ, ∂::Thunk, args...) = broadcasted(+, _forward_chain(ẋ, ∂), _forward_chain(args...))
+@inline _fchain(ẋ::Nothing, ∂::Thunk) = false
+@inline _fchain(ẋ, ∂::Thunk) = broadcasted(*, ẋ, ∂())
+_fchain(ẋ, ∂::Thunk, args...) = broadcasted(+, _fchain(ẋ, ∂), _fchain(args...))
 
 #####
-##### `reverse_chain!`
+##### `rchain!`
 #####
 
-@inline reverse_chain!(x̄::Nothing, ∂::Thunk) = false
+@inline rchain!(x̄::Nothing, ∂::Thunk) = false
 
-@inline function reverse_chain!(x̄, ∂::Thunk)
+@inline function rchain!(x̄, ∂::Thunk)
     thunk = ∂()
     x̄_value = adjoint_value(x̄)
     casted = should_increment_adjoint(x̄) ? broadcasted(+, x̄_value, thunk) : thunk
