@@ -34,190 +34,153 @@ Cassette.@context MyChainRuleCtx
 my_frule(args...) = Cassette.overdub(MyChainRuleCtx(), frule, args...)
 
 function Cassette.execute(::MyChainRuleCtx, ::typeof(frule)
-                          ::@domain({R → R}), f, x::Number)
-    fx, df = frule(@domain(R → R), f, x)
-    if isa(df, Nothing)
-        fx, df = (f(x), ẋ -> ẋ .* ForwardDiff.derivative(f, x))
+                          f, x::Number)
+    r = frule(f, x)
+    if isa(r, Nothing)
+        fx, df = (f(x), @chain(ForwardDiff.derivative(f, x)))
+    else
+        fx, df = r
     end
     return fx, df
 end
 ```
 =#
 
-frule(::DomainSignature, ::Vararg{Any}) = (nothing, nothing)
+frule(::Any, ::Vararg{Any}) = nothing
 
-rrule(::DomainSignature, ::Vararg{Any}) = (nothing, nothing)
-
-#####
-##### fallbacks
-#####
-
-# TODO: Should the default be to whitelist known holomorphic functions, or to
-# blacklist known non-holomorphic functions? This implements the latter.
-function frule(::@domain({C → C}), f, x)
-    fx, df = frule(@domain(R → R), f, x)
-    return fx, ẋ -> (df(ẋ), false)
-end
-
-function rrule(d::@domain({R → R}), f, x)
-    fx, df = frule(d, f, x)
-    return fx, (x̄, z̄) -> rchain(x̄, @thunk(df(z̄)))
-end
-
-function rrule(d::@domain({R×R → R}), f, x, y)
-    fxy, df = frule(d, f, x, y)
-    return fxy,
-           ((x̄, z̄) -> rchain(x̄, @thunk(df(z̄, nothing))),
-            (ȳ, z̄) -> rchain(ȳ, @thunk(df(nothing, z̄))))
-end
-
-function rrule(d::Union{@domain({R×_ → R}), @domain({_×R → R})}, f, x, y)
-    fxy, df = frule(d, f, x, y)
-    return fxy, (ā, z̄) -> rchain(ā, @thunk(df(z̄)))
-end
+rrule(::Any, ::Vararg{Any}) = nothing
 
 #####
 ##### macros
 #####
 
 """
-    @frule(signature, f(x, y, ...),
-                  (df₁_dx, df₁_dy, ...),
-                  (df₂_dx, df₂_dy, ...),
+    @rule(f(x₁, x₂, ...),
+          @setup(statement₁, statement₂, ...),
+          (df₁_dx₁, df₁_dx₂, ...),
+          (df₂_dx₁, df₂_dx₂, ...),
+          ...)
+
+Define the corresponding methods for `frule` and `rrule`:
+
+   function ChainRules.frule(::typeof(f), x₁, x₂, ...)
+       Ω = f(x₁, x₂, ...)
+       \$(statement₁, statement₂, ...)
+       return Ω, (@chain(df₁_dx₁, df₁_dx₂, ...),
+                  @chain(df₂_dx₁, df₂_dx₂, ...),
                   ...)
+   end
 
-Define a method for `frule` using the given domain signature, call
-expression, and derivative expressions.
+   function ChainRules.rrule(::typeof(f), x₁, x₂, ...)
+       Ω = f(x₁, x₂, ...)
+       \$(statement₁, statement₂, ...)
+       return Ω, (@chain(adjoint(df₁_dx₁), adjoint(df₂_dx₁), ...),
+                  @chain(adjoint(df₁_dx₂), adjoint(df₂_dx₂), ...),
+                  ...)
+   end
 
-While this macro is convenient for avoiding boilerplate code when implementing
-simple forward rules, note that more advanced rules will probably require
-overloading `ChainRules.frule` directly. For now, the macro only
-supports real-domain rules.
+Note that the result of `f(x₁, x₂, ...)` is automatically bound to `Ω`. This
+allows the primal result to be conveniently referenced (as `Ω`) within the
+derivative/setup expressions.
 
-Examples:
+Note that the `@setup` argument can be elided if no setup code is need. In other
+words:
 
-`@frule(R → R, sin(x), cos(x))` expands to:
+    @rule(f(x₁, x₂, ...),
+          (df₁_dx₁, df₁_dx₂, ...),
+          (df₂_dx₁, df₂_dx₂, ...),
+          ...)
 
-    function frule(::@domain({R → R}), ::typeof(sin), x)
-        return sin(x), ẋ -> fchain(ẋ, @thunk(cos(x)))
-    end
+is equivalent to:
 
-`@frule(R×R → R, *(x, y), (y, x))` expands to:
+    @rule(f(x₁, x₂, ...),
+          @setup(nothing),
+          (df₁_dx₁, df₁_dx₂, ...),
+          (df₂_dx₁, df₂_dx₂, ...),
+          ...)
 
-    function frule(::@domain({R×R → R}), ::typeof(*), x, y)
-        return *(x, y), (ẋ, ẏ) -> fchain(ẋ, @thunk(y), ẏ, @thunk(x))
-    end
+While `@rule` is convenient for avoiding boilerplate code for simple forward or
+reverse rules, note that more advanced rules will probably require overloading
+`ChainRules.frule` or `ChainRules.rrule`  directly.
 
-`@frule(R → R×R, sincos(x), cos(x), -sin(x))` expands to:
-
-    function frule(::@domain({R → R×R}), ::typeof(sincos), x)
-        return sincos(x),
-               (ẋ -> fchain(ẋ, @thunk(cos(x))),
-                ẋ -> fchain(ẋ, @thunk(-sin(x))))
-    end
-
-Note that this last case is a good example of a primitive that is more
-efficiently implemented with a manual `frule` overload:
-
-    function frule(::@domain({R → R×R}), ::typeof(sincos), x)
-        sinx, cosx = sincos(x)
-        return (sinx, cosx),
-               (ẋ -> fchain(ẋ, @thunk(cosx)),
-                ẋ -> fchain(ẋ, @thunk(-sinx)))
-    end
+For examples, see the ChainRules' `rules` directory.
 """
-macro frule(signature, call, derivs...)
-    return generate_rule_definition(signature, call, nothing, derivs...)
-end
-
-"""
-    @rrule(signature, f(x, y, ...), (f̄₁, f̄₂, ...), df_dx, df_dy, ...)
-
-Define a method for `rrule` using the given domain signature, call
-expression, and derivative expressions.
-
-The third argument to the macro is a tuple of symbols naming the adjoints of the
-outputs of `f(x, y, ...)` (or just a single symbol if there is only one output).
-
-While this macro is convenient for avoiding boilerplate code when implementing
-simple reverse rules, note that more advanced rules will probably require
-overloading `ChainRules.rrule` directly. For now, this macro only
-supports real-domain rules.
-
-Examples:
-
-`@rrule(R → R, sum(x), ȳ, ȳ)` expands to:
-
-    function rrule(::@domain({R → R}), ::typeof(sum), x)
-        return sum(x), (x̄, ȳ) -> rchain(x̄, @thunk(ȳ))
+macro rule(call, maybe_setup, partials...)
+    if Meta.isexpr(maybe_setup, :macrocall) && maybe_setup.args[1] == Symbol("@setup")
+        setup_stmts = map(esc, maybe_setup.args[3:end])
+    else
+        setup_stmts = (nothing,)
+        partials = (maybe_setup, partials...)
     end
-
-`@rrule(R×R → R, *(x, y), z̄, z̄ * y', x' * z̄)` expands to:
-
-    function rrule(::@domain({R×R → R}), ::typeof(*), x, y)
-        return x * y,
-               ((x̄, z̄) -> rchain(x̄, @thunk(z̄ * y')),
-                (ȳ, z̄) -> rchain(ȳ, @thunk(x' * z̄)))
-    end
-"""
-macro rrule(signature, call, adjoint_names, derivs...)
-    if Meta.isexpr(adjoint_names, :tuple)
-        adjoint_names = convert(Vector{Symbol}, adjoint_names.args)
-    elseif isa(adjoint_names, Symbol)
-        adjoint_names = Symbol[adjoint_names]
-    end
-    return generate_rule_definition(signature, call, adjoint_names, derivs...)
-end
-
-# TODO: Expand this beyond real-domain rules by parsing signature ahead of time
-function generate_rule_definition(signature, call,
-                                  adjoint_names::Union{Nothing,Vector{Symbol}},
-                                  derivs...)
     @assert Meta.isexpr(call, :call)
-    call_function = esc(call.args[1])
-    call_args = map(esc, call.args[2:end])
-    seed_names = Any[Symbol(string(:seed_, i)) for i in 1:length(call_args)]
-    chains = Any[]
-    if isa(adjoint_names, Nothing) # we're doing forward mode
-        for deriv in derivs
-            thunkables = Meta.isexpr(deriv, :tuple) ? deriv.args : [deriv]
-            thunks = [:(@thunk($(esc(t)))) for t in thunkables]
-            @assert length(thunks) == length(call_args)
-            chain_call = Expr(:call, :fchain)
-            for i in 1:length(thunks)
-                push!(chain_call.args, seed_names[i])
-                push!(chain_call.args, thunks[i])
-            end
-            push!(chains, :($(Expr(:tuple, seed_names...)) -> $chain_call))
+    f, inputs = esc(call.args[1]), esc.(call.args[2:end])
+    if all(Meta.isexpr(partial, :tuple) for partial in partials)
+        escaped_partials = Any[map(esc, partial.args) for partial in partials]
+        forward_chains = Any[:(@chain($(partial...))) for partial in escaped_partials]
+        reverse_chains = Any[]
+        for i in 1:length(inputs)
+            adjoint_partials = [:(adjoint($(partial[i]))) for partial in escaped_partials]
+            push!(reverse_chains, :(@chain($(adjoint_partials...))))
         end
-    else # we're doing reverse mode
-        @assert length(derivs) == length(call_args)
-        @assert length(adjoint_names) > 0
-        adjoint_names = map(esc, adjoint_names)
-        for i in 1:length(derivs)
-            seed_name = seed_names[i]
-            chain_call = Expr(:call, :rchain)
-            push!(chain_call.args, seed_name)
-            push!(chain_call.args, :(@thunk($(esc(derivs[i])))))
-            push!(chains, :($(Expr(:tuple, seed_name, adjoint_names...)) -> $chain_call))
-        end
+    else
+        @assert length(inputs) == 1 && all(!Meta.isexpr(partial, :tuple) for partial in partials)
+        escaped_partials = map(esc, partials)
+        forward_chains = Any[:(@chain($partial)) for partial in escaped_partials]
+        adjoint_partials = Any[:(adjoint($partial)) for partial in escaped_partials]
+        reverse_chains = Any[:(@chain($(adjoint_partials...)))]
     end
-    @assert length(chains) > 0
-    chains = length(chains) > 1 ? Expr(:tuple, chains...) : chains[1]
-    rule_function = isa(adjoint_names, Nothing) ? :frule : :rrule
-    if Meta.isexpr(signature, :braces)
-        error("domain signature for `@frule`/`@rrule` should NOT be wrapped in {}")
-    end
-    signature = Expr(:braces, signature)
+    forward_chains = length(forward_chains) == 1 ? forward_chains[1] : Expr(:tuple, forward_chains...)
+    reverse_chains = length(reverse_chains) == 1 ? reverse_chains[1] : Expr(:tuple, reverse_chains...)
     return quote
-        @assert(@domain($signature) <: DomainSignature{<:Tuple{Vararg{Union{RealDomain, IgnoreDomain}}},
-                                                       <:Tuple{Vararg{Union{RealDomain, IgnoreDomain}}}},
-                "@frule and @rrule only support real-domain rules right now")
-        function $ChainRules.$rule_function(::@domain($signature),
-                                            ::typeof($call_function),
-                                            $(call_args...))
-            outputs = $(esc(call))
-            return outputs, $chains
+        function ChainRules.frule(::typeof($f), $(inputs...))
+            $(esc(:Ω)) = $call
+            $(setup_stmts...)
+            return $(esc(:Ω)), $forward_chains
+        end
+        function ChainRules.rrule(::typeof($f), $(inputs...))
+            $(esc(:Ω)) = $call
+            $(setup_stmts...)
+            return $(esc(:Ω)), $reverse_chains
         end
     end
+end
+
+#####
+##### forward-mode --> reverse-mode rule transformation
+#####
+#=
+TODO: expand implementation to arbitrary input/output arity
+
+TODO: implement reverse-mode --> forward-mode rule transformation
+
+TODO: This code isn't actually used anywhere, but could be nice for tests/examples
+=#
+
+function reverse_from_forward(f, args...)
+    result = frule(f, args...)
+    isa(result, Nothing) && return nothing
+    f, df_f = result
+    df_r = _reverse_from_forward(args, df_f)
+    isa(df_r, Nothing) && return nothing
+    return f, df_r
+end
+
+_reverse_from_forward(::Any, ::Any) = nothing
+
+_reverse_from_forward(::NTuple{1, Any}, df) = (x̄, z̄) -> add(x̄, df(Zero(), z̄')')
+
+function _reverse_from_forward(::NTuple{2, Any}, df)
+    return (x̄, z̄) -> add(x̄, df(Zero(), z̄', Zero())'),
+           (ȳ, z̄) -> add(ȳ, df(Zero(), Zero(), z̄')')
+end
+
+function _reverse_from_forward(::NTuple{1, Any}, df::NTuple{2})
+    df₁, df₂ = df
+    return (x̄, z̄₁, z̄₂) -> add(x̄, df₁(Zero(), z̄₁')', df₂(Zero(), z̄₂')')
+end
+
+function _reverse_from_forward(::NTuple{2, Any}, df::NTuple{2})
+    df₁, df₂ = df
+    return (x̄, z̄₁, z̄₂) -> add(x̄, df₁(Zero(), z̄₁', Zero())', df₂(Zero(), z̄₂', Zero())')
+           (ȳ, z̄₁, z̄₂) -> add(ȳ, df₁(Zero(), Zero(), z̄₁')', df₂(Zero(), Zero(), z̄₂')')
 end
