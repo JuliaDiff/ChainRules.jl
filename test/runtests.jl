@@ -1,39 +1,40 @@
 # TODO: more tests!
 
 using ChainRules, Test
-using ChainRules: rrule, @domain, Seed
-
-function test_adjoint!(x̄, dx, ȳ, partial)
-    x̄_old = copy(x̄)
-
-    @test all(dx(x̄, ȳ) .== x̄ .+ partial)
-    @test x̄ == x̄_old
-    @test dx(Seed(x̄; store_into = true), ȳ) === x̄
-    @test x̄ == x̄_old .+ partial
-
-    copyto!(x̄, x̄_old)
-
-    s = Seed(x̄; increment_adjoint = false)
-    @test all(dx(s, ȳ) .== partial)
-    @test x̄ == x̄_old
-    s = Seed(x̄; store_into = true, increment_adjoint = false)
-    @test dx(s, ȳ) === x̄
-    @test all(x̄ .== partial)
-end
+using ChainRules: One, Zero, Bundle, MaterializeInto, rrule, frule, materialize, unbundle
 
 #####
 ##### `*(x, y)`
 #####
 
+function test_adjoint!(x̄, dx, ȳ, partial)
+    x̄_old = copy(x̄)
+    x̄_zeros = zero.(x̄)
+
+    @test unbundle(materialize(dx(Zero(), ȳ))) == unbundle(materialize(dx(x̄_zeros, ȳ)))
+    @test unbundle(materialize(dx(x̄, ȳ))) == (x̄ .+ partial)
+    @test x̄ == x̄_old
+
+    dx(MaterializeInto(x̄), ȳ)
+    @test x̄ == (x̄_old .+ partial)
+    x̄ .= x̄_old
+
+    dx(MaterializeInto(x̄, false), ȳ)
+    @test x̄ == partial
+    x̄ .= x̄_old
+
+    return nothing
+end
+
 x, y = rand(3, 2), rand(2, 5)
-z, (dx, dy) = rrule(@domain(R×R → R), *, x, y)
+z, (dx, dy) = rrule(*, x, y)
 
 @test z == x * y
 
 z̄ = rand(3, 5)
 
-@test dx(nothing, z̄) == false
-@test dy(nothing, z̄) == false
+@test dx(Zero(), z̄) == materialize(dx(zeros(3, 2), z̄))
+@test dy(Zero(), z̄) == materialize(dy(zeros(2, 5), z̄))
 
 test_adjoint!(rand(3, 2), dx, z̄, z̄ * y')
 test_adjoint!(rand(2, 5), dy, z̄, x' * z̄)
@@ -43,20 +44,31 @@ test_adjoint!(rand(2, 5), dy, z̄, x' * z̄)
 #####
 
 x = rand(3, 3)
-fx, dx = rrule(@domain(_×R → R), broadcast, sin, x)
+y, (dsin, dx) = rrule(broadcast, sin, x)
 
-@test fx == sin.(x)
-@test dx(false, true) == cos.(x)
+@test y == sin.(x)
+@test unbundle(materialize(dx(Zero(), One()))) == cos.(x)
 
-for (x̄, ȳ) in [(false, true),
-               (rand(), rand()),
-               (rand(), rand(3, 3)),
-               (rand(), rand(3))]
-    @test dx(x̄, ȳ) == x̄ .+ ȳ .* cos.(x)
-end
+x̄, ȳ = rand(), rand()
+@test unbundle(materialize(dx(x̄, ȳ))) == x̄ .+ ȳ .* cos.(x)
 
-for (x̄, ȳ) in [(rand(3, 3), rand()),
-               (rand(3, 3), rand(3, 3)),
-               (rand(3, 3), rand(3))]
-    test_adjoint!(x̄, dx, ȳ, ȳ .* cos.(x))
-end
+x̄, ȳ = Zero(), rand(3, 3)
+@test unbundle(materialize(dx(x̄, ȳ))) == ȳ .* cos.(x)
+
+x̄, ȳ = Zero(), Bundle(rand(3, 3))
+@test unbundle(materialize(dx(x̄, ȳ))) == unbundle(ȳ) .* cos.(x)
+
+#####
+##### `hypot(x, y)`
+#####
+
+x, y = rand(2)
+h, dxy = frule(hypot, x, y)
+
+@test materialize(dxy(Zero(), One(), Zero())) === y / h
+@test materialize(dxy(Zero(), Zero(), One())) === x / h
+
+bx, by = Bundle((One(), Zero())), Bundle((Zero(), One()))
+dx, dy = unbundle(materialize(dxy(Zero(), bx, by)))
+@test dx === y / h
+@test dy === x / h
