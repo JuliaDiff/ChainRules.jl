@@ -2,7 +2,7 @@
 ##### unit-stride `@rule`s
 #####
 
-@rule(BLAS.dot(x, y), (y, x))
+@rule(BLAS.dot(x, y), (Bundle(y), Bundle(x)))
 @rule(BLAS.nrm2(x), x * inv(Ω))
 @rule(BLAS.asum(x), Bundle(broadcasted(sign, x)))
 
