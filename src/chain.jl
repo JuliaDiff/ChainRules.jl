@@ -61,12 +61,11 @@ Base.Broadcast.materialize(::Zero) = false
 # TODO: How should we really handle this? This is correct w.r.t. propagator
 # algebra; even if an actual new type `DNE <: AbstractChainable` was defined,
 # all the rules would be the same. Furthermore, users wouldn't be able to detect
-# many differences, since `DNE` would often "normalize" to `Zero` anyway (e.g.
-# due to `mul` operations). Thus, it seems like a derivative's `DNE`-ness should
-# be exposed to users in a way that's just unrelated to the chain rule algebra.
-# Conversely, we want to minimize the amount of special-casing needed for users
-# writing higher-level rule definitions/fallbacks, or else things will get
-# unwieldy...
+# many differences, since `DNE` must materialize to `materialize(Zero())`. Thus,
+# it seems like a derivative's `DNE`-ness should be exposed to users in a way
+# that's just unrelated to the chain rule algebra. Conversely, we want to
+# minimize the amount of special-casing needed for users writing higher-level
+# rule definitions/fallbacks, or else things will get unwieldy...
 
 const DNE = Zero
 
