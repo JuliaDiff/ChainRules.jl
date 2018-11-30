@@ -234,6 +234,14 @@ _mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conj))
 
 _mul_fallback(a, b) = a * b
 
+#=
+TODO: add `Custom` propagator support? e.g.
+
+_mul_custom(a::Custom, b::Custom) = error("?")
+_mul_custom(a::Custom, b) = a(b)
+_mul_custom(a, b::Custom) = b(a)
+=#
+
 #####
 ##### `chain`
 #####

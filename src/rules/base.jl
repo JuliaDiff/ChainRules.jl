@@ -41,7 +41,7 @@
 @rule(conj(x), Wirtinger(Zero(), One()))
 @rule(adjoint(x), Wirtinger(Zero(), One()))
 @rule(transpose(x), One())
-@rule(abs(x), ifelse(signbit(x), One(), -one(x)))
+@rule(abs(x), sign(x))
 @rule(rem2pi(x, r), (One(), Zero()))
 @rule(sum(x), One())
 @rule(+(x), One())
