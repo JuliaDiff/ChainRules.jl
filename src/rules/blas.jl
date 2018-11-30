@@ -19,9 +19,9 @@ end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    return Ω, (@chain(Zero()),
+    return Ω, (@chain(DNE()),
                (X̄, Ω̄) -> add(X̄, nrm2_X_adjoint(Ω̄, Ω, n, X, incx)),
-               @chain(Zero()))
+               @chain(DNE()))
 end
 
 function asum_X_adjoint(Ω̄, Ω, n, X, incx)
@@ -33,9 +33,9 @@ end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
-    return Ω, (@chain(Zero()),
+    return Ω, (@chain(DNE()),
                (X̄, Ω̄) -> add(X̄, asum_X_adjoint(Ω̄, Ω, n, X, incx)),
-               @chain(Zero()))
+               @chain(DNE()))
 end
 
 #####

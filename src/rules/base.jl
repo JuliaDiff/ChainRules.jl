@@ -42,7 +42,7 @@
 @rule(adjoint(x), Wirtinger(Zero(), One()))
 @rule(transpose(x), One())
 @rule(abs(x), sign(x))
-@rule(rem2pi(x, r), (One(), Zero()))
+@rule(rem2pi(x, r), (One(), DNE()))
 @rule(sum(x), One())
 @rule(+(x), One())
 @rule(+(x, y), (One(), One()))
@@ -110,10 +110,10 @@ end
 
 function frule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, @chain(Zero(), Bundle(derivs))
+    return values, @chain(DNE(), Bundle(derivs))
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (@chain(Zero()), @chain(adjoint(Bundle(derivs))))
+    return values, (@chain(DNE()), @chain(adjoint(Bundle(derivs))))
 end
