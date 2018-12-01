@@ -2,9 +2,9 @@
 ##### unit-stride `@rule`s
 #####
 
-@rule(BLAS.dot(x, y), (Bundle(y), Bundle(x)))
+@rule(BLAS.dot(x, y), (Cast(y), Cast(x)))
 @rule(BLAS.nrm2(x), x * inv(Ω))
-@rule(BLAS.asum(x), Bundle(broadcasted(sign, x)))
+@rule(BLAS.asum(x), Cast(broadcasted(sign, x)))
 
 #####
 ##### arbitrary-stride rules

@@ -119,14 +119,14 @@ macro rule(call, maybe_setup, partials...)
         forward_chains = Any[:(@chain($(partial...))) for partial in escaped_partials]
         reverse_chains = Any[]
         for i in 1:length(inputs)
-            adjoint_partials = [:(adjoint($(partial[i]))) for partial in escaped_partials]
+            adjoint_partials = [:(_adjoint($(partial[i]))) for partial in escaped_partials]
             push!(reverse_chains, :(@chain($(adjoint_partials...))))
         end
     else
         @assert length(inputs) == 1 && all(!Meta.isexpr(partial, :tuple) for partial in partials)
         escaped_partials = map(esc, partials)
         forward_chains = Any[:(@chain($partial)) for partial in escaped_partials]
-        adjoint_partials = Any[:(adjoint($partial)) for partial in escaped_partials]
+        adjoint_partials = Any[:(_adjoint($partial)) for partial in escaped_partials]
         reverse_chains = Any[:(@chain($(adjoint_partials...)))]
     end
     forward_chains = length(forward_chains) == 1 ? forward_chains[1] : Expr(:tuple, forward_chains...)

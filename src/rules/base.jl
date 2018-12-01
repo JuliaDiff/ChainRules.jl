@@ -80,16 +80,11 @@
 ##### custom rules
 #####
 
-#=
-The product rule requires that `mul` operands be passed in different
-positions than the multivariate chain rule, so we must implement it
-directly.
-=#
+# product rule requires special care for arguments where `mul` is non-commutative
 
 frule(::typeof(*), x, y) = x * y, (ż, ẋ, ẏ) -> add(ż, mul(ẋ, y), mul(x, ẏ))
 
-rrule(::typeof(*), x, y) = x * y, ((x̄, z̄) -> add(x̄, mul(z̄, y')),
-                                   (ȳ, z̄) -> add(ȳ, mul(x', z̄)))
+rrule(::typeof(*), x, y) = x * y, ((x̄, z̄) -> add(x̄, mul(z̄, y')), (ȳ, z̄) -> add(ȳ, mul(x', z̄)))
 
 #=
 TODO: This partial derivative extraction should be doable without the extra
@@ -110,10 +105,10 @@ end
 
 function frule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, @chain(DNE(), Bundle(derivs))
+    return values, @chain(DNE(), Cast(derivs))
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (@chain(DNE()), @chain(adjoint(Bundle(derivs))))
+    return values, (@chain(DNE()), @chain(adjoint(Cast(derivs))))
 end

@@ -1,5 +1,8 @@
 # TODO: turn various comments in this file into docstrings
 
+#####
+##### `AbstractChainable`
+#####
 #=
 This file defines a custom algebra for chain rule evaluation that factors
 complex support, bundle support, zero-elision, etc. into nicely separated
@@ -18,263 +21,46 @@ where `T` has `broadcast`, `+`, and `*` implementations.
 
 A bunch of the operations in this file have kinda monad-y "fallthrough"
 implementations; each step handles an element of the algebra before dispatching
-to the next step. This way, we don't need to implement any extra machinery to
+to the next step. This way, we don't need to implement extra machinery just to
 resolve ambiguities (e.g. a promotion mechanism).
 =#
 
-#####
-##### `AbstractChainable`
-#####
-
 abstract type AbstractChainable end
 
-# `Wirtinger`: The (primal, conjugate) pair specifying a Wirtinger derivative.
+@inline mul(a, b) = mul_zero(a, b)
 
-struct Wirtinger{P, C} <: AbstractChainable
-    primal::P
-    conjugate::C
-end
+@inline mul_zero(a, b) = mul_one(a, b)
+@inline mul_one(a, b) = mul_thunk(a, b)
+@inline mul_thunk(a, b) = mul_wirtinger(a, b)
+@inline mul_wirtinger(a, b) = mul_cast(a, b)
+@inline mul_cast(a, b) = mul_fallback(a, b)
+@inline mul_fallback(a, b) = a * b
 
-# TODO: check this against conjugation rule in notes
-Base.adjoint(w::Wirtinger) = Wirtinger(adjoint(w.primal), adjoint(w.conjugate))
-
-Base.Broadcast.materialize(w::Wirtinger) = Wirtinger(materialize(w.primal), materialize(w.conjugate))
-
-# `One`/`Zero`: Special singleton representations of `1`/`0` enabling static optimizations
-
-struct One <: AbstractChainable end
-
-Base.adjoint(x::One) = x
-
-Base.Broadcast.materialize(::One) = true
-
-struct Zero <: AbstractChainable end
-
-Base.adjoint(x::Zero) = x
-
-Base.Broadcast.materialize(::Zero) = false
-
-# `DNE`: Equivalent to `Zero` for the purposes of propagation (i.e. partial
-# derivatives which don't exist simply do not contribute to a rule's total
-# derivative).
-
-# TODO: How should we really handle this? This is correct w.r.t. propagator
-# algebra; even if an actual new type `DNE <: AbstractChainable` was defined,
-# all the rules would be the same. Furthermore, users wouldn't be able to detect
-# many differences, since `DNE` must materialize to `materialize(Zero())`. Thus,
-# it seems like a derivative's `DNE`-ness should be exposed to users in a way
-# that's just unrelated to the chain rule algebra. Conversely, we want to
-# minimize the amount of special-casing needed for users writing higher-level
-# rule definitions/fallbacks, or else things will get unwieldy...
-
-const DNE = Zero
-
-# `Thunk`: a representation of a delayed computation
-
-struct Thunk{F} <: AbstractChainable
-    f::F
-end
-
-macro thunk(body)
-    return :(Thunk(() -> $(esc(body))))
-end
-
-@inline (thunk::Thunk{F})() where {F} = (thunk.f)()
-
-Base.adjoint(t::Thunk) = @thunk(adjoint(t()))
-
-# Yeah, this is pirated, but it allows callers to skip a cumbersome type-check
-# that would otherwise be needed to `adjoint` elements of the `mul`/`add` chain
-# rule algebra.
-Base.adjoint(b::Base.Broadcast.Broadcasted) = @thunk(adjoint(materialize(b)))
-
-Base.Broadcast.materialize(t::Thunk) = materialize(t())
-
-# `Bundle`: A bundle of tangent/adjoint seeds for "vector-mode" propagation
-
-struct Bundle{P} <: AbstractChainable
-    partials::P
-end
-
-Base.adjoint(b::Bundle) = Bundle(broadcasted(adjoint, b.partials))
-
-Base.Broadcast.materialize(b::Bundle) = Bundle(materialize(b.partials))
-
-unbundle(x::Bundle) = x.partials
-unbundle(x) = x
-
-#####
-##### `_materialize!`
-#####
-
-@inline _materialize!(a, b) = _materialize_bundle!(a, b)
-
-_materialize_bundle!(a::Bundle, b::Bundle) = (_materialize!(a.partials, b.partials); a)
-_materialize_bundle!(a::Bundle, b) = (_materialize!(a.partials, b); a)
-_materialize_bundle!(a, b::Bundle) = _materialize!(a, b.partials)
-@inline _materialize_bundle!(a, b) = _materialize_zero!(a, b)
-
-_materialize_zero!(::Zero, ::Zero) = error("cannot `materialize!` into `Zero`")
-_materialize_zero!(::Zero, ::Any) = error("cannot `materialize!` into `Zero`")
-_materialize_zero!(a, b::Zero) = _materialize!(a, materialize(b))
-@inline _materialize_zero!(a, b) = _materialize_one!(a, b)
-
-_materialize_one!(::One, ::One) = error("cannot `materialize!` into `One`")
-_materialize_one!(::One, ::Any) = error("cannot `materialize!` into `One`")
-_materialize_one!(a, b::One) = _materialize!(a, materialize(b))
-@inline _materialize_one!(a, b) = _materialize_thunk!(a, b)
-
-_materialize_thunk!(::Thunk, ::Thunk) = error("cannot `materialize!` into `Thunk`")
-_materialize_thunk!(::Thunk, ::Any) = error("cannot `materialize!` into `Thunk`")
-_materialize_thunk!(a, b::Thunk) = _materialize!(a, b())
-@inline _materialize_thunk!(a, b) = _materialize_wirtinger!(a, b)
-
-function _materialize_wirtinger!(a::Wirtinger, b::Wirtinger)
-    _materialize!(a.primal, b.primal)
-    _materialize!(a.conjugate, b.conjugate)
-    return a
-end
-
-function _materialize_wirtinger!(a::Wirtinger, b)
-    _materialize!(a.primal, b)
-    _materialize!(a.conjugate, Zero())
-    return a
-end
-
-_materialize_wirtinger!(a, b::Wirtinger) = error("cannot `materialize!` `Wirtinger` into non-`Wirtinger`")
-@inline _materialize_wirtinger!(a, b) = _materialize_fallback!(a, b)
-
-_materialize_fallback!(a, b) = materialize!(a, b)
-
-#####
-##### `add`
-#####
-
-struct MaterializeInto{S} <: AbstractChainable
-    storage::S
-    increment::Bool
-    function MaterializeInto(storage, increment::Bool = true)
-        storage = materialize(storage)
-        return new{typeof(storage)}(storage, increment)
-    end
-end
-
-function add(a::MaterializeInto, b)
-    _materialize!(a.storage, a.increment ? add(a.storage, b) : b)
-    return a
-end
-
-@inline add(a) = a
-@inline add(a, b) = _add_bundle(a, b)
+@inline add(a, b) = add_zero(a, b)
 @inline add(a, b, c) = add(a, add(b, c))
 @inline add(a, b, c, d) = add(a, add(b, c, d))
 @inline add(a, b, c, d, e) = add(a, add(b, c, d, e))
-@inline add(a, b, c, d, e, rest...) = add(a, add(b, c, d, e), rest...)
+@inline add(a, b, c, d, e, args...) = add(a, add(b, c, d, e), args...)
 
-_add_eager(a, b) = materialize(add(a, b))
-_add_bundle(a::Bundle, b::Bundle) = Bundle(@thunk(broadcasted(_add_eager, materialize(a.partials), materialize(b.partials))))
-_add_bundle(a::Bundle, b) = Bundle(@thunk(broadcasted(_add_eager, materialize(a.partials), unbundle(materialize(b)))))
-_add_bundle(a, b::Bundle) = Bundle(@thunk(broadcasted(_add_eager, unbundle(materialize(a)), materialize(b.partials))))
-@inline _add_bundle(a, b) = _add_zero(a, b)
+@inline add_zero(a, b) = add_one(a, b)
+@inline add_one(a, b) = add_thunk(a, b)
+@inline add_thunk(a, b) = add_wirtinger(a, b)
+@inline add_wirtinger(a, b) = add_cast(a, b)
+@inline add_cast(a, b) = add_fallback(a, b)
+@inline add_fallback(a, b) = broadcasted(+, a, b)
 
-_add_zero(::Zero, ::Zero) = Zero()
-_add_zero(::Zero, b) = b
-_add_zero(a, ::Zero) = a
-@inline _add_zero(a, b) = _add_one(a, b)
+_adjoint(x) = adjoint(x)
+_adjoint(x::Base.Broadcast.Broadcasted) = broadcasted(adjoint, x)
 
-_add_one(a::One, b::One) = add(materialize(a), materialize(b))
-_add_one(a::One, b) = add(materialize(a), b)
-_add_one(a, b::One) = add(a, materialize(b))
-@inline _add_one(a, b) = _add_thunk(a, b)
-
-_add_thunk(a::Thunk, b::Thunk) = @thunk(add(a(), b()))
-_add_thunk(a::Thunk, b) = @thunk(add(a(), b))
-_add_thunk(a, b::Thunk) = @thunk(add(a, b()))
-@inline _add_thunk(a, b) = _add_wirtinger(a, b)
-
-_add_wirtinger(a::Wirtinger, b::Wirtinger) = Wirtinger(add(a.primal, b.primal),
-                                                           add(a.conj, b.conj))
-_add_wirtinger(a::Wirtinger, b) = Wirtinger(add(a.primal, b), a.conj)
-_add_wirtinger(a, b::Wirtinger) = Wirtinger(add(a, b.primal), b.conj)
-@inline _add_wirtinger(a, b) = _add_fallback(a, b)
-
-_add_fallback(a, b) = broadcasted(+, a, b)
+unwrap(x) = x
 
 #####
-##### `mul`
+##### `@chain`
 #####
-
-macro mul(a, b)
-    return :(mul(@thunk($(esc(a))), @thunk($(esc(b)))))
-end
-
-@inline mul(a) = a
-@inline mul(a, b) = _mul_bundle(a, b)
-@inline mul(a, b, c) = mul(mul(a, b), c)
-@inline mul(a, b, c, d) = mul(mul(a, b, c), d)
-@inline mul(a, b, c, d, e) = mul(mul(a, b, c, d), e)
-@inline mul(a, b, c, d, e, rest...) = mul(mul(a, b, c, d, e), rest...)
-
-_mul_eager(a, b) = materialize(mul(a, b))
-_mul_bundle(a::Bundle, b::Bundle) = Bundle(@thunk(broadcasted(_mul_eager, materialize(a.partials), materialize(b.partials))))
-_mul_bundle(a::Bundle, b) = Bundle(@thunk(broadcasted(_mul_eager, materialize(a.partials), unbundle(materialize(b)))))
-_mul_bundle(a, b::Bundle) = Bundle(@thunk(broadcasted(_mul_eager, unbundle(materialize(a)), materialize(b.partials))))
-@inline _mul_bundle(a, b) = _mul_zero(a, b)
-
-_mul_zero(::Zero, ::Zero) = Zero()
-_mul_zero(::Zero, b) = Zero()
-_mul_zero(a, ::Zero) = Zero()
-@inline _mul_zero(a, b) = _mul_one(a, b)
-
-_mul_one(::One, ::One) = One()
-_mul_one(::One, b) = b
-_mul_one(a, ::One) = a
-@inline _mul_one(a, b) = _mul_thunk(a, b)
-
-_mul_thunk(a::Thunk, b::Thunk) = @thunk(mul(a(), b()))
-_mul_thunk(a::Thunk, b) = @thunk(mul(a(), b))
-_mul_thunk(a, b::Thunk) = @thunk(mul(a, b()))
-@inline _mul_thunk(a, b) = _mul_wirtinger(a, b)
-
-# TODO: document derivation that leads to this rule (see notes)
-function _mul_wirtinger(a::Wirtinger, b::Wirtinger)
-    new_primal = add(mul(a.primal, b.primal), mul(a.conjugate, adjoint(b.conjugate)))
-    new_conjugate = add(mul(a.primal, b.conjugate), mul(a.conjugate, adjoint(b.primal)))
-    return Wirtinger(new_primal, new_conjugate)
-end
-
-_mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conj, b))
-_mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conj))
-@inline _mul_wirtinger(a, b) = _mul_fallback(a, b)
-
-_mul_fallback(a, b) = a * b
 
 #=
-TODO: add `Custom` propagator support? e.g.
-
-_mul_custom(a::Custom, b::Custom) = error("?")
-_mul_custom(a::Custom, b) = a(b)
-_mul_custom(a, b::Custom) = b(a)
-=#
-
-#####
-##### `chain`
-#####
-
-macro chain(derivatives...)
-    seeded_thunks = Any[]
-    chained = :chained
-    args = [Symbol(string(:seed_, i)) for i in 1:length(derivatives)]
-    for i in 1:length(derivatives)
-        d = esc(derivatives[i])
-        push!(seeded_thunks, :(mul(@thunk($d), $(args[i]))))
-    end
-    return :(($chained, $(args...)) -> add($chained, $(seeded_thunks...)))
-end
-
-#=
-Here are some examples using `chain` macro above to implement forward- and
-reverse-mode chain rules for an intermediary function of the form:
+Here are some examples using `@chain` to implement forward- and reverse-mode
+chain rules for an intermediary function of the form:
 
     y₁, y₂ = f(x₁, x₂)
 
@@ -284,8 +70,8 @@ Forward-Mode:
     @chain(∂y₂_∂x₁, ∂y₂_∂x₂)
 
     # expands to:
-    (ẏ₁, ẋ₁, ẋ₂) -> add(ẏ₁, @mul(∂y₁_∂x₁, ẋ₁), @mul(∂y₁_∂x₂, ẋ₂))
-    (ẏ₂, ẋ₁, ẋ₂) -> add(ẏ₂, @mul(∂y₂_∂x₁, ẋ₁), @mul(∂y₂_∂x₂, ẋ₂))
+    (ẏ₁, ẋ₁, ẋ₂) -> add(ẏ₁, mul(@thunk(∂y₁_∂x₁), ẋ₁), mul(@thunk(∂y₁_∂x₂), ẋ₂))
+    (ẏ₂, ẋ₁, ẋ₂) -> add(ẏ₂, mul(@thunk(∂y₂_∂x₁), ẋ₁), mul(@thunk(∂y₂_∂x₂), ẋ₂))
 
 Reverse-Mode:
 
@@ -293,6 +79,192 @@ Reverse-Mode:
     @chain(adjoint(∂y₁_∂x₂), adjoint(∂y₂_∂x₂))
 
     # expands to:
-    (x̄₁, ȳ₁, ȳ₂) -> add(x̄₁, @mul(∂y₁_∂x₁', ȳ₁), @mul(∂y₂_∂x₁', ȳ₂))
-    (x̄₂, ȳ₁, ȳ₂) -> add(x̄₂, @mul(∂y₁_∂x₂', ȳ₁), @mul(∂y₂_∂x₂', ȳ₂))
+    (x̄₁, ȳ₁, ȳ₂) -> add(x̄₁, mul(@thunk(adjoint(∂y₁_∂x₁)), ȳ₁), mul(@thunk(adjoint(∂y₂_∂x₁)), ȳ₂))
+    (x̄₂, ȳ₁, ȳ₂) -> add(x̄₂, mul(@thunk(adjoint(∂y₁_∂x₂)), ȳ₁), mul(@thunk(adjoint(∂y₂_∂x₂)), ȳ₂))
 =#
+macro chain(∂s...)
+    δs = [Symbol(string(:δ, i)) for i in 1:length(∂s)]
+    Δs = Any[]
+    for i in 1:length(∂s)
+        ∂ = esc(∂s[i])
+        push!(Δs, :(mul(@thunk($∂), $(δs[i]))))
+    end
+    return :((δ₀, $(δs...)) -> add(δ₀, $(Δs...)))
+end
+
+#####
+##### `Thunk`
+#####
+
+struct Thunk{F} <: AbstractChainable
+    f::F
+end
+
+macro thunk(body)
+    return :(Thunk(() -> $(esc(body))))
+end
+
+(t::Thunk{F})() where {F} = (t.f)()
+
+Base.adjoint(t::Thunk) = @thunk(_adjoint(t()))
+
+Base.Broadcast.materialize(t::Thunk) = materialize(t())
+
+mul_thunk(a::Thunk, b::Thunk) = mul(a(), b())
+mul_thunk(a::Thunk, b) = mul(a(), b)
+mul_thunk(a, b::Thunk) = mul(a, b())
+
+add_thunk(a::Thunk, b::Thunk) = add(a(), b())
+add_thunk(a::Thunk, b) = add(a(), b)
+add_thunk(a, b::Thunk) = add(a, b())
+
+unwrap(t::Thunk) = t()
+
+#####
+##### `Zero`/`DNE`
+#####
+
+struct Zero <: AbstractChainable end
+
+Base.adjoint(::Zero) = Zero()
+
+Base.Broadcast.materialize(::Zero) = false
+
+mul_zero(::Zero, ::Zero) = Zero()
+mul_zero(::Zero, ::Any) = Zero()
+mul_zero(::Any, ::Zero) = Zero()
+
+add_zero(::Zero, ::Zero) = Zero()
+add_zero(::Zero, b) = unwrap(b)
+add_zero(a, ::Zero) = unwrap(a)
+
+#=
+Equivalent to `Zero` for the purposes of propagation (i.e. partial
+derivatives which don't exist simply do not contribute to a rule's total
+derivative).
+=#
+
+const DNE = Zero
+
+#=
+TODO: How should we really handle the above? This is correct w.r.t. propagator
+algebra; even if an actual new type `DNE <: AbstractChainable` was defined,
+all the rules would be the same. Furthermore, users wouldn't be able to detect
+many differences, since `DNE` must materialize to `materialize(Zero())`. Thus,
+it seems like a derivative's `DNE`-ness should be exposed to users in a way
+that's just unrelated to the chain rule algebra. Conversely, we want to
+minimize the amount of special-casing needed for users writing higher-level
+rule definitions/fallbacks, or else things will get unwieldy...
+=#
+
+#####
+##### `One`
+#####
+
+struct One <: AbstractChainable end
+
+Base.adjoint(::One) = One()
+
+Base.Broadcast.materialize(::One) = true
+
+mul_one(::One, ::One) = One()
+mul_one(::One, b) = unwrap(b)
+mul_one(a, ::One) = unwrap(a)
+
+add_one(a::One, b::One) = add(materialize(a), materialize(b))
+add_one(a::One, b) = add(materialize(a), b)
+add_one(a, b::One) = add(a, materialize(b), b)
+
+#####
+##### `Wirtinger`
+#####
+
+struct Wirtinger{P, C} <: AbstractChainable
+    primal::P
+    conjugate::C
+end
+
+# TODO: check this against conjugation rule in notes
+Base.adjoint(w::Wirtinger) = Wirtinger(_adjoint(w.primal), _adjoint(w.conjugate))
+
+function Base.Broadcast.materialize(w::Wirtinger)
+    return Wirtinger(materialize(w.primal), materialize(w.conjugate))
+end
+
+# TODO: document derivation that leads to this rule (see notes)
+function _mul_wirtinger(a::Wirtinger, b::Wirtinger)
+    new_primal = add(mul(a.primal, b.primal), mul(a.conjugate, adjoint(b.conjugate)))
+    new_conjugate = add(mul(a.primal, b.conjugate), mul(a.conjugate, adjoint(b.primal)))
+    return Wirtinger(new_primal, new_conjugate)
+end
+
+mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conjugate, b))
+mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate))
+
+function add_wirtinger(a::Wirtinger, b::Wirtinger)
+    return Wirtinger(add(a.primal, b.primal), add(a.conjugate, b.conjugate))
+end
+
+add_wirtinger(a::Wirtinger, b) = Wirtinger(add(a.primal, b), a.conjugate)
+add_wirtinger(a, b::Wirtinger) = Wirtinger(add(a, b.primal), b.conjugate)
+
+#####
+##### `Cast`
+#####
+
+struct Cast{V} <: AbstractChainable
+    value::V
+end
+
+Base.adjoint(c::Cast) = Cast(broadcasted(adjoint, c.value))
+
+Base.Broadcast.materialize(c::Cast) = materialize(c.value)
+
+mul_eager(a, b) = materialize(mul(a, b))
+
+mul_cast(a::Cast, b::Cast) = broadcasted(mul_eager, a.value, b.value)
+mul_cast(a::Cast, b) = broadcasted(mul_eager, a.value, b)
+mul_cast(a, b::Cast) = broadcasted(mul_eager, a, b.value)
+
+add_eager(a, b) = materialize(add(a, b))
+
+add_cast(a::Cast, b::Cast) = broadcasted(add_eager, a.value, b.value)
+add_cast(a::Cast, b) = broadcasted(add_eager, a.value, b)
+add_cast(a, b::Cast) = broadcasted(add_eager, a, b.value)
+
+unwrap(c::Cast) = c.value
+
+#####
+##### `MaterializeInto`
+#####
+
+struct MaterializeInto{S} <: AbstractChainable
+    storage::S
+    increment::Bool
+    function MaterializeInto(storage, increment::Bool = true)
+        return new{typeof(storage)}(storage, increment)
+    end
+end
+
+function add(a::MaterializeInto, b)
+    _materialize!(a.storage, a.increment ? add(a.storage, b) : b)
+    return a
+end
+
+function _materialize!(a::Wirtinger, b::Wirtinger)
+    materialize!(a.primal, b.primal)
+    materialize!(a.conjugate, b.conjugate)
+    return a
+end
+
+function _materialize!(a::Wirtinger, b)
+    materialize!(a.primal, b)
+    materialize!(a.conjugate, Zero())
+    return a
+end
+
+function _materialize!(a, b::Wirtinger)
+    return error("cannot `materialize!` `Wirtinger` into non-`Wirtinger`")
+end
+
+_materialize!(a, b) = materialize!(a, b)

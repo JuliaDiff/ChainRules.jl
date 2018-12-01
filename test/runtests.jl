@@ -1,7 +1,7 @@
 # TODO: more tests!
 
 using ChainRules, Test
-using ChainRules: One, Zero, Bundle, MaterializeInto, rrule, frule, materialize, unbundle
+using ChainRules: One, Zero, Cast, MaterializeInto, rrule, frule, materialize
 
 #####
 ##### `*(x, y)`
@@ -11,8 +11,8 @@ function test_adjoint!(x̄, dx, ȳ, partial)
     x̄_old = copy(x̄)
     x̄_zeros = zero.(x̄)
 
-    @test unbundle(materialize(dx(Zero(), ȳ))) == unbundle(materialize(dx(x̄_zeros, ȳ)))
-    @test unbundle(materialize(dx(x̄, ȳ))) == (x̄ .+ partial)
+    @test materialize(dx(Zero(), ȳ)) == materialize(dx(x̄_zeros, ȳ))
+    @test materialize(dx(x̄, ȳ)) == (x̄ .+ partial)
     @test x̄ == x̄_old
 
     dx(MaterializeInto(x̄), ȳ)
@@ -47,16 +47,16 @@ x = rand(3, 3)
 y, (dsin, dx) = rrule(broadcast, sin, x)
 
 @test y == sin.(x)
-@test unbundle(materialize(dx(Zero(), One()))) == cos.(x)
+@test materialize(dx(Zero(), One())) == cos.(x)
 
 x̄, ȳ = rand(), rand()
-@test unbundle(materialize(dx(x̄, ȳ))) == x̄ .+ ȳ .* cos.(x)
+@test materialize(dx(x̄, ȳ)) == x̄ .+ ȳ .* cos.(x)
 
 x̄, ȳ = Zero(), rand(3, 3)
-@test unbundle(materialize(dx(x̄, ȳ))) == ȳ .* cos.(x)
+@test materialize(dx(x̄, ȳ)) == ȳ .* cos.(x)
 
-x̄, ȳ = Zero(), Bundle(rand(3, 3))
-@test unbundle(materialize(dx(x̄, ȳ))) == unbundle(ȳ) .* cos.(x)
+x̄, ȳ = Zero(), Cast(rand(3, 3))
+@test materialize(dx(x̄, ȳ)) == materialize(ȳ) .* cos.(x)
 
 #####
 ##### `hypot(x, y)`
@@ -68,7 +68,12 @@ h, dxy = frule(hypot, x, y)
 @test materialize(dxy(Zero(), One(), Zero())) === y / h
 @test materialize(dxy(Zero(), Zero(), One())) === x / h
 
-bx, by = Bundle((One(), Zero())), Bundle((Zero(), One()))
-dx, dy = unbundle(materialize(dxy(Zero(), bx, by)))
+cx, cy = Cast((One(), Zero())), Cast((Zero(), One()))
+dx, dy = materialize(dxy(Zero(), cx, cy))
 @test dx === y / h
 @test dy === x / h
+
+cx, cy = Cast((rand(), Zero())), Cast((Zero(), rand()))
+dx, dy = materialize(dxy(Zero(), cx, cy))
+@test dx === y / h * cx.value[1]
+@test dy === x / h * cy.value[2]
