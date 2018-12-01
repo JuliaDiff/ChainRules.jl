@@ -1,5 +1,5 @@
 #####
-##### unit-stride rules
+##### `@rule`s
 #####
 
 @rule(BLAS.dot(x, y), (Cast(y), Cast(x)))
@@ -7,8 +7,9 @@
 @rule(BLAS.asum(x), Cast(broadcasted(sign, x)))
 
 #####
-##### arbitrary-stride rules
+##### custom rules
 #####
+
 #=
 TODO: Various chain implementations below could check if their input adjoint
 `isa` `MaterializeInto` and subsequently perform the relevant in-place
