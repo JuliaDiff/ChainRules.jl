@@ -130,6 +130,8 @@ Base.adjoint(::Zero) = Zero()
 
 Base.Broadcast.materialize(::Zero) = false
 
+Base.Broadcast.broadcastable(::Zero) = Ref(Zero())
+
 mul_zero(::Zero, ::Zero) = Zero()
 mul_zero(::Zero, ::Any) = Zero()
 mul_zero(::Any, ::Zero) = Zero()
@@ -167,13 +169,15 @@ Base.adjoint(::One) = One()
 
 Base.Broadcast.materialize(::One) = true
 
+Base.Broadcast.broadcastable(::One) = Ref(One())
+
 mul_one(::One, ::One) = One()
 mul_one(::One, b) = unwrap(b)
 mul_one(a, ::One) = unwrap(a)
 
 add_one(a::One, b::One) = add(materialize(a), materialize(b))
 add_one(a::One, b) = add(materialize(a), b)
-add_one(a, b::One) = add(a, materialize(b), b)
+add_one(a, b::One) = add(a, materialize(b))
 
 #####
 ##### `Wirtinger`
@@ -258,7 +262,7 @@ function _materialize!(a::Wirtinger, b::Wirtinger)
 end
 
 function _materialize!(a::Wirtinger, b)
-    materialize!(a.primal, b)
+    materialize!(a.primal, unwrap(b))
     materialize!(a.conjugate, Zero())
     return a
 end
@@ -267,4 +271,4 @@ function _materialize!(a, b::Wirtinger)
     return error("cannot `materialize!` `Wirtinger` into non-`Wirtinger`")
 end
 
-_materialize!(a, b) = materialize!(a, b)
+_materialize!(a, b) = materialize!(a, unwrap(b))
