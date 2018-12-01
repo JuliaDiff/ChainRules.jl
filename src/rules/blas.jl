@@ -1,5 +1,5 @@
 #####
-##### unit-stride `@rule`s
+##### unit-stride rules
 #####
 
 @rule(BLAS.dot(x, y), (Cast(y), Cast(x)))
@@ -10,34 +10,27 @@
 ##### arbitrary-stride rules
 #####
 
-function nrm2_X_adjoint(Ω̄, Ω, n, X, incx)
-    X0 = fill!(similar(X), zero(eltype(X)))
-    blascopy!(n, X, incx, X0, incx)
-    a = materialize(mul(Ω̄, inv(Ω)))
-    return BLAS.scal!(n, a, X0, incx)
+_zeros(x) = fill!(similar(x), zero(eltype(x)))
+
+function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
+    Ω = BLAS.dot(n, X, incx, Y, incy)
+    X_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, Y, incy, _zeros(X), incx), incx)
+    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
+    Y_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, X, incx, _zeros(Y), incy), incy)
+    Y_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : Y_partial(materialize(Ω̄)))
+    return Ω, (@chain(DNE()), X_chain, @chain(DNE()), Y_chain, @chain(DNE()))
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    return Ω, (@chain(DNE()),
-               (X̄, Ω̄) -> add(X̄, nrm2_X_adjoint(Ω̄, Ω, n, X, incx)),
-               @chain(DNE()))
-end
-
-function asum_X_adjoint(Ω̄, Ω, n, X, incx)
-    X0 = fill!(similar(X), zero(eltype(X)))
-    blascopy!(n, sign.(X), incx, X0, incx)
-    a = materialize(Ω̄)
-    return BLAS.scal!(n, a, X0, incx)
+    X_partial = Ω̄ -> scal!(n, Ω̄ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
+    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
+    return Ω, (@chain(DNE()), X_chain, @chain(DNE()))
 end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
-    return Ω, (@chain(DNE()),
-               (X̄, Ω̄) -> add(X̄, asum_X_adjoint(Ω̄, Ω, n, X, incx)),
-               @chain(DNE()))
+    X_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
+    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
+    return Ω, (@chain(DNE()), X_chain, @chain(DNE()))
 end
-
-#####
-##### custom rules
-#####
