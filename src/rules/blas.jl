@@ -9,28 +9,44 @@
 #####
 ##### arbitrary-stride rules
 #####
+#=
+TODO: Various chain implementations below could check if their input adjoint
+`isa` `MaterializeInto` and subsequently perform the relevant in-place
+optimizations.
+=#
 
 _zeros(x) = fill!(similar(x), zero(eltype(x)))
 
+_chain_via(∂) = (δ̄, Ω̄) -> add(δ̄, isa(Ω̄, Zero) ? Ω̄ : ∂(materialize(Ω̄)))
+
 function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
-    X_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, Y, incy, _zeros(X), incx), incx)
-    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
-    Y_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, X, incx, _zeros(Y), incy), incy)
-    Y_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : Y_partial(materialize(Ω̄)))
-    return Ω, (@chain(DNE()), X_chain, @chain(DNE()), Y_chain, @chain(DNE()))
+    ∂X = Ω̄ -> scal!(n, Ω̄, blascopy!(n, Y, incy, _zeros(X), incx), incx)
+    ∂Y = Ω̄ -> scal!(n, Ω̄, blascopy!(n, X, incx, _zeros(Y), incy), incy)
+    return Ω, (@chain(DNE()), _chain_via(∂X), @chain(DNE()), _chain_via(∂Y), @chain(DNE()))
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    X_partial = Ω̄ -> scal!(n, Ω̄ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
-    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
-    return Ω, (@chain(DNE()), X_chain, @chain(DNE()))
+    ∂X = Ω̄ -> scal!(n, Ω̄ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
+    return Ω, (@chain(DNE()), _chain_via(∂X), @chain(DNE()))
 end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
-    X_partial = Ω̄ -> scal!(n, Ω̄, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
-    X_chain = (X̄, Ω̄) -> add(X̄, isa(Ω̄, Zero) ? Ω̄ : X_partial(materialize(Ω̄)))
-    return Ω, (@chain(DNE()), X_chain, @chain(DNE()))
+    ∂X = Ω̄ -> scal!(n, Ω̄, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
+    return Ω, (@chain(DNE()), _chain_via(∂X), @chain(DNE()))
+end
+
+function rrule(::typeof(BLAS.gemv), tA, α, A, x)
+    Ω = BLAS.gemv(tA, α, A, x)
+    ∂α = Ω̄ -> dot(Ω̄, Ω) / α
+    ∂A = Ω̄ -> uppercase(tA) == 'N' ? α * Ω̄ * x' : α * x * Ω̄'
+    ∂x = Ω̄ -> gemv(uppercase(tA) == 'N' ? 'T' : 'N', α, A, Ω̄)
+    return Ω, (@chain(DNE()), _chain_via(∂α), _chain_via(∂A), _chain_via(∂x))
+end
+
+function rrule(f::typeof(BLAS.gemv), tA, A, x)
+    Ω, (dtA, dα, dA, dx) = rrule(f, tA, one(eltype(A)), A, x)
+    return Ω, (dtA, dA, dx)
 end
