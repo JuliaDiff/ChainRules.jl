@@ -16,7 +16,7 @@ ChainRules, by design, is decoupled from any specific AD implementation. How,
 then, do we know which AD to fall back to when there isn't a primitive defined?
 
 Well, if you're a greedy AD implementation, you can just overload `frule`
-and/or `rrule` to use your AD directly. However, this won't place nice
+and/or `rrule` to use your AD directly. However, this won't play nice
 with other AD packages doing the same thing, and thus could cause
 load-order-dependent problems for downstream users.
 
