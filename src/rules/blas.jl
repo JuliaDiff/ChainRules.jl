@@ -3,7 +3,7 @@
 #####
 
 @rule(BLAS.dot(x, y), (cast(y), cast(x)))
-@rule(BLAS.nrm2(x), x * inv(Ω))
+@rule(BLAS.nrm2(x), mul(x, inv(Ω)))
 @rule(BLAS.asum(x), cast(sign, x))
 
 #####

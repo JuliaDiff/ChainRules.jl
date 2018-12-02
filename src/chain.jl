@@ -27,7 +27,12 @@ resolve ambiguities (e.g. a promotion mechanism).
 
 abstract type AbstractChainable end
 
+# TODO: pick better ordering when possible for matmuls
 @inline mul(a, b) = mul_zero(a, b)
+@inline mul(a, b, c) = mul(a, mul(b, c))
+@inline mul(a, b, c, d) = mul(a, mul(b, c, d))
+@inline mul(a, b, c, d, e) = mul(a, mul(b, c, d, e))
+@inline mul(a, b, c, d, e, args...) = mul(a, mul(b, c, d, e), args...)
 
 @inline mul_zero(a, b) = mul_one(a, b)
 @inline mul_one(a, b) = mul_thunk(a, b)
@@ -105,19 +110,40 @@ end
 
 (t::Thunk{F})() where {F} = (t.f)()
 
-Base.adjoint(t::Thunk) = @thunk(_adjoint(t()))
+struct Memoize{F, R} <: AbstractChainable
+    thunk::Thunk{F}
+    ret::Ref{R}
+    function Memoize(thunk::Thunk{F}) where {F}
+        R = Core.Compiler.return_type(thunk, ()) # XXX danger zone!
+        new{F, R}(thunk, Ref{R}())
+    end
+end
 
-Base.Broadcast.materialize(t::Thunk) = materialize(t())
+macro memoize(body)
+    return :(Memoize(@thunk($(esc(body)))))
+end
 
-mul_thunk(a::Thunk, b::Thunk) = mul(a(), b())
-mul_thunk(a::Thunk, b) = mul(a(), b)
-mul_thunk(a, b::Thunk) = mul(a, b())
+function (m::Memoize{F})() where {F}
+    if !isassigned(m.ret)
+        m.ret[] = m.thunk()
+    end
+    return m.ret[]
+end
 
-add_thunk(a::Thunk, b::Thunk) = add(a(), b())
-add_thunk(a::Thunk, b) = add(a(), b)
-add_thunk(a, b::Thunk) = add(a, b())
+Base.adjoint(x::Thunk) = @thunk(_adjoint(x()))
+Base.adjoint(x::Memoize) = @memoize(_adjoint(x()))
 
-unwrap(t::Thunk) = t()
+Base.Broadcast.materialize(x::Union{Thunk, Memoize}) = materialize(x())
+
+mul_thunk(a::Union{Thunk, Memoize}, b::Union{Thunk, Memoize}) = mul(a(), b())
+mul_thunk(a::Union{Thunk, Memoize}, b) = mul(a(), b)
+mul_thunk(a, b::Union{Thunk, Memoize}) = mul(a, b())
+
+add_thunk(a::Union{Thunk, Memoize}, b::Union{Thunk, Memoize}) = add(a(), b())
+add_thunk(a::Union{Thunk, Memoize}, b) = add(a(), b)
+add_thunk(a, b::Union{Thunk, Memoize}) = add(a, b())
+
+unwrap(x::Union{Thunk, Memoize}) = x()
 
 #####
 ##### `Zero`/`DNE`
