@@ -9,6 +9,10 @@
 #####
 ##### custom rules
 #####
+#=
+These implementations were ported from the wonderful DiffLinearAlgebra
+package (https://github.com/invenia/DiffLinearAlgebra.jl).
+=#
 
 #=
 TODO: Various chain implementations below could check if their input adjoint
