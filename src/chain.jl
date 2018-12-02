@@ -214,6 +214,18 @@ add_wirtinger(a, b::Wirtinger) = Wirtinger(add(a, b.primal), b.conjugate)
 #####
 ##### `Casted`/`Broadcasted`
 #####
+#=
+Why define `Casted` at all - why not just use `Broadcasted`?
+
+Basically, we need a mechanism for picking whether the final `mul(a, b)`
+fallback is `broadcast(*, a, b)` vs. `materialize(a) * materialize(b)`. It is
+easily possible that the caller desires the latter, even if `a` and/or `b`
+are `Broadcasted` objects (for example, a series of chain rule evaluations
+where the last operation is a mat-mul, but the preceding operation produced
+a `Broadcasted` derivative representation). Thus, we can't just pun on
+`Broadcasted` to make the fallback decision; we need a type specifically
+for this purpose.
+=#
 
 struct Casted{V} <: AbstractChainable
     value::V
