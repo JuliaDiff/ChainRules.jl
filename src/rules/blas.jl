@@ -2,9 +2,9 @@
 ##### `@rule`s
 #####
 
-@rule(BLAS.dot(x, y), (Cast(y), Cast(x)))
+@rule(BLAS.dot(x, y), (casted(y), casted(x)))
 @rule(BLAS.nrm2(x), x * inv(Ω))
-@rule(BLAS.asum(x), Cast(broadcasted(sign, x)))
+@rule(BLAS.asum(x), casted(sign, x))
 
 #####
 ##### custom rules

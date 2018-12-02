@@ -32,9 +32,9 @@ abstract type AbstractChainable end
 @inline mul_zero(a, b) = mul_one(a, b)
 @inline mul_one(a, b) = mul_thunk(a, b)
 @inline mul_thunk(a, b) = mul_wirtinger(a, b)
-@inline mul_wirtinger(a, b) = mul_cast(a, b)
-@inline mul_cast(a, b) = mul_fallback(a, b)
-@inline mul_fallback(a, b) = a * b
+@inline mul_wirtinger(a, b) = mul_casted(a, b)
+@inline mul_casted(a, b) = mul_fallback(a, b)
+@inline mul_fallback(a, b) = materialize(a) * materialize(b)
 
 @inline add(a, b) = add_zero(a, b)
 @inline add(a, b, c) = add(a, add(b, c))
@@ -45,12 +45,11 @@ abstract type AbstractChainable end
 @inline add_zero(a, b) = add_one(a, b)
 @inline add_one(a, b) = add_thunk(a, b)
 @inline add_thunk(a, b) = add_wirtinger(a, b)
-@inline add_wirtinger(a, b) = add_cast(a, b)
-@inline add_cast(a, b) = add_fallback(a, b)
+@inline add_wirtinger(a, b) = add_casted(a, b)
+@inline add_casted(a, b) = add_fallback(a, b)
 @inline add_fallback(a, b) = broadcasted(+, a, b)
 
 _adjoint(x) = adjoint(x)
-_adjoint(x::Base.Broadcast.Broadcasted) = broadcasted(adjoint, x)
 
 unwrap(x) = x
 
@@ -213,30 +212,35 @@ add_wirtinger(a::Wirtinger, b) = Wirtinger(add(a.primal, b), a.conjugate)
 add_wirtinger(a, b::Wirtinger) = Wirtinger(add(a, b.primal), b.conjugate)
 
 #####
-##### `Cast`
+##### `Casted`/`Broadcasted`
 #####
 
-struct Cast{V} <: AbstractChainable
+struct Casted{V} <: AbstractChainable
     value::V
 end
 
-Base.adjoint(c::Cast) = Cast(broadcasted(adjoint, c.value))
+casted(x) = Casted(x)
+casted(f, args...) = Casted(broadcasted(f, args...))
 
-Base.Broadcast.materialize(c::Cast) = materialize(c.value)
+_adjoint(c::Broadcasted) = casted(adjoint, c)
+
+Base.adjoint(c::Casted) = casted(adjoint, c.value)
+
+Base.Broadcast.materialize(c::Casted) = materialize(c.value)
 
 mul_eager(a, b) = materialize(mul(a, b))
 
-mul_cast(a::Cast, b::Cast) = broadcasted(mul_eager, a.value, b.value)
-mul_cast(a::Cast, b) = broadcasted(mul_eager, a.value, b)
-mul_cast(a, b::Cast) = broadcasted(mul_eager, a, b.value)
+mul_casted(a::Casted, b::Casted) = broadcasted(mul_eager, a.value, b.value)
+mul_casted(a::Casted, b) = broadcasted(mul_eager, a.value, b)
+mul_casted(a, b::Casted) = broadcasted(mul_eager, a, b.value)
 
 add_eager(a, b) = materialize(add(a, b))
 
-add_cast(a::Cast, b::Cast) = broadcasted(add_eager, a.value, b.value)
-add_cast(a::Cast, b) = broadcasted(add_eager, a.value, b)
-add_cast(a, b::Cast) = broadcasted(add_eager, a, b.value)
+add_casted(a::Casted, b::Casted) = broadcasted(add_eager, a.value, b.value)
+add_casted(a::Casted, b) = broadcasted(add_eager, a.value, b)
+add_casted(a, b::Casted) = broadcasted(add_eager, a, b.value)
 
-unwrap(c::Cast) = c.value
+unwrap(c::Casted) = c.value
 
 #####
 ##### `MaterializeInto`

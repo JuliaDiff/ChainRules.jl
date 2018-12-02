@@ -1,6 +1,6 @@
 module ChainRules
 
-using Base.Broadcast: materialize, materialize!, broadcasted
+using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted
 
 import NaNMath, SpecialFunctions, LinearAlgebra, LinearAlgebra.BLAS
 

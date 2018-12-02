@@ -105,10 +105,10 @@ end
 
 function frule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, @chain(DNE(), Cast(derivs))
+    return values, @chain(DNE(), casted(derivs))
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (@chain(DNE()), @chain(adjoint(Cast(derivs))))
+    return values, (@chain(DNE()), @chain(casted(adjoint, derivs)))
 end
