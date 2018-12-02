@@ -9,12 +9,14 @@
 #####
 
 function frule(::typeof(inv), x::AbstractArray)
-    Ω, m = inv(x), @memoize(-Ω)
+    Ω = inv(x)
+    m = @memoize(-Ω)
     return Ω, (Ω̇, ẋ) -> add(Ω̇, mul(m, ẋ, Ω))
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
-    Ω, m = inv(x), @memoize(-Ω)
+    Ω = inv(x)
+    m = @memoize(-Ω)
     return Ω, (x̄, Ω̄) -> add(x̄, mul(m', Ω̄, Ω'))
 end
 

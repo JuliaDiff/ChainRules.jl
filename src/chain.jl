@@ -108,30 +108,30 @@ macro thunk(body)
     return :(Thunk(() -> $(esc(body))))
 end
 
-(t::Thunk{F})() where {F} = (t.f)()
+@inline (t::Thunk{F})() where {F} = (t.f)()
 
 struct Memoize{F, R} <: AbstractChainable
     thunk::Thunk{F}
     ret::Ref{R}
-    function Memoize(thunk::Thunk{F}) where {F}
-        R = Core.Compiler.return_type(thunk, ()) # XXX danger zone!
-        new{F, R}(thunk, Ref{R}())
-    end
+end
+
+function Memoize(thunk::Thunk)
+    R = Core.Compiler.return_type(thunk, ()) # XXX danger zone!
+    return Memoize(thunk, Ref{R}())
 end
 
 macro memoize(body)
     return :(Memoize(@thunk($(esc(body)))))
 end
 
-function (m::Memoize{F})() where {F}
+function (m::Memoize{F, R})()::R where {F, R}
     if !isassigned(m.ret)
         m.ret[] = m.thunk()
     end
-    return m.ret[]
+    return m.ret[]::R
 end
 
-Base.adjoint(x::Thunk) = @thunk(_adjoint(x()))
-Base.adjoint(x::Memoize) = @memoize(_adjoint(x()))
+Base.adjoint(x::Union{Memoize, Thunk}) = @thunk(_adjoint(x()))
 
 Base.Broadcast.materialize(x::Union{Thunk, Memoize}) = materialize(x())
 
