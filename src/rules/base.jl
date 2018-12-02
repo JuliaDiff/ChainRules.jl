@@ -43,7 +43,6 @@
 @rule(transpose(x), One())
 @rule(abs(x), sign(x))
 @rule(rem2pi(x, r), (One(), DNE()))
-@rule(sum(x), One())
 @rule(+(x), One())
 @rule(-(x), -1)
 @rule(+(x, y), (One(), One()))
