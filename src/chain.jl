@@ -219,12 +219,12 @@ struct Casted{V} <: AbstractChainable
     value::V
 end
 
-casted(x) = Casted(x)
-casted(f, args...) = Casted(broadcasted(f, args...))
+cast(x) = Casted(x)
+cast(f, args...) = Casted(broadcasted(f, args...))
 
-_adjoint(c::Broadcasted) = casted(adjoint, c)
+_adjoint(c::Broadcasted) = cast(adjoint, c)
 
-Base.adjoint(c::Casted) = casted(adjoint, c.value)
+Base.adjoint(c::Casted) = cast(adjoint, c.value)
 
 Base.Broadcast.materialize(c::Casted) = materialize(c.value)
 

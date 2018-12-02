@@ -1,7 +1,7 @@
 # TODO: more tests!
 
 using ChainRules, Test
-using ChainRules: One, Zero, MaterializeInto, rrule, frule, materialize, casted
+using ChainRules: One, Zero, MaterializeInto, rrule, frule, materialize, cast
 
 #####
 ##### `*(x, y)`
@@ -55,7 +55,7 @@ x̄, ȳ = rand(), rand()
 x̄, ȳ = Zero(), rand(3, 3)
 @test materialize(dx(x̄, ȳ)) == ȳ .* cos.(x)
 
-x̄, ȳ = Zero(), casted(rand(3, 3))
+x̄, ȳ = Zero(), cast(rand(3, 3))
 @test materialize(dx(x̄, ȳ)) == materialize(ȳ) .* cos.(x)
 
 #####
@@ -68,12 +68,12 @@ h, dxy = frule(hypot, x, y)
 @test materialize(dxy(Zero(), One(), Zero())) === y / h
 @test materialize(dxy(Zero(), Zero(), One())) === x / h
 
-cx, cy = casted((One(), Zero())), casted((Zero(), One()))
+cx, cy = cast((One(), Zero())), cast((Zero(), One()))
 dx, dy = materialize(dxy(Zero(), cx, cy))
 @test dx === y / h
 @test dy === x / h
 
-cx, cy = casted((rand(), Zero())), casted((Zero(), rand()))
+cx, cy = cast((rand(), Zero())), cast((Zero(), rand()))
 dx, dy = materialize(dxy(Zero(), cx, cy))
 @test dx === y / h * cx.value[1]
 @test dy === x / h * cy.value[2]

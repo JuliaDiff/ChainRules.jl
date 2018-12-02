@@ -99,16 +99,16 @@ function _cast_diff(f, x)
         fu, du = frule(f, u)
         fu, materialize(du(Zero(), One()))
     end
-    casted = broadcast(element_rule, x)
-    return first.(casted), last.(casted)
+    results = broadcast(element_rule, x)
+    return first.(results), last.(results)
 end
 
 function frule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, @chain(DNE(), casted(derivs))
+    return values, @chain(DNE(), cast(derivs))
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (@chain(DNE()), @chain(casted(adjoint, derivs)))
+    return values, (@chain(DNE()), @chain(cast(adjoint, derivs)))
 end
