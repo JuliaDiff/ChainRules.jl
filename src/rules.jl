@@ -167,19 +167,19 @@ end
 
 _reverse_from_forward(::Any, ::Any) = nothing
 
-_reverse_from_forward(::NTuple{1, Any}, df) = (x̄, z̄) -> add(x̄, df(Zero(), z̄')')
+_reverse_from_forward(::NTuple{1,Any}, df) = (x̄, z̄) -> add(x̄, df(Zero(), z̄')')
 
-function _reverse_from_forward(::NTuple{2, Any}, df)
+function _reverse_from_forward(::NTuple{2,Any}, df)
     return (x̄, z̄) -> add(x̄, df(Zero(), z̄', Zero())'),
            (ȳ, z̄) -> add(ȳ, df(Zero(), Zero(), z̄')')
 end
 
-function _reverse_from_forward(::NTuple{1, Any}, df::NTuple{2})
+function _reverse_from_forward(::NTuple{1,Any}, df::NTuple{2})
     df₁, df₂ = df
     return (x̄, z̄₁, z̄₂) -> add(x̄, df₁(Zero(), z̄₁')', df₂(Zero(), z̄₂')')
 end
 
-function _reverse_from_forward(::NTuple{2, Any}, df::NTuple{2})
+function _reverse_from_forward(::NTuple{2,Any}, df::NTuple{2})
     df₁, df₂ = df
     return (x̄, z̄₁, z̄₂) -> add(x̄, df₁(Zero(), z̄₁', Zero())', df₂(Zero(), z̄₂', Zero())')
            (ȳ, z̄₁, z̄₂) -> add(ȳ, df₁(Zero(), Zero(), z̄₁')', df₂(Zero(), Zero(), z̄₂')')

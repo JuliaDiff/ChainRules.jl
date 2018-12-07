@@ -110,7 +110,7 @@ end
 
 @inline (t::Thunk{F})() where {F} = (t.f)()
 
-struct Memoize{F, R} <: AbstractChainable
+struct Memoize{F,R} <: AbstractChainable
     thunk::Thunk{F}
     ret::Ref{R}
 end
@@ -124,26 +124,26 @@ macro memoize(body)
     return :(Memoize(@thunk($(esc(body)))))
 end
 
-function (m::Memoize{F, R})()::R where {F, R}
+function (m::Memoize{F,R})()::R where {F, R}
     if !isassigned(m.ret)
         m.ret[] = m.thunk()
     end
     return m.ret[]::R
 end
 
-Base.adjoint(x::Union{Memoize, Thunk}) = @thunk(_adjoint(x()))
+Base.adjoint(x::Union{Memoize,Thunk}) = @thunk(_adjoint(x()))
 
-Base.Broadcast.materialize(x::Union{Thunk, Memoize}) = materialize(x())
+Base.Broadcast.materialize(x::Union{Thunk,Memoize}) = materialize(x())
 
-mul_thunk(a::Union{Thunk, Memoize}, b::Union{Thunk, Memoize}) = mul(a(), b())
-mul_thunk(a::Union{Thunk, Memoize}, b) = mul(a(), b)
-mul_thunk(a, b::Union{Thunk, Memoize}) = mul(a, b())
+mul_thunk(a::Union{Thunk,Memoize}, b::Union{Thunk,Memoize}) = mul(a(), b())
+mul_thunk(a::Union{Thunk,Memoize}, b) = mul(a(), b)
+mul_thunk(a, b::Union{Thunk,Memoize}) = mul(a, b())
 
-add_thunk(a::Union{Thunk, Memoize}, b::Union{Thunk, Memoize}) = add(a(), b())
-add_thunk(a::Union{Thunk, Memoize}, b) = add(a(), b)
-add_thunk(a, b::Union{Thunk, Memoize}) = add(a, b())
+add_thunk(a::Union{Thunk,Memoize}, b::Union{Thunk,Memoize}) = add(a(), b())
+add_thunk(a::Union{Thunk,Memoize}, b) = add(a(), b)
+add_thunk(a, b::Union{Thunk,Memoize}) = add(a, b())
 
-unwrap(x::Union{Thunk, Memoize}) = x()
+unwrap(x::Union{Thunk,Memoize}) = x()
 
 #####
 ##### `Zero`/`DNE`
@@ -208,7 +208,7 @@ add_one(a, b::One) = add(a, materialize(b))
 ##### `Wirtinger`
 #####
 
-struct Wirtinger{P, C} <: AbstractChainable
+struct Wirtinger{P,C} <: AbstractChainable
     primal::P
     conjugate::C
 end
