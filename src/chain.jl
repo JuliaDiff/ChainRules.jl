@@ -34,7 +34,8 @@ abstract type AbstractChainable end
 @inline mul(a, b, c, d, e) = mul(a, mul(b, c, d, e))
 @inline mul(a, b, c, d, e, args...) = mul(a, mul(b, c, d, e), args...)
 
-@inline mul_zero(a, b) = mul_one(a, b)
+@inline mul_zero(a, b) = mul_dne(a, b)
+@inline mul_dne(a, b) = mul_one(a, b)
 @inline mul_one(a, b) = mul_thunk(a, b)
 @inline mul_thunk(a, b) = mul_wirtinger(a, b)
 @inline mul_wirtinger(a, b) = mul_casted(a, b)
@@ -47,7 +48,8 @@ abstract type AbstractChainable end
 @inline add(a, b, c, d, e) = add(a, add(b, c, d, e))
 @inline add(a, b, c, d, e, args...) = add(a, add(b, c, d, e), args...)
 
-@inline add_zero(a, b) = add_one(a, b)
+@inline add_zero(a, b) = add_dne(a, b)
+@inline add_dne(a, b) = add_one(a, b)
 @inline add_one(a, b) = add_thunk(a, b)
 @inline add_thunk(a, b) = add_wirtinger(a, b)
 @inline add_wirtinger(a, b) = add_casted(a, b)
@@ -166,23 +168,35 @@ add_zero(::Zero, b) = unwrap(b)
 add_zero(a, ::Zero) = unwrap(a)
 
 #=
-Equivalent to `Zero` for the purposes of propagation (i.e. partial
+`DNE` is equivalent to `Zero` for the purposes of propagation (i.e. partial
 derivatives which don't exist simply do not contribute to a rule's total
-derivative).
+derivative), but is maintained as a separate type so that users can check
+against it if necessary.
+
+TODO: Should we rethink this? In general, it might not be possible for
+users to detect a difference, since `DNE` materializes to `materialize(Zero())`.
+It seems like a derivative's `DNE`-ness should be exposed to users in a way
+that's just unrelated to the chain rule algebra. Conversely, we want to minimize
+the amount of special-casing needed for users writing higher-level rule
+definitions/fallbacks, or else things will get unwieldy...maybe we should
+make `DNE` a callable "chain" that always basically returns itself?
 =#
 
-const DNE = Zero
+struct DNE <: AbstractChainable end
 
-#=
-TODO: How should we really handle the above? This is correct w.r.t. propagator
-algebra; even if an actual new type `DNE <: AbstractChainable` was defined,
-all the rules would be the same. Furthermore, users wouldn't be able to detect
-many differences, since `DNE` must materialize to `materialize(Zero())`. Thus,
-it seems like a derivative's `DNE`-ness should be exposed to users in a way
-that's just unrelated to the chain rule algebra. Conversely, we want to
-minimize the amount of special-casing needed for users writing higher-level
-rule definitions/fallbacks, or else things will get unwieldy...
-=#
+Base.adjoint(::DNE) = DNE()
+
+Base.Broadcast.materialize(::DNE) = materialize(Zero())
+
+Base.Broadcast.broadcastable(::DNE) = Ref(DNE())
+
+mul_dne(::DNE, ::DNE) = DNE()
+mul_dne(::DNE, ::Any) = DNE()
+mul_dne(::Any, ::DNE) = DNE()
+
+add_dne(::DNE, ::DNE) = DNE()
+add_dne(::DNE, b) = unwrap(b)
+add_dne(a, ::DNE) = unwrap(a)
 
 #####
 ##### `One`
