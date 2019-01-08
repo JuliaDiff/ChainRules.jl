@@ -49,6 +49,6 @@ end
 
 # trace
 
-frule(::typeof(tr), x) = (tr(x), (Ω̇, ẋ) -> add(Ω̇, Diagonal(ẋ)))
+frule(::typeof(tr), x) = (tr(x), (Ω̇, ẋ) -> add(Ω̇, Diagonal(materialize(ẋ))))
 
-rrule(::typeof(tr), x) = (tr(x), (x̄, Ω̄) -> add(x̄, Diagonal(Ω̄)))
+rrule(::typeof(tr), x) = (tr(x), (x̄, Ω̄) -> add(x̄, Diagonal(materialize(Ω̄))))
