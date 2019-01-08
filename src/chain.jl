@@ -56,8 +56,6 @@ abstract type AbstractChainable end
 @inline add_casted(a, b) = add_fallback(a, b)
 @inline add_fallback(a, b) = broadcasted(+, a, b)
 
-_adjoint(x) = adjoint(x)
-
 unwrap(x) = x
 
 #####
@@ -133,7 +131,7 @@ function (m::Memoize{F,R})()::R where {F, R}
     return m.ret[]::R
 end
 
-Base.adjoint(x::Union{Memoize,Thunk}) = @thunk(_adjoint(x()))
+Base.adjoint(x::Union{Memoize,Thunk}) = @thunk(adjoint(x()))
 
 Base.Broadcast.materialize(x::Union{Thunk,Memoize}) = materialize(x())
 
@@ -228,7 +226,7 @@ struct Wirtinger{P,C} <: AbstractChainable
 end
 
 # TODO: check this against conjugation rule in notes
-Base.adjoint(w::Wirtinger) = Wirtinger(_adjoint(w.primal), _adjoint(w.conjugate))
+Base.adjoint(w::Wirtinger) = Wirtinger(adjoint(w.primal), adjoint(w.conjugate))
 
 function Base.Broadcast.materialize(w::Wirtinger)
     return Wirtinger(materialize(w.primal), materialize(w.conjugate))
@@ -274,7 +272,10 @@ end
 cast(x) = Casted(x)
 cast(f, args...) = Casted(broadcasted(f, args...))
 
-_adjoint(c::Broadcasted) = cast(adjoint, c)
+# XXX: This is type piracy; it's kind of okay though, I guess, since we are
+# adding the algebraic element (`Casted`) that allows this operation to make
+# sense.
+Base.adjoint(c::Broadcasted) = cast(adjoint, c)
 
 Base.adjoint(c::Casted) = cast(adjoint, c.value)
 
