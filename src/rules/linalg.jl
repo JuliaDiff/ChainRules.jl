@@ -1,54 +1,72 @@
 #####
-##### `@rule`s
+##### `sum`
 #####
 
-@rule(dot(x, y), (cast(y), cast(x)))
-@rule(sum(x), One())
+frule(::typeof(sum), x) = (sum(x), Chain((ΔΩ, Δx) -> ΔΩ + sum(Δx)))
+
+rrule(::typeof(sum), x) = (sum(x), Chain((Δx, ΔΩ) -> Δx + cast(ΔΩ)))
 
 #####
-##### custom rules
+##### `dot`
 #####
 
-# inv
+function frule(::typeof(dot), x, y)
+    return dot(x, y), Chain((ΔΩ, Δx, Δy) -> ΔΩ + sum(Δx * cast(y)) + sum(cast(x) * Δy))
+end
+
+function rrule(::typeof(dot), x, y)
+    return dot(x, y), (Chain((Δx, ΔΩ) -> Δx + ΔΩ * cast(y)),
+                       Chain((Δy, ΔΩ) -> Δy + cast(x) * ΔΩ))
+end
+
+#####
+##### `inv`
+#####
 
 function frule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
-    m = @memoize(-Ω)
-    return Ω, (Ω̇, ẋ) -> add(Ω̇, mul(m, ẋ, Ω))
+    m = @thunk(-Ω)
+    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + m * Δx * Ω)
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
-    m = @memoize(-Ω)
-    return Ω, (x̄, Ω̄) -> add(x̄, mul(m', Ω̄, Ω'))
+    m = @thunk(-Ω)
+    return Ω, Chain((Δx, ΔΩ) -> Δx + m' * ΔΩ * Ω')
 end
 
-# det
+#####
+##### `det`
+#####
 
 function frule(::typeof(det), x)
-    Ω, m = det(x), @memoize(inv(x))
-    return Ω, (Ω̇, ẋ) -> add(Ω̇, mul(Ω, tr(materialize(mul(m, ẋ)))))
+    Ω, m = det(x), @thunk(inv(x))
+    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + Ω * tr(extern(m * Δx)))
 end
 
 function rrule(::typeof(det), x)
-    Ω, m = det(x), @memoize(inv(x)')
-    return Ω, (x̄, Ω̄) -> add(x̄, mul(Ω, Ω̄, m))
+    Ω, m = det(x), @thunk(inv(x)')
+    return Ω, Chain((Δx, ΔΩ) -> Δx + Ω * ΔΩ * m)
 end
 
-# logdet
+#####
+##### `logdet`
+#####
 
-function frule(::typeof(LinearAlgebra.logdet), x)
-    Ω, m = logdet(x), @memoize(inv(x))
-    return Ω, (Ω̇, ẋ) -> add(Ω̇, tr(materialize(mul(m, ẋ))))
+function frule(::typeof(logdet), x)
+    Ω, m = logdet(x), @thunk(inv(x))
+    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + tr(extern(m * Δx)))
 end
 
-function rrule(::typeof(LinearAlgebra.logdet), x)
-    Ω, m = logdet(x), @memoize(inv(x)')
-    return Ω, (x̄, Ω̄) -> add(x̄, mul(Ω̄, m))
+function rrule(::typeof(logdet), x)
+    Ω, m = logdet(x), @thunk(inv(x)')
+    return Ω, Chain((Δx, ΔΩ) -> Δx + ΔΩ * m)
 end
 
-# trace
+#####
+##### `trace`
+#####
 
-frule(::typeof(tr), x) = (tr(x), (Ω̇, ẋ) -> add(Ω̇, Diagonal(materialize(ẋ))))
+frule(::typeof(tr), x) = (tr(x), Chain((ΔΩ, Δx) -> ΔΩ + tr(extern(Δx))))
 
-rrule(::typeof(tr), x) = (tr(x), (x̄, Ω̄) -> add(x̄, Diagonal(materialize(Ω̄))))
+rrule(::typeof(tr), x) = (tr(x), Chain((Δx, ΔΩ) -> Δx + Diagonal(fill(ΔΩ, size(x, 1)))))
