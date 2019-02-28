@@ -1,5 +1,9 @@
 abstract type AbstractChain end
 
+# this ensures that consumers don't have to special-case chain destructuring
+Base.iterate(chain::AbstractChain) = (chain, nothing)
+Base.iterate(::AbstractChain, ::Any) = nothing
+
 #####
 ##### `Chain`
 #####
@@ -18,11 +22,17 @@ struct Chain{F} <: AbstractChain
     f::F
 end
 
-@inline (chain::Chain{F})(args...) where {F} = Cassette.overdub(CHAIN_CONTEXT, chain.f, args...)
+@inline (chain::Chain{F})(Δ, args...) where {F} = add(Δ, Cassette.overdub(CHAIN_CONTEXT, chain.f, args...))
 
-# this ensures that consumers don't have to special-case chain destructuring
-Base.iterate(chain::Chain) = (chain, nothing)
-Base.iterate(::Chain, ::Any) = nothing
+#####
+##### `CustomAccumulatorChain`
+#####
+
+struct CustomAccumulatorChain{F} <: AbstractChain
+    f::F
+end
+
+@inline (chain::CustomAccumulatorChain{F}(args...) where {F} = Cassette.overdub(CHAIN_CONTEXT, chain.f, args...)
 
 #####
 ##### `ChainDNE`

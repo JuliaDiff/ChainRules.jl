@@ -5,7 +5,7 @@ package (https://github.com/invenia/DiffLinearAlgebra.jl).
 
 _zeros(x) = fill!(similar(x), zero(eltype(x)))
 
-_chain_via(∂) = Chain((Δi, ΔΩ) -> Δi + (isa(ΔΩ, Zero) ? ΔΩ : ∂(extern(ΔΩ))))
+_chain_via(∂) = Chain(ΔΩ -> isa(ΔΩ, Zero) ? ΔΩ : ∂(extern(ΔΩ)))
 
 #####
 ##### `BLAS.dot`
@@ -28,12 +28,12 @@ end
 
 function frule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + sum(Δx * cast(@thunk(x * inv(Ω)))))
+    return Ω, Chain(Δx -> sum(Δx * cast(@thunk(x * inv(Ω)))))
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, Chain((Δx, ΔΩ) -> Δx + ΔΩ * @thunk(x * inv(Ω)))
+    return Ω, Chain(ΔΩ -> ΔΩ * @thunk(x * inv(Ω)))
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
@@ -46,9 +46,9 @@ end
 ##### `BLAS.asum`
 #####
 
-frule(::typeof(BLAS.asum), x) = (BLAS.asum(x), Chain((ΔΩ, Δx) -> ΔΩ + sum(cast(sign, x) * Δx)))
+frule(::typeof(BLAS.asum), x) = (BLAS.asum(x), Chain(Δx -> sum(cast(sign, x) * Δx)))
 
-rrule(::typeof(BLAS.asum), x) = (BLAS.asum(x), Chain((Δx, ΔΩ) -> Δx + ΔΩ * cast(sign, x)))
+rrule(::typeof(BLAS.asum), x) = (BLAS.asum(x), Chain(ΔΩ -> ΔΩ * cast(sign, x)))
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)

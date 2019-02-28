@@ -2,21 +2,20 @@
 ##### `sum`
 #####
 
-frule(::typeof(sum), x) = (sum(x), Chain((ΔΩ, Δx) -> ΔΩ + sum(Δx)))
+frule(::typeof(sum), x) = (sum(x), Chain(Δx -> sum(Δx)))
 
-rrule(::typeof(sum), x) = (sum(x), Chain((Δx, ΔΩ) -> Δx + cast(ΔΩ)))
+rrule(::typeof(sum), x) = (sum(x), Chain(ΔΩ -> cast(ΔΩ)))
 
 #####
 ##### `dot`
 #####
 
 function frule(::typeof(dot), x, y)
-    return dot(x, y), Chain((ΔΩ, Δx, Δy) -> ΔΩ + sum(Δx * cast(y)) + sum(cast(x) * Δy))
+    return dot(x, y), Chain((Δx, Δy) -> sum(Δx * cast(y)) + sum(cast(x) * Δy))
 end
 
 function rrule(::typeof(dot), x, y)
-    return dot(x, y), (Chain((Δx, ΔΩ) -> Δx + ΔΩ * cast(y)),
-                       Chain((Δy, ΔΩ) -> Δy + cast(x) * ΔΩ))
+    return dot(x, y), (Chain(ΔΩ -> ΔΩ * cast(y)), Chain(ΔΩ -> cast(x) * ΔΩ))
 end
 
 #####
@@ -26,13 +25,13 @@ end
 function frule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + m * Δx * Ω)
+    return Ω, Chain(Δx -> m * Δx * Ω)
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, Chain((Δx, ΔΩ) -> Δx + m' * ΔΩ * Ω')
+    return Ω, Chain(ΔΩ -> m' * ΔΩ * Ω')
 end
 
 #####
@@ -41,12 +40,12 @@ end
 
 function frule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x))
-    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + Ω * tr(extern(m * Δx)))
+    return Ω, Chain(Δx -> Ω * tr(extern(m * Δx)))
 end
 
 function rrule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x)')
-    return Ω, Chain((Δx, ΔΩ) -> Δx + Ω * ΔΩ * m)
+    return Ω, Chain(ΔΩ -> Ω * ΔΩ * m)
 end
 
 #####
@@ -55,18 +54,18 @@ end
 
 function frule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x))
-    return Ω, Chain((ΔΩ, Δx) -> ΔΩ + tr(extern(m * Δx)))
+    return Ω, Chain(Δx -> tr(extern(m * Δx)))
 end
 
 function rrule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x)')
-    return Ω, Chain((Δx, ΔΩ) -> Δx + ΔΩ * m)
+    return Ω, Chain(ΔΩ -> ΔΩ * m)
 end
 
 #####
 ##### `trace`
 #####
 
-frule(::typeof(tr), x) = (tr(x), Chain((ΔΩ, Δx) -> ΔΩ + tr(extern(Δx))))
+frule(::typeof(tr), x) = (tr(x), Chain(Δx -> tr(extern(Δx))))
 
-rrule(::typeof(tr), x) = (tr(x), Chain((Δx, ΔΩ) -> Δx + Diagonal(fill(ΔΩ, size(x, 1)))))
+rrule(::typeof(tr), x) = (tr(x), Chain(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1)))))

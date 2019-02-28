@@ -15,10 +15,10 @@ end
 
 function frule(::typeof(broadcast), f, x)
     Ω, ∂x = _cast_diff(f, x)
-    return Ω, Chain((ΔΩ, _, Δx) -> ΔΩ + Δx * cast(∂x))
+    return Ω, Chain((_, Δx) -> Δx * cast(∂x))
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (ChainDNE(), Chain((Δx, ΔΩ) -> Δx + ΔΩ * cast(∂x)))
+    return values, (ChainDNE(), Chain(ΔΩ -> ΔΩ * cast(∂x)))
 end
