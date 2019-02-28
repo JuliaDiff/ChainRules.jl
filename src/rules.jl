@@ -33,7 +33,7 @@ my_frule(args...) = Cassette.overdub(MyChainRuleCtx(), frule, args...)
 function Cassette.execute(::MyChainRuleCtx, ::typeof(frule), f, x::Number)
     r = frule(f, x)
     if isa(r, Nothing)
-        fx, df = (f(x), Chain((Δf, Δx) -> Δf + ForwardDiff.derivative(f, x) * Δx))
+        fx, df = (f(x), Chain(Δx -> ForwardDiff.derivative(f, x) * Δx))
     else
         fx, df = r
     end
@@ -49,7 +49,7 @@ rrule(::Any, ::Vararg{Any}) = nothing
 #####
 ##### macros
 #####
-
+# TODO change docs to match accumulator change
 """
     @scalar_rule(f(x₁, x₂, ...),
                  @setup(statement₁, statement₂, ...),
@@ -64,16 +64,16 @@ methods for `frule` and `rrule`:
     function ChainRules.frule(::typeof(f), x₁, x₂, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
-        return Ω, (Chain((ΔΩ₁, Δx₁, Δx₂, ...) -> ΔΩ₁ + ∂f₁_∂x₁ * Δx₁ + ∂f₁_∂x₂ * Δx₂ + ...),
-                   Chain((ΔΩ₂, Δx₁, Δx₂, ...) -> ΔΩ₂ + ∂f₂_∂x₁ * Δx₁ + ∂f₂_∂x₂ * Δx₂ + ...),
+        return Ω, (Chain((Δx₁, Δx₂, ...) -> ∂f₁_∂x₁ * Δx₁ + ∂f₁_∂x₂ * Δx₂ + ...),
+                   Chain((Δx₁, Δx₂, ...) -> ∂f₂_∂x₁ * Δx₁ + ∂f₂_∂x₂ * Δx₂ + ...),
                    ...)
     end
 
     function ChainRules.rrule(::typeof(f), x₁, x₂, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
-        return Ω, (Chain((Δx₁, ΔΩ₁, ΔΩ₂, ...) -> Δx₁ + ∂f₁_∂x₁ * ΔΩ₁ + ∂f₂_∂x₁ * ΔΩ₂ + ...),
-                   Chain((Δx₂, ΔΩ₁, ΔΩ₂, ...) -> Δx₂ + ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
+        return Ω, (Chain((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₁ * ΔΩ₁ + ∂f₂_∂x₁ * ΔΩ₂ + ...),
+                   Chain((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
                    ...)
     end
 
@@ -140,7 +140,7 @@ macro scalar_rule(call, maybe_setup, partials...)
 end
 
 function chain_from_partials(∂s...)
-    Δs = [Symbol(string(:Δ, i)) for i in 1:length(∂s)]
+    Δs = Expr(:tuple, [Symbol(string(:Δ, i)) for i in 1:length(∂s)]...)
     ∂_mul_Δs = [:(*(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
-    return :(Chain((Δ₀, $(Δs...)) -> +(Δ₀, $(∂_mul_Δs...))))
+    return :(Chain($Δs -> +($(∂_mul_Δs...))))
 end
