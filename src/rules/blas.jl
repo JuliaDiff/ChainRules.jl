@@ -19,7 +19,7 @@ function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
     ∂X = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
     ∂Y = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
-    return Ω, (ChainDNE(), _chain_via(∂X), ChainDNE(), _chain_via(∂Y), ChainDNE())
+    return Ω, (DNEChain(), _chain_via(∂X), DNEChain(), _chain_via(∂Y), DNEChain())
 end
 
 #####
@@ -39,7 +39,7 @@ end
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
     ∂X = ΔΩ -> scal!(n, ΔΩ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
-    return Ω, (ChainDNE(), _chain_via(∂X), ChainDNE())
+    return Ω, (DNEChain(), _chain_via(∂X), DNEChain())
 end
 
 #####
@@ -53,7 +53,7 @@ rrule(::typeof(BLAS.asum), x) = (BLAS.asum(x), Chain(ΔΩ -> ΔΩ * cast(sign, x
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
     ∂X = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
-    return Ω, (ChainDNE(), _chain_via(∂X), ChainDNE())
+    return Ω, (DNEChain(), _chain_via(∂X), DNEChain())
 end
 
 #####
@@ -65,7 +65,7 @@ function rrule(::typeof(BLAS.gemv), tA, α, A, x)
     ∂α = ΔΩ -> dot(ΔΩ, Ω) / α
     ∂A = ΔΩ -> uppercase(tA) == 'N' ? α * ΔΩ * x' : α * x * ΔΩ'
     ∂x = ΔΩ -> gemv(uppercase(tA) == 'N' ? 'T' : 'N', α, A, ΔΩ)
-    return Ω, (ChainDNE(), _chain_via(∂α), _chain_via(∂A), _chain_via(∂x))
+    return Ω, (DNEChain(), _chain_via(∂α), _chain_via(∂A), _chain_via(∂x))
 end
 
 function rrule(f::typeof(BLAS.gemv), tA, A, x)

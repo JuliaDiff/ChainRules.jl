@@ -5,6 +5,23 @@ Base.iterate(chain::AbstractChain) = (chain, nothing)
 Base.iterate(::AbstractChain, ::Any) = nothing
 
 #####
+##### `Accumulate`
+#####
+
+struct Accumulate{S}
+    storage::S
+    increment::Bool
+    function Accumulate(storage, increment::Bool = true)
+        return new{typeof(storage)}(storage, increment)
+    end
+end
+
+function accumulate!(Δ, ∂, increment = true)
+    materialize!(Δ, broadcastable(increment ? add(cast(Δ), ∂) : ∂))
+    return Δ
+end
+
+#####
 ##### `Chain`
 #####
 
@@ -22,22 +39,40 @@ struct Chain{F} <: AbstractChain
     f::F
 end
 
-@inline (chain::Chain{F})(Δ, args...) where {F} = add(Δ, Cassette.overdub(CHAIN_CONTEXT, chain.f, args...))
+(chain::Chain{F})(Δ, args...) where {F} = add(Δ, Cassette.overdub(CHAIN_CONTEXT, chain.f, args...))
+
+function (chain::Chain{F})(Δ::Accumulate, args...) where {F}
+    ∂ = Cassette.overdub(CHAIN_CONTEXT, chain.f, args...)
+    return accumulate!(Δ.storage, ∂, Δ.increment)
+end
 
 #####
-##### `CustomAccumulatorChain`
+##### `AccumulatorChain`
 #####
 
-struct CustomAccumulatorChain{F} <: AbstractChain
+struct AccumulatorChain{F} <: AbstractChain
     f::F
 end
 
-@inline (chain::CustomAccumulatorChain{F}(args...) where {F} = Cassette.overdub(CHAIN_CONTEXT, chain.f, args...)
+(chain::AccumulatorChain{F})(args...) where {F} = Cassette.overdub(CHAIN_CONTEXT, chain.f, args...)
 
 #####
-##### `ChainDNE`
+##### `DNEChain`
 #####
 
-struct ChainDNE <: AbstractChain end
+struct DNEChain <: AbstractChain end
 
-ChainDNE(args...) = DNE()
+DNEChain(args...) = DNE()
+
+#####
+##### `WirtingerChain`
+#####
+
+struct WirtingerChain{P<:AbstractChain,C<:AbstractChain} <: AbstractChain
+    primal::P
+    conjugate::C
+end
+
+function (chain::WirtingerChain)(args...)
+    return Wirtinger(chain.primal(args...), chain.conjugate(args...))
+end

@@ -13,7 +13,10 @@ All subtypes of `AbstractDifferential` implement the following operations:
 
 `mul(a, b)`: multiply the differential `a` by the differential `b`
 
-`extern(x)`: convert `x` into an appropriate non-`AbstractDifferential` type for use with external packages
+`Base.conj(x)`: complex conjugate of the differential `x`
+
+`extern(x)`: convert `x` into an appropriate non-`AbstractDifferential` type for
+use outside of `ChainContext`.
 
 Valid arguments to these operations are `T` where `T<:AbstractDifferential`, or
 where `T` has proper `+` and `*` implementations.
@@ -34,6 +37,8 @@ wrapped by `x`, such that mutating `extern(x)` might mutate `x` itself.
 """
 @inline extern(x) = x
 
+@inline Base.conj(x::AbstractDifferential) = x
+
 #=
 This `AbstractDifferential` algebra has a monad-y "fallthrough" implementation;
 each step handles an element of the algebra before dispatching to the next step.
@@ -41,8 +46,7 @@ This way, we don't need to implement promotion/conversion rules between subtypes
 of `AbstractDifferential` to resolve potential ambiguities.
 =#
 
-const PRECEDENCE_LIST = [:accumulated, :wirtinger, :casted,
-                         :zero, :dne, :one, :thunk, :fallback]
+const PRECEDENCE_LIST = [:wirtinger, :casted, :zero, :dne, :one, :thunk, :fallback]
 
 global defs = Expr(:block)
 
@@ -65,82 +69,15 @@ eval(defs)
 
 @inline mul_fallback(a, b) = a * b
 
-@inline function Base.iterate(x::AbstractDifferential)
-    externed = extern(x)
-    element, state = iterate(externed)
-    return element, (externed, state)
-end
+@inline add(x) = x
 
-@inline function Base.iterate(::AbstractDifferential, (externed, state))
-    element, new_state = iterate(externed, state)
-    return element, (externed, new_state)
-end
-
-#####
-##### `Accumulated`
-#####
-
-struct Accumulated{S} <: AbstractDifferential
-    storage::S
-    increment::Bool
-    function Accumulated(storage, increment::Bool = true)
-        return new{typeof(storage)}(storage, increment)
-    end
-end
-
-extern(x::Accumulated) = x.storage
-
-function add_accumulated(a::Accumulated, b::Accumulated)
-    error("`+(a::Accumulated, b::Accumulated)` is undefined, since its return "*
-          "value is ambiguous; it is not possible to determine whether `a` or "*
-          "`b` should be returned.")
-end
-
-function add_accumulated(a::Accumulated, b)
-    materialize!(a.storage, broadcastable(a.increment ? add(cast(a.storage), b) : b))
-    return a
-end
-
-function add_accumulated(a, b::Accumulated)
-    materialize!(b.storage, broadcastable(b.increment ? add(a, cast(b.storage)) : a))
-    return b
-end
-
-mul_accumulated(a::Accumulated, b::Accumulated) = error("multiplication with `Accumulated` is undefined")
-
-mul_accumulated(a::Accumulated, b) = error("multiplication with `Accumulated` is undefined")
-
-mul_accumulated(a, b::Accumulated) = error("multiplication with `Accumulated` is undefined")
+@inline mul(x) = x
 
 #####
 ##### `Wirtinger`
 #####
-# TODO: Document the derivations that lead to all of these rules (see notes)
+# TODO does this represent (∂f/∂z, ∂f/∂z̄) or (∂f/∂z, ∂f̄/∂z) or what?
 
-"""
-    Wirtinger(primal::Union{Number,AbstractDifferential},
-              conjugate::Union{Number,AbstractDifferential})
-
-Return a `Wirtinger` instance with two directly accessible fields:
-
-- `primal`: the value corresponding to `∂f/∂z * dz`
-- `conjugate`: the value corresponding to `∂f/∂z̄ * dz̄`
-
-This `Wirtinger` instance, as a whole, represents the complex differential `df`,
-defined in the Wirtinger calculus as:
-
-```
-df = ∂f/∂z * dz + ∂f/∂z̄ * dz̄
-```
-
-This representation allows convenient derivative definitions for nonholomorphic
-functions of complex variables. For example, consider the `@scalar_rule` for
-`abs2`:
-
-```
-@scalar_rule(abs2(x), Wirtinger(x', x))
-```
-"""
 struct Wirtinger{P,C} <: AbstractDifferential
     primal::P
     conjugate::C
@@ -153,21 +90,11 @@ struct Wirtinger{P,C} <: AbstractDifferential
     end
 end
 
-"""
-    Wirtinger(primal::Real, conjugate::Real)
+wirtinger_primal(x::Wirtinger) = x.primal
+wirtinger_primal(x) = x
 
-Return `add(primal, conjugate)`.
-
-The Wirtinger calculus generally requires that downstream propagation mechanisms
-have access to `∂f/∂z * dz` and `∂f/∂z̄ * dz` separately. However, if both of
-these terms are real-valued, then downstream Wirtinger propagation mechanisms
-resolve to the same mechanisms as real-valued calculus. In this case, the sum
-in the differential `df = ∂f/∂z * dz + ∂f/∂z̄ * dz` can be computed eagerly and
-a special `Wirtinger` representation is not needed.
-
-Thus, this method primarily exists as an optimization.
-"""
-Wirtinger(primal::Real, conjugate::Real) = add(primal, conjugate)
+wirtinger_conjugate(x::Wirtinger) = x.conjugate
+wirtinger_conjugate(::Any) = Zero()
 
 extern(x::Wirtinger) = error("`Wirtinger` cannot be converted into an external type.")
 
@@ -177,6 +104,8 @@ Base.Broadcast.broadcastable(w::Wirtinger) = Wirtinger(broadcastable(w.primal),
 Base.iterate(x::Wirtinger) = (x, nothing)
 Base.iterate(::Wirtinger, ::Any) = nothing
 
+Base.conj(x::Wirtinger) = error("`conj(::Wirtinger)` not yet defined")
+
 function add_wirtinger(a::Wirtinger, b::Wirtinger)
     return Wirtinger(add(a.primal, b.primal), add(a.conjugate, b.conjugate))
 end
@@ -184,38 +113,39 @@ end
 add_wirtinger(a::Wirtinger, b) = add(a, Wirtinger(b, Zero()))
 add_wirtinger(a, b::Wirtinger) = add(Wirtinger(a, Zero()), b)
 
-function mul_wirtinger(a::Wirtinger, b::Wirtinger)
-    new_primal = add(mul(a.primal, b.primal), mul(a.conjugate, conj(b.conjugate)))
-    new_conjugate = add(mul(a.primal, b.conjugate), mul(a.conjugate, conj(b.primal)))
-    return Wirtinger(new_primal, new_conjugate)
-end
+# TODO
+mul_wirtinger(a::Wirtinger, b::Wirtinger) = error()
 
-mul_wirtinger(a::Wirtinger, b) = mul(a, Wirtinger(b, Zero()))
-mul_wirtinger(a, b::Wirtinger) = mul(Wirtinger(a, Zero()), b)
+mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conjugate, b))
+mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate))
 
 #####
-##### `Thunk`
+##### `Casted`
 #####
 
-struct Thunk{F} <: AbstractDifferential
-    f::F
+struct Casted{V} <: AbstractDifferential
+    value::V
 end
 
-macro thunk(body)
-    return :(Thunk(() -> $(esc(body))))
-end
+cast(x) = Casted(x)
+cast(f, args...) = Casted(broadcasted(f, args...))
 
-@inline extern(x::Thunk{F}) where {F} = x.f()
+extern(x::Casted) = materialize(broadcasted(extern, x.value))
 
-Base.Broadcast.broadcastable(x::Thunk) = broadcastable(extern(x))
+Base.Broadcast.broadcastable(x::Casted) = x.value
 
-add_thunk(a::Thunk, b::Thunk) = add(extern(a), extern(b))
-add_thunk(a::Thunk, b) = add(extern(a), b)
-add_thunk(a, b::Thunk) = add(a, extern(b))
+Base.iterate(x::Casted) = iterate(x.value)
+Base.iterate(x::Casted, state) = iterate(x.value, state)
 
-mul_thunk(a::Thunk, b::Thunk) = mul(extern(a), extern(b))
-mul_thunk(a::Thunk, b) = mul(extern(a), b)
-mul_thunk(a, b::Thunk) = mul(a, extern(b))
+Base.conj(x::Casted) = cast(conj, x.value)
+
+add_casted(a::Casted, b::Casted) = Casted(broadcasted(add, a.value, b.value))
+add_casted(a::Casted, b) = Casted(broadcasted(add, a.value, b))
+add_casted(a, b::Casted) = Casted(broadcasted(add, a, b.value))
+
+mul_casted(a::Casted, b::Casted) = Casted(broadcasted(mul, a.value, b.value))
+mul_casted(a::Casted, b) = Casted(broadcasted(mul, a.value, b))
+mul_casted(a, b::Casted) = Casted(broadcasted(mul, a, b.value))
 
 #####
 ##### `Zero`
@@ -281,27 +211,45 @@ mul_one(::One, b) = b
 mul_one(a, ::One) = a
 
 #####
-##### `Casted`
+##### `Thunk`
 #####
 
-struct Casted{V} <: AbstractDifferential
-    value::V
+struct Thunk{F} <: AbstractDifferential
+    f::F
 end
 
-cast(x) = Casted(x)
-cast(f, args...) = Casted(broadcasted(f, args...))
+macro thunk(body)
+    return :(Thunk(() -> $(esc(body))))
+end
 
-extern(x::Casted) = materialize(broadcasted(extern, x.value))
+@inline extern(x::Thunk{F}) where {F} = x.f()
 
-Base.Broadcast.broadcastable(x::Casted) = x.value
+Base.Broadcast.broadcastable(x::Thunk) = broadcastable(extern(x))
 
-Base.iterate(x::Casted) = iterate(x.value)
-Base.iterate(x::Casted, state) = iterate(x.value, state)
+@inline function Base.iterate(x::Thunk)
+    externed = extern(x)
+    element, state = iterate(externed)
+    return element, (externed, state)
+end
 
-add_casted(a::Casted, b::Casted) = Casted(broadcasted(add, a.value, b.value))
-add_casted(a::Casted, b) = Casted(broadcasted(add, a.value, b))
-add_casted(a, b::Casted) = Casted(broadcasted(add, a, b.value))
+@inline function Base.iterate(::Thunk, (externed, state))
+    element, new_state = iterate(externed, state)
+    return element, (externed, new_state)
+end
 
-mul_casted(a::Casted, b::Casted) = Casted(broadcasted(mul, a.value, b.value))
-mul_casted(a::Casted, b) = Casted(broadcasted(mul, a.value, b))
-mul_casted(a, b::Casted) = Casted(broadcasted(mul, a, b.value))
+Base.conj(x::Thunk) = @thunk(conj(extern(x)))
+
+add_thunk(a::Thunk, b::Thunk) = add(extern(a), extern(b))
+add_thunk(a::Thunk, b) = add(extern(a), b)
+add_thunk(a, b::Thunk) = add(a, extern(b))
+
+mul_thunk(a::Thunk, b::Thunk) = mul(extern(a), extern(b))
+mul_thunk(a::Thunk, b) = mul(extern(a), b)
+mul_thunk(a, b::Thunk) = mul(a, extern(b))
+
+#####
+##### misc.
+#####
+
+# TODO justify this
+Wirtinger(primal::Real, conjugate::Union{Real,DNE,Zero,One}) = add(primal, conjugate)

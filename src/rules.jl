@@ -49,7 +49,7 @@ rrule(::Any, ::Vararg{Any}) = nothing
 #####
 ##### macros
 #####
-# TODO change docs to match accumulator change
+
 """
     @scalar_rule(f(x₁, x₂, ...),
                  @setup(statement₁, statement₂, ...),
@@ -76,7 +76,6 @@ methods for `frule` and `rrule`:
                    Chain((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
                    ...)
     end
-
 
 Note that the result of `f(x₁, x₂, ...)` is automatically bound to `Ω`. This
 allows the primal result to be conveniently referenced (as `Ω`) within the
@@ -110,18 +109,16 @@ macro scalar_rule(call, maybe_setup, partials...)
     @assert Meta.isexpr(call, :call)
     f, inputs = esc(call.args[1]), esc.(call.args[2:end])
     if all(Meta.isexpr(partial, :tuple) for partial in partials)
-        escaped_partials = Any[map(esc, partial.args) for partial in partials]
-        forward_chains = Any[chain_from_partials(partial...) for partial in escaped_partials]
+        forward_chains = Any[chain_from_partials(partial.args...) for partial in partials]
         reverse_chains = Any[]
         for i in 1:length(inputs)
-            reverse_partials = [partial[i] for partial in escaped_partials]
+            reverse_partials = [partial.args[i] for partial in partials]
             push!(reverse_chains, chain_from_partials(reverse_partials...))
         end
     else
         @assert length(inputs) == 1 && all(!Meta.isexpr(partial, :tuple) for partial in partials)
-        escaped_partials = map(esc, partials)
-        forward_chains = Any[chain_from_partials(partial) for partial in escaped_partials]
-        reverse_chains = Any[chain_from_partials(escaped_partials...)]
+        forward_chains = Any[chain_from_partials(partial) for partial in partials]
+        reverse_chains = Any[chain_from_partials(partials...)]
     end
     forward_chains = length(forward_chains) == 1 ? forward_chains[1] : Expr(:tuple, forward_chains...)
     reverse_chains = length(reverse_chains) == 1 ? reverse_chains[1] : Expr(:tuple, reverse_chains...)
@@ -140,7 +137,39 @@ macro scalar_rule(call, maybe_setup, partials...)
 end
 
 function chain_from_partials(∂s...)
-    Δs = Expr(:tuple, [Symbol(string(:Δ, i)) for i in 1:length(∂s)]...)
-    ∂_mul_Δs = [:(*(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
-    return :(Chain($Δs -> +($(∂_mul_Δs...))))
+    wirtinger_indices = findall(x -> Meta.isexpr(x, :call) && x.args[1] === :Wirtinger,  ∂s)
+    ∂s = map(esc, ∂s)
+    Δs = [Symbol(string(:Δ, i)) for i in 1:length(∂s)]
+    Δs_tuple = Expr(:tuple, Δs...)
+    if isempty(wirtinger_indices)
+        ∂_mul_Δs = [:(mul(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
+        return :(Chain($Δs_tuple -> add($(∂_mul_Δs...))))
+    else
+        ∂_mul_Δs_primal = Any[]
+        ∂_mul_Δs_conjugate = Any[]
+        ∂_wirtinger_defs = Any[]
+        for i in 1:length(∂s)
+            if i in wirtinger_indices
+                Δi = Δs[i]
+                ∂i = Symbol(string(:∂, i))
+                push!(∂_wirtinger_defs, :($∂i = $(∂s[i])))
+                ∂f∂i_mul_Δ = :(mul(wirtinger_primal($∂i), wirtinger_primal($Δi)))
+                ∂f∂ī_mul_Δ̄ = :(mul(conj(wirtinger_conjugate($∂i)), wirtinger_conjugate($Δi)))
+                ∂f̄∂i_mul_Δ = :(mul(wirtinger_conjugate($∂i), wirtinger_primal($Δi)))
+                ∂f̄∂ī_mul_Δ̄ = :(mul(conj(wirtinger_primal($∂i)), wirtinger_conjugate($Δi)))
+                push!(∂_mul_Δs_primal, :(add($∂f∂i_mul_Δ, $∂f∂ī_mul_Δ̄)))
+                push!(∂_mul_Δs_conjugate, :(add($∂f̄∂i_mul_Δ, $∂f̄∂ī_mul_Δ̄)))
+            else
+                ∂_mul_Δ = :(mul(@thunk($(∂s[i])), $(Δs[i])))
+                push!(∂_mul_Δs_primal, ∂_mul_Δ)
+                push!(∂_mul_Δs_conjugate, ∂_mul_Δ)
+            end
+        end
+        primal_chain = :(Chain($Δs_tuple -> add($(∂_mul_Δs_primal...))))
+        conjugate_chain = :(Chain($Δs_tuple -> add($(∂_mul_Δs_conjugate...))))
+        return quote
+            $(∂_wirtinger_defs...)
+            WirtingerChain($primal_chain, $conjugate_chain)
+        end
+    end
 end

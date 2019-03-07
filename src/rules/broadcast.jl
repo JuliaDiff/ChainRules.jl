@@ -20,5 +20,5 @@ end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, (ChainDNE(), Chain(ΔΩ -> ΔΩ * cast(∂x)))
+    return values, (DNEChain(), Chain(ΔΩ -> ΔΩ * cast(∂x)))
 end
