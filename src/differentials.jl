@@ -76,7 +76,7 @@ eval(defs)
 #####
 ##### `Wirtinger`
 #####
-# TODO does this represent (∂f/∂z, ∂f/∂z̄) or (∂f/∂z, ∂f̄/∂z) or what?
+# represents (∂f/∂z, ∂f/∂z̄)
 
 struct Wirtinger{P,C} <: AbstractDifferential
     primal::P
@@ -104,7 +104,8 @@ Base.Broadcast.broadcastable(w::Wirtinger) = Wirtinger(broadcastable(w.primal),
 Base.iterate(x::Wirtinger) = (x, nothing)
 Base.iterate(::Wirtinger, ::Any) = nothing
 
-Base.conj(x::Wirtinger) = error("`conj(::Wirtinger)` not yet defined")
+# returns (conj(∂f/∂z̄), conj(∂f/∂z)) = (∂f̄/∂z, ∂f̄/∂z̄)
+Base.conj(x::Wirtinger) = Wirtinger(conj(x.conjugate), conj(x.primal))
 
 function add_wirtinger(a::Wirtinger, b::Wirtinger)
     return Wirtinger(add(a.primal, b.primal), add(a.conjugate, b.conjugate))
@@ -113,8 +114,10 @@ end
 add_wirtinger(a::Wirtinger, b) = add(a, Wirtinger(b, Zero()))
 add_wirtinger(a, b::Wirtinger) = add(Wirtinger(a, Zero()), b)
 
-# TODO
-mul_wirtinger(a::Wirtinger, b::Wirtinger) = error()
+# (∂/∂z, ∂/∂z̄)(a∘b) = ∂a/∂b * (∂b/∂z, ∂b/∂z̄) + ∂a/∂b̄ * (∂b̄/∂z, ∂b̄/∂z̄)
+function mul_wirtinger(a::Wirtinger, b::Wirtinger)
+    return add(mul(a.primal, b), mul(a.conjugate, conj(b)))
+end
 
 mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conjugate, b))
 mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate))
