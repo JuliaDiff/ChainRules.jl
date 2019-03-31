@@ -252,4 +252,7 @@ mul_thunk(a, b::Thunk) = mul(a, extern(b))
 #####
 
 # TODO justify this
-Wirtinger(primal::Real, conjugate::Union{Real,DNE,Zero,One}) = add(primal, conjugate)
+function Wirtinger(primal::Union{Real,DNE,Zero,One},
+                   conjugate::Union{Real,DNE,Zero,One})
+    return add(primal, conjugate)
+end
