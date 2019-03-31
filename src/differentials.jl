@@ -76,8 +76,22 @@ eval(defs)
 #####
 ##### `Wirtinger`
 #####
-# TODO does this represent (∂f/∂z, ∂f/∂z̄) or (∂f/∂z, ∂f̄/∂z) or what?
 
+"""
+    Wirtinger(primal::Union{Number,AbstractDifferential},
+              conjugate::Union{Number,AbstractDifferential})
+
+Returns a `Wirtinger` instance representing the complex differential:
+
+```
+df = ∂f/∂z * dz + ∂f/∂z̄ * dz̄
+```
+
+where `primal` corresponds to `∂f/∂z * dz` and `conjugate` corresponds to `∂f/∂z̄ * dz̄`.
+
+The two fields of the returned instance can be accessed generically via the
+[`wirtinger_primal`](@ref) and [`wirtinger_conjugate`](@ref) methods.
+"""
 struct Wirtinger{P,C} <: AbstractDifferential
     primal::P
     conjugate::C
@@ -118,12 +132,16 @@ function mul_wirtinger(a::Wirtinger, b::Wirtinger)
           cannot multiply two Wirtinger objects; this error likely means a
           `WirtingerRule` was inappropriately defined somewhere. Multiplication
           of two Wirtinger objects is not defined because chain rule application
-          can expand into a non-commutative operation in the Wirtinger calculus.
-          To put it another way: Given two Wirtinger objects, we can't know
-          "locally" which components to conjugate in order to apply the chain
-          rule; to answer that question, we need to know which object is a
-          differential from an upstream calculation, and which object is
-          the intermediate partial derivative for the current calcuation.
+          often expands into a non-commutative operation in the Wirtinger
+          calculus. To put it another way: simply given two Wirtinger objects
+          and no other information, we can't know "locally" which components to
+          conjugate in order to implement the chain rule. We could pick a
+          convention; for example, we could define `a::Wirtinger * b::Wirtinger`
+          such that we assume the chain rule application is of the form `f_a ∘ f_b`
+          instead of `f_b ∘ f_a`. However, picking such a convention is likely to
+          lead to silently incorrect derivatives due to commutativity assumptions
+          in downstream generic code that deals with the reals. Thus, ChainRules
+          makes this operation an error instead.
           """)
 end
 
@@ -262,7 +280,20 @@ mul_thunk(a, b::Thunk) = mul(a, extern(b))
 ##### misc.
 #####
 
-# TODO justify this
+"""
+    Wirtinger(primal::Real, conjugate::Real)
+
+Return `add(primal, conjugate)`.
+
+Actually implementing the Wirtinger calculus generally requires that the
+summed terms of the Wirtinger differential (`∂f/∂z * dz` and `∂f/∂z̄ * dz̄`) be
+stored individually. However, if both of these terms are real-valued, then
+downstream Wirtinger propagation mechanisms resolve to the same mechanisms as
+real-valued calculus, so that the terms' sum can be eagerly computed and
+propagated without requiring a special `Wirtinger` representation
+
+This method primarily exists as an optimization.
+"""
 function Wirtinger(primal::Union{Real,DNE,Zero,One},
                    conjugate::Union{Real,DNE,Zero,One})
     return add(primal, conjugate)
