@@ -113,8 +113,19 @@ end
 add_wirtinger(a::Wirtinger, b) = add(a, Wirtinger(b, Zero()))
 add_wirtinger(a, b::Wirtinger) = add(Wirtinger(a, Zero()), b)
 
-# TODO
-mul_wirtinger(a::Wirtinger, b::Wirtinger) = error()
+function mul_wirtinger(a::Wirtinger, b::Wirtinger)
+    error("""
+          cannot multiply two Wirtinger objects; this error likely means a
+          `WirtingerRule` was inappropriately defined somewhere. Multiplication
+          of two Wirtinger objects is not defined because chain rule application
+          can expand into a non-commutative operation in the Wirtinger calculus.
+          To put it another way: Given two Wirtinger objects, we can't know
+          "locally" which components to conjugate in order to apply the chain
+          rule; to answer that question, we need to know which object is a
+          differential from an upstream calculation, and which object is
+          the intermediate partial derivative for the current calcuation.
+          """)
+end
 
 mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conjugate, b))
 mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate))

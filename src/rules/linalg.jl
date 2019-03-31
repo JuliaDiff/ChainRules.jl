@@ -2,20 +2,20 @@
 ##### `sum`
 #####
 
-frule(::typeof(sum), x) = (sum(x), Chain(Δx -> sum(Δx)))
+frule(::typeof(sum), x) = (sum(x), Rule(sum))
 
-rrule(::typeof(sum), x) = (sum(x), Chain(ΔΩ -> cast(ΔΩ)))
+rrule(::typeof(sum), x) = (sum(x), Rule(cast))
 
 #####
 ##### `dot`
 #####
 
 function frule(::typeof(dot), x, y)
-    return dot(x, y), Chain((Δx, Δy) -> sum(Δx * cast(y)) + sum(cast(x) * Δy))
+    return dot(x, y), Rule((Δx, Δy) -> sum(Δx * cast(y)) + sum(cast(x) * Δy))
 end
 
 function rrule(::typeof(dot), x, y)
-    return dot(x, y), (Chain(ΔΩ -> ΔΩ * cast(y)), Chain(ΔΩ -> cast(x) * ΔΩ))
+    return dot(x, y), (Rule(ΔΩ -> ΔΩ * cast(y)), Rule(ΔΩ -> cast(x) * ΔΩ))
 end
 
 #####
@@ -25,13 +25,13 @@ end
 function frule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, Chain(Δx -> m * Δx * Ω)
+    return Ω, Rule(Δx -> m * Δx * Ω)
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, Chain(ΔΩ -> m' * ΔΩ * Ω')
+    return Ω, Rule(ΔΩ -> m' * ΔΩ * Ω')
 end
 
 #####
@@ -40,12 +40,12 @@ end
 
 function frule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x))
-    return Ω, Chain(Δx -> Ω * tr(extern(m * Δx)))
+    return Ω, Rule(Δx -> Ω * tr(extern(m * Δx)))
 end
 
 function rrule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x)')
-    return Ω, Chain(ΔΩ -> Ω * ΔΩ * m)
+    return Ω, Rule(ΔΩ -> Ω * ΔΩ * m)
 end
 
 #####
@@ -54,18 +54,18 @@ end
 
 function frule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x))
-    return Ω, Chain(Δx -> tr(extern(m * Δx)))
+    return Ω, Rule(Δx -> tr(extern(m * Δx)))
 end
 
 function rrule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x)')
-    return Ω, Chain(ΔΩ -> ΔΩ * m)
+    return Ω, Rule(ΔΩ -> ΔΩ * m)
 end
 
 #####
 ##### `trace`
 #####
 
-frule(::typeof(tr), x) = (tr(x), Chain(Δx -> tr(extern(Δx))))
+frule(::typeof(tr), x) = (tr(x), Rule(Δx -> tr(extern(Δx))))
 
-rrule(::typeof(tr), x) = (tr(x), Chain(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1)))))
+rrule(::typeof(tr), x) = (tr(x), Rule(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1)))))

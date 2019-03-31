@@ -7,7 +7,6 @@ using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broad
 import NaNMath, SpecialFunctions, LinearAlgebra, LinearAlgebra.BLAS
 
 include("differentials.jl")
-include("chain.jl")
 include("rules.jl")
 include("rules/base.jl")
 include("rules/broadcast.jl")

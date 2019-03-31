@@ -1,3 +1,82 @@
+abstract type AbstractRule end
+
+# this ensures that consumers don't have to special-case rule destructuring
+Base.iterate(rule::AbstractRule) = (rule, nothing)
+Base.iterate(::AbstractRule, ::Any) = nothing
+
+#####
+##### `Accumulate`
+#####
+
+struct Accumulate{S}
+    storage::S
+    increment::Bool
+    function Accumulate(storage, increment::Bool = true)
+        return new{typeof(storage)}(storage, increment)
+    end
+end
+
+function accumulate!(Δ, ∂, increment = true)
+    materialize!(Δ, broadcastable(increment ? add(cast(Δ), ∂) : ∂))
+    return Δ
+end
+
+#####
+##### `Rule`
+#####
+
+Cassette.@context RuleContext
+
+const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
+
+Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
+Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
+
+Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
+Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
+
+struct Rule{F} <: AbstractRule
+    f::F
+end
+
+(rule::Rule{F})(Δ, args...) where {F} = add(Δ, Cassette.overdub(RULE_CONTEXT, rule.f, args...))
+
+function (rule::Rule{F})(Δ::Accumulate, args...) where {F}
+    ∂ = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
+    return accumulate!(Δ.storage, ∂, Δ.increment)
+end
+
+#####
+##### `AccumulatorRule`
+#####
+
+struct AccumulatorRule{F} <: AbstractRule
+    f::F
+end
+
+(rule::AccumulatorRule{F})(args...) where {F} = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
+
+#####
+##### `DNERule`
+#####
+
+struct DNERule <: AbstractRule end
+
+DNERule(args...) = DNE()
+
+#####
+##### `WirtingerRule`
+#####
+
+struct WirtingerRule{P<:AbstractRule,C<:AbstractRule} <: AbstractRule
+    primal::P
+    conjugate::C
+end
+
+function (rule::WirtingerRule)(args...)
+    return Wirtinger(rule.primal(args...), rule.conjugate(args...))
+end
+
 #####
 ##### `frule`/`rrule`
 #####
@@ -33,7 +112,7 @@ my_frule(args...) = Cassette.overdub(MyChainRuleCtx(), frule, args...)
 function Cassette.execute(::MyChainRuleCtx, ::typeof(frule), f, x::Number)
     r = frule(f, x)
     if isa(r, Nothing)
-        fx, df = (f(x), Chain(Δx -> ForwardDiff.derivative(f, x) * Δx))
+        fx, df = (f(x), Rule(Δx -> ForwardDiff.derivative(f, x) * Δx))
     else
         fx, df = r
     end
@@ -64,16 +143,16 @@ methods for `frule` and `rrule`:
     function ChainRules.frule(::typeof(f), x₁, x₂, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
-        return Ω, (Chain((Δx₁, Δx₂, ...) -> ∂f₁_∂x₁ * Δx₁ + ∂f₁_∂x₂ * Δx₂ + ...),
-                   Chain((Δx₁, Δx₂, ...) -> ∂f₂_∂x₁ * Δx₁ + ∂f₂_∂x₂ * Δx₂ + ...),
+        return Ω, (Rule((Δx₁, Δx₂, ...) -> ∂f₁_∂x₁ * Δx₁ + ∂f₁_∂x₂ * Δx₂ + ...),
+                   Rule((Δx₁, Δx₂, ...) -> ∂f₂_∂x₁ * Δx₁ + ∂f₂_∂x₂ * Δx₂ + ...),
                    ...)
     end
 
     function ChainRules.rrule(::typeof(f), x₁, x₂, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
-        return Ω, (Chain((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₁ * ΔΩ₁ + ∂f₂_∂x₁ * ΔΩ₂ + ...),
-                   Chain((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
+        return Ω, (Rule((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₁ * ΔΩ₁ + ∂f₂_∂x₁ * ΔΩ₂ + ...),
+                   Rule((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
                    ...)
     end
 
@@ -109,41 +188,41 @@ macro scalar_rule(call, maybe_setup, partials...)
     @assert Meta.isexpr(call, :call)
     f, inputs = esc(call.args[1]), esc.(call.args[2:end])
     if all(Meta.isexpr(partial, :tuple) for partial in partials)
-        forward_chains = Any[chain_from_partials(partial.args...) for partial in partials]
-        reverse_chains = Any[]
+        forward_rules = Any[rule_from_partials(partial.args...) for partial in partials]
+        reverse_rules = Any[]
         for i in 1:length(inputs)
             reverse_partials = [partial.args[i] for partial in partials]
-            push!(reverse_chains, chain_from_partials(reverse_partials...))
+            push!(reverse_rules, rule_from_partials(reverse_partials...))
         end
     else
         @assert length(inputs) == 1 && all(!Meta.isexpr(partial, :tuple) for partial in partials)
-        forward_chains = Any[chain_from_partials(partial) for partial in partials]
-        reverse_chains = Any[chain_from_partials(partials...)]
+        forward_rules = Any[rule_from_partials(partial) for partial in partials]
+        reverse_rules = Any[rule_from_partials(partials...)]
     end
-    forward_chains = length(forward_chains) == 1 ? forward_chains[1] : Expr(:tuple, forward_chains...)
-    reverse_chains = length(reverse_chains) == 1 ? reverse_chains[1] : Expr(:tuple, reverse_chains...)
+    forward_rules = length(forward_rules) == 1 ? forward_rules[1] : Expr(:tuple, forward_rules...)
+    reverse_rules = length(reverse_rules) == 1 ? reverse_rules[1] : Expr(:tuple, reverse_rules...)
     return quote
         function ChainRules.frule(::typeof($f), $(inputs...))
             $(esc(:Ω)) = $call
             $(setup_stmts...)
-            return $(esc(:Ω)), $forward_chains
+            return $(esc(:Ω)), $forward_rules
         end
         function ChainRules.rrule(::typeof($f), $(inputs...))
             $(esc(:Ω)) = $call
             $(setup_stmts...)
-            return $(esc(:Ω)), $reverse_chains
+            return $(esc(:Ω)), $reverse_rules
         end
     end
 end
 
-function chain_from_partials(∂s...)
+function rule_from_partials(∂s...)
     wirtinger_indices = findall(x -> Meta.isexpr(x, :call) && x.args[1] === :Wirtinger,  ∂s)
     ∂s = map(esc, ∂s)
     Δs = [Symbol(string(:Δ, i)) for i in 1:length(∂s)]
     Δs_tuple = Expr(:tuple, Δs...)
     if isempty(wirtinger_indices)
         ∂_mul_Δs = [:(mul(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
-        return :(Chain($Δs_tuple -> add($(∂_mul_Δs...))))
+        return :(Rule($Δs_tuple -> add($(∂_mul_Δs...))))
     else
         ∂_mul_Δs_primal = Any[]
         ∂_mul_Δs_conjugate = Any[]
@@ -165,11 +244,11 @@ function chain_from_partials(∂s...)
                 push!(∂_mul_Δs_conjugate, ∂_mul_Δ)
             end
         end
-        primal_chain = :(Chain($Δs_tuple -> add($(∂_mul_Δs_primal...))))
-        conjugate_chain = :(Chain($Δs_tuple -> add($(∂_mul_Δs_conjugate...))))
+        primal_rule = :(Rule($Δs_tuple -> add($(∂_mul_Δs_primal...))))
+        conjugate_rule = :(Rule($Δs_tuple -> add($(∂_mul_Δs_conjugate...))))
         return quote
             $(∂_wirtinger_defs...)
-            WirtingerChain($primal_chain, $conjugate_chain)
+            WirtingerRule($primal_rule, $conjugate_rule)
         end
     end
 end

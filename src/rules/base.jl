@@ -74,6 +74,6 @@
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
-frule(::typeof(*), x, y) = x * y, Chain((Δx, Δy) -> Δx * y + x * Δy)
+frule(::typeof(*), x, y) = x * y, Rule((Δx, Δy) -> Δx * y + x * Δy)
 
-rrule(::typeof(*), x, y) = x * y, (Chain(ΔΩ -> ΔΩ * y'), Chain(ΔΩ -> x' * ΔΩ))
+rrule(::typeof(*), x, y) = x * y, (Rule(ΔΩ -> ΔΩ * y'), Rule(ΔΩ -> x' * ΔΩ))
