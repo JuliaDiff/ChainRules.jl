@@ -1,3 +1,26 @@
+"""
+Subtypes of `AbstractRule` are callable objects which evaluate to the chain rule
+application of the derivative of function which created them.
+
+As an example,
+
+```julia-repl
+julia> using ChainRules: rrule, extern, Zero, One
+
+julia> x = 0.0
+0.0
+
+julia> y, dx = rrule(sin, x);
+
+julia> typeof(dx)
+ChainRules.Rule{getfield(ChainRules, Symbol("##66#70")){Float64}}
+
+julia> extern(dx(Zero(), One()))  # derivative of sin at x
+1.0
+```
+
+Here `Rule <: AbstractRule`.
+"""
 abstract type AbstractRule end
 
 # this ensures that consumers don't have to special-case rule destructuring
@@ -121,8 +144,28 @@ end
 ```
 =#
 
+"""
+    frule(f, xs...)
+
+Apply the forward-mode differentiation rule to `f` with the given arguments `xs`,
+returning a tuple of `f(xs...)` and an [`AbstractRule`](@ref) object which can be
+called to evaluate the rule. If no forward-mode rule has been defined for `f`,
+`nothing` is returned.
+
+See also: [`rrule`](@ref)
+"""
 frule(::Any, ::Vararg{Any}) = nothing
 
+"""
+    rrule(f, xs...)
+
+Apply the reverse-mode differentiation rule to `f` with the given arguments `xs`,
+returning a tuple of `f(xs...)` and an [`AbstractRule`](@ref) object which can be
+called to evaluate the rule. If no reverse-mode rule has been defined for `f`,
+`nothing` is returned.
+
+See also: [`frule`](@ref)
+"""
 rrule(::Any, ::Vararg{Any}) = nothing
 
 #####
