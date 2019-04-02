@@ -1,5 +1,4 @@
 julia 1.0.0
 SpecialFunctions
 NaNMath
-ForwardDiff
 Cassette 0.2.0 0.3.0
