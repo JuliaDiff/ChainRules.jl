@@ -58,6 +58,47 @@ Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
 Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
 
+"""
+    Rule{F}
+
+`Rule`s are callable objects which return derivatives. Calling a `Rule` requires the
+following arguments:
+
+* The input or output differential, depending on whether forward- or reverse-mode,
+  respectively, is being used.
+
+  As an example, consider differentiating a function `f(x)` in reverse mode.
+  The input `x` also be the input to other functions, and thus accumulating its total
+  differential will require multiple rule applications.
+  This first argument to calling a `Rule` represents "existing" differential content
+  from previous rule applications to which the result of the current call is accumulated.
+
+* The incoming differential(s) for the argument(s) to the function.
+
+  Taking again `f(x)` from the above discussion, this second argument corresponds to
+  the differential for `x`.
+
+  Now consider a function `g(x, y, z)`. Calling its `Rule` will require four arguments:
+  the input/output as described above, and differentials for each of the arguments `x`,
+  `y`, and `z`. In general, the `Rule` for a function with `n` arguments requires `n + 1`
+  arguments.
+
+# Example
+
+```julia-repl
+julia> using ChainRules: Rule, rrule
+
+julia> x = 0.0;
+
+julia> y, dx = rrule(sin, x);
+
+julia> dx isa Rule
+true
+
+julia> dx(0.0, 1.0)  # 0 for no previous applications (nothing to accumulate), 1 for dx/dx
+1.0
+```
+"""
 struct Rule{F} <: AbstractRule
     f::F
 end

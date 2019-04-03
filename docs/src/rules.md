@@ -2,6 +2,7 @@
 
 ```@docs
 ChainRules.AbstractRule
+ChainRules.Rule
 ```
 
 ## Forward and Reverse Rules
