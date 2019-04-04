@@ -200,7 +200,7 @@ where each returned propagation rule `rule_for_ΔΩᵢ` can be invoked as
 to yield `Ωᵢ`'s corresponding differential `ΔΩᵢ`. To illustrate, if all involved
 values are real-valued scalars, this differential can be written as:
 
-    previous_ΔΩᵢ + ∂Ωᵢ_∂x₁ * Δx₁ + ∂Ωᵢ_∂x₁ * Δx₂ + ...
+    previous_ΔΩᵢ + ∂Ωᵢ_∂x₁ * Δx₁ + ∂Ωᵢ_∂x₂ * Δx₂ + ...
 
 If no method matching `frule(f, xs...)` has been defined, then return `nothing`.
 
