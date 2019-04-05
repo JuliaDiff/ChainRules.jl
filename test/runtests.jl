@@ -77,3 +77,9 @@ cx, cy = cast((rand(), Zero())), cast((Zero(), rand()))
 dx, dy = extern(dxy(cx, cy))
 @test dx === y / h * cx.value[1]
 @test dy === x / h * cy.value[2]
+
+#####
+##### More!
+#####
+
+include(joinpath("rules", "base.jl"))
