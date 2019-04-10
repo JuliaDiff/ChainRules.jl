@@ -2,10 +2,10 @@ using ChainRules
 using Documenter
 
 makedocs(modules=[ChainRules],
-         sitename="ChainRules.jl",
+         sitename="ChainRules",
          authors="Jarrett Revels and other contributors",
-         pages=["Home" => "index.md",
-                "Differentials" => "differentials.md",
-                "Rules" => "rules.md"])
+         pages=["Introduction" => "index.md",
+                "Getting Started" => "getting_started.md",
+                "ChainRules API Documentation" => "api.md"]])
 
 deploydocs(repo="github.com/JuliaDiff/ChainRules.jl.git")
