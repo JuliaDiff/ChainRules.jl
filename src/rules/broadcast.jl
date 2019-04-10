@@ -7,7 +7,7 @@ https://github.com/JuliaLang/julia/issues/22129.
 function _cast_diff(f, x)
     element_rule = u -> begin
         fu, du = frule(f, u)
-        fu, extern(du(Zero(), One()))
+        fu, extern(du(One()))
     end
     results = broadcast(element_rule, x)
     return first.(results), last.(results)

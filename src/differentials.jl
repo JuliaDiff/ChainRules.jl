@@ -152,6 +152,9 @@ mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate)
 ##### `Casted`
 #####
 
+"""
+TODO
+"""
 struct Casted{V} <: AbstractDifferential
     value::V
 end
@@ -180,6 +183,9 @@ mul_casted(a, b::Casted) = Casted(broadcasted(mul, a, b.value))
 ##### `Zero`
 #####
 
+"""
+TODO
+"""
 struct Zero <: AbstractDifferential end
 
 extern(x::Zero) = false
@@ -201,6 +207,9 @@ mul_zero(::Any, ::Zero) = Zero()
 ##### `DNE`
 #####
 
+"""
+TODO
+"""
 struct DNE <: AbstractDifferential end
 
 extern(x::DNE) = error("`DNE` cannot be converted into an external type.")
@@ -222,6 +231,9 @@ mul_dne(::Any, ::DNE) = DNE()
 ##### `One`
 #####
 
+"""
+TODO
+"""
 struct One <: AbstractDifferential end
 
 extern(x::One) = true
@@ -243,6 +255,9 @@ mul_one(a, ::One) = a
 ##### `Thunk`
 #####
 
+"""
+TODO
+"""
 struct Thunk{F} <: AbstractDifferential
     f::F
 end

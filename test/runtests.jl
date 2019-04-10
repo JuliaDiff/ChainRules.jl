@@ -1,7 +1,7 @@
 # TODO: more tests!
 
 using ChainRules, Test
-using ChainRules: One, Zero, rrule, frule, extern, cast, Accumulate
+using ChainRules: One, Zero, rrule, frule, extern, cast, accumulate, accumulate!, store!
 
 #####
 ##### `*(x, y)`
@@ -11,15 +11,15 @@ function test_adjoint!(x̄, dx, ȳ, partial)
     x̄_old = copy(x̄)
     x̄_zeros = zero.(x̄)
 
-    @test extern(dx(Zero(), ȳ)) == extern(dx(x̄_zeros, ȳ))
-    @test extern(dx(x̄, ȳ)) == (x̄ .+ partial)
+    @test extern(accumulate(Zero(), dx, ȳ)) == extern(accumulate(x̄_zeros, dx, ȳ))
+    @test extern(accumulate(x̄, dx, ȳ)) == (x̄ .+ partial)
     @test x̄ == x̄_old
 
-    dx(Accumulate(x̄), ȳ)
+    accumulate!(x̄, dx, ȳ)
     @test x̄ == (x̄_old .+ partial)
     x̄ .= x̄_old
 
-    dx(Accumulate(x̄, false), ȳ)
+    store!(x̄, dx, ȳ)
     @test x̄ == partial
     x̄ .= x̄_old
 
@@ -33,8 +33,8 @@ z, (dx, dy) = rrule(*, x, y)
 
 z̄ = rand(3, 5)
 
-@test dx(Zero(), z̄) == extern(dx(zeros(3, 2), z̄))
-@test dy(Zero(), z̄) == extern(dy(zeros(2, 5), z̄))
+@test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
+@test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
 
 test_adjoint!(rand(3, 2), dx, z̄, z̄ * y')
 test_adjoint!(rand(2, 5), dy, z̄, x' * z̄)
@@ -47,16 +47,16 @@ x = rand(3, 3)
 y, (dsin, dx) = rrule(broadcast, sin, x)
 
 @test y == sin.(x)
-@test extern(dx(Zero(), One())) == cos.(x)
+@test extern(dx(One())) == cos.(x)
 
 x̄, ȳ = rand(), rand()
-@test extern(dx(x̄, ȳ)) == x̄ .+ ȳ .* cos.(x)
+@test extern(accumulate(x̄, dx, ȳ)) == x̄ .+ ȳ .* cos.(x)
 
 x̄, ȳ = Zero(), rand(3, 3)
-@test extern(dx(x̄, ȳ)) == ȳ .* cos.(x)
+@test extern(accumulate(x̄, dx, ȳ)) == ȳ .* cos.(x)
 
 x̄, ȳ = Zero(), cast(rand(3, 3))
-@test extern(dx(x̄, ȳ)) == extern(ȳ) .* cos.(x)
+@test extern(accumulate(x̄, dx, ȳ)) == extern(ȳ) .* cos.(x)
 
 #####
 ##### `hypot(x, y)`
@@ -65,15 +65,15 @@ x̄, ȳ = Zero(), cast(rand(3, 3))
 x, y = rand(2)
 h, dxy = frule(hypot, x, y)
 
-@test extern(dxy(Zero(), One(), Zero())) === y / h
-@test extern(dxy(Zero(), Zero(), One())) === x / h
+@test extern(dxy(One(), Zero())) === y / h
+@test extern(dxy(Zero(), One())) === x / h
 
 cx, cy = cast((One(), Zero())), cast((Zero(), One()))
-dx, dy = extern(dxy(Zero(), cx, cy))
+dx, dy = extern(dxy(cx, cy))
 @test dx === y / h
 @test dy === x / h
 
 cx, cy = cast((rand(), Zero())), cast((Zero(), rand()))
-dx, dy = extern(dxy(Zero(), cx, cy))
+dx, dy = extern(dxy(cx, cy))
 @test dx === y / h * cx.value[1]
 @test dy === x / h * cy.value[2]
