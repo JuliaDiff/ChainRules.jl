@@ -245,7 +245,7 @@ as `Ω`, return the tuple:
 
 where each returned propagation rule `rule_for_Δxᵢ` can be invoked as
 
-    rule_for_Δxᵢ(previous_Δxᵢ, ΔΩ₁, ΔΩ₂, ...)
+    rule_for_Δxᵢ(ΔΩ₁, ΔΩ₂, ...)
 
 to yield `xᵢ`'s corresponding differential `Δxᵢ`. To illustrate, if all involved
 values are real-valued scalars, this differential can be written as:
