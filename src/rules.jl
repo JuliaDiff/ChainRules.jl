@@ -1,25 +1,52 @@
 """
-Subtypes of `AbstractRule` are callable objects which evaluate to the chain rule
-application of the derivative of function which created them.
+Subtypes of `AbstractRule` are types which represent the primitive derivative
+propagation "rules" that can be composed to implement forward- and reverse-mode
+automatic differentiation.
 
-As an example,
+More specifically, a `rule::AbstractRule` is a callable Julia object generally
+obtained via calling [`frule`](@ref) or [`rrule`](@ref). Such rules accept
+differential values as input, evaluate the chain rule using internally stored/
+computed partial derivatives to produce a single differential value, then
+return that calculated differential value.
+
+For example:
 
 ```julia-repl
-julia> using ChainRules: rrule, extern, Zero, One
+julia> using ChainRules: frule, rrule, AbstractRule
 
-julia> x = 0.0
-0.0
+julia> x, y = rand(2);
 
-julia> y, dx = rrule(sin, x);
+julia> h, dh = frule(hypot, x, y);
 
-julia> typeof(dx)
-ChainRules.Rule{getfield(ChainRules, Symbol("##66#70")){Float64}}
+julia> h == hypot(x, y)
+true
 
-julia> extern(dx(Zero(), One()))  # derivative of sin at x
-1.0
+julia> isa(dh, AbstractRule)
+true
+
+julia> Δx, Δy = rand(2);
+
+julia> dh(Δx, Δy) == ((y / h) * Δx + (x / h) * Δy)
+true
+
+julia> h, (dx, dy) = rrule(hypot, x, y);
+
+julia> h == hypot(x, y)
+true
+
+julia> isa(dx, AbstractRule) && isa(dy, AbstractRule)
+true
+
+julia> Δh = rand();
+
+julia> dx(Δh) == (y / h) * Δh
+true
+
+julia> dy(Δh) == (x / h) * Δh
+true
 ```
 
-Here `Rule <: AbstractRule`.
+See also: [`frule`](@ref), [`rrule`](@ref), [`Rule`](@ref), [`DNERule`](@ref), [`WirtingerRule`](@ref)
 """
 abstract type AbstractRule end
 
@@ -27,22 +54,20 @@ abstract type AbstractRule end
 Base.iterate(rule::AbstractRule) = (rule, nothing)
 Base.iterate(::AbstractRule, ::Any) = nothing
 
-#####
-##### `Accumulate`
-#####
+"""
+TODO
+"""
+accumulate(Δ, rule::AbstractRule, args...) = add(Δ, rule(args...))
 
-struct Accumulate{S}
-    storage::S
-    increment::Bool
-    function Accumulate(storage, increment::Bool = true)
-        return new{typeof(storage)}(storage, increment)
-    end
-end
+"""
+TODO
+"""
+accumulate!(Δ, rule::AbstractRule, args...) = materialize!(Δ, broadcastable(add(cast(Δ), rule(args...))))
 
-function accumulate!(Δ, ∂, increment = true)
-    materialize!(Δ, broadcastable(increment ? add(cast(Δ), ∂) : ∂))
-    return Δ
-end
+"""
+TODO
+"""
+store!(Δ, rule::AbstractRule, args...) = materialize!(Δ, broadcastable(rule(args...)))
 
 #####
 ##### `Rule`
@@ -59,71 +84,37 @@ Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
 
 """
-    Rule{F}
+    Rule(propation_function)
 
-`Rule`s are callable objects which return derivatives. Calling a `Rule` requires the
-following arguments:
+Return a `Rule` that wraps the given `propation_function`. It is assumed that
+`propation_function` is a callable object whose arguments are differential
+values, and whose output is a single differential value calculated by applying
+internally stored/computed partial derivatives to the input differential
+values.
 
-* The input or output differential, depending on whether forward- or reverse-mode,
-  respectively, is being used.
+For example:
 
-  As an example, consider differentiating a function `f(x)` in reverse mode.
-  The input `x` also be the input to other functions, and thus accumulating its total
-  differential will require multiple rule applications.
-  This first argument to calling a `Rule` represents "existing" differential content
-  from previous rule applications to which the result of the current call is accumulated.
-
-* The incoming differential(s) for the argument(s) to the function.
-
-  Taking again `f(x)` from the above discussion, this second argument corresponds to
-  the differential for `x`.
-
-  Now consider a function `g(x, y, z)`. Calling its `Rule` will require four arguments:
-  the input/output as described above, and differentials for each of the arguments `x`,
-  `y`, and `z`. In general, the `Rule` for a function with `n` arguments requires `n + 1`
-  arguments.
-
-# Example
-
-```julia-repl
-julia> using ChainRules: Rule, rrule
-
-julia> x = 0.0;
-
-julia> y, dx = rrule(sin, x);
-
-julia> dx isa Rule
-true
-
-julia> dx(0.0, 1.0)  # 0 for no previous applications (nothing to accumulate), 1 for dx/dx
-1.0
 ```
+frule(::typeof(*), x, y) = x * y, Rule((Δx, Δy) -> Δx * y + x * Δy)
+
+rrule(::typeof(*), x, y) = x * y, (Rule(ΔΩ -> ΔΩ * y'), Rule(ΔΩ -> x' * ΔΩ))
+```
+
+See also: [`frule`](@ref), [`rrule`](@ref), [`accumulate`](@ref), [`accumulate!`](@ref), [`store!`](@ref)
 """
 struct Rule{F} <: AbstractRule
     f::F
 end
 
-(rule::Rule{F})(Δ, args...) where {F} = add(Δ, Cassette.overdub(RULE_CONTEXT, rule.f, args...))
-
-function (rule::Rule{F})(Δ::Accumulate, args...) where {F}
-    ∂ = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
-    return accumulate!(Δ.storage, ∂, Δ.increment)
-end
-
-#####
-##### `AccumulatorRule`
-#####
-
-struct AccumulatorRule{F} <: AbstractRule
-    f::F
-end
-
-(rule::AccumulatorRule{F})(args...) where {F} = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
+(rule::Rule{F})(args...) where {F} = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
 
 #####
 ##### `DNERule`
 #####
 
+"""
+TODO
+"""
 struct DNERule <: AbstractRule end
 
 DNERule(args...) = DNE()
@@ -132,6 +123,9 @@ DNERule(args...) = DNE()
 ##### `WirtingerRule`
 #####
 
+"""
+TODO
+"""
 struct WirtingerRule{P<:AbstractRule,C<:AbstractRule} <: AbstractRule
     primal::P
     conjugate::C
@@ -195,12 +189,12 @@ as `Ω`, return the tuple:
 
 where each returned propagation rule `rule_for_ΔΩᵢ` can be invoked as
 
-    rule_for_ΔΩᵢ(previous_ΔΩᵢ, Δx₁, Δx₂, ...)
+    rule_for_ΔΩᵢ(Δx₁, Δx₂, ...)
 
 to yield `Ωᵢ`'s corresponding differential `ΔΩᵢ`. To illustrate, if all involved
 values are real-valued scalars, this differential can be written as:
 
-    previous_ΔΩᵢ + ∂Ωᵢ_∂x₁ * Δx₁ + ∂Ωᵢ_∂x₂ * Δx₂ + ...
+    ΔΩᵢ = ∂Ωᵢ_∂x₁ * Δx₁ + ∂Ωᵢ_∂x₂ * Δx₂ + ...
 
 If no method matching `frule(f, xs...)` has been defined, then return `nothing`.
 
@@ -208,32 +202,36 @@ Examples:
 
 unary input, unary output scalar function:
 
-    julia> x = rand();
+```julia-repl
+julia> x = rand();
 
-    julia> sinx, dsin = ChainRules.frule(sin, x);
+julia> sinx, dsin = ChainRules.frule(sin, x);
 
-    julia> sinx == sin(x)
-    true
+julia> sinx == sin(x)
+true
 
-    julia> dsin(0, 1) == cos(x)
-    true
+julia> dsin(1) == cos(x)
+true
+```
 
 unary input, binary output scalar function:
 
-    julia> x = rand();
+```julia-repl
+julia> x = rand();
 
-    julia> sincosx, (dsin, dcos) = ChainRules.frule(sincos, x);
+julia> sincosx, (dsin, dcos) = ChainRules.frule(sincos, x);
 
-    julia> sincosx == sincos(x)
-    true
+julia> sincosx == sincos(x)
+true
 
-    julia> dsin(0, 1) == cos(x)
-    true
+julia> dsin(1) == cos(x)
+true
 
-    julia> dcos(0, 1) == -sin(x)
-    true
+julia> dcos(1) == -sin(x)
+true
+```
 
-See also: [`rrule`](@ref), [`AbstractRule`](@ref)
+See also: [`rrule`](@ref), [`AbstractRule`](@ref), [`@scalar_rule`](@ref)
 """
 frule(::Any, ::Vararg{Any}) = nothing
 
@@ -252,7 +250,7 @@ where each returned propagation rule `rule_for_Δxᵢ` can be invoked as
 to yield `xᵢ`'s corresponding differential `Δxᵢ`. To illustrate, if all involved
 values are real-valued scalars, this differential can be written as:
 
-    previous_Δxᵢ + ∂Ω₁_∂xᵢ * ΔΩ₁ + ∂Ω₂_∂xᵢ * ΔΩ₂ + ...
+    Δxᵢ = ∂Ω₁_∂xᵢ * ΔΩ₁ + ∂Ω₂_∂xᵢ * ΔΩ₂ + ...
 
 If no method matching `rrule(f, xs...)` has been defined, then return `nothing`.
 
@@ -260,32 +258,36 @@ Examples:
 
 unary input, unary output scalar function:
 
-    julia> x = rand();
+```julia-repl
+julia> x = rand();
 
-    julia> sinx, dx = ChainRules.rrule(sin, x);
+julia> sinx, dx = ChainRules.rrule(sin, x);
 
-    julia> sinx == sin(x)
-    true
+julia> sinx == sin(x)
+true
 
-    julia> dx(0, 1) == cos(x)
-    true
+julia> dx(1) == cos(x)
+true
+```
 
 binary input, unary output scalar function:
 
-    julia> x, y = rand(2);
+```julia-repl
+julia> x, y = rand(2);
 
-    julia> hypotxy, (dx, dy) = ChainRules.rrule(hypot, x, y);
+julia> hypotxy, (dx, dy) = ChainRules.rrule(hypot, x, y);
 
-    julia> hypotxy == hypot(x, y)
-    true
+julia> hypotxy == hypot(x, y)
+true
 
-    julia> dx(0, 1) == (y / hypot(x, y))
-    true
+julia> dx(1) == (y / hypot(x, y))
+true
 
-    julia> dy(0, 1) == (x / hypot(x, y))
-    true
+julia> dy(1) == (x / hypot(x, y))
+true
+```
 
-See also: [`frule`](@ref), [`AbstractRule`](@ref)
+See also: [`frule`](@ref), [`AbstractRule`](@ref), [`@scalar_rule`](@ref)
 """
 rrule(::Any, ::Vararg{Any}) = nothing
 
@@ -341,6 +343,8 @@ is equivalent to:
                  ...)
 
 For examples, see ChainRules' `rules` directory.
+
+See also: [`frule`](@ref), [`rrule`](@ref), [`AbstractRule`](@ref)
 """
 macro scalar_rule(call, maybe_setup, partials...)
     if Meta.isexpr(maybe_setup, :macrocall) && maybe_setup.args[1] == Symbol("@setup")
