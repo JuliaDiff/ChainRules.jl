@@ -3,6 +3,19 @@
 using ChainRules, Test
 using ChainRules: One, Zero, rrule, frule, extern, cast, accumulate, accumulate!, store!
 
+cool(x) = x + 1
+@testset "frule and rrule" begin
+    @test frule(cool, 1) === nothing
+    @test rrule(cool, 1) === nothing
+    ChainRules.@scalar_rule(Main.cool(x), one(x))
+    frx, fr = frule(cool, 1)
+    @test frx == 2
+    @test fr(1) == 1
+    rrx, rr = rrule(cool, 1)
+    @test rrx == 2
+    @test rr(1) == 1
+end
+
 #####
 ##### `*(x, y)`
 #####
