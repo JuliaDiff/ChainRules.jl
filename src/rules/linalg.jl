@@ -31,7 +31,7 @@ end
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, Rule(ΔΩ -> m' * ΔΩ * Ω')
+    return Ω, Rule(ΔΩ -> extern(m)' * ΔΩ * Ω')
 end
 
 #####

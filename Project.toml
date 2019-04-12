@@ -13,6 +13,7 @@ julia = "^1.0"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+FDM = "e25cca7e-83ef-51fa-be6c-dfe2a3123128"
 
 [targets]
-test = ["Test"]
+test = ["Test", "FDM"]
