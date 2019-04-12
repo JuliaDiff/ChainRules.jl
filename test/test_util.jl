@@ -24,7 +24,7 @@ to_vec(X::Diagonal) = vec(Matrix(X)), x_vec->Diagonal(reshape(x_vec, size(X)...)
 function to_vec(x::Tuple)
     x_vecs, x_backs = zip(map(to_vec, x)...)
     sz = cumsum([map(length, x_vecs)...])
-    return vcat(x...), v->([x_backs[n](v[sz[n]-length(x[n])+1:sz[n]]) for n in 1:length(x)]...,)
+    return vcat(x_vecs...), v->([x_backs[n](v[sz[n]-length(x[n])+1:sz[n]]) for n in 1:length(x)]...,)
 end
 
 function FDM.jvp(fdm, f, x, ẋ)
@@ -85,22 +85,6 @@ for x in [
     @test fd_isapprox(j′vp(central_fdm(5, 1), identity, x, x), (x,), 1e-10, 1e-10)
 end
 
-# # Check rrule correctness using finite differencing.
-# function rrule_test(f, ȳ, x...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
-
-#     # Compute forwards-pass and j′vp.
-#     fx, dxs = ChainRules.rrule(f, x...)
-#     adj_ad = dxs(ȳ)
-#     adj_fd = j′vp(fdm, f, ȳ, x...)
-
-#     # Check that forwards-pass agrees with plain forwards-pass.
-#     @test fx ≈ f(x...)
-
-#     # Check that ad and fd adjoints (approximately) agree.
-#     # print_adjoints(adj_ad, adj_fd, rtol, atol)
-#     @test fd_isapprox(adj_ad, adj_fd, rtol, atol)
-# end
-
 """
     frule_test(f, x, ẋ; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
 
@@ -109,22 +93,21 @@ end
 - `x`: input at which to evaluate `f` (should generally be set randomly).
 - `ẋ`: differential w.r.t. `x` (should generally be set randomly).
 """
-function frule_test(f, x, ẋ; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
-    Ω, dΩ_rule = ChainRules.frule(f, x)
-    dΩ_ad, dΩ_fd = dΩ_rule(ẋ), FDM.jvp(fdm, f, x, ẋ)
-    @test Ω ≈ f(x)
+function frule_test(f, (x, ẋ); rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
+    return frule_test(f, ((x, ẋ),); rtol=rtol, atol=atol, fdm=fdm)
+end
+
+function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
+    xs, ẋs = collect(zip(xẋs...))
+    Ω, dΩ_rule = ChainRules.frule(f, xs...)
+    @test f(xs...) == Ω
+
+    dΩ_ad, dΩ_fd = dΩ_rule(ẋs...), FDM.jvp(fdm, xs->f(xs...), xs, ẋs)
     @test chain_rules_isapprox(dΩ_ad, dΩ_fd, rtol, atol)
 end
 
-function frule_test(f, xẋ::Tuple{Any, Any}; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
-    xs, ẋs = collect(zip(xẋ...))
-    Ω, dΩ_rules = ChainRules.frule(f, xs...)
-    dΩ_ad = map((dΩ_rule, ẋ)->dΩ_rule(ẋ), dΩ_rules, ẋs)
-    #dΩ_fd = 
-end
-
 """
-    rrule_test(f, ȳ, x, x̄; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
+    rrule_test(f, ȳ, (x, x̄); rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
 
 # Arguments
 - `f`: Function to which rule should be applied.
@@ -132,8 +115,10 @@ end
 - `x`: input at which to evaluate `f` (should generally be set randomly).
 - `x̄`: currently accumulated adjoint (should generally be set randomly).
 """
-function rrule_test(f, ȳ, x, x̄; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
-
+function rrule_test(
+    f, ȳ, (x, x̄)::Tuple{Any, Any};
+    rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1),
+)
     # Check correctness of evaluation.
     fx, dx = ChainRules.rrule(f, x)
     @test fx ≈ f(x)
@@ -144,6 +129,27 @@ function rrule_test(f, ȳ, x, x̄; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1))
 
     # Assuming x̄_ad to be correct, check that other ChainRules mechanisms are correct.
     test_adjoint!(x̄, dx, ȳ, x̄_ad)
+end
+
+function rrule_test(
+    f, ȳ, xx̄s::Tuple{Any, Any}...;
+    rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1),
+)
+    # Check correctness of evaluation.
+    xs, x̄s = collect(zip(xx̄s...))
+    Ω, Δx_rules = ChainRules.rrule(f, xs...)
+    @test f(xs...) == Ω
+
+    # Correctness testing via finite differencing.
+    Δxs_ad, Δxs_fd = map(Δx_rule->Δx_rule(ȳ), Δx_rules), j′vp(fdm, f, ȳ, xs...)
+    @test all(map(
+        (Δx_ad, Δx_fd)->chain_rules_isapprox(Δx_ad, Δx_fd, rtol, atol),
+        Δxs_ad,
+        Δxs_fd,
+    ))
+
+    # Assuming the above to be correct, check that other ChainRules mechanisms are correct.
+    map((x̄, Δx_rule, Δx_ad)->test_adjoint!(x̄, Δx_rule, ȳ, Δx_ad), x̄s, Δx_rules, Δxs_ad)
 end
 
 function chain_rules_isapprox(d_ad, d_fd, rtol, atol)
