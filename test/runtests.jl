@@ -16,6 +16,16 @@ cool(x) = x + 1
     @test rr(1) == 1
 end
 
+@testset "iterating rules" begin
+    _, rule = frule(+, 1)
+    i = 0
+    for r in rule
+        @test r === rule
+        i += 1
+    end
+    @test i == 1  # rules only iterate once, yielding themselves
+end
+
 #####
 ##### `*(x, y)`
 #####
