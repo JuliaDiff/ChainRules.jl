@@ -61,7 +61,7 @@ Return `Δ + rule(args...)` evaluated in a manner that supports ChainRules'
 various `AbstractDifferential` types.
 
 This method intended to be customizable for specific rules/input types. For
-example, here is psuedocode to overload `accumulate` w.r.t. a specific forward
+example, here is pseudocode to overload `accumulate` w.r.t. a specific forward
 differentiation rule for a given function `f`:
 
 ```
