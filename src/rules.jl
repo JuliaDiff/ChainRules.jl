@@ -65,7 +65,8 @@ TODO
 function accumulate!(Δ, rule::AbstractRule, args...)
     return materialize!(Δ, broadcastable(add(cast(Δ), rule(args...))))
 end
-accumulate!(Δ::Real, rule::AbstractRule, args...) = accumulate(Δ, rule, args...)
+
+accumulate!(Δ::Number, rule::AbstractRule, args...) = accumulate(Δ, rule, args...)
 
 """
 TODO

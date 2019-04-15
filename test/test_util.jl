@@ -20,7 +20,7 @@ function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm
     @test f(xs...) == Ω
 
     dΩ_ad, dΩ_fd = dΩ_rule(ẋs...), jvp(fdm, xs->f(xs...), (xs, ẋs))
-    @test chain_rules_isapprox(dΩ_ad, dΩ_fd, rtol, atol)
+    @test cr_isapprox(dΩ_ad, dΩ_fd, rtol, atol)
 end
 
 """
