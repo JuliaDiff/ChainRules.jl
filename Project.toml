@@ -10,6 +10,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Cassette = "^0.2"
+FDM = "^0.4.0"
 julia = "^1.0"
 
 [extras]
