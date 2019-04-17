@@ -86,7 +86,11 @@ Note that this function internally calls `Base.Broadcast.materialize!(Δ, ...)`.
 
 See also: [`accumulate`](@ref), [`store!`](@ref), [`AbstractRule`](@ref)
 """
-accumulate!(Δ, rule::AbstractRule, args...) = materialize!(Δ, broadcastable(add(cast(Δ), rule(args...))))
+function accumulate!(Δ, rule::AbstractRule, args...)
+    return materialize!(Δ, broadcastable(add(cast(Δ), rule(args...))))
+end
+
+accumulate!(Δ::Number, rule::AbstractRule, args...) = accumulate(Δ, rule, args...)
 
 """
     store!(Δ, rule::AbstractRule, args...)

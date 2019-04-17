@@ -9,10 +9,12 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Cassette = "^0.2"
+FDM = "^0.4"
 julia = "^1.0"
 
 [extras]
+FDM = "e25cca7e-83ef-51fa-be6c-dfe2a3123128"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "FDM"]
