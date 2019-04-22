@@ -6,6 +6,8 @@ using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broad
 
 import NaNMath, SpecialFunctions, LinearAlgebra, LinearAlgebra.BLAS
 
+export AbstractRule, Rule, frule, rrule
+
 include("differentials.jl")
 include("rules.jl")
 include("rules/base.jl")
