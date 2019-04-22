@@ -244,7 +244,7 @@ unary input, unary output scalar function:
 ```julia-repl
 julia> x = rand();
 
-julia> sinx, dsin = ChainRules.frule(sin, x);
+julia> sinx, dsin = frule(sin, x);
 
 julia> sinx == sin(x)
 true
@@ -258,7 +258,7 @@ unary input, binary output scalar function:
 ```julia-repl
 julia> x = rand();
 
-julia> sincosx, (dsin, dcos) = ChainRules.frule(sincos, x);
+julia> sincosx, (dsin, dcos) = frule(sincos, x);
 
 julia> sincosx == sincos(x)
 true
@@ -300,7 +300,7 @@ unary input, unary output scalar function:
 ```julia-repl
 julia> x = rand();
 
-julia> sinx, dx = ChainRules.rrule(sin, x);
+julia> sinx, dx = rrule(sin, x);
 
 julia> sinx == sin(x)
 true
@@ -314,7 +314,7 @@ binary input, unary output scalar function:
 ```julia-repl
 julia> x, y = rand(2);
 
-julia> hypotxy, (dx, dy) = ChainRules.rrule(hypot, x, y);
+julia> hypotxy, (dx, dy) = rrule(hypot, x, y);
 
 julia> hypotxy == hypot(x, y)
 true
