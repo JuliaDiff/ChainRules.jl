@@ -159,6 +159,20 @@ struct DNERule <: AbstractRule end
 DNERule(args...) = DNE()
 
 #####
+##### `NotImplementedRule`
+#####
+
+"""
+    NotImplementedRule <: AbstractRule
+
+Rule indicating that a particular derivative is not implemented by ChainRules.
+Note that this does not imply nondifferentiability; for that, use [`DNERule`](@ref).
+"""
+struct NotImplementedRule <: AbstractRule end
+
+NotImplementedRule(args...) = NotImplemented()
+
+#####
 ##### `WirtingerRule`
 #####
 

@@ -46,7 +46,8 @@ This way, we don't need to implement promotion/conversion rules between subtypes
 of `AbstractDifferential` to resolve potential ambiguities.
 =#
 
-const PRECEDENCE_LIST = [:wirtinger, :casted, :zero, :dne, :one, :thunk, :fallback]
+const PRECEDENCE_LIST = [:wirtinger, :casted, :zero, :dne, :notimplemented, :one,
+                         :thunk, :fallback]
 
 global defs = Expr(:block)
 
@@ -226,6 +227,33 @@ add_dne(a, ::DNE) = a
 mul_dne(::DNE, ::DNE) = DNE()
 mul_dne(::DNE, ::Any) = DNE()
 mul_dne(::Any, ::DNE) = DNE()
+
+#####
+##### `NotImplemented`
+#####
+
+"""
+    NotImplemented <: AbstractDifferential
+
+A differential type which behaves similar to [`DNE`](@ref) but instead signifies that
+the actual differential is not implemented in ChainRules, not that it does not exist.
+"""
+struct NotImplemented <: AbstractDifferential end
+
+extern(::NotImplemented) = error("`NotImplemented` cannot be converted to an external type.")
+
+Base.Broadcast.broadcastable(::NotImplemented) = Ref(NotImplemented())
+
+Base.iterate(x::NotImplemented) = (x, nothing)
+Base.iterate(x::NotImplemented, ::Any) = nothing
+
+add_notimplemented(::NotImplemented, ::NotImplemented) = NotImplemented()
+add_notimplemented(::NotImplemented, b) = b
+add_notimplemented(a, ::NotImplemented) = a
+
+mul_notimplemented(::NotImplemented, ::NotImplemented) = NotImplemented()
+mul_notimplemented(::NotImplemented, ::Any) = NotImplemented()
+mul_notimplemented(::Any, ::NotImplemented) = NotImplemented()
 
 #####
 ##### `One`
