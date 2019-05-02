@@ -57,16 +57,16 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     @test f(xs...) == Ω
 
     # Correctness testing via finite differencing.
-    Δxs_ad, Δxs_fd = map(Δx_rule->Δx_rule(ȳ), Δx_rules), j′vp(fdm, f, ȳ, xs...)
-    @test all(zip(Δxs_ad, Δxs_fd)) do (Δx_ad, Δx_fd)
-        isapprox(Δx_ad, Δx_fd; rtol=rtol, atol=atol, kwargs...)
+    Δxs_ad = map(Δx_rule->Δx_rule(ȳ), Δx_rules)
+    Δxs_fd = j′vp(fdm, f, ȳ, xs...)
+    for (Δx_ad, Δx_fd) in zip(Δxs_ad, Δxs_fd)
+        @test isapprox(Δx_ad, Δx_fd; rtol=rtol, atol=atol, kwargs...)
     end
 
     # Assuming the above to be correct, check that other ChainRules mechanisms are correct.
-    map(x̄s, Δx_rules, Δxs_ad) do x̄, Δx_rule, Δx_ad
+    for (x̄, Δx_rule, Δx_ad) in zip(x̄s, Δx_rules, Δxs_ad)
         test_accumulation(x̄, Δx_rule, ȳ, Δx_ad)
         test_accumulation(Zero(), Δx_rule, ȳ, Δx_ad)
-        return nothing
     end
 end
 
