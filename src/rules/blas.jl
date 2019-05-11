@@ -3,6 +3,9 @@ These implementations were ported from the wonderful DiffLinearAlgebra
 package (https://github.com/invenia/DiffLinearAlgebra.jl).
 =#
 
+using LinearAlgebra: BlasFloat
+using LinearAlgebra.BLAS: gemm
+
 _zeros(x) = fill!(similar(x), zero(eltype(x)))
 
 _rule_via(∂) = Rule(ΔΩ -> isa(ΔΩ, Zero) ? ΔΩ : ∂(extern(ΔΩ)))
@@ -71,4 +74,38 @@ end
 function rrule(f::typeof(BLAS.gemv), tA, A, x)
     Ω, (dtA, dα, dA, dx) = rrule(f, tA, one(eltype(A)), A, x)
     return Ω, (dtA, dA, dx)
+end
+
+#####
+##### `BLAS.gemm`
+#####
+
+function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
+               A::AbstractMatrix{T}, B::AbstractMatrix{T}) where T<:BlasFloat
+    C = gemm(tA, tB, α, A, B)
+    ∂α = C̄ -> sum(C̄ .* C) / α
+    if uppercase(tA) === 'N'
+        if uppercase(tB) === 'N'
+            ∂A = C̄ -> gemm('N', 'T', α, C̄, B)
+            ∂B = C̄ -> gemm('T', 'N', α, A, C̄)
+        else
+            ∂A = C̄ -> gemm('N', 'N', α, C̄, B)
+            ∂B = C̄ -> gemm('T', 'N', α, C̄, A)
+        end
+    else
+        if uppercase(tB) === 'N'
+            ∂A = C̄ -> gemm('N', 'T', α, B, C̄)
+            ∂B = C̄ -> gemm('N', 'N', α, A, C̄)
+        else
+            ∂A = C̄ -> gemm('T', 'T', α, B, C̄)
+            ∂B = C̄ -> gemm('T', 'T', α, C̄, A)
+        end
+    end
+    return C, (DNERule(), DNERule(), _rule_via(∂α), _rule_via(∂A), _rule_via(∂B))
+end
+
+function rrule(::typeof(gemm), tA::Char, tB::Char,
+               A::AbstractMatrix{T}, B::AbstractMatrix{T}) where T<:BlasFloat
+    C, (dtA, dtB, _, dA, dB) = rrule(gemm, tA, tB, one(T), A, B)
+    return C, (dtA, dtB, dA, dB)
 end
