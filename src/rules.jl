@@ -152,7 +152,9 @@ end
 #####
 
 """
-TODO
+    DNERule(args...)
+
+Does Not Exist Rule. The function is not differentiable.
 """
 struct DNERule <: AbstractRule end
 
