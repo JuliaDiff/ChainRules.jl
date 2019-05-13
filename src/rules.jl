@@ -154,7 +154,8 @@ end
 """
     DNERule(args...)
 
-Does Not Exist Rule. The function is not differentiable.
+Construct a `DNERule` object, which is an `AbstractRule` that signifies that the
+current function is not differentiable with respect to a particular parameter.
 """
 struct DNERule <: AbstractRule end
 
