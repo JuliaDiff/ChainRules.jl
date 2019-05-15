@@ -290,26 +290,3 @@ add_thunk(a, b::Thunk) = add(a, extern(b))
 mul_thunk(a::Thunk, b::Thunk) = mul(extern(a), extern(b))
 mul_thunk(a::Thunk, b) = mul(extern(a), b)
 mul_thunk(a, b::Thunk) = mul(a, extern(b))
-
-#####
-##### misc.
-#####
-
-"""
-    Wirtinger(primal::Real, conjugate::Real)
-
-Return `add(primal, conjugate)`.
-
-Actually implementing the Wirtinger calculus generally requires that the
-summed terms of the Wirtinger differential (`∂f/∂z * dz` and `∂f/∂z̄ * dz̄`) be
-stored individually. However, if both of these terms are real-valued, then
-downstream Wirtinger propagation mechanisms resolve to the same mechanisms as
-real-valued calculus, so that the terms' sum can be eagerly computed and
-propagated without requiring a special `Wirtinger` representation
-
-This method primarily exists as an optimization.
-"""
-function Wirtinger(primal::Union{Real,DNE,Zero,One},
-                   conjugate::Union{Real,DNE,Zero,One})
-    return add(primal, conjugate)
-end
