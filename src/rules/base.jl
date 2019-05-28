@@ -72,7 +72,7 @@
 @scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
 
-# product rule requires special care for arguments where `mul` is non-commutative
+# product rule requires special care for arguments where `*` is non-commutative
 
 frule(::typeof(*), x, y) = x * y, Rule((Δx, Δy) -> Δx * y + x * Δy)
 

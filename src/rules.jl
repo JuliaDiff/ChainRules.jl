@@ -74,7 +74,7 @@ accumulate(Δ, rule::Rule{typeof(df)}, x) = # customized `accumulate` implementa
 
 See also: [`accumulate!`](@ref), [`store!`](@ref), [`AbstractRule`](@ref)
 """
-accumulate(Δ, rule::AbstractRule, args...) = add(Δ, rule(args...))
+accumulate(Δ, rule::AbstractRule, args...) = +(Δ, rule(args...))
 
 """
     accumulate!(Δ, rule::AbstractRule, args...)
@@ -87,7 +87,7 @@ Note that this function internally calls `Base.Broadcast.materialize!(Δ, ...)`.
 See also: [`accumulate`](@ref), [`store!`](@ref), [`AbstractRule`](@ref)
 """
 function accumulate!(Δ, rule::AbstractRule, args...)
-    return materialize!(Δ, broadcastable(add(cast(Δ), rule(args...))))
+    return materialize!(Δ, broadcastable(+(cast(Δ), rule(args...))))
 end
 
 accumulate!(Δ::Number, rule::AbstractRule, args...) = accumulate(Δ, rule, args...)
@@ -116,11 +116,11 @@ Cassette.@context RuleContext
 
 const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
 
-Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
+Cassette.overdub(::RuleContext, ::typeof(+), a, b) = +(a, b)
+Cassette.overdub(::RuleContext, ::typeof(*), a, b) = *(a, b)
 
-Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
+Cassette.overdub(::RuleContext, ::typeof(+), a, b) = +(a, b)
+Cassette.overdub(::RuleContext, ::typeof(*), a, b) = *(a, b)
 
 """
     Rule(propation_function)
@@ -428,8 +428,8 @@ function rule_from_partials(∂s...)
     Δs = [Symbol(string(:Δ, i)) for i in 1:length(∂s)]
     Δs_tuple = Expr(:tuple, Δs...)
     if isempty(wirtinger_indices)
-        ∂_mul_Δs = [:(mul(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
-        return :(Rule($Δs_tuple -> add($(∂_mul_Δs...))))
+        ∂_mul_Δs = [:(*(@thunk($(∂s[i])), $(Δs[i]))) for i in 1:length(∂s)]
+        return :(Rule($Δs_tuple -> +($(∂_mul_Δs...))))
     else
         ∂_mul_Δs_primal = Any[]
         ∂_mul_Δs_conjugate = Any[]
@@ -439,20 +439,20 @@ function rule_from_partials(∂s...)
                 Δi = Δs[i]
                 ∂i = Symbol(string(:∂, i))
                 push!(∂_wirtinger_defs, :($∂i = $(∂s[i])))
-                ∂f∂i_mul_Δ = :(mul(wirtinger_primal($∂i), wirtinger_primal($Δi)))
-                ∂f∂ī_mul_Δ̄ = :(mul(conj(wirtinger_conjugate($∂i)), wirtinger_conjugate($Δi)))
-                ∂f̄∂i_mul_Δ = :(mul(wirtinger_conjugate($∂i), wirtinger_primal($Δi)))
-                ∂f̄∂ī_mul_Δ̄ = :(mul(conj(wirtinger_primal($∂i)), wirtinger_conjugate($Δi)))
-                push!(∂_mul_Δs_primal, :(add($∂f∂i_mul_Δ, $∂f∂ī_mul_Δ̄)))
-                push!(∂_mul_Δs_conjugate, :(add($∂f̄∂i_mul_Δ, $∂f̄∂ī_mul_Δ̄)))
+                ∂f∂i_mul_Δ = :(*(wirtinger_primal($∂i), wirtinger_primal($Δi)))
+                ∂f∂ī_mul_Δ̄ = :(*(conj(wirtinger_conjugate($∂i)), wirtinger_conjugate($Δi)))
+                ∂f̄∂i_mul_Δ = :(*(wirtinger_conjugate($∂i), wirtinger_primal($Δi)))
+                ∂f̄∂ī_mul_Δ̄ = :(*(conj(wirtinger_primal($∂i)), wirtinger_conjugate($Δi)))
+                push!(∂_mul_Δs_primal, :(+($∂f∂i_mul_Δ, $∂f∂ī_mul_Δ̄)))
+                push!(∂_mul_Δs_conjugate, :(+($∂f̄∂i_mul_Δ, $∂f̄∂ī_mul_Δ̄)))
             else
-                ∂_mul_Δ = :(mul(@thunk($(∂s[i])), $(Δs[i])))
+                ∂_mul_Δ = :(*(@thunk($(∂s[i])), $(Δs[i])))
                 push!(∂_mul_Δs_primal, ∂_mul_Δ)
                 push!(∂_mul_Δs_conjugate, ∂_mul_Δ)
             end
         end
-        primal_rule = :(Rule($Δs_tuple -> add($(∂_mul_Δs_primal...))))
-        conjugate_rule = :(Rule($Δs_tuple -> add($(∂_mul_Δs_conjugate...))))
+        primal_rule = :(Rule($Δs_tuple -> +($(∂_mul_Δs_primal...))))
+        conjugate_rule = :(Rule($Δs_tuple -> +($(∂_mul_Δs_conjugate...))))
         return quote
             $(∂_wirtinger_defs...)
             WirtingerRule($primal_rule, $conjugate_rule)

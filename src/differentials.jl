@@ -9,9 +9,9 @@ support, broadcast fusion, zero-elision, etc. into nicely separated parts.
 
 All subtypes of `AbstractDifferential` implement the following operations:
 
-`add(a, b)`: linearly combine differential `a` and differential `b`
+`Base.:+(a, b)`: linearly combine differential `a` and differential `b`
 
-`mul(a, b)`: multiply the differential `a` by the differential `b`
+`Base.:*(a, b)`: multiply the differential `a` by the differential `b`
 
 `Base.conj(x)`: complex conjugate of the differential `x`
 
@@ -45,12 +45,12 @@ each step handles an element of the algebra before dispatching to the next step.
 This way, we don't need to implement promotion/conversion rules between subtypes
 of `AbstractDifferential` to resolve potential ambiguities.
 =#
-
+#==
 const PRECEDENCE_LIST = [:wirtinger, :casted, :zero, :dne, :one, :thunk, :fallback]
 
 global defs = Expr(:block)
 
-let previous_add_name = :add, previous_mul_name = :mul
+let previous_add_name = :(Base.:+), previous_mul_name = :(Base.:*)
     for name in PRECEDENCE_LIST
         next_add_name = Symbol(string(:add_, name))
         next_mul_name = Symbol(string(:mul_, name))
@@ -65,13 +65,10 @@ end
 
 eval(defs)
 
-@inline add_fallback(a, b) = a + b
+@inline +(a, b) = a + b
 
-@inline mul_fallback(a, b) = a * b
-
-@inline add(x) = x
-
-@inline mul(x) = x
+@inline *(a, b) = a * b
+==#
 
 #####
 ##### `Wirtinger`
@@ -120,14 +117,14 @@ Base.iterate(::Wirtinger, ::Any) = nothing
 
 Base.conj(x::Wirtinger) = error("`conj(::Wirtinger)` not yet defined")
 
-function add_wirtinger(a::Wirtinger, b::Wirtinger)
-    return Wirtinger(add(a.primal, b.primal), add(a.conjugate, b.conjugate))
+function Base.:+(a::Wirtinger, b::Wirtinger)
+    return Wirtinger(+(a.primal, b.primal), +(a.conjugate, b.conjugate))
 end
 
-add_wirtinger(a::Wirtinger, b) = add(a, Wirtinger(b, Zero()))
-add_wirtinger(a, b::Wirtinger) = add(Wirtinger(a, Zero()), b)
+Base.:+(a::Wirtinger, b) = +(a, Wirtinger(b, Zero()))
+Base.:+(a, b::Wirtinger) = +(Wirtinger(a, Zero()), b)
 
-function mul_wirtinger(a::Wirtinger, b::Wirtinger)
+function Base.:*(a::Wirtinger, b::Wirtinger)
     error("""
           cannot multiply two Wirtinger objects; this error likely means a
           `WirtingerRule` was inappropriately defined somewhere. Multiplication
@@ -145,8 +142,8 @@ function mul_wirtinger(a::Wirtinger, b::Wirtinger)
           """)
 end
 
-mul_wirtinger(a::Wirtinger, b) = Wirtinger(mul(a.primal, b), mul(a.conjugate, b))
-mul_wirtinger(a, b::Wirtinger) = Wirtinger(mul(a, b.primal), mul(a, b.conjugate))
+Base.:*(a::Wirtinger, b) = Wirtinger(*(a.primal, b), *(a.conjugate, b))
+Base.:*(a, b::Wirtinger) = Wirtinger(*(a, b.primal), *(a, b.conjugate))
 
 #####
 ##### `Casted`
@@ -171,13 +168,13 @@ Base.iterate(x::Casted, state) = iterate(x.value, state)
 
 Base.conj(x::Casted) = cast(conj, x.value)
 
-add_casted(a::Casted, b::Casted) = Casted(broadcasted(add, a.value, b.value))
-add_casted(a::Casted, b) = Casted(broadcasted(add, a.value, b))
-add_casted(a, b::Casted) = Casted(broadcasted(add, a, b.value))
+Base.:+(a::Casted, b::Casted) = Casted(broadcasted(+, a.value, b.value))
+Base.:+(a::Casted, b) = Casted(broadcasted(+, a.value, b))
+Base.:+(a, b::Casted) = Casted(broadcasted(+, a, b.value))
 
-mul_casted(a::Casted, b::Casted) = Casted(broadcasted(mul, a.value, b.value))
-mul_casted(a::Casted, b) = Casted(broadcasted(mul, a.value, b))
-mul_casted(a, b::Casted) = Casted(broadcasted(mul, a, b.value))
+Base.:*(a::Casted, b::Casted) = Casted(broadcasted(*, a.value, b.value))
+Base.:*(a::Casted, b) = Casted(broadcasted(*, a.value, b))
+Base.:*(a, b::Casted) = Casted(broadcasted(*, a, b.value))
 
 #####
 ##### `Zero`
@@ -195,13 +192,13 @@ Base.Broadcast.broadcastable(::Zero) = Ref(Zero())
 Base.iterate(x::Zero) = (x, nothing)
 Base.iterate(::Zero, ::Any) = nothing
 
-add_zero(::Zero, ::Zero) = Zero()
-add_zero(::Zero, b) = b
-add_zero(a, ::Zero) = a
+Base.:+(::Zero, ::Zero) = Zero()
+Base.:+(::Zero, b) = b
+Base.:+(a, ::Zero) = a
 
-mul_zero(::Zero, ::Zero) = Zero()
-mul_zero(::Zero, ::Any) = Zero()
-mul_zero(::Any, ::Zero) = Zero()
+Base.:*(::Zero, ::Zero) = Zero()
+Base.:*(::Zero, ::Any) = Zero()
+Base.:*(::Any, ::Zero) = Zero()
 
 #####
 ##### `DNE`
@@ -219,13 +216,13 @@ Base.Broadcast.broadcastable(::DNE) = Ref(DNE())
 Base.iterate(x::DNE) = (x, nothing)
 Base.iterate(::DNE, ::Any) = nothing
 
-add_dne(::DNE, ::DNE) = DNE()
-add_dne(::DNE, b) = b
-add_dne(a, ::DNE) = a
+Base.:+(::DNE, ::DNE) = DNE()
+Base.:+(::DNE, b) = b
+Base.:+(a, ::DNE) = a
 
-mul_dne(::DNE, ::DNE) = DNE()
-mul_dne(::DNE, ::Any) = DNE()
-mul_dne(::Any, ::DNE) = DNE()
+Base.:*(::DNE, ::DNE) = DNE()
+Base.:*(::DNE, ::Any) = DNE()
+Base.:*(::Any, ::DNE) = DNE()
 
 #####
 ##### `One`
@@ -243,13 +240,13 @@ Base.Broadcast.broadcastable(::One) = Ref(One())
 Base.iterate(x::One) = (x, nothing)
 Base.iterate(::One, ::Any) = nothing
 
-add_one(a::One, b::One) = add(extern(a), extern(b))
-add_one(a::One, b) = add(extern(a), b)
-add_one(a, b::One) = add(a, extern(b))
+Base.:+(a::One, b::One) = +(extern(a), extern(b))
+Base.:+(a::One, b) = +(extern(a), b)
+Base.:+(a, b::One) = +(a, extern(b))
 
-mul_one(::One, ::One) = One()
-mul_one(::One, b) = b
-mul_one(a, ::One) = a
+Base.:*(::One, ::One) = One()
+Base.:*(::One, b) = b
+Base.:*(a, ::One) = a
 
 #####
 ##### `Thunk`
@@ -283,13 +280,13 @@ end
 
 Base.conj(x::Thunk) = @thunk(conj(extern(x)))
 
-add_thunk(a::Thunk, b::Thunk) = add(extern(a), extern(b))
-add_thunk(a::Thunk, b) = add(extern(a), b)
-add_thunk(a, b::Thunk) = add(a, extern(b))
+Base.:+(a::Thunk, b::Thunk) = +(extern(a), extern(b))
+Base.:+(a::Thunk, b) = +(extern(a), b)
+Base.:+(a, b::Thunk) = +(a, extern(b))
 
-mul_thunk(a::Thunk, b::Thunk) = mul(extern(a), extern(b))
-mul_thunk(a::Thunk, b) = mul(extern(a), b)
-mul_thunk(a, b::Thunk) = mul(a, extern(b))
+Base.:*(a::Thunk, b::Thunk) = *(extern(a), extern(b))
+Base.:*(a::Thunk, b) = *(extern(a), b)
+Base.:*(a, b::Thunk) = *(a, extern(b))
 
 #####
 ##### misc.
@@ -298,7 +295,7 @@ mul_thunk(a, b::Thunk) = mul(a, extern(b))
 """
     Wirtinger(primal::Real, conjugate::Real)
 
-Return `add(primal, conjugate)`.
+Return `+(primal, conjugate)`.
 
 Actually implementing the Wirtinger calculus generally requires that the
 summed terms of the Wirtinger differential (`∂f/∂z * dz` and `∂f/∂z̄ * dz̄`) be
@@ -311,5 +308,5 @@ This method primarily exists as an optimization.
 """
 function Wirtinger(primal::Union{Real,DNE,Zero,One},
                    conjugate::Union{Real,DNE,Zero,One})
-    return add(primal, conjugate)
+    return +(primal, conjugate)
 end

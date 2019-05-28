@@ -17,7 +17,7 @@ notifications:
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("ChainRules"); Pkg.test("ChainRules"; coverage=true)'
 after_success:
   # push coverage results to Coveralls
-  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  - julia -e 'using Pkg; Pkg.+(Coveralls.process_folder())'
 jobs:
   include:
     - state: "Documentation"
