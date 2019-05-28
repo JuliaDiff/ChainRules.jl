@@ -119,9 +119,6 @@ const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
 Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
 
-Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
-
 """
     Rule(propation_function)
 
