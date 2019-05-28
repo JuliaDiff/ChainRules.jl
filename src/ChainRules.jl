@@ -1,6 +1,7 @@
 module ChainRules
 
-using Cassette
+using IRTools: IRTools, IR, @dynamo, isexpr, xcall
+using IRTools.MacroTools: prewalk
 using LinearAlgebra
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 
@@ -20,4 +21,5 @@ include("rules/blas.jl")
 include("rules/nanmath.jl")
 include("rules/specialfunctions.jl")
 
+include("precompile.jl")
 end # module

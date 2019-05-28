@@ -3,6 +3,7 @@ uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
 
 [deps]
 Cassette = "7057c7e9-c182-5462-911a-8362d720325c"
+IRTools = "7869d1d1-7146-5819-86e3-90919afe41df"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"

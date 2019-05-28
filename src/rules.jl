@@ -112,15 +112,43 @@ store!(Δ, rule::AbstractRule, args...) = materialize!(Δ, broadcastable(rule(ar
 ##### `Rule`
 #####
 
-Cassette.@context RuleContext
+@dynamo function rulify(args...)
+    ir = IR(args...; slots=true)
+    ir === nothing && return nothing
+    for (x, st) in ir
+        isexpr(st.expr, :call) || continue
 
-const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
+        if st.expr.args[1] == GlobalRef(Base, :+)
+            st.expr.args[1] = GlobalRef(ChainRules, :add)
+        elseif st.expr.args[1] == GlobalRef(Base, :*)
+            st.expr.args[1] = GlobalRef(ChainRules, :mul)
+        else
+            ir[x] = xcall(ChainRules, :rulify, st.expr.args...)
+        end
+    end
 
-Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
+    return ir
+end
 
-Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
+
+#==
+@generated function rulify(f, args...)
+    meta = IRTools.meta(Tuple{f, args...})
+    ir = deepcopy(meta.code)
+    for st in ir.code
+        isexpr(st, :call) || continue
+        if st.args[1] == GlobalRef(Base, :+)
+            st.args[1] = GlobalRef(ChainRules, :add)
+        elseif st.args[1] == GlobalRef(Base, :*)
+            st.args[1] = GlobalRef(ChainRules, :mul)
+        else
+            st.args = [GlobalRef(ChainRules, :rulify); st.args]
+        end
+    end
+    return ir
+end
+==#
+
 
 """
     Rule(propation_function)
@@ -145,7 +173,8 @@ struct Rule{F} <: AbstractRule
     f::F
 end
 
-(rule::Rule{F})(args...) where {F} = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
+(rule::Rule{F})(args...) where {F} = rulify(()->rule.f(args...))
+
 
 #####
 ##### `DNERule`
