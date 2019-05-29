@@ -156,6 +156,7 @@ end
 
 Construct a `DNERule` object, which is an `AbstractRule` that signifies that the
 current function is not differentiable with respect to a particular parameter.
+**DNE** is an abbreviation for Does Not Exist.
 """
 struct DNERule <: AbstractRule end
 
