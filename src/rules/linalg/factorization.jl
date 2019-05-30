@@ -12,14 +12,17 @@ end
 
 function rrule(::typeof(getproperty), F::SVD, x::Symbol)
     if x === :U
-        return F.U, (Rule(Ȳ->(U=Ȳ, S=zero(F.S), V=zero(F.V))), DNERule())
+        rule = Ȳ->(U=Ȳ, S=zero(F.S), V=zero(F.V))
     elseif x === :S
-        return F.S, (Rule(Ȳ->(U=zero(F.U), S=Ȳ, V=zero(F.V))), DNERule())
+        rule = Ȳ->(U=zero(F.U), S=Ȳ, V=zero(F.V))
     elseif x === :V
-        return F.V, (Rule(Ȳ->(U=zero(F.U), S=zero(F.S), V=Ȳ)), DNERule())
+        rule = Ȳ->(U=zero(F.U), S=zero(F.S), V=Ȳ)
     elseif x === :Vt
-        return F.Vt, (Rule(Ȳ->(U=zero(F.U), S=zero(F.S), V=Ȳ')), DNERule())
+        # TODO: This could be made to work, but it'd be a pain
+        throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
     end
+    update = (X̄::NamedTuple{(:U,:S,:V)}, Ȳ)->_update!(X̄, rule(Ȳ), x)
+    return getproperty(F, x), (Rule(rule, update), DNERule())
 end
 
 function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix)
