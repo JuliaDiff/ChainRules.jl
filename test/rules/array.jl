@@ -42,3 +42,15 @@ end
     @test dB(V̄) ≈ view(V̄, 3:3, :)
     @test dC(V̄) ≈ view(V̄, 4:6, :)
 end
+
+@testset "fill" begin
+    y, (dv, dd) = rrule(fill, 44, 4)
+    @test y == [44, 44, 44, 44]
+    @test dd isa ChainRules.DNERule
+    @test dv(ones(Int, 4)) == 4
+
+    y, (dv, dd) = rrule(fill, 2.0, (3, 3, 3))
+    @test y == fill(2.0, (3, 3, 3))
+    @test dd isa ChainRules.DNERule
+    @test dv(ones(3, 3, 3)) ≈ 27.0
+end

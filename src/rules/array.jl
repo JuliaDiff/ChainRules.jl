@@ -22,6 +22,8 @@ function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
         l = mapreduce(j->size(Xs[j], 2), Base.add_sum, 1:i-1; init=0)
         u = l + size(Xs[i], 2)
         dim = u > l + 1 ? (l+1:u) : u
+        # NOTE: The copy here is defensive, since `selectdim` returns a view which we can
+        # materialize with `copy`
         Rule(Ȳ->copy(selectdim(Ȳ, 2, dim)))
     end
     return Y, rules
@@ -41,4 +43,16 @@ function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
         Rule(Ȳ->copy(selectdim(Ȳ, 1, l+1:u)))
     end
     return Y, (∂A, ∂Bs...)
+end
+
+#####
+##### `fill`
+#####
+
+function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
+    return fill(value, dims), (Rule(sum), DNERule())
+end
+
+function rrule(::typeof(fill), value::Any, dims::Int...)
+    return fill(value, dims), (Rule(sum), ntuple(_->DNERule(), length(dims))...)
 end
