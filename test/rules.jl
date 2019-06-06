@@ -21,4 +21,27 @@ cool(x) = x + 1
         end
         @test i == 1  # rules only iterate once, yielding themselves
     end
+    @testset "helper functions" begin
+        # Hits fallback, since we can't update `Diagonal`s in place
+        X = Diagonal([1, 1])
+        Y = copy(X)
+        @test ChainRules._update!(X, [1 2; 3 4]) == [2 2; 3 5]
+        @test X == Y  # no change to X
+
+        X = [1 2; 3 4]
+        Y = copy(X)
+        @test ChainRules._update!(X, Diagonal([1, 1])) == [2 2; 3 5]
+        @test X != Y  # X has been updated
+
+        # Reusing above X
+        @test ChainRules._update!(X, Zero()) === X
+        @test ChainRules._update!(Zero(), X) === X
+        @test ChainRules._update!(Zero(), Zero()) === Zero()
+
+        X = (A=[1 0; 0 1], B=[2 2; 2 2])
+        Y = deepcopy(X)
+        @test ChainRules._update!(X, Y) == (A=[2 0; 0 2], B=[4 4; 4 4])
+        @test X.A != Y.A
+        @test X.B != Y.B
+    end
 end
