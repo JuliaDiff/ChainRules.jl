@@ -14,6 +14,7 @@ include("test_util.jl")
     include("rules.jl")
     @testset "rules" begin
         include(joinpath("rules", "base.jl"))
+        include(joinpath("rules", "array.jl"))
         @testset "linalg" begin
             include(joinpath("rules", "linalg", "dense.jl"))
             include(joinpath("rules", "linalg", "diagonal.jl"))

@@ -11,6 +11,7 @@ export AbstractRule, Rule, frule, rrule
 include("differentials.jl")
 include("rules.jl")
 include("rules/base.jl")
+include("rules/array.jl")
 include("rules/broadcast.jl")
 include("rules/linalg/dense.jl")
 include("rules/linalg/diagonal.jl")
