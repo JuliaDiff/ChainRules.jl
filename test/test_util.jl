@@ -119,7 +119,7 @@ function Base.isapprox(d_ad::Thunk, d_fd; kwargs...)
 end
 
 function test_accumulation(x̄, dx, ȳ, partial)
-    @test all(extern(ChainRules.add(x̄, partial)) .== extern(x̄) .+ extern(partial))
+    @test all(extern(ChainRules.add(x̄, partial)) .≈ extern(x̄) .+ extern(partial))
     test_accumulate(x̄, dx, ȳ, partial)
     test_accumulate!(x̄, dx, ȳ, partial)
     test_store!(x̄, dx, ȳ, partial)
@@ -127,18 +127,18 @@ function test_accumulation(x̄, dx, ȳ, partial)
 end
 
 function test_accumulate(x̄::Zero, dx, ȳ, partial)
-    @test extern(accumulate(x̄, dx, ȳ)) == extern(partial)
+    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(partial)
     return nothing
 end
 
 function test_accumulate(x̄::Number, dx, ȳ, partial)
-    @test extern(accumulate(x̄, dx, ȳ)) == extern(x̄) + extern(partial)
+    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(x̄) + extern(partial)
     return nothing
 end
 
 function test_accumulate(x̄::AbstractArray, dx, ȳ, partial)
     x̄_old = copy(x̄)
-    @test all(extern(accumulate(x̄, dx, ȳ)) .== (extern(x̄) .+ extern(partial)))
+    @test all(extern(accumulate(x̄, dx, ȳ)) .≈ (extern(x̄) .+ extern(partial)))
     @test x̄ == x̄_old
     return nothing
 end
@@ -146,14 +146,14 @@ end
 test_accumulate!(x̄::Zero, dx, ȳ, partial) = nothing
 
 function test_accumulate!(x̄::Number, dx, ȳ, partial)
-    @test accumulate!(x̄, dx, ȳ) == accumulate(x̄, dx, ȳ)
+    @test accumulate!(x̄, dx, ȳ) ≈ accumulate(x̄, dx, ȳ)
     return nothing
 end
 
 function test_accumulate!(x̄::AbstractArray, dx, ȳ, partial)
     x̄_copy = copy(x̄)
     accumulate!(x̄_copy, dx, ȳ)
-    @test extern(x̄_copy) == (extern(x̄) .+ extern(partial))
+    @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(partial))
     return nothing
 end
 
@@ -163,6 +163,6 @@ test_store!(x̄::Number, dx, ȳ, partial) = nothing
 function test_store!(x̄::AbstractArray, dx, ȳ, partial)
     x̄_copy = copy(x̄)
     store!(x̄_copy, dx, ȳ)
-    @test all(x̄_copy .== extern(partial))
+    @test all(x̄_copy .≈ extern(partial))
     return nothing
 end
