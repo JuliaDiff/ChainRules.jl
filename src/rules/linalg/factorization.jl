@@ -59,33 +59,6 @@ function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::Abstra
     return Ā
 end
 
-function _mulsubtrans!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
-    k = size(X, 1)
-    @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
-        if i == j
-            X[i,i] = zero(T)
-        else
-            X[i,j], X[j,i] = F[i,j] * (X[i,j] - X[j,i]), F[j,i] * (X[j,i] - X[i,j])
-        end
-    end
-    X
-end
-
-function _eyesubx!(X::AbstractMatrix{T}) where T<:Real
-    n, m = size(X)
-    @inbounds for j = 1:m, i = 1:n
-        X[i,j] = (i == j) - X[i,j]
-    end
-    X
-end
-
-function _add!(X::AbstractMatrix{T}, Y::AbstractMatrix{T}) where T<:Real
-    @inbounds for i = eachindex(X, Y)
-        X[i] += Y[i]
-    end
-    X
-end
-
 #####
 ##### `cholesky`
 #####
