@@ -15,7 +15,8 @@ julia = "^1.0"
 
 [extras]
 FDM = "e25cca7e-83ef-51fa-be6c-dfe2a3123128"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "FDM"]
+test = ["FDM", "Random", "Test"]
