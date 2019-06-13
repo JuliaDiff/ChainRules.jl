@@ -1,3 +1,9 @@
+using LinearAlgebra: AbstractTriangular
+
+# Matrix wrapper types that we know are square and are thus potentially invertible. For
+# these we can use simpler definitions for `/` and `\`.
+const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
+
 #####
 ##### `sum`
 #####
@@ -69,3 +75,74 @@ end
 frule(::typeof(tr), x) = (tr(x), Rule(Δx -> tr(extern(Δx))))
 
 rrule(::typeof(tr), x) = (tr(x), Rule(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1)))))
+
+#####
+##### `*`
+#####
+
+function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
+    return A * B, (Rule(Ȳ -> Ȳ * B'), Rule(Ȳ -> A' * Ȳ))
+end
+
+#####
+##### `/`
+#####
+
+function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
+    Y = A / B
+    S = T.name.wrapper
+    ∂A = Rule(Ȳ -> Ȳ / B')
+    ∂B = Rule(Ȳ -> S(-Y' * (Ȳ / B')))
+    return Y, (∂A, ∂B)
+end
+
+function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+    Aᵀ, dA = rrule(adjoint, A)
+    Bᵀ, dB = rrule(adjoint, B)
+    Cᵀ, (dBᵀ, dAᵀ) = rrule(\, Bᵀ, Aᵀ)
+    C, dC = rrule(adjoint, Cᵀ)
+    ∂A = Rule(dA∘dAᵀ∘dC)
+    ∂B = Rule(dA∘dBᵀ∘dC)
+    return C, (∂A, ∂B)
+end
+
+#####
+##### `\`
+#####
+
+function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
+    Y = A \ B
+    S = T.name.wrapper
+    ∂A = Rule(Ȳ -> S(-(A' \ Ȳ) * Y'))
+    ∂B = Rule(Ȳ -> A' \ Ȳ)
+    return Y, (∂A, ∂B)
+end
+
+function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+    Y = A \ B
+    ∂A = Rule() do Ȳ
+        B̄ = A' \ Ȳ
+        Ā = -B̄ * Y'
+        _add!(Ā, (B - A * Y) * B̄' / A')
+        _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
+        Ā
+    end
+    ∂B = Rule(Ȳ -> A' \ Ȳ)
+    return Y, (∂A, ∂B)
+end
+
+#####
+##### `norm`
+#####
+
+function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
+    y = norm(A, p)
+    u = y^(1-p)
+    ∂A = Rule(ȳ -> ȳ .* u .* abs.(A).^p ./ A)
+    ∂p = Rule(ȳ -> ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p)
+    return y, (∂A, ∂p)
+end
+
+function rrule(::typeof(norm), x::Real, p::Real=2)
+    return norm(x, p), (Rule(ȳ -> ȳ * sign(x)), Rule(_ -> zero(x)))
+end

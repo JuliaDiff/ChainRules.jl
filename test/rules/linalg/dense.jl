@@ -70,4 +70,68 @@ end
         frule_test(tr, (randn(rng, N, N), randn(rng, N, N)))
         rrule_test(tr, randn(rng), (randn(rng, N, N), randn(rng, N, N)))
     end
+    @testset "*" begin
+        rng = MersenneTwister(123456)
+        dims = [3,4,5]
+        for n in dims, m in dims, p in dims
+            n > 3 && n == m == p && continue  # don't need to test square case multiple times
+            A = randn(rng, m, n)
+            B = randn(rng, n, p)
+            Ȳ = randn(rng, m, p)
+            rrule_test(*, Ȳ, (A, randn(rng, m, n)), (B, randn(rng, n, p)))
+        end
+    end
+    @testset "$f" for f in [/, \]
+        rng = MersenneTwister(42)
+        for n in 3:5, m in 3:5
+            A = randn(rng, m, n)
+            B = randn(rng, m, n)
+            Ȳ = randn(rng, size(f(A, B)))
+            rrule_test(f, Ȳ, (A, randn(rng, m, n)), (B, randn(rng, m, n)))
+        end
+        # Vectors
+        x = randn(rng, 10)
+        y = randn(rng, 10)
+        ȳ = randn(rng, size(f(x, y))...)
+        rrule_test(f, ȳ, (x, randn(rng, 10)), (y, randn(rng, 10)))
+        if f == (/)
+            @testset "$T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+                RHS = T(randn(rng, T == Diagonal ? 10 : (10, 10)))
+                Y = randn(rng, 5, 10)
+                Ȳ = randn(rng, size(f(Y, RHS))...)
+                rrule_test(f, Ȳ, (Y, randn(rng, size(Y))), (RHS, randn(rng, size(RHS))))
+            end
+        else
+            @testset "$T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+                LHS = T(randn(rng, T == Diagonal ? 10 : (10, 10)))
+                y = randn(rng, 10)
+                ȳ = randn(rng, size(f(LHS, y))...)
+                rrule_test(f, ȳ, (LHS, randn(rng, size(LHS))), (y, randn(rng, 10)))
+                Y = randn(rng, 10, 10)
+                Ȳ = randn(rng, 10, 10)
+                rrule_test(f, Ȳ, (LHS, randn(rng, size(LHS))), (Y, randn(rng, size(Y))))
+            end
+            @testset "Matrix $f Vector" begin
+                X = randn(rng, 10, 4)
+                y = randn(rng, 10)
+                ȳ = randn(rng, size(f(X, y))...)
+                rrule_test(f, ȳ, (X, randn(rng, size(X))), (y, randn(rng, 10)))
+            end
+            @testset "Vector $f Matrix" begin
+                x = randn(rng, 10)
+                Y = randn(rng, 10, 4)
+                ȳ = randn(rng, size(f(x, Y))...)
+                rrule_test(f, ȳ, (x, randn(rng, size(x))), (Y, randn(rng, size(Y))))
+            end
+        end
+    end
+    @testset "norm" begin
+        rng = MersenneTwister(3)
+        for dims in [(), (5,), (3, 2), (7, 3, 2)]
+            A = randn(rng, dims...)
+            p = randn(rng)
+            ȳ = randn(rng)
+            rrule_test(norm, ȳ, (A, randn(rng, dims...)), (p, randn(rng)))
+        end
+    end
 end
