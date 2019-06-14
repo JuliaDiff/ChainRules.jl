@@ -32,7 +32,7 @@ end
 function frule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
     if eltype(x) <: Real
-        return Ω, Rule(ΔΩ -> ΔΩ * @thunk(x ./ Ω))
+        return Ω, Rule(Δx -> sum(Δx * cast(@thunk(x ./ Ω))))
     else
         return Ω, WirtingerRule(
             Rule(Δx -> sum(Δx * cast(@thunk(conj.(x) ./ 2Ω)))),
@@ -47,8 +47,8 @@ function rrule(::typeof(BLAS.nrm2), x)
         return Ω, Rule(ΔΩ -> ΔΩ * @thunk(x ./ Ω))
     else
         return Ω, WirtingerRule(
-            Rule(Δx -> sum(Δx * cast(@thunk(conj.(x) ./ 2Ω)))),
-            Rule(Δx -> sum(Δx * cast(@thunk(x ./ 2Ω))))
+            Rule(ΔΩ -> ΔΩ * @thunk(conj.(x) ./ 2Ω)),
+            Rule(ΔΩ -> ΔΩ * @thunk(x ./ 2Ω))
         )
     end
 end
