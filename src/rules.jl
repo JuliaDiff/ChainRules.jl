@@ -108,6 +108,32 @@ See also: [`accumulate`](@ref), [`accumulate!`](@ref), [`AbstractRule`](@ref)
 """
 store!(Δ, rule::AbstractRule, args...) = materialize!(Δ, broadcastable(rule(args...)))
 
+# Special purpose updating for operations which can be done in-place. This function is
+# just internal and free-form; it is not a method of `accumulate!` directly as it does
+# not adhere to the expected method signature form, i.e. `accumulate!(value, rule, args)`.
+# Instead it's `_update!(old, new, extrastuff...)` and is not specific to any particular
+# rule.
+
+_update!(x, y) = x + y
+_update!(x::Array{T,N}, y::AbstractArray{T,N}) where {T,N} = x .+= y
+
+_update!(x, ::Zero) = x
+_update!(::Zero, y) = y
+_update!(::Zero, ::Zero) = Zero()
+
+function _update!(x::NamedTuple{Ns}, y::NamedTuple{Ns}) where Ns
+    return NamedTuple{Ns}(map(p->_update!(getproperty(x, p), getproperty(y, p)), Ns))
+end
+
+function _update!(x::NamedTuple, y, p::Symbol)
+    new = NamedTuple{(p,)}((_update!(getproperty(x, p), y),))
+    return merge(x, new)
+end
+
+function _update!(x::NamedTuple{Ns}, y::NamedTuple{Ns}, p::Symbol) where Ns
+    return _update!(x, getproperty(y, p), p)
+end
+
 #####
 ##### `Rule`
 #####
@@ -123,13 +149,17 @@ Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
 
 """
-    Rule(propation_function)
+    Rule(propation_function[, updating_function])
 
 Return a `Rule` that wraps the given `propation_function`. It is assumed that
 `propation_function` is a callable object whose arguments are differential
 values, and whose output is a single differential value calculated by applying
 internally stored/computed partial derivatives to the input differential
 values.
+
+If an updating function is provided, it is assumed to have the signature `u(Δ, xs...)`
+and to store the result of the propagation function applied to the arguments `xs` into
+`Δ` in-place, returning `Δ`.
 
 For example:
 
@@ -141,18 +171,31 @@ rrule(::typeof(*), x, y) = x * y, (Rule(ΔΩ -> ΔΩ * y'), Rule(ΔΩ -> x' * Δ
 
 See also: [`frule`](@ref), [`rrule`](@ref), [`accumulate`](@ref), [`accumulate!`](@ref), [`store!`](@ref)
 """
-struct Rule{F} <: AbstractRule
+struct Rule{F,U<:Union{Function,Nothing}} <: AbstractRule
     f::F
+    u::U
 end
 
+# NOTE: Using `Core.Typeof` instead of `typeof` here so that if we define a rule for some
+# constructor based on a `UnionAll`, we get `Rule{Type{Thing}}` instead of `Rule{UnionAll}`
+Rule(f) = Rule{Core.Typeof(f),Nothing}(f, nothing)
+
 (rule::Rule{F})(args...) where {F} = Cassette.overdub(RULE_CONTEXT, rule.f, args...)
+
+# Specialized accumulation
+# TODO: Does this need to be overdubbed in the rule context?
+accumulate!(Δ, rule::Rule{F,U}, args...) where {F,U<:Function} = rule.u(Δ, args...)
 
 #####
 ##### `DNERule`
 #####
 
 """
-TODO
+    DNERule(args...)
+
+Construct a `DNERule` object, which is an `AbstractRule` that signifies that the
+current function is not differentiable with respect to a particular parameter.
+**DNE** is an abbreviation for Does Not Exist.
 """
 struct DNERule <: AbstractRule end
 

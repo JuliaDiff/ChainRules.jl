@@ -1,5 +1,6 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
+version = "0.0.1"
 
 [deps]
 Cassette = "7057c7e9-c182-5462-911a-8362d720325c"
@@ -9,12 +10,13 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Cassette = "^0.2"
-FDM = "^0.4"
+FDM = "^0.6"
 julia = "^1.0"
 
 [extras]
 FDM = "e25cca7e-83ef-51fa-be6c-dfe2a3123128"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "FDM"]
+test = ["FDM", "Random", "Test"]

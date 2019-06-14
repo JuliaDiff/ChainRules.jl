@@ -14,10 +14,11 @@ include("test_util.jl")
     include("rules.jl")
     @testset "rules" begin
         include(joinpath("rules", "base.jl"))
+        include(joinpath("rules", "array.jl"))
         @testset "linalg" begin
             include(joinpath("rules", "linalg", "dense.jl"))
-            include(joinpath("rules", "linalg", "diagonal.jl"))
-            include(joinpath("rules", "linalg", "symmetric.jl"))
+            include(joinpath("rules", "linalg", "structured.jl"))
+            include(joinpath("rules", "linalg", "factorization.jl"))
         end
         include(joinpath("rules", "broadcast.jl"))
         include(joinpath("rules", "blas.jl"))
