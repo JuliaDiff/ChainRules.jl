@@ -4,7 +4,7 @@ package (https://github.com/invenia/DiffLinearAlgebra.jl).
 =#
 
 using LinearAlgebra: BlasFloat
-using LinearAlgebra.BLAS: gemm
+using LinearAlgebra.BLAS: gemm, blascopy!, scal!
 
 _zeros(x) = fill!(similar(x), zero(eltype(x)))
 
@@ -20,8 +20,8 @@ rrule(::typeof(BLAS.dot), x, y) = rrule(dot, x, y)
 
 function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
-    ∂X = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
-    ∂Y = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
+    ∂X = ΔΩ -> scal!(n, typeof(Ω)(ΔΩ), blascopy!(n, Y, incy, _zeros(X), incx), incx)
+    ∂Y = ΔΩ -> scal!(n, typeof(Ω)(ΔΩ), blascopy!(n, X, incx, _zeros(Y), incy), incy)
     return Ω, (DNERule(), _rule_via(∂X), DNERule(), _rule_via(∂Y), DNERule())
 end
 
@@ -31,18 +31,38 @@ end
 
 function frule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, Rule(Δx -> sum(Δx * cast(@thunk(x * inv(Ω)))))
+    if eltype(x) <: Real
+        return Ω, Rule(ΔΩ -> ΔΩ * @thunk(x ./ Ω))
+    else
+        return Ω, WirtingerRule(
+            Rule(Δx -> sum(Δx * cast(@thunk(conj.(x) ./ 2Ω)))),
+            Rule(Δx -> sum(Δx * cast(@thunk(x ./ 2Ω))))
+        )
+    end
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, Rule(ΔΩ -> ΔΩ * @thunk(x * inv(Ω)))
+    if eltype(x) <: Real
+        return Ω, Rule(ΔΩ -> ΔΩ * @thunk(x ./ Ω))
+    else
+        return Ω, WirtingerRule(
+            Rule(Δx -> sum(Δx * cast(@thunk(conj.(x) ./ 2Ω)))),
+            Rule(Δx -> sum(Δx * cast(@thunk(x ./ 2Ω))))
+        )
+    end
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    ∂X = ΔΩ -> scal!(n, ΔΩ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
-    return Ω, (DNERule(), _rule_via(∂X), DNERule())
+    if eltype(X) <: Real
+        ∂X = ΔΩ -> scal!(n, ΔΩ ./ Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
+        return Ω, (DNERule(), _rule_via(∂X), DNERule())
+    else
+        ∂X = ΔΩ -> scal!(n, complex(ΔΩ ./ 2Ω), conj!(blascopy!(n, X, incx, _zeros(X), incx)), incx)
+        ∂̅X = ΔΩ -> scal!(n, complex(ΔΩ ./ 2Ω), blascopy!(n, X, incx, _zeros(X), incx), incx)
+        return Ω, (DNERule(), WirtingerRule(_rule_via(∂X), _rule_via(∂̅X)), DNERule())
+    end
 end
 
 #####
