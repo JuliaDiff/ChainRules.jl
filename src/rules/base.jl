@@ -65,7 +65,7 @@
 
 function frule(::typeof(hypot), x::Real...)
     Ω = hypot(x...)
-    return Ω, Rule((Δ...) -> Δ .* x ./ Ω)
+    return Ω, Rule((Δ...) -> sum(Δ .* x) * inv(Ω))
 end
 
 function rrule(::typeof(hypot), x::Real...)
@@ -78,8 +78,8 @@ end
 function frule(::typeof(hypot), x...)
     Ω = hypot(x...)
     return Ω, WirtingerRule(
-        Rule((Δ...) -> Δ .* (conj.(x) ./ 2Ω)),
-        Rule((Δ...) -> Δ .* (x ./ 2Ω))
+        Rule((Δ...) -> sum(Δ .* conj.(x) * inv(2Ω))),
+        Rule((Δ...) -> sum(Δ .* x) * inv(2Ω))
     )
 end
 
