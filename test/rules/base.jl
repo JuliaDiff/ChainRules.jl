@@ -83,18 +83,18 @@ end
             x, y = rand(2)
             h, dxy = frule(hypot, x, y)
 
-            @test extern(dxy(One(), Zero())) === y / h
-            @test extern(dxy(Zero(), One())) === x / h
+            @test extern(dxy(One(), Zero())) === x / h
+            @test extern(dxy(Zero(), One())) === y / h
 
             cx, cy = cast((One(), Zero())), cast((Zero(), One()))
             dx, dy = extern(dxy(cx, cy))
-            @test dx === y / h
-            @test dy === x / h
+            @test dx === x / h
+            @test dy === y / h
 
             cx, cy = cast((rand(), Zero())), cast((Zero(), rand()))
             dx, dy = extern(dxy(cx, cy))
-            @test dx === y / h * cx.value[1]
-            @test dy === x / h * cy.value[2]
+            @test dx === x / h * cx.value[1]
+            @test dy === y / h * cy.value[2]
         end
     end
 end
