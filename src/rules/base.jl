@@ -106,4 +106,4 @@ end
 
 frule(::typeof(*), x, y) = x * y, Rule((Δx, Δy) -> Δx * y + x * Δy)
 
-rrule(::typeof(*), x, y) = x * y, (Rule(ΔΩ -> ΔΩ * y'), Rule(ΔΩ -> x' * ΔΩ))
+rrule(::typeof(*), x, y) = x * y, (Rule(ΔΩ -> ΔΩ * transpose(y)), Rule(ΔΩ -> transpose(x) * ΔΩ))

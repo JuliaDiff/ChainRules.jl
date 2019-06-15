@@ -295,6 +295,10 @@ mul_thunk(a, b::Thunk) = mul(a, extern(b))
 ##### misc.
 #####
 
+function Wirtinger(primal::Union{AbstractArray,Tuple}, conjugate::Union{AbstractArray,Tuple})
+    return Wirtinger.(primal, conjugate)
+end
+
 """
     Wirtinger(primal::Real, conjugate::Real)
 
