@@ -71,15 +71,15 @@ end
 function rrule(::typeof(hypot), x::Real...)
     Ω = hypot(x...)
     return Ω, map(x) do x_i
-        Rule(ΔΩ -> ΔΩ * x_i / Ω)
+        Rule(ΔΩ -> ΔΩ * (x_i / Ω))
     end
 end
 
 function frule(::typeof(hypot), x...)
     Ω = hypot(x...)
     return Ω, WirtingerRule(
-        Rule((Δ...) -> Δ .* conj.(x) ./ 2Ω),
-        Rule((Δ...) -> Δ .* x ./ 2Ω)
+        Rule((Δ...) -> Δ .* (conj.(x) ./ 2Ω)),
+        Rule((Δ...) -> Δ .* (x ./ 2Ω))
     )
 end
 
@@ -87,8 +87,8 @@ function rrule(::typeof(hypot), x...)
     Ω = hypot(x...)
     return Ω, map(x) do x_i
         WirtingerRule(# typeof(x_i), # when #53 is merged
-            Rule(ΔΩ -> ΔΩ * conj(x_i) / 2Ω),
-            Rule(ΔΩ -> ΔΩ * x_i / 2Ω)
+            Rule(ΔΩ -> ΔΩ * (conj(x_i) / 2Ω)),
+            Rule(ΔΩ -> ΔΩ * (x_i / 2Ω))
         )
     end
 end
