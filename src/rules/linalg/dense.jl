@@ -5,14 +5,6 @@ using LinearAlgebra: AbstractTriangular
 const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 
 #####
-##### `sum`
-#####
-
-frule(::typeof(sum), x) = (sum(x), Rule(sum))
-
-rrule(::typeof(sum), x) = (sum(x), Rule(cast))
-
-#####
 ##### `dot`
 #####
 
