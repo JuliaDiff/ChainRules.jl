@@ -12,7 +12,7 @@ cool(x) = x + 1
         @test rrx == 2
         @test rr(1) == 1
     end
-    @testset "iterating rules" begin
+    @testset "iterating and indexing rules" begin
         _, rule = frule(+, 1)
         i = 0
         for r in rule
@@ -20,6 +20,8 @@ cool(x) = x + 1
             i += 1
         end
         @test i == 1  # rules only iterate once, yielding themselves
+        @test rule[1] == rule
+        @test_throws BoundsError rule[2]
     end
     @testset "helper functions" begin
         # Hits fallback, since we can't update `Diagonal`s in place
