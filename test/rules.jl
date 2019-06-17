@@ -45,16 +45,15 @@ cool(x) = x + 1
         @test X.B != Y.B
     end
 
-    using ChainRules: WirtingerRule, Wirtinger
-
     @testset "WirtingerRule" begin
         myabs2(x) = abs2(x)
 
         function ChainRules.frule(::typeof(myabs2), x)
-            return myabs2(x), WirtingerRule(typeof(x),
+            return abs2(x), ChainRules.WirtingerRule(typeof(x),
                 Rule(Δx -> Δx * x'),
                 Rule(Δx -> Δx * x)
             )
+            
         end
 
         # real input
@@ -76,10 +75,10 @@ cool(x) = x + 1
         @test f === abs2(z)
 
         df = @inferred _df(One())
-        @test df === Wirtinger(z', z)
+        @test df === ChainRules.Wirtinger(z', z)
 
         Δ = rand(Complex{Int64})
         df = @inferred _df(Δ)
-        @test df === Wirtinger(Δ * z', Δ * z)
+        @test df === ChainRules.Wirtinger(Δ * z', Δ * z)
     end
 end
