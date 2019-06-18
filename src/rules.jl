@@ -391,7 +391,7 @@ end
 
 function _checked_rrule(f, args...; kwargs...)
     r = rrule(f, args...; kwargs...)
-    r === nothing && _throw_checked_rrule_error(f, args...; kwargs...)
+    r isa Nothing && _throw_checked_rrule_error(f, args...; kwargs...)
     return r
 end
 
