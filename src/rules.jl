@@ -54,6 +54,10 @@ abstract type AbstractRule end
 Base.iterate(rule::AbstractRule) = (rule, nothing)
 Base.iterate(::AbstractRule, ::Any) = nothing
 
+# This ensures we don't need to check whether the result of `rrule`/`frule` is a tuple
+# in order to get the `i`th rule (assuming it's 1)
+Base.getindex(rule::AbstractRule, i::Integer) = i == 1 ? rule : throw(BoundsError())
+
 """
     accumulate(Δ, rule::AbstractRule, args...)
 
