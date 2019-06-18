@@ -7,12 +7,7 @@ function rrule(::typeof(map), f, xs...)
     ∂xs = ntuple(length(xs)) do i
         Rule() do ȳ
             map(ȳ, xs...) do ȳi, xis...
-                r = rrule(f, xis...)
-                if r === nothing
-                    throw(ArgumentError("can't differentiate `map` with `$f`; no `rrule` " *
-                                        "is defined for `$f$xis`"))
-                end
-                _, ∂xis = r
+                _, ∂xis = _checked_rrule(f, xis...)
                 extern(∂xis[i](ȳi))
             end
         end
