@@ -3,6 +3,7 @@ module ChainRules
 using Cassette
 using LinearAlgebra
 using LinearAlgebra.BLAS
+using Statistics
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 
 if VERSION < v"1.3.0-DEV.142"
