@@ -97,5 +97,11 @@ end
             @test dy === x / h * cy.value[2]
         end
     end
+    @testset "identity" begin
+        rng = MersenneTwister(1)
+        n = 4
+        rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
+        rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
+    end
 end
 # TODO: Non-trig stuff

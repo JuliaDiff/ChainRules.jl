@@ -31,4 +31,37 @@
         ȳ = randn(rng)
         rrule_test(f, ȳ, (cos, nothing), (+, nothing), (x, vx))
     end
+    @testset "sum" begin
+        @testset "Vector" begin
+            rng, M = MersenneTwister(123456), 3
+            frule_test(sum, (randn(rng, M), randn(rng, M)))
+            rrule_test(sum, randn(rng), (randn(rng, M), randn(rng, M)))
+        end
+        @testset "Matrix" begin
+            rng, M, N = MersenneTwister(123456), 3, 4
+            frule_test(sum, (randn(rng, M, N), randn(rng, M, N)))
+            rrule_test(sum, randn(rng), (randn(rng, M, N), randn(rng, M, N)))
+        end
+        @testset "Array{T, 3}" begin
+            rng, M, N, P = MersenneTwister(123456), 3, 7, 11
+            frule_test(sum, (randn(rng, M, N, P), randn(rng, M, N, P)))
+            rrule_test(sum, randn(rng), (randn(rng, M, N, P), randn(rng, M, N, P)))
+        end
+        @testset "function argument" begin
+            rng = MersenneTwister(1)
+            n = 8
+            rrule_test(sum, randn(rng), (cos, nothing), (randn(rng, n), randn(rng, n)))
+            rrule_test(sum, randn(rng), (abs2, nothing), (randn(rng, n), randn(rng, n)))
+        end
+        @testset "keyword arguments" begin
+            rng = MersenneTwister(33)
+            n = 4
+            X = randn(rng, n, n)
+            y, dX = rrule(sum, X; dims=2)
+            ȳ = randn(rng, size(y))
+            x̄_ad = dX(ȳ)
+            x̄_fd = j′vp(central_fdm(5, 1), x->sum(x, dims=2), ȳ, X)
+            @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
+        end
+    end
 end

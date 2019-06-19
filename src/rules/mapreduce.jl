@@ -46,3 +46,19 @@ end
 frule(::typeof(sum), x) = (sum(x), Rule(sum))
 
 rrule(::typeof(sum), x) = (sum(x), Rule(cast))
+
+function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
+    y, (_, _, ∂x) = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
+    return y, (DNERule(), ∂x)
+end
+
+function rrule(::typeof(sum), x::AbstractArray{<:Real}; dims=:)
+    y, (_, ∂x) = rrule(sum, identity, x; dims=dims)
+    return y, ∂x
+end
+
+function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
+    y = sum(abs2, x; dims=dims)
+    ∂x = Rule(ȳ -> 2ȳ .* x)
+    return y, (DNERule(), ∂x)
+end
