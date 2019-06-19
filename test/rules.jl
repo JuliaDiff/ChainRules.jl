@@ -4,7 +4,9 @@ cool(x, y) = x + y + 1
 @testset "rules" begin
     @testset "frule and rrule" begin
         @test frule(cool, 1) === nothing
+        @test frule(cool, 1; iscool=true) === nothing
         @test rrule(cool, 1) === nothing
+        @test rrule(cool, 1; iscool=true) === nothing
         ChainRules.@scalar_rule(Main.cool(x), one(x))
         frx, fr = frule(cool, 1)
         @test frx == 2

@@ -319,7 +319,7 @@ true
 
 See also: [`rrule`](@ref), [`AbstractRule`](@ref), [`@scalar_rule`](@ref)
 """
-frule(::Any, ::Vararg{Any}) = nothing
+frule(::Any, ::Vararg{Any}; kwargs...) = nothing
 
 """
     rrule(f, x...)
@@ -375,7 +375,7 @@ true
 
 See also: [`frule`](@ref), [`AbstractRule`](@ref), [`@scalar_rule`](@ref)
 """
-rrule(::Any, ::Vararg{Any}) = nothing
+rrule(::Any, ::Vararg{Any}; kwargs...) = nothing
 
 @noinline function _throw_checked_rrule_error(f, args...; kwargs...)
     io = IOBuffer()
