@@ -1,4 +1,5 @@
 cool(x) = x + 1
+cool(x, y) = x + y + 1
 
 @testset "rules" begin
     @testset "frule and rrule" begin
@@ -45,5 +46,14 @@ cool(x) = x + 1
         @test ChainRules._update!(X, Y) == (A=[2 0; 0 2], B=[4 4; 4 4])
         @test X.A != Y.A
         @test X.B != Y.B
+
+        try
+            # We defined a 2-arg method for `cool` but no `rrule`
+            ChainRules._checked_rrule(cool, 1.0, 2.0)
+        catch e
+            @test e isa ArgumentError
+            @test e.msg == "can't differentiate `cool(::Float64, ::Float64)`; no " *
+                           "matching `rrule` is defined"
+        end
     end
 end

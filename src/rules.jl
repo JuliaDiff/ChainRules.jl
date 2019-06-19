@@ -377,6 +377,24 @@ See also: [`frule`](@ref), [`AbstractRule`](@ref), [`@scalar_rule`](@ref)
 """
 rrule(::Any, ::Vararg{Any}) = nothing
 
+@noinline function _throw_checked_rrule_error(f, args...; kwargs...)
+    io = IOBuffer()
+    print(io, "can't differentiate `", f, '(')
+    join(io, map(arg->string("::", typeof(arg)), args), ", ")
+    if !isempty(kwargs)
+        print(io, ";")
+        join(io, map(((k, v),)->string(k, "=", v), kwargs), ", ")
+    end
+    print(io, ")`; no matching `rrule` is defined")
+    throw(ArgumentError(String(take!(io))))
+end
+
+function _checked_rrule(f, args...; kwargs...)
+    r = rrule(f, args...; kwargs...)
+    r isa Nothing && _throw_checked_rrule_error(f, args...; kwargs...)
+    return r
+end
+
 #####
 ##### macros
 #####
