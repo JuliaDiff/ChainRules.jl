@@ -4,7 +4,6 @@ package (https://github.com/invenia/DiffLinearAlgebra.jl).
 =#
 
 using LinearAlgebra: BlasFloat
-using LinearAlgebra.BLAS: gemm
 
 _zeros(x) = fill!(similar(x), zero(eltype(x)))
 

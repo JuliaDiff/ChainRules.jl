@@ -2,9 +2,17 @@ module ChainRules
 
 using Cassette
 using LinearAlgebra
+using LinearAlgebra.BLAS
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 
-import NaNMath, SpecialFunctions, LinearAlgebra, LinearAlgebra.BLAS
+if VERSION < v"1.3.0-DEV.142"
+    # In prior versions, the BLAS submodule also exported `dot`, which caused a conflict
+    # with its parent module. To get around this, we can simply create a hard binding for
+    # the one we want to use without qualification.
+    import LinearAlgebra: dot
+end
+
+import NaNMath, SpecialFunctions
 
 export AbstractRule, Rule, frule, rrule
 
