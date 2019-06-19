@@ -16,6 +16,30 @@ function rrule(::typeof(map), f, xs...)
 end
 
 #####
+##### `mapreduce`, `mapfoldl`, `mapfoldr`
+#####
+
+for mf in (:mapreduce, :mapfoldl, :mapfoldr)
+    sig = :(rrule(::typeof($mf), f, op, x::AbstractArray{<:Real}))
+    call = :($mf(f, op, x))
+    if mf === :mapreduce
+        insert!(sig.args, 2, Expr(:parameters, Expr(:kw, :dims, :(:))))
+        insert!(call.args, 2, Expr(:parameters, Expr(:kw, :dims, :dims)))
+    end
+    body = quote
+        y = $call
+        ∂x = Rule() do ȳ
+            broadcast(x, ȳ) do xi, ȳi
+                _, ∂xi = _checked_rrule(f, xi)
+                extern(∂xi(ȳi))
+            end
+        end
+        return y, (DNERule(), DNERule(), ∂x)
+    end
+    eval(Expr(:function, sig, body))
+end
+
+#####
 ##### `sum`
 #####
 
