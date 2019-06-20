@@ -38,7 +38,7 @@
 @scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
 @scalar_rule(transpose(x), One())
 @scalar_rule(abs(x), sign(x))
-@scalar_rule(rem2pi(x, r), (One(), DNE()))
+@scalar_rule(rem2pi(x, r::RoundingMode), (One(), DNE()))
 @scalar_rule(+(x), One())
 @scalar_rule(-(x), -1)
 @scalar_rule(+(x, y), (One(), One()))

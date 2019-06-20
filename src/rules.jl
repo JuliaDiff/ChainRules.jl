@@ -410,7 +410,7 @@ A convenience macro that generates simple scalar forward or reverse rules using
 the provided partial derivatives. Specifically, generates the corresponding
 methods for `frule` and `rrule`:
 
-    function ChainRules.frule(::typeof(f), x₁, x₂, ...)
+    function ChainRules.frule(::typeof(f), x₁::Number, x₂::Number, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
         return Ω, (Rule((Δx₁, Δx₂, ...) -> ∂f₁_∂x₁ * Δx₁ + ∂f₁_∂x₂ * Δx₂ + ...),
@@ -418,13 +418,20 @@ methods for `frule` and `rrule`:
                    ...)
     end
 
-    function ChainRules.rrule(::typeof(f), x₁, x₂, ...)
+    function ChainRules.rrule(::typeof(f), x₁::Number, x₂::Number, ...)
         Ω = f(x₁, x₂, ...)
         \$(statement₁, statement₂, ...)
         return Ω, (Rule((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₁ * ΔΩ₁ + ∂f₂_∂x₁ * ΔΩ₂ + ...),
                    Rule((ΔΩ₁, ΔΩ₂, ...) -> ∂f₁_∂x₂ * ΔΩ₁ + ∂f₂_∂x₂ * ΔΩ₂ + ...),
                    ...)
     end
+
+If no type constraints in `f(x₁, x₂, ...)` within the call to `@scalar_rule` are
+provided, each parameter in the resulting `frule`/`rrule` definition is given a
+type constraint of `Number`.
+Constraints may also be explicitly be provided to override the `Number` constraint,
+e.g. `f(x₁::Complex, x₂)`, which will constrain `x₁` to `Complex` and `x₂` to
+`Number`.
 
 Note that the result of `f(x₁, x₂, ...)` is automatically bound to `Ω`. This
 allows the primal result to be conveniently referenced (as `Ω`) within the
@@ -458,7 +465,19 @@ macro scalar_rule(call, maybe_setup, partials...)
         partials = (maybe_setup, partials...)
     end
     @assert Meta.isexpr(call, :call)
-    f, inputs = esc(call.args[1]), esc.(call.args[2:end])
+    f = esc(call.args[1])
+    # Annotate all arguments in the signature as scalars
+    inputs = map(call.args[2:end]) do arg
+        esc(Meta.isexpr(arg, :(::)) ? arg : Expr(:(::), arg, :Number))
+    end
+    # Remove annotations and escape names for the call
+    for (i, arg) in enumerate(call.args)
+        if Meta.isexpr(arg, :(::))
+            call.args[i] = esc(first(arg.args))
+        else
+            call.args[i] = esc(arg)
+        end
+    end
     if all(Meta.isexpr(partial, :tuple) for partial in partials)
         forward_rules = Any[rule_from_partials(partial.args...) for partial in partials]
         reverse_rules = Any[]
