@@ -4,23 +4,6 @@ function generate_well_conditioned_matrix(rng, N)
 end
 
 @testset "linalg" begin
-    @testset "sum" begin
-        @testset "Vector" begin
-            rng, M = MersenneTwister(123456), 3
-            frule_test(sum, (randn(rng, M), randn(rng, M)))
-            rrule_test(sum, randn(rng), (randn(rng, M), randn(rng, M)))
-        end
-        @testset "Matrix" begin
-            rng, M, N = MersenneTwister(123456), 3, 4
-            frule_test(sum, (randn(rng, M, N), randn(rng, M, N)))
-            rrule_test(sum, randn(rng), (randn(rng, M, N), randn(rng, M, N)))
-        end
-        @testset "Array{T, 3}" begin
-            rng, M, N, P = MersenneTwister(123456), 3, 7, 11
-            frule_test(sum, (randn(rng, M, N, P), randn(rng, M, N, P)))
-            rrule_test(sum, randn(rng), (randn(rng, M, N, P), randn(rng, M, N, P)))
-        end
-    end
     @testset "dot" begin
         @testset "Vector" begin
             rng, M = MersenneTwister(123456), 3
