@@ -82,7 +82,7 @@ end
         # TODO: atan2 sincos
     end
     @testset "Misc. Tests" begin
-        @testset "*(x, y)" for T in (Float32, Float64, Complex{Float64})
+        @testset "*(x::$T, y::$T)" for T in (Float32, Float64, Complex{Float64})
             x, y = rand(T, 3, 2), rand(T, 2, 5)
             z, (dx, dy) = rrule(*, x, y)
 

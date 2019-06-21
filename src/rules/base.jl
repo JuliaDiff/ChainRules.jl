@@ -37,7 +37,8 @@
 @scalar_rule(conj(x), Wirtinger(Zero(), One()))
 @scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
 @scalar_rule(transpose(x), One())
-@scalar_rule(abs(x), x isa Real ? sign(x) : Wirtinger(x' / 2Ω, x / 2Ω))
+@scalar_rule(abs(x::Real), sign(x))
+@scalar_rule(abs(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(rem2pi(x, r::RoundingMode), (One(), DNE()))
 @scalar_rule(+(x), One())
 @scalar_rule(-(x), -1)
@@ -77,19 +78,16 @@ end
 
 function frule(::typeof(hypot), x...)
     Ω = hypot(x...)
-    return Ω, WirtingerRule(
-        Rule((Δ...) -> sum(Δ .* conj.(x) * inv(2Ω))),
-        Rule((Δ...) -> sum(Δ .* x) * inv(2Ω))
-    )
+    return Ω, WirtingerRule(Rule((Δ...) -> sum(Δ .* conj.(x) * inv(2Ω))),
+                            Rule((Δ...) -> sum(Δ .* x) * inv(2Ω)))
 end
 
 function rrule(::typeof(hypot), x...)
     Ω = hypot(x...)
     return Ω, map(x) do x_i
-        WirtingerRule(# typeof(x_i), # when #53 is merged
-            Rule(ΔΩ -> ΔΩ * (conj(x_i) / 2Ω)),
-            Rule(ΔΩ -> ΔΩ * (x_i / 2Ω))
-        )
+        WirtingerRule(#typeof(x_i), # when #53 is merged
+                      Rule(ΔΩ -> ΔΩ * (conj(x_i) / 2Ω)),
+                      Rule(ΔΩ -> ΔΩ * (x_i / 2Ω)))
     end
 end
 
