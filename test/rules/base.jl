@@ -1,10 +1,27 @@
+_isapprox(x, y; kwargs...) = isapprox(x, y; kwargs...)
+
+const AbstractDifferential = ChainRules.AbstractDifferential
+
+_isapprox(x::AbstractDifferential, y; kwargs...) = _isapprox(extern(x), y; kwargs...)
+_isapprox(x, y::AbstractDifferential; kwargs...) = _isapprox(x, extern(y); kwargs...)
+_isapprox(x::AbstractDifferential, y::AbstractDifferential; kwargs...) = _isapprox(extern(x), extern(y); kwargs...)
+
+_isapprox(x::Wirtinger, y; kwargs...) = _isapprox(x.primal, y; kwargs...) &&
+    _isapprox(x.conjugate, Zero(); kwargs...)
+_isapprox(x, y::Wirtinger; kwargs...) = _isapprox(x, y.primal; kwargs...) &&
+    _isapprox(Zero(), y.conjugate; kwargs...)
+_isapprox(x::Wirtinger, y::Wirtinger; kwargs...) = _isapprox(x.primal, y.primal; kwargs...) &&
+    _isapprox(x.conjugate, y.conjugate; kwargs...)
+
+const ≈₁ = _isapprox
+
 function test_scalar(f, f′, xs...)
     for r = (rrule, frule)
-        rr = r(f, xs...)
+        rr = @inferred r(f, xs...)
         @test rr !== nothing
         fx, ∂x = rr
         @test fx == f(xs...)
-        @test ∂x(1) ≈ f′(xs...) atol=1e-5
+        @test ∂x(1) ≈₁ f′(xs...) atol=1e-5
     end
 end
 
@@ -65,19 +82,19 @@ end
         # TODO: atan2 sincos
     end
     @testset "Misc. Tests" begin
-        @testset "*(x, y)" begin
-            x, y = rand(3, 2), rand(2, 5)
+        @testset "*(x, y)" for T in (Float32, Float64, Complex{Float64})
+            x, y = rand(T, 3, 2), rand(T, 2, 5)
             z, (dx, dy) = rrule(*, x, y)
 
             @test z == x * y
 
-            z̄ = rand(3, 5)
+            z̄ = rand(T, 3, 5)
 
-            @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
-            @test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
+            @test dx(z̄) == extern(accumulate(zeros(T, 3, 2), dx, z̄))
+            @test dy(z̄) == extern(accumulate(zeros(T, 2, 5), dy, z̄))
 
-            test_accumulation(rand(3, 2), dx, z̄, z̄ * y')
-            test_accumulation(rand(2, 5), dy, z̄, x' * z̄)
+            test_accumulation(rand(T, 3, 2), dx, z̄, z̄ * transpose(y))
+            test_accumulation(rand(T, 2, 5), dy, z̄, transpose(x) * z̄)
         end
         @testset "hypot(x, y)" begin
             x, y = rand(2)
@@ -95,6 +112,16 @@ end
             dx, dy = extern(dxy(cx, cy))
             @test dx ≈ x / h * cx.value[1]
             @test dy ≈ y / h * cy.value[2]
+        end
+    end
+
+    @testset "Unary complex functions" begin
+        @testset "real input type" for x in rand.((Int, Float32, Float64))
+            test_scalar(abs, x -> 1, abs(x))
+            test_scalar(abs, x -> -1, -abs(x))
+        end
+        @testset "complex input type" for x in rand.(complex.((Float32, Float64)))
+            test_scalar(abs, z -> Wirtinger(z' / 2abs(z), z / 2abs(z)), x)
         end
     end
 end

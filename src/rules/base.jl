@@ -37,7 +37,6 @@
 @scalar_rule(conj(x), Wirtinger(Zero(), One()))
 @scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
 @scalar_rule(transpose(x), One())
-#@scalar_rule(abs(x), sign(x))
 @scalar_rule(abs(x), x isa Real ? sign(x) : Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(rem2pi(x, r), (One(), DNE()))
 @scalar_rule(+(x), One())
