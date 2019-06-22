@@ -86,12 +86,9 @@ _second(t) = Base.tuple_type_head(Base.tuple_type_tail(t))
         @test_overdub z * x === z
         @test_overdub o * x === x
         @test_overdub z / x === z
-        @test_overdub x / z === x * Inf16
-        @test_overdub z / z === NaN16
         @test_overdub o / x === inv(x)
         @test_overdub x / o === x
-        @test_overdub o / o === o
         @test_overdub z / o === z
-        @test_overdub o / z === Inf16
+        @test_overdub o / o === o
     end
 end

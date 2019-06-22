@@ -147,24 +147,16 @@ Cassette.@context RuleContext
 const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
 
 Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(-), ::Zero, b) = -b
-Cassette.overdub(::RuleContext, ::typeof(-), b, ::Zero) = b
-Cassette.overdub(::RuleContext, ::typeof(-), ::Zero, ::Zero) = Zero()
-Cassette.overdub(::RuleContext, ::typeof(-), ::One, b) = true - b
-Cassette.overdub(::RuleContext, ::typeof(-), b, ::One) = b - true
-Cassette.overdub(::RuleContext, ::typeof(-), ::One, ::One) = Zero()
-Cassette.overdub(::RuleContext, ::typeof(-), ::Zero, ::One) = -1
-Cassette.overdub(::RuleContext, ::typeof(-), ::One, ::Zero) = One()
+Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b) = add(a, -b)
+Cassette.overdub(::RuleContext, ::typeof(-), a, b::AbstractDifferential) = -add(-a, b)
+Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b::AbstractDifferential) = extern(a) - extern(b)
+Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b::Zero) = add(a, b)
+Cassette.overdub(::RuleContext, ::typeof(-), a::One, b::One) = Zero()
 
 Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
-Cassette.overdub(::RuleContext, ::typeof(/), ::Zero, b) = Zero()
-Cassette.overdub(::RuleContext, ::typeof(/), b, ::Zero) = b * Inf16
-Cassette.overdub(::RuleContext, ::typeof(/), ::Zero, ::Zero) = NaN16
-Cassette.overdub(::RuleContext, ::typeof(/), ::One, b) = inv(b)
-Cassette.overdub(::RuleContext, ::typeof(/), b, ::One) = b
-Cassette.overdub(::RuleContext, ::typeof(/), ::One, ::One) = One()
-Cassette.overdub(::RuleContext, ::typeof(/), ::Zero, ::One) = Zero()
-Cassette.overdub(::RuleContext, ::typeof(/), ::One, ::Zero) = Inf16
+Cassette.overdub(::RuleContext, ::typeof(/), a::AbstractDifferential, b) = mul(a, inv(b))
+Cassette.overdub(::RuleContext, ::typeof(/), a, b::One) = mul(a, b)
+Cassette.overdub(::RuleContext, ::typeof(/), a::AbstractDifferential, b::One) = mul(a, b)
 
 Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)
