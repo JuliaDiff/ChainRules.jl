@@ -172,3 +172,9 @@ macro test_overdub(ex)
         @test Cassette.overdub(RULE_CONTEXT, () -> $(esc(ex)))
     end
 end
+
+macro test_overdub_broken(ex)
+    return quote
+        @test_broken Cassette.overdub(RULE_CONTEXT, () -> $(esc(ex)))
+    end
+end

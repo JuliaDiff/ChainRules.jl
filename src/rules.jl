@@ -148,15 +148,14 @@ const RULE_CONTEXT = Cassette.disablehooks(RuleContext())
 
 Cassette.overdub(::RuleContext, ::typeof(+), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b) = add(a, -b)
-Cassette.overdub(::RuleContext, ::typeof(-), a, b::AbstractDifferential) = -add(-a, b)
-Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b::AbstractDifferential) = extern(a) - extern(b)
-Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b::Zero) = add(a, b)
-Cassette.overdub(::RuleContext, ::typeof(-), a::One, b::One) = Zero()
+Cassette.overdub(::RuleContext, ::typeof(-), a, b::AbstractDifferential) = add(a, mul(-1, b))
+Cassette.overdub(::RuleContext, ::typeof(-), a::AbstractDifferential, b::AbstractDifferential) = add(a, mul(-1, b))
+Cassette.overdub(::RuleContext, ::typeof(-), ::One, ::One) = Zero()
 
 Cassette.overdub(::RuleContext, ::typeof(*), a, b) = mul(a, b)
 Cassette.overdub(::RuleContext, ::typeof(/), a::AbstractDifferential, b) = mul(a, inv(b))
-Cassette.overdub(::RuleContext, ::typeof(/), a, b::One) = mul(a, b)
-Cassette.overdub(::RuleContext, ::typeof(/), a::AbstractDifferential, b::One) = mul(a, b)
+Cassette.overdub(::RuleContext, ::typeof(/), a, ::One) = a
+Cassette.overdub(::RuleContext, ::typeof(/), a::AbstractDifferential, ::One) = a
 
 Cassette.overdub(::RuleContext, ::typeof(add), a, b) = add(a, b)
 Cassette.overdub(::RuleContext, ::typeof(mul), a, b) = mul(a, b)

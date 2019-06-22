@@ -4,7 +4,7 @@ using ChainRules, Test, FDM, LinearAlgebra, LinearAlgebra.BLAS, Random, Statisti
 using ChainRules: extern, accumulate, accumulate!, store!, @scalar_rule,
     Wirtinger, wirtinger_primal, wirtinger_conjugate, add_wirtinger, mul_wirtinger,
     Zero, add_zero, mul_zero, One, add_one, mul_one, Casted, cast, add_casted, mul_casted,
-    DNE, Thunk, Casted, DNERule, RULE_CONTEXT
+    add, mul, DNE, Thunk, Casted, DNERule, RULE_CONTEXT
 using Base.Broadcast: broadcastable
 import LinearAlgebra: dot
 using Cassette

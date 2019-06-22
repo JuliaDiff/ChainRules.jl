@@ -71,9 +71,12 @@ _second(t) = Base.tuple_type_head(Base.tuple_type_tail(t))
         end
     end
     @testset "Cassette" begin
-        x, z, o = rand(), Zero(), One()
+        x, z, o, w = rand(), Zero(), One(), Wirtinger(rand(Complex{Float64}, 2)...)
         @test_overdub z + x === x
         @test_overdub o + x === true + x
+        @test_overdub_broken z + w === w
+        @test_overdub_broken o + w === Wirtinger(true + w.primal, w.conjugate)
+        @test_overdub_broken x + w === Wirtinger(x + w.primal, w.conjugate)
         @test_overdub z - x === -x
         @test_overdub x - z === x
         @test_overdub z - z === z
@@ -82,6 +85,11 @@ _second(t) = Base.tuple_type_head(Base.tuple_type_tail(t))
         @test_overdub o - o === z
         @test_overdub z - o === -1
         @test_overdub o - z === o
+        @test_overdub_broken w - z === w
+        @test_overdub_broken z - w === mul(-1, w)
+        @test_overdub_broken w - o === Wirtinger(w.primal - true, w.conjugate)
+        @test_overdub_broken o - w === add(o, mul(-1, w))
+        @test_overdub_broken x - w === add(x, mul(-1, w))
 
         @test_overdub z * x === z
         @test_overdub o * x === x
@@ -90,5 +98,7 @@ _second(t) = Base.tuple_type_head(Base.tuple_type_tail(t))
         @test_overdub x / o === x
         @test_overdub z / o === z
         @test_overdub o / o === o
+        @test_overdub w / x === mul(w, inv(x))
+        @test_overdub w / o === w
     end
 end
