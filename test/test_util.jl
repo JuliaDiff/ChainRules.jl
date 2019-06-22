@@ -166,3 +166,9 @@ function test_store!(x̄::AbstractArray, dx, ȳ, partial)
     @test all(x̄_copy .≈ extern(partial))
     return nothing
 end
+
+macro test_overdub(ex)
+    return quote
+        @test Cassette.overdub(RULE_CONTEXT, () -> $(esc(ex)))
+    end
+end
