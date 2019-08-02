@@ -1,5 +1,5 @@
 module NaNMathGlue
-using AbstractChainRules
+using ChainRulesCore
 using NaNMath
 
 @scalar_rule(NaNMath.sin(x), NaNMath.cos(x))

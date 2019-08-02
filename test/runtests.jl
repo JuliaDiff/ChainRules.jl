@@ -3,7 +3,7 @@ using Base.Broadcast: broadcastable
 import LinearAlgebra: dot
 
 # For testing purposes we use a lot of
-using AbstractChainRules: add, cast, extern, accumulate, accumulate!, store!, @scalar_rule,
+using ChainRulesCore: add, cast, extern, accumulate, accumulate!, store!, @scalar_rule,
     Wirtinger, wirtinger_primal, wirtinger_conjugate, add_wirtinger, mul_wirtinger,
     Zero, add_zero, mul_zero, One, add_one, mul_one, Casted, cast, add_casted, mul_casted,
     DNE, Thunk, Casted, DNERule

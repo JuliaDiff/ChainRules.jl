@@ -1,12 +1,12 @@
 module ChainRules
 using Reexport
-@reexport using AbstractChainRules
+@reexport using ChainRulesCore
 # basically everything this package does is overloading these
-import AbstractChainRules: rrule, frule
+import ChainRulesCore: rrule, frule
 
 # deal with name clashes
-const accumulate = AbstractChainRules.accumulate
-const accumulate! = AbstractChainRules.accumulate!
+const accumulate = ChainRulesCore.accumulate
+const accumulate! = ChainRulesCore.accumulate!
 
 
 using LinearAlgebra
@@ -35,9 +35,9 @@ include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 
-# Note: The following is only required because package authors do not use
-# declare their own rules using AbstractChainRules. For arguably good reasons.
-# so we define them here for them.
+# Note: The following is only required because package authors sometimes do not
+# declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.
+# So we define them here for them.
 function __init__()
     @require NaNMath="77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" begin
         include("rulesets/packages/NaNMath.jl")
@@ -46,7 +46,7 @@ function __init__()
 
     @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
         include("rulesets/packages/SpecialFunctions.jl")
-        using .SpecialFunctionGlue
+        using .SpecialFunctionsGlue
     end
 end
 
