@@ -1,5 +1,5 @@
 module SpecialFunctionsGlue
-using AbstractChainRules
+using ChainRulesCore
 using SpecialFunctions
 
 
