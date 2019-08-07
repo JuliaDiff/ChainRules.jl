@@ -1,30 +1,35 @@
-# TODO: more tests!
-
 using ChainRules, Test, FDM, LinearAlgebra, LinearAlgebra.BLAS, Random, Statistics
-using ChainRules: extern, accumulate, accumulate!, store!, @scalar_rule,
+using Base.Broadcast: broadcastable
+import LinearAlgebra: dot
+
+# For testing purposes we use a lot of
+using ChainRulesCore: add, cast, extern, accumulate, accumulate!, store!, @scalar_rule,
     Wirtinger, wirtinger_primal, wirtinger_conjugate, add_wirtinger, mul_wirtinger,
     Zero, add_zero, mul_zero, One, add_one, mul_one, Casted, cast, add_casted, mul_casted,
     DNE, Thunk, Casted, DNERule
-using Base.Broadcast: broadcastable
-import LinearAlgebra: dot
 
 include("test_util.jl")
 
 @testset "ChainRules" begin
-    include("differentials.jl")
-    include("rules.jl")
-    @testset "rules" begin
-        include(joinpath("rules", "base.jl"))
-        include(joinpath("rules", "array.jl"))
-        include(joinpath("rules", "mapreduce.jl"))
-        @testset "linalg" begin
-            include(joinpath("rules", "linalg", "dense.jl"))
-            include(joinpath("rules", "linalg", "structured.jl"))
-            include(joinpath("rules", "linalg", "factorization.jl"))
+    include("helper_functions.jl")
+    @testset "rulesets" begin
+        @testset "Base" begin
+            include(joinpath("rulesets", "Base", "base.jl"))
+            include(joinpath("rulesets", "Base", "array.jl"))
+            include(joinpath("rulesets", "Base", "mapreduce.jl"))
+            include(joinpath("rulesets", "Base", "broadcast.jl"))
         end
-        include(joinpath("rules", "broadcast.jl"))
-        include(joinpath("rules", "blas.jl"))
-        include(joinpath("rules", "nanmath.jl"))
-        include(joinpath("rules", "specialfunctions.jl"))
+
+        @testset "LinearAlgebra" begin
+            include(joinpath("rulesets", "LinearAlgebra", "dense.jl"))
+            include(joinpath("rulesets", "LinearAlgebra", "structured.jl"))
+            include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
+            include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
+        end
+
+        @testset "packages" begin
+            include(joinpath("rulesets", "packages", "NaNMath.jl"))
+            include(joinpath("rulesets", "packages", "SpecialFunctions.jl"))
+        end
     end
 end

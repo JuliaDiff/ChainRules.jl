@@ -1,8 +1,18 @@
 module ChainRules
+using Reexport
+@reexport using ChainRulesCore
+# Basically everything this package does is overloading these, so we make an exception
+# to the normal rule of only overload via `AbstractChainRules.rrule`.
+import ChainRulesCore: rrule, frule
 
-using Cassette
+# Deal with name clashes, by defining in this module which one we mean.
+const accumulate = ChainRulesCore.accumulate
+const accumulate! = ChainRulesCore.accumulate!
+
+
 using LinearAlgebra
 using LinearAlgebra.BLAS
+using Requires
 using Statistics
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 
@@ -13,22 +23,32 @@ if VERSION < v"1.3.0-DEV.142"
     import LinearAlgebra: dot
 end
 
-import NaNMath, SpecialFunctions
+include("helper_functions.jl")
 
-export AbstractRule, Rule, frule, rrule
+include("rulesets/Base/base.jl")
+include("rulesets/Base/array.jl")
+include("rulesets/Base/broadcast.jl")
+include("rulesets/Base/mapreduce.jl")
 
-include("differentials.jl")
-include("rules.jl")
-include("rules/base.jl")
-include("rules/array.jl")
-include("rules/broadcast.jl")
-include("rules/mapreduce.jl")
-include("rules/linalg/utils.jl")
-include("rules/linalg/blas.jl")
-include("rules/linalg/dense.jl")
-include("rules/linalg/structured.jl")
-include("rules/linalg/factorization.jl")
-include("rules/nanmath.jl")
-include("rules/specialfunctions.jl")
+include("rulesets/LinearAlgebra/utils.jl")
+include("rulesets/LinearAlgebra/blas.jl")
+include("rulesets/LinearAlgebra/dense.jl")
+include("rulesets/LinearAlgebra/structured.jl")
+include("rulesets/LinearAlgebra/factorization.jl")
+
+# Note: The following is only required because package authors sometimes do not
+# declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.
+# So we define them here for them.
+function __init__()
+    @require NaNMath="77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" begin
+        include("rulesets/packages/NaNMath.jl")
+        using .NaNMathGlue
+    end
+
+    @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
+        include("rulesets/packages/SpecialFunctions.jl")
+        using .SpecialFunctionsGlue
+    end
+end
 
 end # module

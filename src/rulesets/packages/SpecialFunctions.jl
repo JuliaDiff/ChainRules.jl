@@ -1,3 +1,8 @@
+module SpecialFunctionsGlue
+using ChainRulesCore
+using SpecialFunctions
+
+
 @scalar_rule(SpecialFunctions.lgamma(x), SpecialFunctions.digamma(x))
 @scalar_rule(SpecialFunctions.erf(x), (2 / sqrt(π)) * exp(-x * x))
 @scalar_rule(SpecialFunctions.erfc(x), -(2 / sqrt(π)) * exp(-x * x))
@@ -18,3 +23,5 @@
 @scalar_rule(SpecialFunctions.erfcinv(x), -(sqrt(π) / 2) * exp(Ω^2))
 @scalar_rule(SpecialFunctions.erfcx(x), (2 * x * Ω) - (2 / sqrt(π)))
 @scalar_rule(SpecialFunctions.dawson(x), 1 - (2 * x * Ω))
+
+end #module
