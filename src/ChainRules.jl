@@ -1,10 +1,11 @@
 module ChainRules
 using Reexport
 @reexport using ChainRulesCore
-# basically everything this package does is overloading these
+# Basically everything this package does is overloading these, so we make an exception
+# to the normal rule of only overload via `AbstractChainRules.rrule`.
 import ChainRulesCore: rrule, frule
 
-# deal with name clashes
+# Deal with name clashes, by defining in this module which one we mean.
 const accumulate = ChainRulesCore.accumulate
 const accumulate! = ChainRulesCore.accumulate!
 
