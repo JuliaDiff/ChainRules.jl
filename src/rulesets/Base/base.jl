@@ -62,7 +62,7 @@
 @scalar_rule(cotd(x), -(π / oftype(x, 180)) * (1 + Ω^2))
 @scalar_rule(sech(x), -tanh(x) * Ω)
 @scalar_rule(csch(x), -coth(x) * Ω)
-@scalar_rule(hypot(x, y), (y / Ω, x / Ω))
+@scalar_rule(hypot(x, y), (x / Ω, y / Ω))
 @scalar_rule(sincos(x), @setup((sinx, cosx) = Ω), cosx, -sinx)
 @scalar_rule(atan(y, x), @setup(u = hypot(x, y)), (x / u, y / u))
 @scalar_rule(max(x, y), @setup(gt = x > y), (gt, !gt))
