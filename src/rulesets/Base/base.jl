@@ -1,3 +1,5 @@
+@scalar_rule(one(x), Zero())
+@scalar_rule(zero(x), Zero())
 @scalar_rule(abs2(x), Wirtinger(x', x))
 @scalar_rule(log(x), inv(x))
 @scalar_rule(log10(x), inv(x) / log(oftype(x, 10)))
