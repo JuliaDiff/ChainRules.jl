@@ -1,9 +1,11 @@
 module NaNMathGlue
 using ChainRulesCore
 using NaNMath
+using SpecialFunctions
 
 @scalar_rule(NaNMath.sin(x), NaNMath.cos(x))
 @scalar_rule(NaNMath.cos(x), -NaNMath.sin(x))
+@scalar_rule(NaNMath.tan(x), 1 + NaNMath.pow(NaNMath.tan(x), 2))
 @scalar_rule(NaNMath.asin(x), inv(NaNMath.sqrt(1 - NaNMath.pow(x, 2))))
 @scalar_rule(NaNMath.acos(x), -inv(NaNMath.sqrt(1 - NaNMath.pow(x, 2))))
 @scalar_rule(NaNMath.acosh(x), inv(NaNMath.sqrt(NaNMath.pow(x, 2) - 1)))

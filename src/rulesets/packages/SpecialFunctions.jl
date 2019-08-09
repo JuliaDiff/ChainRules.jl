@@ -41,8 +41,8 @@ using SpecialFunctions
 
 @scalar_rule(SpecialFunctions.besselk(ν, x),
              (NaN,
-              (SpecialFunctions.besselk(ν - 1, x) +
-               SpecialFunctions.besselk(ν + 1, x)) / 2))
+              -(SpecialFunctions.besselk(ν - 1, x) +
+                SpecialFunctions.besselk(ν + 1, x)) / 2))
 
 @scalar_rule(SpecialFunctions.hankelh1(ν, x),
              (NaN,
