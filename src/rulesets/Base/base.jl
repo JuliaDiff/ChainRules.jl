@@ -24,7 +24,7 @@
 @scalar_rule(acotd(x), -oftype(x, 180) / π / (1 + x^2))
 @scalar_rule(sinh(x), cosh(x))
 @scalar_rule(cosh(x), sinh(x))
-@scalar_rule(tanh(x), sech(x)^2)
+@scalar_rule(tanh(x), 1-Ω^2)
 @scalar_rule(coth(x), -(csch(x)^2))
 @scalar_rule(asinh(x), inv(sqrt(x^2 + 1)))
 @scalar_rule(acosh(x), inv(sqrt(x^2 - 1)))
