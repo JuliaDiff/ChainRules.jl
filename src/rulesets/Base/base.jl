@@ -71,6 +71,7 @@
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))))
 @scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
+@scalar_rule(fma(x, y, z), (y, x, One()))
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
