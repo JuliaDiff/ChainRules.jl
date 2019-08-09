@@ -62,7 +62,27 @@ end
             test_scalar(acscd, x -> -180 / π / abs(x) / sqrt(x^2 - 1), x)
             test_scalar(acotd, x -> -180 / π / (1 + x^2), x)
         end
-        # TODO: atan2 sincos
+        @testset "Multivariate" begin
+            x, y = rand(2)
+            ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
+            u = x^2 + y^2
+            datan = y/u - 2x/u
+            r, df = frule(atan, x, y)
+            @test r === ratan
+            @test df(1, 2) === datan
+            r, (df1, df2) = rrule(atan, x, y)
+            @test r === ratan
+            @test df1(1) + df2(2) === datan
+
+            rsincos = sincos(x)
+            dsincos = cos(x) - 2sin(x)
+            r, (df1, df2) = frule(sincos, x)
+            @test r === rsincos
+            @test df1(1) + df2(2) === dsincos
+            r, df = rrule(sincos, x)
+            @test r === rsincos
+            @test df(1, 2) === dsincos
+        end
     end
     @testset "Misc. Tests" begin
         @testset "*(x, y)" begin
