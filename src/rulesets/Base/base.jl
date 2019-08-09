@@ -67,9 +67,9 @@
 @scalar_rule(atan(y, x), @setup(u = hypot(x, y)), (x / u, y / u))
 @scalar_rule(max(x, y), @setup(gt = x > y), (gt, !gt))
 @scalar_rule(min(x, y), @setup(gt = x > y), (!gt, gt))
-@scalar_rule(mod(x, y), @setup((u, nan) = promote(x / y, NaN16)),
+@scalar_rule(mod(x, y), @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))))
-@scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16)),
+@scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
 @scalar_rule(fma(x, y, z), (y, x, One()))
 
