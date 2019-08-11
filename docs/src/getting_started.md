@@ -4,7 +4,7 @@
 It only depends on [Cassette.jl](https://github.com/jrevels/Cassette.jl) which is also light-weight and has no dependencies.
 
 [ChainRules.jl](https://github.com/JuliaDiff/ChainRules.jl) provides the full functionality, including sensitivities for Base Julia and standard libraries.
-Sensitivities for some other packages, currently SpecialFunctions.jl and NanMath.jl, will also be loaded if those packages are in your environment.
+Sensitivities for some other packages, currently SpecialFunctions.jl and NaNMath.jl, will also be loaded if those packages are in your environment.
 In general, we recommend adding custom sensitivities to your own packages with ChainRulesCore.
 
 ## Defining Custom Sensitivities
