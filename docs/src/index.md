@@ -1,10 +1,9 @@
 ```@meta
-DocTestSetup = :(using ChainRules)
-CurrentModule = ChainRules
+DocTestSetup = :(using ChainRulesCore, ChainRules)
 ```
 
 # ChainRules
 
-Hello! Welcome to ChainRules's documentation.
+[ChainRules.jl](https://github.com/JuliaDiff/ChainRules.jl) provides a variety of common utilities that can be used by downstream automatic differentiation (AD) tools to define and execute forward-, reverse-, and mixed-mode primitives.
 
-For an initial overview of ChainRules, please see the README. Otherwise, feel free to peruse available documentation via the sidebar.
+This package is a work-in-progress, as is the documentation. Contributions welcome!
