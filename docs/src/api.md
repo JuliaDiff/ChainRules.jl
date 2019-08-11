@@ -1,5 +1,5 @@
 # API Documentation
 
 ```@autodocs
-Modules = [ChainRulesCore, ChainRules]
+Modules = [ChainRulesCore]
 ```
