@@ -1,4 +1,4 @@
-using FDM: jvp, j′vp
+using FiniteDifferences: jvp, j′vp
 
 const _fdm = central_fdm(5, 1)
 

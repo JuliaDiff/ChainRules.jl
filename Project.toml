@@ -11,15 +11,15 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 ChainRulesCore = "^0.1"
-FDM = "^0.6"
+FiniteDifferences = "^0.7"
 julia = "^1.0"
 
 [extras]
-FDM = "e25cca7e-83ef-51fa-be6c-dfe2a3123128"
+FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["FDM", "Random", "Test", "SpecialFunctions", "NaNMath"]
+test = ["FiniteDifferences", "NaNMath", "Random", "SpecialFunctions", "Test"]
