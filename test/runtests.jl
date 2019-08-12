@@ -1,6 +1,13 @@
-using ChainRules, Test, FDM, LinearAlgebra, LinearAlgebra.BLAS, Random, Statistics
 using Base.Broadcast: broadcastable
-import LinearAlgebra: dot
+using ChainRules
+using ChainRulesCore
+using FiniteDifferences
+using LinearAlgebra
+using LinearAlgebra.BLAS
+using LinearAlgebra: dot
+using Random
+using Statistics
+using Test
 
 # For testing purposes we use a lot of
 using ChainRulesCore: add, cast, extern, accumulate, accumulate!, store!, @scalar_rule,

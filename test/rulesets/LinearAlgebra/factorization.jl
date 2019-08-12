@@ -48,9 +48,9 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test dp isa ChainRules.DNERule
                 Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(rng, size(Y)))
                 # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-                # machinery from FDM because that isn't set up to respect necessary special
-                # properties of the input. In the case of the Cholesky factorization, we
-                # need the input to be Hermitian.
+                # machinery from FiniteDifferences because that isn't set up to respect
+                # necessary special properties of the input. In the case of the Cholesky
+                # factorization, we need the input to be Hermitian.
                 X̄_ad = dot(dX(dF(Ȳ)), V)
                 X̄_fd = central_fdm(5, 1)() do ε
                     dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
