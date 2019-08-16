@@ -29,6 +29,8 @@ include("rulesets/Base/array.jl")
 include("rulesets/Base/broadcast.jl")
 include("rulesets/Base/mapreduce.jl")
 
+include("rulesets/Statistics/statistics.jl")
+
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/dense.jl")
