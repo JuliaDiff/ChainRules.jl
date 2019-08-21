@@ -112,7 +112,7 @@ end
 
             y, rule = rrule(f, x)
             @test y == expected
-            @test extern(rule(1))==0.0
+            @test extern(rule(1)) == 0.0
         end
         test_constant(one, 5, 1)
         test_constant(one, -4.1, 1)
