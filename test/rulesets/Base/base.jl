@@ -108,7 +108,7 @@ end
         function test_constant(f, x, expected)
             y, rule = frule(f, x)
             @test y == expected
-            @test extern(rule(1))==0.0
+            @test extern(rule(1)) == 0.0
 
             y, rule = rrule(f, x)
             @test y == expected
