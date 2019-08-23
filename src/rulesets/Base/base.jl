@@ -61,7 +61,7 @@
 @scalar_rule(\(x, y), (-(y / x / x), inv(x)))
 @scalar_rule(^(x, y), (y * x^(y - 1), Ω * log(x)))
 
-@scalar_rule(inv(x), -abs2(Ω))
+@scalar_rule(inv(x), -Ω^2)
 @scalar_rule(sqrt(x), inv(2 * Ω))
 @scalar_rule(cbrt(x), inv(3 * Ω^2))
 @scalar_rule(exp(x), Ω)
