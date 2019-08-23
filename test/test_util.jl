@@ -1,13 +1,43 @@
+using FiniteDifferences, Test
 using FiniteDifferences: jvp, j′vp
+using ChainRules
 
 const _fdm = central_fdm(5, 1)
+
+"""
+    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
+
+Given a function `f` with scalar input an scalar output, perform finite differencing checks,
+at input point `x` to confirm that there are correct ChainRules provided.
+
+# Arguments
+- `f`: Function for which the `frule` and `rrule` should be tested.
+- `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
+
+All keyword arguments except for `fdm` are passed to `isapprox`.
+"""
+function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
+    @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
+        res = rule(f, x)
+        @test res !== nothing  # Check the rule was defined
+        fx, ∂x = res
+        @test fx == f(x)  # Check we still get the normal value, right
+
+        # Check that we get the derivative right:
+        @test isapprox(
+            ∂x(1), fdm(f, x);
+            rtol=rtol, atol=atol, kwargs...
+        )
+    end
+end
+
 
 """
     frule_test(f, (x, ẋ)...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
 
 # Arguments
 - `f`: Function for which the `frule` should be tested.
-- `x`: input at which to evaluate `f` (should generally be set randomly).
+- `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
 - `ẋ`: differential w.r.t. `x` (should generally be set randomly).
 
 All keyword arguments except for `fdm` are passed to `isapprox`.
@@ -31,7 +61,7 @@ end
 # Arguments
 - `f`: Function to which rule should be applied.
 - `ȳ`: adjoint w.r.t. output of `f` (should generally be set randomly).
-- `x`: input at which to evaluate `f` (should generally be set randomly).
+- `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
 - `x̄`: currently accumulated adjoint (should generally be set randomly).
 
 All keyword arguments except for `fdm` are passed to `isapprox`.
