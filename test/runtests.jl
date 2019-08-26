@@ -27,9 +27,13 @@ include("test_util.jl")
             include(joinpath("rulesets", "Base", "broadcast.jl"))
         end
 
+        print(" ")
+
         @testset "Statistics" begin
             include(joinpath("rulesets", "Statistics", "statistics.jl"))
         end
+
+        print(" ")
 
         @testset "LinearAlgebra" begin
             include(joinpath("rulesets", "LinearAlgebra", "dense.jl"))
@@ -37,6 +41,8 @@ include("test_util.jl")
             include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
         end
+
+        print(" ")
 
         @testset "packages" begin
             include(joinpath("rulesets", "packages", "NaNMath.jl"))
