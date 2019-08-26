@@ -87,11 +87,13 @@
 
             x isa Real && test_scalar(cbrt, x)
             if (x isa Real && x >= 0) || x isa Complex
-                test_scalar(sqrt, x)
-                test_scalar(log, x)
-                test_scalar(log2, x)
-                test_scalar(log10, x)
-                test_scalar(log1p, x)
+                # this check is needed because the imaginary part jumps from pi to -pi
+                nr = imag(x) != 0 && real(x) < 0
+                test_scalar(sqrt, x, test_wirtinger=nr)
+                test_scalar(log, x, test_wirtinger=nr)
+                test_scalar(log2, x, test_wirtinger=nr)
+                test_scalar(log10, x, test_wirtinger=nr)
+                test_scalar(log1p, x, test_wirtinger=nr)
             end
         end
     end

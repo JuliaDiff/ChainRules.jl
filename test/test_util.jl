@@ -16,7 +16,7 @@ at input point `x` to confirm that there are correct ChainRules provided.
 
 All keyword arguments except for `fdm` are passed to `isapprox`.
 """
-function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
+function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
         res = rule(f, x)
         @test res !== nothing  # Check the rule was defined
@@ -24,10 +24,25 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
         @test fx == f(x)  # Check we still get the normal value, right
 
         # Check that we get the derivative right:
-        @test isapprox(
-            ∂x(1), fdm(f, x);
-            rtol=rtol, atol=atol, kwargs...
-        )
+        if !test_wirtinger
+            @test isapprox(
+                ∂x(1), fdm(f, x);
+                rtol=rtol, atol=atol, kwargs...
+            )
+        else
+            # For complex arguments, also check if the wirtinger derivative is correct
+            ∂Re, ∂Im = fdm.((ϵ -> f(x + ϵ), ϵ -> f(x + im*ϵ)), 0)
+            ∂ = .5(∂Re - im*∂Im)
+            ∂̅ = .5(∂Re + im*∂Im)
+            @test isapprox(
+                wirtinger_primal(∂x(1)), ∂;
+                rtol=rtol, atol=atol, kwargs...
+            )
+            @test isapprox(
+                extern(wirtinger_conjugate(∂x(1))), ∂̅;
+                rtol=rtol, atol=atol, kwargs...
+            )
+        end
     end
 end
 
