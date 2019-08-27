@@ -162,7 +162,7 @@ end
 function Base.isapprox(d_ad::DNE, d_fd; kwargs...)
     error("Tried to differentiate w.r.t. a DNE")
 end
-function Base.isapprox(d_ad::Union{Thunk,One,Zero}, d_fd; kwargs...)
+function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end
 
