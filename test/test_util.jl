@@ -1,6 +1,7 @@
 using FiniteDifferences, Test
 using FiniteDifferences: jvp, j′vp
 using ChainRules
+using ChainRules: AbstractDifferential
 
 const _fdm = central_fdm(5, 1)
 
