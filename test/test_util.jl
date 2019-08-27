@@ -33,8 +33,8 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
             )
         else
             # For complex arguments, also check if the wirtinger derivative is correct
-            ∂Re = fdm(ϵ -> f(x + ϵ), 0.0)
-            ∂Im = fdm(ϵ -> f(x + im*ϵ), 0.0)
+            ∂Re = fdm(ϵ -> f(x + ϵ), 0)
+            ∂Im = fdm(ϵ -> f(x + im*ϵ), 0)
             ∂ = 0.5(∂Re - im*∂Im)
             ∂̅ = 0.5(∂Re + im*∂Im)
             @test isapprox(
@@ -42,7 +42,7 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
                 rtol=rtol, atol=atol, kwargs...
             )
             @test isapprox(
-                extern(wirtinger_conjugate(∂x(1))), ∂̅;
+                wirtinger_conjugate(∂x(1)), ∂̅;
                 rtol=rtol, atol=atol, kwargs...
             )
         end
@@ -162,7 +162,7 @@ end
 function Base.isapprox(d_ad::DNE, d_fd; kwargs...)
     error("Tried to differentiate w.r.t. a DNE")
 end
-function Base.isapprox(d_ad::Thunk, d_fd; kwargs...)
+function Base.isapprox(d_ad::Union{Thunk,One,Zero}, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end
 
