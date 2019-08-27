@@ -33,9 +33,10 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
             )
         else
             # For complex arguments, also check if the wirtinger derivative is correct
-            ∂Re, ∂Im = fdm.((ϵ -> f(x + ϵ), ϵ -> f(x + im*ϵ)), 0)
-            ∂ = .5(∂Re - im*∂Im)
-            ∂̅ = .5(∂Re + im*∂Im)
+            ∂Re = fdm(ϵ -> f(x + ϵ), 0.0)
+            ∂Im = fdm(ϵ -> f(x + im*ϵ), 0.0)
+            ∂ = 0.5(∂Re - im*∂Im)
+            ∂̅ = 0.5(∂Re + im*∂Im)
             @test isapprox(
                 wirtinger_primal(∂x(1)), ∂;
                 rtol=rtol, atol=atol, kwargs...
