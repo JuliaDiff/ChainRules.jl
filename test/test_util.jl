@@ -5,7 +5,7 @@ using ChainRules
 const _fdm = central_fdm(5, 1)
 
 """
-    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
+    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), test_wirtinger=x isa Complex, kwargs...)
 
 Given a function `f` with scalar input an scalar output, perform finite differencing checks,
 at input point `x` to confirm that there are correct ChainRules provided.
@@ -14,7 +14,9 @@ at input point `x` to confirm that there are correct ChainRules provided.
 - `f`: Function for which the `frule` and `rrule` should be tested.
 - `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
 
-All keyword arguments except for `fdm` are passed to `isapprox`.
+- `test_wirtinger`: test whether the wirtinger derivative is correct, too
+
+All keyword arguments except for `fdm` and `test_wirtinger` are passed to `isapprox`.
 """
 function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
