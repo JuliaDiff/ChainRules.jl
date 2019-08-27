@@ -17,6 +17,7 @@ using ChainRulesCore: add, cast, extern, accumulate, accumulate!, store!, @scala
 
 include("test_util.jl")
 
+println("Testing ChainRules.jl")
 @testset "ChainRules" begin
     include("helper_functions.jl")
     @testset "rulesets" begin
