@@ -19,12 +19,25 @@ at input point `x` to confirm that there are correct ChainRules provided.
 
 All keyword arguments except for `fdm` and `test_wirtinger` are passed to `isapprox`.
 """
+<<<<<<< HEAD
 function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
+=======
+function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
+    if fieldcount(typeof(f)) > 0
+        throw(ArgumentError(
+            "test_scalar cannot be used on closures/functors (such as $f)"
+        ))
+    end
+
+>>>>>>> [WIP] include dervative WRT self.
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
         res = rule(f, x)
         @test res !== nothing  # Check the rule was defined
-        fx, ∂x = res
+        fx, ∂s = res
         @test fx == f(x)  # Check we still get the normal value, right
+
+        ∂self, ∂x = ∂s
+        @test ∂self === NamedTuple()  # No internal fields
 
         # Check that we get the derivative right:
         if !test_wirtinger

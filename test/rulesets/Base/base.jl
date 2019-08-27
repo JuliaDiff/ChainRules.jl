@@ -52,25 +52,37 @@
             test_scalar(acotd, 1/x)
         end
         @testset "Multivariate" begin
-            x, y = rand(2)
-            ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
-            u = x^2 + y^2
-            datan = y/u - 2x/u
-            r, df = frule(atan, x, y)
-            @test r === ratan
-            @test df(1, 2) === datan
-            r, (df1, df2) = rrule(atan, x, y)
-            @test r === ratan
-            @test df1(1) + df2(2) === datan
+            x, y = rand(2)i
+            @testset "atan2" begin
+                ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
+                u = x^2 + y^2
+                datan = y/u - 2x/u
 
-            rsincos = sincos(x)
-            dsincos = cos(x) - 2sin(x)
-            r, (df1, df2) = frule(sincos, x)
-            @test r === rsincos
-            @test df1(1) + df2(2) === dsincos
-            r, df = rrule(sincos, x)
-            @test r === rsincos
-            @test df(1, 2) === dsincos
+                r, (ds, df) = frule(atan, x, y)
+                @test r === ratan
+                @test df(1, 2) === datan
+                @test ds === NO_FIELDS_RULE
+
+                r, (ds, df1, df2) = rrule(atan, x, y)
+                @test r === ratan
+                @test ds === NO_FIELDS_RULE
+                @test df1(1) + df2(2) === datan
+            end
+
+            @testset "sincos" begin
+                rsincos = sincos(x)
+                dsincos = cos(x) - 2sin(x)
+
+                r, (ds, df1, df2) = frule(sincos, x)
+                @test r === rsincos
+                @test df1(1) + df2(2) === dsincos
+                @test ds === NO_FIELDS_RULE
+
+                r, (ds, df) = rrule(sincos, x)
+                @test r === rsincos
+                @test df(1, 2) === dsincos
+                @test ds === NO_FIELDS_RULE
+            end
         end
     end  # Trig
 
@@ -116,12 +128,12 @@
 
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
-        z, (dx, dy) = rrule(*, x, y)
+        z, (ds, dx, dy) = rrule(*, x, y)
 
         @test z == x * y
 
         z̄ = rand(3, 5)
-
+        @test ds === NO_FIELDS_RULE
         @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
         @test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
 
@@ -131,8 +143,9 @@
 
     @testset "hypot(x, y)" begin
         x, y = rand(2)
-        h, dxy = frule(hypot, x, y)
+        h, (ds, dxy) = frule(hypot, x, y)
 
+        @test ds === NO_FIELDS_RULE
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h
 
