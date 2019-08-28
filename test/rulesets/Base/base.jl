@@ -87,11 +87,14 @@
 
             x isa Real && test_scalar(cbrt, x)
             if (x isa Real && x >= 0) || x isa Complex
-                test_scalar(sqrt, x)
-                test_scalar(log, x)
-                test_scalar(log2, x)
-                test_scalar(log10, x)
-                test_scalar(log1p, x)
+                # this check is needed because these have discontinuities between
+                # `-10 + im*eps()` and `-10 - im*eps()`
+                should_test_wirtinger = imag(x) != 0 && real(x) < 0
+                test_scalar(sqrt, x; test_wirtinger=should_test_wirtinger)
+                test_scalar(log, x; test_wirtinger=should_test_wirtinger)
+                test_scalar(log2, x; test_wirtinger=should_test_wirtinger)
+                test_scalar(log10, x; test_wirtinger=should_test_wirtinger)
+                test_scalar(log1p, x; test_wirtinger=should_test_wirtinger)
             end
         end
     end

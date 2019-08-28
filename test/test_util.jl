@@ -1,11 +1,12 @@
 using FiniteDifferences, Test
 using FiniteDifferences: jvp, j′vp
 using ChainRules
+using ChainRulesCore: AbstractDifferential
 
 const _fdm = central_fdm(5, 1)
 
 """
-    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
+    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), test_wirtinger=x isa Complex, kwargs...)
 
 Given a function `f` with scalar input an scalar output, perform finite differencing checks,
 at input point `x` to confirm that there are correct ChainRules provided.
@@ -14,9 +15,11 @@ at input point `x` to confirm that there are correct ChainRules provided.
 - `f`: Function for which the `frule` and `rrule` should be tested.
 - `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
 
-All keyword arguments except for `fdm` are passed to `isapprox`.
+- `test_wirtinger`: test whether the wirtinger derivative is correct, too
+
+All keyword arguments except for `fdm` and `test_wirtinger` are passed to `isapprox`.
 """
-function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
+function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
         res = rule(f, x)
         @test res !== nothing  # Check the rule was defined
@@ -24,10 +27,26 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
         @test fx == f(x)  # Check we still get the normal value, right
 
         # Check that we get the derivative right:
-        @test isapprox(
-            ∂x(1), fdm(f, x);
-            rtol=rtol, atol=atol, kwargs...
-        )
+        if !test_wirtinger
+            @test isapprox(
+                ∂x(1), fdm(f, x);
+                rtol=rtol, atol=atol, kwargs...
+            )
+        else
+            # For complex arguments, also check if the wirtinger derivative is correct
+            ∂Re = fdm(ϵ -> f(x + ϵ), 0)
+            ∂Im = fdm(ϵ -> f(x + im*ϵ), 0)
+            ∂ = 0.5(∂Re - im*∂Im)
+            ∂̅ = 0.5(∂Re + im*∂Im)
+            @test isapprox(
+                wirtinger_primal(∂x(1)), ∂;
+                rtol=rtol, atol=atol, kwargs...
+            )
+            @test isapprox(
+                wirtinger_conjugate(∂x(1)), ∂̅;
+                rtol=rtol, atol=atol, kwargs...
+            )
+        end
     end
 end
 
@@ -144,7 +163,7 @@ end
 function Base.isapprox(d_ad::DNE, d_fd; kwargs...)
     error("Tried to differentiate w.r.t. a DNE")
 end
-function Base.isapprox(d_ad::Thunk, d_fd; kwargs...)
+function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end
 
