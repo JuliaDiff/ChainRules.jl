@@ -3,12 +3,14 @@
 #####
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
-    return reshape(A, dims), (Rule(Ȳ->reshape(Ȳ, dims)), DNERule())
+    return reshape(A, dims), (NO_FIELDS_RULE, Rule(Ȳ->reshape(Ȳ, dims)), DNERule())
 end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
-    Y, (rule, _) = rrule(reshape, A, dims)
-    return Y, (rule, fill(DNERule(), length(dims))...)
+    Y, (nofields, rule, dne) = rrule(reshape, A, dims)[2]
+    @assert no_fields === NO_FIELDS_RULE
+    @assert dne === DNERule()
+    return Y, (NO_FIELDS_RULE, rule, fill(DNERule(), length(dims))...)
 end
 
 #####
@@ -26,7 +28,7 @@ function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
         # materialize with `copy`
         Rule(Ȳ->copy(selectdim(Ȳ, 2, dim)))
     end
-    return Y, rules
+    return Y, (NO_FIELDS_RULE, rules...)
 end
 
 #####
@@ -42,7 +44,7 @@ function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
         u = l + size(Bs[i], 1)
         Rule(Ȳ->copy(selectdim(Ȳ, 1, l+1:u)))
     end
-    return Y, (∂A, ∂Bs...)
+    return Y, (NO_FIELDS_RULE, ∂A, ∂Bs...)
 end
 
 #####
@@ -50,9 +52,9 @@ end
 #####
 
 function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
-    return fill(value, dims), (Rule(sum), DNERule())
+    return fill(value, dims), (NO_FIELDS_RULE, Rule(sum), DNERule())
 end
 
 function rrule(::typeof(fill), value::Any, dims::Int...)
-    return fill(value, dims), (Rule(sum), ntuple(_->DNERule(), length(dims))...)
+    return fill(value, dims), (NO_FIELDS_RULE, Rule(sum), ntuple(_->DNERule(), length(dims))...)
 end

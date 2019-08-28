@@ -12,7 +12,7 @@ function rrule(::typeof(map), f, xs...)
             end
         end
     end
-    return y, (DNERule(), ∂xs...)
+    return y, (NO_FIELDS_RULE, DNERule(), ∂xs...)
 end
 
 #####
@@ -34,7 +34,7 @@ for mf in (:mapreduce, :mapfoldl, :mapfoldr)
                 extern(∂xi(ȳi))
             end
         end
-        return y, (DNERule(), DNERule(), ∂x)
+        return y, (NO_FIELDS_RULE, DNERule(), DNERule(), ∂x)
     end
     eval(Expr(:function, sig, body))
 end
@@ -43,22 +43,23 @@ end
 ##### `sum`
 #####
 
-frule(::typeof(sum), x) = (sum(x), Rule(sum))
+frule(::typeof(sum), x) = (sum(x), (ZERO_RULE, Rule(sum)))
 
-rrule(::typeof(sum), x) = (sum(x), Rule(cast))
+rrule(::typeof(sum), x) = (sum(x), (NO_FIELDS_RULE, Rule(cast)))
 
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
     y, (_, _, ∂x) = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
-    return y, (DNERule(), ∂x)
+    return y, (NO_FIELDS_RULE, DNERule(), ∂x)
 end
 
 function rrule(::typeof(sum), x::AbstractArray{<:Real}; dims=:)
-    y, (_, ∂x) = rrule(sum, identity, x; dims=dims)
-    return y, ∂x
+    y, (no_fields, _, ∂x) = rrule(sum, identity, x; dims=dims)
+    @assert(no_fields === NO_FIELDS_RULE)
+    return y, (NO_FIELDS_RULE, ∂x)
 end
 
 function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
     y = sum(abs2, x; dims=dims)
     ∂x = Rule(ȳ -> 2ȳ .* x)
-    return y, (DNERule(), ∂x)
+    return y, (NO_FIELDS_RULE, DNERule(), ∂x)
 end
