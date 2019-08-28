@@ -52,7 +52,7 @@
             test_scalar(acotd, 1/x)
         end
         @testset "Multivariate" begin
-            x, y = rand(2)i
+            x, y = rand(2)
             @testset "atan2" begin
                 ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
                 u = x^2 + y^2

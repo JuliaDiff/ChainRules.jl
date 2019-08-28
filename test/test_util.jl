@@ -19,25 +19,20 @@ at input point `x` to confirm that there are correct ChainRules provided.
 
 All keyword arguments except for `fdm` and `test_wirtinger` are passed to `isapprox`.
 """
-<<<<<<< HEAD
 function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
-=======
-function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     if fieldcount(typeof(f)) > 0
         throw(ArgumentError(
             "test_scalar cannot be used on closures/functors (such as $f)"
         ))
     end
 
->>>>>>> [WIP] include dervative WRT self.
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
         res = rule(f, x)
         @test res !== nothing  # Check the rule was defined
-        fx, ∂s = res
+        fx, (∂self_rule, ∂x_rule) = res
         @test fx == f(x)  # Check we still get the normal value, right
 
-        ∂self, ∂x = ∂s
-        @test ∂self === NamedTuple()  # No internal fields
+        @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
 
         # Check that we get the derivative right:
         if !test_wirtinger
@@ -64,6 +59,7 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
 end
 
 
+
 """
     frule_test(f, (x, ẋ)...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
 
@@ -80,13 +76,18 @@ end
 
 function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     xs, ẋs = collect(zip(xẋs...))
-    Ω, dΩ_rule = ChainRules.frule(f, xs...)
+    Ω, (∂self_rule, dΩ_rule) = ChainRules.frule(f, xs...)
     @test f(xs...) == Ω
 
-    dΩ_ad, dΩ_fd = dΩ_rule(ẋs...), jvp(fdm, xs->f(xs...), (xs, ẋs))
+    @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
+
+    dΩ_ad = dΩ_rule(ẋs...)
+    dΩ_fd = jvp(fdm, xs->f(xs...), (xs, ẋs))
     @test isapprox(dΩ_ad, dΩ_fd; rtol=rtol, atol=atol, kwargs...)
 end
 
+fooo⃖
+foo⃡
 """
     rrule_test(f, ȳ, (x, x̄)...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
 
