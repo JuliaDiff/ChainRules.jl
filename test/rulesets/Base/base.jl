@@ -61,7 +61,7 @@
                 r, (ds, df) = frule(atan, x, y)
                 @test r === ratan
                 @test df(1, 2) === datan
-                @test ds === NO_FIELDS_RULE
+                @test ds === ZERO_RULE
 
                 r, (ds, df1, df2) = rrule(atan, x, y)
                 @test r === ratan
@@ -76,7 +76,7 @@
                 r, (ds, df1, df2) = frule(sincos, x)
                 @test r === rsincos
                 @test df1(1) + df2(2) === dsincos
-                @test ds === NO_FIELDS_RULE
+                @test ds === ZERO_RULE
 
                 r, (ds, df) = rrule(sincos, x)
                 @test r === rsincos
@@ -145,7 +145,7 @@
         x, y = rand(2)
         h, (ds, dxy) = frule(hypot, x, y)
 
-        @test ds === NO_FIELDS_RULE
+        @test ds === ZERO_RULE
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h
 
@@ -162,7 +162,6 @@
 
     @testset "identity" begin
         rng = MersenneTwister(1)
-        n = 4
         rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
     end

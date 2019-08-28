@@ -32,7 +32,9 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
         fx, (∂self_rule, ∂x_rule) = res
         @test fx == f(x)  # Check we still get the normal value, right
 
-        @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
+        # No internal fields
+        rule===rrule && @test ∂self_rule === NO_FIELDS_RULE
+        rule===frule && @test ∂self_rule === ZERO_RULE
 
         # Check that we get the derivative right:
         if !test_wirtinger
@@ -79,15 +81,15 @@ function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm
     Ω, (∂self_rule, dΩ_rule) = ChainRules.frule(f, xs...)
     @test f(xs...) == Ω
 
-    @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
+    @test ∂self_rule === ZERO_RULE  # No internal fields
 
+    # Correctness testing via finite differencing.
     dΩ_ad = dΩ_rule(ẋs...)
     dΩ_fd = jvp(fdm, xs->f(xs...), (xs, ẋs))
     @test isapprox(dΩ_ad, dΩ_fd; rtol=rtol, atol=atol, kwargs...)
 end
 
-fooo⃖
-foo⃡
+
 """
     rrule_test(f, ȳ, (x, x̄)...; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
 
@@ -101,16 +103,19 @@ All keyword arguments except for `fdm` are passed to `isapprox`.
 """
 function rrule_test(f, ȳ, (x, x̄)::Tuple{Any, Any}; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     # Check correctness of evaluation.
-    fx, dx = ChainRules.rrule(f, x)
+    fx, (∂self_rule, dx_rule) = ChainRules.rrule(f, x)
     @test fx ≈ f(x)
 
+    @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
+
     # Correctness testing via finite differencing.
-    x̄_ad, x̄_fd = dx(ȳ), j′vp(fdm, f, ȳ, x)
+    x̄_ad = dx_rule(ȳ)
+    x̄_fd = j′vp(fdm, f, ȳ, x)
     @test isapprox(x̄_ad, x̄_fd; rtol=rtol, atol=atol, kwargs...)
 
     # Assuming x̄_ad to be correct, check that other ChainRules mechanisms are correct.
-    test_accumulation(x̄, dx, ȳ, x̄_ad)
-    test_accumulation(Zero(), dx, ȳ, x̄_ad)
+    test_accumulation(x̄, dx_rule, ȳ, x̄_ad)
+    test_accumulation(Zero(), dx_rule, ȳ, x̄_ad)
 end
 
 function _make_fdm_call(fdm, f, ȳ, xs, ignores)
