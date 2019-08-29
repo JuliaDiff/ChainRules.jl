@@ -84,6 +84,7 @@
 @scalar_rule(hypot(x, y), (x / Ω, y / Ω))
 @scalar_rule(sincos(x), @setup((sinx, cosx) = Ω), cosx, -sinx)
 @scalar_rule(atan(y, x), @setup(u = x^2 + y^2), (x / u, -y / u))
+
 @scalar_rule(max(x, y), @setup(gt = x > y), (gt, !gt))
 @scalar_rule(min(x, y), @setup(gt = x > y), (!gt, gt))
 @scalar_rule(mod(x, y), @setup((u, nan) = promote(x / y, NaN16)),
