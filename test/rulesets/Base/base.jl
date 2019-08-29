@@ -99,6 +99,18 @@
         end
     end
 
+    @testset "Unary complex functions" begin
+        for x in rand.((Int, Float32, Float64, complex.((Float32, Float64))...))
+            test_scalar(real, x)
+            test_scalar(imag, x)
+            test_scalar(abs, x)
+            test_scalar(abs, x)
+            test_scalar(angle, x)
+            test_scalar(abs2, x)
+            test_scalar(conj, x)
+        end
+    end
+
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
         z, (dx, dy) = rrule(*, x, y)
