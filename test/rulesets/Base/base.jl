@@ -156,4 +156,3 @@
         test_constant(zero, -4.1, 0)
     end
 end
-# TODO: Non-trig stuff
