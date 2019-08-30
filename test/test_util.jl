@@ -168,7 +168,7 @@ function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
 end
 
 function test_accumulation(x̄, dx, ȳ, partial)
-    @test all(extern(add(x̄, partial)) .≈ extern(x̄) .+ extern(partial))
+    @test all(extern(x̄ + partial) .≈ extern(x̄) .+ extern(partial))
     test_accumulate(x̄, dx, ȳ, partial)
     test_accumulate!(x̄, dx, ȳ, partial)
     test_store!(x̄, dx, ȳ, partial)
