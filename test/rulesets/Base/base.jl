@@ -65,7 +65,7 @@
 
                 r, (ds, df1, df2) = rrule(atan, x, y)
                 @test r === ratan
-                @test ds === NO_FIELDS_RULE
+                @test ds === NO_FIELDS
                 @test df1(1) + df2(2) === datan
             end
 
@@ -81,7 +81,7 @@
                 r, (ds, df) = rrule(sincos, x)
                 @test r === rsincos
                 @test df(1, 2) === dsincos
-                @test ds === NO_FIELDS_RULE
+                @test ds === NO_FIELDS
             end
         end
     end  # Trig
@@ -133,7 +133,7 @@
         @test z == x * y
 
         z̄ = rand(3, 5)
-        @test ds === NO_FIELDS_RULE
+        @test ds === NO_FIELDS
 
         #== TODO: reanable me
         @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))

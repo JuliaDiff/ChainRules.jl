@@ -47,7 +47,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             F, dX = rrule(cholesky, X)
             for p in [:U, :L]
                 Y, (dself, dF, dp) = rrule(getproperty, F, p)
-                @test dself === NO_FIELDS_RULE
+                @test dself === NO_FIELDS
                 @test dp isa ChainRules.DNERule
                 Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(rng, size(Y)))
                 # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`

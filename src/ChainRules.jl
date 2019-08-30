@@ -24,11 +24,12 @@ end
 
 include("helper_functions.jl")
 
-include("rulesets/Base/base.jl")
+#include("rulesets/Base/base.jl")
 include("rulesets/Base/array.jl")
-include("rulesets/Base/broadcast.jl")
-include("rulesets/Base/mapreduce.jl")
+#include("rulesets/Base/broadcast.jl")
+#include("rulesets/Base/mapreduce.jl")
 
+#==
 include("rulesets/Statistics/statistics.jl")
 
 include("rulesets/LinearAlgebra/utils.jl")
@@ -51,5 +52,5 @@ function __init__()
         using .SpecialFunctionsGlue
     end
 end
-
+==#
 end # module

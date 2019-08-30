@@ -10,7 +10,7 @@ function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     ∂X = Rule() do Ȳ::NamedTuple{(:U,:S,:V)}
         svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
     end
-    return F, (NO_FIELDS_RULE, ∂X)
+    return F, (NO_FIELDS, ∂X)
 end
 
 function rrule(::typeof(getproperty), F::SVD, x::Symbol)
@@ -25,7 +25,7 @@ function rrule(::typeof(getproperty), F::SVD, x::Symbol)
         throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
     end
     update = (X̄::NamedTuple{(:U,:S,:V)}, Ȳ)->_update!(X̄, rule(Ȳ), x)
-    return getproperty(F, x), (NO_FIELDS_RULE, Rule(rule, update), DNERule())
+    return getproperty(F, x), (NO_FIELDS, Rule(rule, update), DNERule())
 end
 
 function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix)
@@ -66,7 +66,7 @@ end
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     ∂X = Rule(Ȳ->chol_blocked_rev(Matrix(Ȳ), Matrix(F.U), 25, true))
-    return F, (NO_FIELDS_RULE, ∂X)
+    return F, (NO_FIELDS, ∂X)
 end
 
 function rrule(::typeof(getproperty), F::Cholesky, x::Symbol)
@@ -83,7 +83,7 @@ function rrule(::typeof(getproperty), F::Cholesky, x::Symbol)
             ∂F = Ȳ->UpperTriangular(Ȳ')
         end
     end
-    return getproperty(F, x), (NO_FIELDS_RULE, Rule(∂F), DNERule())
+    return getproperty(F, x), (NO_FIELDS, Rule(∂F), DNERule())
 end
 
 # See "Differentiation of the Cholesky decomposition" (Murray 2016), pages 5-9 in particular,

@@ -29,7 +29,7 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
         @test fx == f(x)  # Check we still get the normal value, right
 
         # No internal fields
-        rule===rrule && @test ∂self_rule === NO_FIELDS_RULE
+        rule===rrule && @test ∂self_rule === NO_FIELDS
         rule===frule && @test ∂self_rule === ZERO_RULE
 
         # Check that we get the derivative right:
@@ -111,7 +111,7 @@ function rrule_test(f, ȳ, (x, x̄)::Tuple{Any, Any}; rtol=1e-9, atol=1e-9, fdm
     fx, (∂self_rule, dx_rule) = ChainRules.rrule(f, x)
     @test fx ≈ f(x)
 
-    @test ∂self_rule === NO_FIELDS_RULE  # No internal fields
+    @test ∂self_rule === NO_FIELDS  # No internal fields
 
     # Correctness testing via finite differencing.
     x̄_ad = dx_rule(ȳ)
@@ -160,7 +160,7 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
 
     self_rule = rules[1]
     arg_rules = rules[2:end]
-    @test self_rule === NO_FIELDS_RULE
+    @test self_rule === NO_FIELDS
 
     # Correctness testing via finite differencing.
     x̄s_ad = map(arg_rules) do rule

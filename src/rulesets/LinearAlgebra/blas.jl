@@ -21,7 +21,7 @@ function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
     ∂X = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
     ∂Y = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
-    return Ω, (NO_FIELDS_RULE, DNERule(), _rule_via(∂X), DNERule(), _rule_via(∂Y), DNERule())
+    return Ω, (NO_FIELDS, DNERule(), _rule_via(∂X), DNERule(), _rule_via(∂Y), DNERule())
 end
 
 #####
@@ -35,13 +35,13 @@ end
 
 function rrule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, (NO_FIELDS_RULE, Rule(ΔΩ -> ΔΩ * @thunk(x * inv(Ω))))
+    return Ω, (NO_FIELDS, Rule(ΔΩ -> ΔΩ * @thunk(x * inv(Ω))))
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
     ∂X = ΔΩ -> scal!(n, ΔΩ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
-    return Ω, (NO_FIELDS_RULE, DNERule(), _rule_via(∂X), DNERule())
+    return Ω, (NO_FIELDS, DNERule(), _rule_via(∂X), DNERule())
 end
 
 #####
@@ -53,13 +53,13 @@ function frule(::typeof(BLAS.asum), x)
 end
 
 function rrule(::typeof(BLAS.asum), x)
-    return BLAS.asum(x), (NO_FIELDS_RULE, Rule(ΔΩ -> ΔΩ * cast(sign, x)))
+    return BLAS.asum(x), (NO_FIELDS, Rule(ΔΩ -> ΔΩ * cast(sign, x)))
 end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
     ∂X = ΔΩ -> scal!(n, ΔΩ, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
-    return Ω, (NO_FIELDS_RULE, DNERule(), _rule_via(∂X), DNERule())
+    return Ω, (NO_FIELDS, DNERule(), _rule_via(∂X), DNERule())
 end
 
 #####
@@ -76,13 +76,13 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
         ∂A = Rule(ȳ -> α * x * ȳ', (Ā, ȳ) -> ger!(α, x, ȳ, Ā))
         ∂x = Rule(ȳ -> gemv('N', α, A, ȳ), (x̄, ȳ) -> gemv!('N', α, A, ȳ, one(T), x̄))
     end
-    return y, (NO_FIELDS_RULE, DNERule(), Rule(ȳ -> dot(ȳ, y) / α), ∂A, ∂x)
+    return y, (NO_FIELDS, DNERule(), Rule(ȳ -> dot(ȳ, y) / α), ∂A, ∂x)
 end
 
 function rrule(::typeof(gemv), tA::Char, A::AbstractMatrix{T},
                x::AbstractVector{T}) where T<:BlasFloat
     y, (dtA, _, dA, dx) = rrule(gemv, tA, one(T), A, x)
-    return y, (NO_FIELDS_RULE, dtA, dA, dx)
+    return y, (NO_FIELDS, dtA, dA, dx)
 end
 
 #####
@@ -118,11 +118,11 @@ function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
                       (B̄, C̄) -> gemm!('T', 'T', α, C̄, A, β, B̄))
         end
     end
-    return C, (NO_FIELDS_RULE, DNERule(), DNERule(), Rule(C̄ -> dot(C̄, C) / α), ∂A, ∂B)
+    return C, (NO_FIELDS, DNERule(), DNERule(), Rule(C̄ -> dot(C̄, C) / α), ∂A, ∂B)
 end
 
 function rrule(::typeof(gemm), tA::Char, tB::Char,
                A::AbstractMatrix{T}, B::AbstractMatrix{T}) where T<:BlasFloat
     C, (dtA, dtB, _, dA, dB) = rrule(gemm, tA, tB, one(T), A, B)
-    return C, (NO_FIELDS_RULE, dtA, dtB, dA, dB)
+    return C, (NO_FIELDS, dtA, dtB, dA, dB)
 end
