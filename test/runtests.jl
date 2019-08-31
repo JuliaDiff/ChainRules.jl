@@ -10,10 +10,9 @@ using Statistics
 using Test
 
 # For testing purposes we use a lot of
-using ChainRulesCore: add, cast, extern, accumulate, accumulate!, store!, @scalar_rule,
-    Wirtinger, wirtinger_primal, wirtinger_conjugate, add_wirtinger, mul_wirtinger,
-    Zero, add_zero, mul_zero, One, add_one, mul_one, Casted, cast, add_casted, mul_casted,
-    DNE, Thunk, Casted, DNERule, AbstractDifferential
+using ChainRulesCore: cast, extern, accumulate, accumulate!, store!, @scalar_rule,
+    Wirtinger, wirtinger_primal, wirtinger_conjugate,
+    Zero, One, Casted, DNE, Thunk, DNERule, AbstractDifferential
 
 include("test_util.jl")
 
