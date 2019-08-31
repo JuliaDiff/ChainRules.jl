@@ -58,10 +58,12 @@ end
         dims = [3,4,5]
         for n in dims, m in dims, p in dims
             n > 3 && n == m == p && continue  # don't need to test square case multiple times
-            A = randn(rng, m, n)
-            B = randn(rng, n, p)
-            Ȳ = randn(rng, m, p)
-            rrule_test(*, Ȳ, (A, randn(rng, m, n)), (B, randn(rng, n, p)))
+            for T in (Float64, ComplexF64)
+                A = randn(rng, T, m, n)
+                B = randn(rng, T, n, p)
+                Ȳ = randn(rng, T, m, p)
+                rrule_test(*, Ȳ, (A, randn(rng, T, m, n)), (B, randn(rng, T, n, p)))
+            end
         end
     end
     @testset "$f" for f in [/, \]

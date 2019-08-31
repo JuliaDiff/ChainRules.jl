@@ -80,7 +80,11 @@ function frule(
     return A * B, Rule((Ẋ, Ẏ) -> Ẋ * B + A * Ẏ)
 end
 
-function frule(::typeof(*), A::AbstractVector{<:Number}, B::Number)
+function frule(
+               ::typeof(*),
+               A::AbstractVector{<:Number},
+               B::Union{Number,AbstractMatrix{<:Number}}
+              )
     return A * B, Rule((Ẋ, Ẏ) -> Ẋ * B + A * Ẏ)
 end
 
@@ -89,11 +93,15 @@ function rrule(
                A::Union{Number,AbstractMatrix{<:Number}},
                B::Union{Number,AbstractVecOrMat{<:Number}}
               )
-    return A * B, (Rule(Ȳ -> Ȳ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
+    return A * B, (Rule(X̄ -> X̄ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
 end
 
-function rrule(::typeof(*), A::AbstractVector{<:Number}, B::Number)
-    return A * B, (Rule(Ȳ -> Ȳ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
+function rrule(
+               ::typeof(*),
+               A::AbstractVector{<:Number},
+               B::Union{Number,AbstractMatrix{<:Number}}
+              )
+    return A * B, (Rule(X̄ -> X̄ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
 end
 
 #####
