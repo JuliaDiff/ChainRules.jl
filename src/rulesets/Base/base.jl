@@ -83,7 +83,7 @@
 
 @scalar_rule(hypot(x, y), (x / Ω, y / Ω))
 @scalar_rule(sincos(x), @setup((sinx, cosx) = Ω), cosx, -sinx)
-@scalar_rule(atan(x, y), @setup(u = x^2 + y^2), (y / u, -x / u))
+@scalar_rule(atan(y, x), @setup(u = x^2 + y^2), (x / u, -y / u))
 
 @scalar_rule(max(x, y), @setup(gt = x > y), (gt, !gt))
 @scalar_rule(min(x, y), @setup(gt = x > y), (!gt, gt))
@@ -91,6 +91,12 @@
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))))
 @scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
+@scalar_rule(angle(x::Complex), @setup(u = abs2(x)), Wirtinger(-im//2 * x' / u, im//2 * x / u))
+@scalar_rule(angle(x::Real), Zero())
+@scalar_rule(real(x::Complex), Wirtinger(1//2, 1//2))
+@scalar_rule(real(x::Real), One())
+@scalar_rule(imag(x::Complex), Wirtinger(-im//2, im//2))
+@scalar_rule(imag(x::Real), Zero())
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
