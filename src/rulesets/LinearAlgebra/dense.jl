@@ -72,8 +72,28 @@ rrule(::typeof(tr), x) = (tr(x), Rule(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1)))))
 ##### `*`
 #####
 
-function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
-    return A * B, (Rule(Ȳ -> Ȳ * B'), Rule(Ȳ -> A' * Ȳ))
+function frule(
+               ::typeof(*),
+               A::Union{Number,AbstractMatrix{<:Number}},
+               B::Union{Number,AbstractVecOrMat{<:Number}}
+              )
+    return A * B, Rule((Ẋ, Ẏ) -> Ẋ * B + A * Ẏ)
+end
+
+function frule(::typeof(*), A::AbstractVector{<:Number}, B::Number)
+    return A * B, Rule((Ẋ, Ẏ) -> Ẋ * B + A * Ẏ)
+end
+
+function rrule(
+               ::typeof(*),
+               A::Union{Number,AbstractMatrix{<:Number}},
+               B::Union{Number,AbstractVecOrMat{<:Number}}
+              )
+    return A * B, (Rule(Ȳ -> Ȳ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
+end
+
+function rrule(::typeof(*), A::AbstractVector{<:Number}, B::Number)
+    return A * B, (Rule(Ȳ -> Ȳ * transpose(B)), Rule(Ȳ -> transpose(A) * Ȳ))
 end
 
 #####

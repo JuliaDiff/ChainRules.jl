@@ -102,7 +102,7 @@
 
 frule(::typeof(*), x::Number, y::Number) = x * y, Rule((Δx, Δy) -> Δx * y + x * Δy)
 
-rrule(::typeof(*), x::Number, y::Number) = x * y, (Rule(ΔΩ -> ΔΩ * y'), Rule(ΔΩ -> x' * ΔΩ))
+rrule(::typeof(*), x::Number, y::Number) = x * y, (Rule(ΔΩ -> ΔΩ * y), Rule(ΔΩ -> x * ΔΩ))
 
 frule(::typeof(identity), x) = x, Rule(identity)
 
