@@ -152,20 +152,8 @@
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
     end
 
-    @testset "Constants" begin
-        function test_constant(f, x, expected)
-            y, rule = frule(f, x)
-            @test y == expected
-            @test extern(rule(1)) == 0.0
-
-            y, rule = rrule(f, x)
-            @test y == expected
-            @test extern(rule(1)) == 0.0
-        end
-        test_constant(one, 5, 1)
-        test_constant(one, -4.1, 1)
-
-        test_constant(zero, 5, 0)
-        test_constant(zero, -4.1, 0)
+    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
+        test_scalar(one, x)
+        test_scalar(zero, x)
     end
 end
