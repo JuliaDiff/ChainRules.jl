@@ -25,33 +25,42 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
     @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
         res = rule(f, x)
         @test res !== nothing  # Check the rule was defined
-        fx, (∂self_rule, ∂x_rule) = res
+        fx,  prop_rule = res
         @test fx == f(x)  # Check we still get the normal value, right
 
-        # No internal fields
-        rule===rrule && @test ∂self_rule === NO_FIELDS
-        rule===frule && @test ∂self_rule === ZERO_RULE
+        if rule == rrule
+            ∂self, ∂x = prop_rule(1)
+            @test ∂self === NO_FIELDS
+        else # rule == frule
+            # Got to input extra first aguement for internals
+            # But it is only a dummy since this is not a functor
+            ∂x = prop_rule(NamedTuple(), 1)
+        end
+
 
         # Check that we get the derivative right:
         if !test_wirtinger
             @test isapprox(
-                ∂x_rule(1), fdm(f, x);
+                ∂x, fdm(f, x);
                 rtol=rtol, atol=atol, kwargs...
             )
         else
+            # Wirtinger not currently implemented
+            #==
             # For complex arguments, also check if the wirtinger derivative is correct
             ∂Re = fdm(ϵ -> f(x + ϵ), 0)
             ∂Im = fdm(ϵ -> f(x + im*ϵ), 0)
             ∂ = 0.5(∂Re - im*∂Im)
             ∂̅ = 0.5(∂Re + im*∂Im)
             @test isapprox(
-                wirtinger_primal(∂x_rule(1)), ∂;
+                wirtinger_primal(∂x), ∂;
                 rtol=rtol, atol=atol, kwargs...
             )
             @test isapprox(
-                wirtinger_conjugate(∂x_rule(1)), ∂̅;
+                wirtinger_conjugate(∂x), ∂̅;
                 rtol=rtol, atol=atol, kwargs...
             )
+            ==#
         end
     end
 end

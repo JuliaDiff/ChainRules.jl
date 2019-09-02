@@ -31,6 +31,7 @@ function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
             # materialize with `copy`
             copy(selectdim(Ȳ, 2, dim))
         end
+    end
     return hcat(A, Bs...), hcat_pullback
 end
 

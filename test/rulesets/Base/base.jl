@@ -58,29 +58,30 @@
                 u = x^2 + y^2
                 datan = y/u - 2x/u
 
-                r, (ds, df) = frule(atan, x, y)
+                r, df = frule(atan, x, y)
                 @test r === ratan
-                @test df(1, 2) === datan
-                @test ds === ZERO_RULE
+                @test df(NamedTuple(), 1, 2) === datan
 
-                r, (ds, df1, df2) = rrule(atan, x, y)
+                r, pullback = rrule(atan, x, y)
+                (ds, df1, df2) = pullback(1)
                 @test r === ratan
                 @test ds === NO_FIELDS
-                @test df1(1) + df2(2) === datan
+                @test df1 + 2df2 === datan
             end
 
             @testset "sincos" begin
                 rsincos = sincos(x)
                 dsincos = cos(x) - 2sin(x)
 
-                r, (ds, df1, df2) = frule(sincos, x)
+                r, pushforward = frule(sincos, x)
                 @test r === rsincos
-                @test df1(1) + df2(2) === dsincos
-                @test ds === ZERO_RULE
+                df1, df2 = pushforward(NamedTuple(), 1)
+                @test df1 + 2df2 === dsincos
 
-                r, (ds, df) = rrule(sincos, x)
+                r, pullback = rrule(sincos, x)
                 @test r === rsincos
-                @test df(1, 2) === dsincos
+                ds, df = pullback(1, 2)
+                @test df === dsincos
                 @test ds === NO_FIELDS
             end
         end
@@ -126,29 +127,31 @@
         end
     end
 
+    #== TODO Renable me
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
-        z, (ds, dx, dy) = rrule(*, x, y)
+        z, pullback = rrule(*, x, y)
 
         @test z == x * y
 
         z̄ = rand(3, 5)
+        (ds, dx, dy) = pullback(z̄)
+
         @test ds === NO_FIELDS
 
-        #== TODO: reanable me
         @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
         @test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
 
         test_accumulation(rand(3, 2), dx, z̄, z̄ * y')
         test_accumulation(rand(2, 5), dy, z̄, x' * z̄)
-        ==#
     end
+    ==#
 
     @testset "hypot(x, y)" begin
         x, y = rand(2)
-        h, (ds, dxy) = frule(hypot, x, y)
+        h, pushforward = frule(hypot, x, y)
+        dxy(x, y) = pushforward(NamedTuple(), x, y)  # No self gradient
 
-        @test ds === ZERO_RULE
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h
 
