@@ -152,7 +152,7 @@
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
     end
 
-    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im)
+    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
     end
