@@ -52,7 +52,10 @@
 @scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
 @scalar_rule(transpose(x), One())
 
-@scalar_rule(abs(x), sign(x))
+@scalar_rule(abs(x::Real), sign(x))
+@scalar_rule(abs(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
+@scalar_rule(hypot(x::Real), sign(x))
+@scalar_rule(hypot(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(rem2pi(x, r::RoundingMode), (One(), DNE()))
 
 @scalar_rule(+(x), One())
@@ -81,7 +84,7 @@
 @scalar_rule(sech(x), -tanh(x) * Ω)
 @scalar_rule(csch(x), -coth(x) * Ω)
 
-@scalar_rule(hypot(x, y), (x / Ω, y / Ω))
+@scalar_rule(hypot(x::Real, y::Real), (x / Ω, y / Ω))
 @scalar_rule(sincos(x), @setup((sinx, cosx) = Ω), cosx, -sinx)
 @scalar_rule(atan(y, x), @setup(u = x^2 + y^2), (x / u, -y / u))
 
