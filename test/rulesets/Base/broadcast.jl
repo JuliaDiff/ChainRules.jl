@@ -10,13 +10,13 @@
             x̄, ȳ = rand(), rand()
 
 
-            @test_skip isequal(
+            @test isequal(
                 extern(ChainRules.accumulate(x̄, dx, ȳ)),
                 x̄ .+ ȳ .* cos.(x)
             )
 
             x̄, ȳ = Zero(), rand(3, 3)
-            @test_skip extern(accumulate(x̄, dx, ȳ)) == ȳ .* cos.(x)
+            @test extern(accumulate(x̄, dx, ȳ)) == ȳ .* cos.(x)
         end
     end
 end

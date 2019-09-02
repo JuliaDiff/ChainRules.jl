@@ -60,7 +60,7 @@
 
                 r, df = frule(atan, x, y)
                 @test r === ratan
-                @test df(NamedTuple(), 1, 2) === datan
+                @test df(NamedTuple(), 1, 2) === (datan,)
 
                 r, pullback = rrule(atan, x, y)
                 (ds, df1, df2) = pullback(1)
@@ -150,7 +150,7 @@
     @testset "hypot(x, y)" begin
         x, y = rand(2)
         h, pushforward = frule(hypot, x, y)
-        dxy(x, y) = pushforward(NamedTuple(), x, y)  # No self gradient
+        dxy(x, y) = pushforward(NamedTuple(), x, y)[1]
 
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h

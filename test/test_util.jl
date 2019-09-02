@@ -34,7 +34,7 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
         else # rule == frule
             # Got to input extra first aguement for internals
             # But it is only a dummy since this is not a functor
-            ∂x = prop_rule(NamedTuple(), 1)
+            ∂x, = prop_rule(NamedTuple(), 1)
         end
 
 
@@ -45,8 +45,6 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
                 rtol=rtol, atol=atol, kwargs...
             )
         else
-            # Wirtinger not currently implemented
-            #==
             # For complex arguments, also check if the wirtinger derivative is correct
             ∂Re = fdm(ϵ -> f(x + ϵ), 0)
             ∂Im = fdm(ϵ -> f(x + im*ϵ), 0)
@@ -60,7 +58,6 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
                 wirtinger_conjugate(∂x), ∂̅;
                 rtol=rtol, atol=atol, kwargs...
             )
-            ==#
         end
     end
 end
@@ -207,7 +204,7 @@ function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
 end
 
 function test_accumulation(x̄, dx, ȳ, partial)
-    @test_skip all(extern(x̄ + partial) .≈ extern(x̄) .+ extern(partial))
+    @test all(extern(x̄ + partial) .≈ extern(x̄) .+ extern(partial))
     test_accumulate(x̄, dx, ȳ, partial)
     test_accumulate!(x̄, dx, ȳ, partial)
     test_store!(x̄, dx, ȳ, partial)
@@ -215,18 +212,18 @@ function test_accumulation(x̄, dx, ȳ, partial)
 end
 
 function test_accumulate(x̄::Zero, dx, ȳ, partial)
-    @test_skip extern(accumulate(x̄, dx, ȳ)) ≈ extern(partial)
+    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(partial)
     return nothing
 end
 
 function test_accumulate(x̄::Number, dx, ȳ, partial)
-    @test_skip extern(accumulate(x̄, dx, ȳ)) ≈ extern(x̄) + extern(partial)
+    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(x̄) + extern(partial)
     return nothing
 end
 
 function test_accumulate(x̄::AbstractArray, dx, ȳ, partial)
     x̄_old = copy(x̄)
-    @test_skip all(extern(accumulate(x̄, dx, ȳ)) .≈ (extern(x̄) .+ extern(partial)))
+    @test all(extern(accumulate(x̄, dx, ȳ)) .≈ (extern(x̄) .+ extern(partial)))
     @test x̄ == x̄_old
     return nothing
 end
@@ -234,15 +231,15 @@ end
 test_accumulate!(x̄::Zero, dx, ȳ, partial) = nothing
 
 function test_accumulate!(x̄::Number, dx, ȳ, partial)
-    #@test accumulate!(x̄, dx, ȳ) ≈ accumulate(x̄, dx, ȳ)
+    @test accumulate!(x̄, dx, ȳ) ≈ accumulate(x̄, dx, ȳ)
     return nothing
 end
 
 function test_accumulate!(x̄::AbstractArray, dx, ȳ, partial)
     x̄_copy = copy(x̄)
-    #TODO Reeable me
-    #accumulate!(x̄_copy, dx, ȳ)
-    #@test extern(x̄_copy) ≈ (extern(x̄) .+ extern(partial))
+
+    accumulate!(x̄_copy, dx, ȳ)
+    @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(partial))
     return nothing
 end
 
@@ -251,8 +248,7 @@ test_store!(x̄::Number, dx, ȳ, partial) = nothing
 
 function test_store!(x̄::AbstractArray, dx, ȳ, partial)
     x̄_copy = copy(x̄)
-    # TODO: renable me
-    #store!(x̄_copy, dx, ȳ)
-    #@test all(x̄_copy .≈ extern(partial))
+    store!(x̄_copy, dx, ȳ)
+    @test all(x̄_copy .≈ extern(partial))
     return nothing
 end
