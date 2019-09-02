@@ -153,19 +153,10 @@
     end
 
     @testset "Constants" begin
-        function test_constant(f, x, expected)
-            y, rule = frule(f, x)
-            @test y == expected
-            @test extern(rule(1)) == 0.0
+        test_scalar(one, 5)
+        test_scalar(one, -4.1)
 
-            y, rule = rrule(f, x)
-            @test y == expected
-            @test extern(rule(1)) == 0.0
-        end
-        test_constant(one, 5, 1)
-        test_constant(one, -4.1, 1)
-
-        test_constant(zero, 5, 0)
-        test_constant(zero, -4.1, 0)
+        test_scalar(zero, 5)
+        test_scalar(zero, -4.1)
     end
 end
