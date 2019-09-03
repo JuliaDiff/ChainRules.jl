@@ -29,14 +29,14 @@ include("rulesets/Base/array.jl")
 #include("rulesets/Base/broadcast.jl")
 #include("rulesets/Base/mapreduce.jl")
 
-#==
-include("rulesets/Statistics/statistics.jl")
 
-include("rulesets/LinearAlgebra/utils.jl")
-include("rulesets/LinearAlgebra/blas.jl")
+#include("rulesets/Statistics/statistics.jl")
+
+#include("rulesets/LinearAlgebra/utils.jl")
+#include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/dense.jl")
-include("rulesets/LinearAlgebra/structured.jl")
-include("rulesets/LinearAlgebra/factorization.jl")
+#include("rulesets/LinearAlgebra/structured.jl")
+#include("rulesets/LinearAlgebra/factorization.jl")
 
 # Note: The following is only required because package authors sometimes do not
 # declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.

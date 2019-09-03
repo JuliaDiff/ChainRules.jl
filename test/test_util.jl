@@ -87,13 +87,11 @@ end
 function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     ensure_not_running_on_functor(f, "frule_test")
     xs, ẋs = collect(zip(xẋs...))
-    Ω, (∂self_rule, dΩ_rule) = ChainRules.frule(f, xs...)
+    Ω, pushforward = ChainRules.frule(f, xs...)
     @test f(xs...) == Ω
-
-    @test ∂self_rule === ZERO_RULE  # No internal fields
+    dΩ_ad = pushforward(NamedTuple(), ẋs...)
 
     # Correctness testing via finite differencing.
-    dΩ_ad = dΩ_rule(ẋs...)
     dΩ_fd = jvp(fdm, xs->f(xs...), (xs, ẋs))
     @test isapprox(dΩ_ad, dΩ_fd; rtol=rtol, atol=atol, kwargs...)
 end
@@ -114,19 +112,18 @@ function rrule_test(f, ȳ, (x, x̄)::Tuple{Any, Any}; rtol=1e-9, atol=1e-9, fdm
     ensure_not_running_on_functor(f, "rrule_test")
 
     # Check correctness of evaluation.
-    fx, (∂self_rule, dx_rule) = ChainRules.rrule(f, x)
+    fx, pullback = ChainRules.rrule(f, x)
     @test fx ≈ f(x)
-
-    @test ∂self_rule === NO_FIELDS  # No internal fields
-
+    (∂self, x̄_ad) = pullback(ȳ)
+    @test ∂self === NO_FIELDS  # No internal fields
     # Correctness testing via finite differencing.
-    x̄_ad = dx_rule(ȳ)
     x̄_fd = j′vp(fdm, f, ȳ, x)
     @test isapprox(x̄_ad, x̄_fd; rtol=rtol, atol=atol, kwargs...)
 
     # Assuming x̄_ad to be correct, check that other ChainRules mechanisms are correct.
-    test_accumulation(x̄, dx_rule, ȳ, x̄_ad)
-    test_accumulation(Zero(), dx_rule, ȳ, x̄_ad)
+    # TODO is this test nonsense now?
+    test_accumulation(x̄, x̄_ad, x̄_ad)
+    test_accumulation(Zero(), x̄_ad, x̄_ad)
 end
 
 function _make_fdm_call(fdm, f, ȳ, xs, ignores)
@@ -161,17 +158,15 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
 
     # Check correctness of evaluation.
     xs, x̄s = collect(zip(xx̄s...))
-    y, rules = rrule(f, xs...)
+    y, pullback = rrule(f, xs...)
     @test f(xs...) == y
 
-    self_rule = rules[1]
-    arg_rules = rules[2:end]
+    ∂s = pullback(ȳ)
+    ∂self = ∂s[1]
+    x̄s_ad = ∂s[2:end]
     @test self_rule === NO_FIELDS
 
     # Correctness testing via finite differencing.
-    x̄s_ad = map(arg_rules) do rule
-        rule isa DNERule ? DNE() : rule(ȳ)
-    end
     x̄s_fd = _make_fdm_call(fdm, f, ȳ, xs, x̄s .== nothing)
     for (x̄_ad, x̄_fd) in zip(x̄s_ad, x̄s_fd)
         if x̄_fd === nothing
@@ -185,8 +180,8 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     # Assuming the above to be correct, check that other ChainRules mechanisms are correct.
     for (x̄, rule, x̄_ad) in zip(x̄s, rules, x̄s_ad)
         x̄ === nothing && continue
-        #test_accumulation(x̄, rule, ȳ, x̄_ad)
-        #test_accumulation(Zero(), rule, ȳ, x̄_ad)
+        test_accumulation(x̄, x̄_ad)
+        test_accumulation(Zero(), x̄_ad)
     end
 end
 
@@ -203,52 +198,52 @@ function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end
 
-function test_accumulation(x̄, dx, ȳ, partial)
+function test_accumulation(x̄, dx, partial)
     @test all(extern(x̄ + partial) .≈ extern(x̄) .+ extern(partial))
-    test_accumulate(x̄, dx, ȳ, partial)
-    test_accumulate!(x̄, dx, ȳ, partial)
-    test_store!(x̄, dx, ȳ, partial)
+    test_accumulate(x̄, dx, partial)
+    test_accumulate!(x̄, dx, partial)
+    test_store!(x̄, dx, partial)
     return nothing
 end
 
-function test_accumulate(x̄::Zero, dx, ȳ, partial)
-    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(partial)
+function test_accumulate(x̄::Zero, dx, partial)
+    @test extern(accumulate(x̄, dx)) ≈ extern(partial)
     return nothing
 end
 
-function test_accumulate(x̄::Number, dx, ȳ, partial)
-    @test extern(accumulate(x̄, dx, ȳ)) ≈ extern(x̄) + extern(partial)
+function test_accumulate(x̄::Number, dx, partial)
+    @test extern(accumulate(x̄, dx)) ≈ extern(x̄) + extern(partial)
     return nothing
 end
 
-function test_accumulate(x̄::AbstractArray, dx, ȳ, partial)
+function test_accumulate(x̄::AbstractArray, dx, partial)
     x̄_old = copy(x̄)
-    @test all(extern(accumulate(x̄, dx, ȳ)) .≈ (extern(x̄) .+ extern(partial)))
+    @test all(extern(accumulate(x̄, dx)) .≈ (extern(x̄) .+ extern(partial)))
     @test x̄ == x̄_old
     return nothing
 end
 
-test_accumulate!(x̄::Zero, dx, ȳ, partial) = nothing
+test_accumulate!(x̄::Zero, dx, partial) = nothing
 
-function test_accumulate!(x̄::Number, dx, ȳ, partial)
-    @test accumulate!(x̄, dx, ȳ) ≈ accumulate(x̄, dx, ȳ)
+function test_accumulate!(x̄::Number, dx, partial)
+    @test accumulate!(x̄, dx) ≈ accumulate(x̄, dx)
     return nothing
 end
 
-function test_accumulate!(x̄::AbstractArray, dx, ȳ, partial)
+function test_accumulate!(x̄::AbstractArray, dx, partial)
     x̄_copy = copy(x̄)
 
-    accumulate!(x̄_copy, dx, ȳ)
+    accumulate!(x̄_copy, dx)
     @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(partial))
     return nothing
 end
 
-test_store!(x̄::Zero, dx, ȳ, partial) = nothing
-test_store!(x̄::Number, dx, ȳ, partial) = nothing
+test_store!(x̄::Zero, dx, partial) = nothing
+test_store!(x̄::Number, dx, partial) = nothing
 
-function test_store!(x̄::AbstractArray, dx, ȳ, partial)
+function test_store!(x̄::AbstractArray, dx, partial)
     x̄_copy = copy(x̄)
-    store!(x̄_copy, dx, ȳ)
+    store!(x̄_copy, dx)
     @test all(x̄_copy .≈ extern(partial))
     return nothing
 end

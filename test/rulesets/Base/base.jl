@@ -139,13 +139,12 @@
 
         @test ds === NO_FIELDS
 
-        @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
-        @test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
+        @test extern(dx) == extern(accumulate(zeros(3, 2), dx))
+        @test extern(dy) == extern(accumulate(zeros(2, 5), dy))
 
-        test_accumulation(rand(3, 2), dx, z̄, z̄ * y')
-        test_accumulation(rand(2, 5), dy, z̄, x' * z̄)
+        test_accumulation(rand(3, 2), dx, z̄ * y')
+        test_accumulation(rand(2, 5), dy, x' * z̄)
     end
-    ==#
 
     @testset "hypot(x, y)" begin
         x, y = rand(2)

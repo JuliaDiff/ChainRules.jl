@@ -9,11 +9,17 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 #####
 
 function frule(::typeof(dot), x, y)
-    return dot(x, y), (ZERO_RULE, Rule((Δx, Δy) -> sum(Δx * cast(y)) + sum(cast(x) * Δy)))
+    function dot_pushforward(Δself, Δx, Δy)
+        sum(Δx * cast(y)) + sum(cast(x) * Δy)
+    end
+    return dot(x, y), dot_pushforward
 end
 
 function rrule(::typeof(dot), x, y)
-    return dot(x, y), (NO_FIELDS, (Rule(ΔΩ -> ΔΩ * cast(y)), Rule(ΔΩ -> cast(x) * ΔΩ)))
+    function dot_pullback(ΔΩ)
+        (NO_FIELDS, ΔΩ * cast(y), cast(x) * ΔΩ,)
+    end
+    return dot(x, y), dot_pullback
 end
 
 #####
@@ -23,13 +29,19 @@ end
 function frule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
-    return Ω, (ZERO_RULE, Rule(Δx -> m * Δx * Ω))
+    function inv_pushforward(_, Δx)
+        m * Δx * Ω
+    end
+    return Ω, inv_pushforward
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω')
-    return Ω, (NO_FIELDS, Rule(ΔΩ -> m * ΔΩ * Ω'))
+    function inv_pullback(ΔΩ)
+        NO_FIELDS, m * ΔΩ * Ω'
+    end
+    return Ω, inv_pullback
 end
 
 #####
@@ -38,12 +50,12 @@ end
 
 function frule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x))
-    return Ω, (ZERO_RULE, Rule(Δx -> Ω * tr(extern(m * Δx))))
+    return Ω, (_, Δx) -> Ω * tr(extern(m * Δx))
 end
 
 function rrule(::typeof(det), x)
     Ω, m = det(x), @thunk(inv(x)')
-    return Ω, (NO_FIELDS, Rule(ΔΩ -> Ω * ΔΩ * m))
+    return Ω, ΔΩ -> (NO_FIELDS, Ω * ΔΩ * m)
 end
 
 #####
@@ -52,27 +64,27 @@ end
 
 function frule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x))
-    return Ω, (ZERO_RULE, Rule(Δx -> tr(extern(m * Δx))))
+    return Ω, (_, Δx) -> tr(extern(m * Δx))
 end
 
 function rrule(::typeof(logdet), x)
     Ω, m = logdet(x), @thunk(inv(x)')
-    return Ω, (NO_FIELDS, Rule(ΔΩ -> ΔΩ * m))
+    return Ω, ΔΩ -> (NO_FIELDS, ΔΩ * m)
 end
 
 #####
 ##### `trace`
 #####
 
-frule(::typeof(tr), x) = (tr(x), (ZERO_RULE, Rule(Δx -> tr(extern(Δx)))))
-rrule(::typeof(tr), x) = (tr(x), (NO_FIELDS, Rule(ΔΩ -> Diagonal(fill(ΔΩ, size(x, 1))))))
+frule(::typeof(tr), x) = (tr(x), (_, Δx) -> tr(extern(Δx)))
+rrule(::typeof(tr), x) = (tr(x), ΔΩ -> (NO_FIELDS, Diagonal(fill(ΔΩ, size(x, 1)))))
 
 #####
 ##### `*`
 #####
 
 function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
-    return A * B, (NO_FIELDS, Rule(Ȳ -> Ȳ * B'), Rule(Ȳ -> A' * Ȳ))
+    return A * B, Ȳ -> (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
 end
 
 #####
@@ -81,20 +93,30 @@ end
 
 function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
     Y = A / B
-    S = T.name.wrapper
-    ∂A = Rule(Ȳ -> Ȳ / B')
-    ∂B = Rule(Ȳ -> S(-Y' * (Ȳ / B')))
-    return Y, (NO_FIELDS, ∂A, ∂B)
+    function slash_pullback(Ȳ)
+        S = T.name.wrapper
+        ∂A = @thunk Ȳ / B'
+        ∂B = @thunk S(-Y' * (Ȳ / B'))
+        (NO_FIELDS, ∂A, ∂B)
+    end
+    return Y, slash_pullback
 end
 
 function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Aᵀ, dA = rrule(adjoint, A)
-    Bᵀ, dB = rrule(adjoint, B)
-    Cᵀ, (dBᵀ, dAᵀ) = rrule(\, Bᵀ, Aᵀ)
-    C, dC = rrule(adjoint, Cᵀ)
-    ∂A = Rule(dA∘dAᵀ∘dC)
-    ∂B = Rule(dA∘dBᵀ∘dC)
-    return C, (NO_FIELDS, ∂A, ∂B)
+    Aᵀ, dA_pb = rrule(adjoint, A)
+    Bᵀ, dB_pb = rrule(adjoint, B)
+    Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
+    C, dC_pb = rrule(adjoint, Cᵀ)
+    function slash_pullback(Ȳ)
+        _, dC = dC_pb(Ȳ)
+        _, dAᵀ, dBᵀ = dS_pb(dC)
+
+        ∂A = @thunk last(dA_pb(dAᵀ))
+        ∂B = @thunk last(dA_pb(dBᵀ))
+
+        (NO_FIELDS, ∂A, ∂B)
+    end
+    return C, slash_pullback
 end
 
 #####
@@ -103,23 +125,30 @@ end
 
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
-    S = T.name.wrapper
-    ∂A = Rule(Ȳ -> S(-(A' \ Ȳ) * Y'))
-    ∂B = Rule(Ȳ -> A' \ Ȳ)
-    return Y, (NO_FIELDS, ∂A, ∂B)
+    function forwardslash_pullback(Ȳ)
+        S = T.name.wrapper
+        ∂A = @thunk S(-(A' \ Ȳ) * Y')
+        ∂B = @thunk A' \ Ȳ
+        return NO_FIELDS, ∂A, ∂B
+    end
+    return Y, forwardslash_pullback
 end
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Y = A \ B
-    ∂A = Rule() do Ȳ
-        B̄ = A' \ Ȳ
-        Ā = -B̄ * Y'
-        _add!(Ā, (B - A * Y) * B̄' / A')
-        _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
-        Ā
+    function forwardslash_pullback(Ȳ)
+        ∂A = @thunk begin
+            B̄ = A' \ Ȳ
+            Ā = -B̄ * Y'
+            _add!(Ā, (B - A * Y) * B̄' / A')
+            _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
+            Ā
+        end
+        ∂B = @thunk A' \ Ȳ
+        return NO_FIELDS, ∂A, ∂B
     end
-    ∂B = Rule(Ȳ -> A' \ Ȳ)
-    return Y, (NO_FIELDS, ∂A, ∂B)
+    return Y, forwardslash_pullback
+
 end
 
 #####
@@ -128,12 +157,20 @@ end
 
 function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
     y = norm(A, p)
-    u = y^(1-p)
-    ∂A = Rule(ȳ -> ȳ .* u .* abs.(A).^p ./ A)
-    ∂p = Rule(ȳ -> ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p)
-    return y, (NO_FIELDS, ∂A, ∂p)
+    function norm_pullback(ȳ)
+        u = y^(1-p)
+        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
+        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
+        (NO_FIELDS, ∂A, ∂p)
+    end
+    return y, norm_pullback
 end
 
 function rrule(::typeof(norm), x::Real, p::Real=2)
-    return norm(x, p), (NO_FIELDS, Rule(ȳ -> ȳ * sign(x)), Rule(_ -> zero(x)))
+    function norm_pullback(ȳ)
+        ∂x = @thunk ȳ * sign(x)
+        ∂p = @thunk zero(x)  #TODO: should this be Zero()
+        (NO_FIELDS, ∂x, ∂p)
+    end
+    return norm(x, p), norm_pullback
 end
