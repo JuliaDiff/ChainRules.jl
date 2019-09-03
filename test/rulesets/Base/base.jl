@@ -104,8 +104,10 @@
             rtol = x isa Complex{Float32} ? 1e-6 : 1e-9
             test_scalar(real, x; rtol=rtol)
             test_scalar(imag, x; rtol=rtol)
-            # TODO: implement correct complex derivative
-            x isa Real && test_scalar(abs, x; rtol=rtol)
+
+            test_scalar(abs, x; rtol=rtol)
+            test_scalar(hypot, x; rtol=rtol)
+
             test_scalar(angle, x; rtol=rtol)
             test_scalar(abs2, x; rtol=rtol)
             test_scalar(conj, x; rtol=rtol)
