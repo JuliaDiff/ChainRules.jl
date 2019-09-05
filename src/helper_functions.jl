@@ -24,7 +24,12 @@ function _update!(x::NamedTuple{Ns}, y::NamedTuple{Ns}, p::Symbol) where Ns
     return _update!(x, getproperty(y, p), p)
 end
 
+"""
+    _checked_rrule
 
+like `rrule` but throws an error if the `rrule` is not defined.
+Rather than returning `nothing`
+"""
 function _checked_rrule(f, args...; kwargs...)
     r = rrule(f, args...; kwargs...)
     r isa Nothing && _throw_checked_rrule_error(f, args...; kwargs...)

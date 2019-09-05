@@ -164,7 +164,7 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     ∂s = pullback(ȳ)
     ∂self = ∂s[1]
     x̄s_ad = ∂s[2:end]
-    @test self_rule === NO_FIELDS
+    @test ∂self === NO_FIELDS
 
     # Correctness testing via finite differencing.
     x̄s_fd = _make_fdm_call(fdm, f, ȳ, xs, x̄s .== nothing)
@@ -178,10 +178,10 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     end
 
     # Assuming the above to be correct, check that other ChainRules mechanisms are correct.
-    for (x̄, rule, x̄_ad) in zip(x̄s, rules, x̄s_ad)
+    for (x̄, x̄_ad) in zip(x̄s, x̄s_ad)
         x̄ === nothing && continue
-        test_accumulation(x̄, x̄_ad)
-        test_accumulation(Zero(), x̄_ad)
+        test_accumulation(x̄, x̄_ad, x̄_ad)
+        test_accumulation(Zero(), x̄_ad, x̄_ad)
     end
 end
 
