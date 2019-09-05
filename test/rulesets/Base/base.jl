@@ -54,18 +54,19 @@
         @testset "Multivariate" begin
             x, y = rand(2)
             @testset "atan2" begin
+                # https://en.wikipedia.org/wiki/Atan2
                 ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
                 u = x^2 + y^2
                 datan = y/u - 2x/u
 
-                r, df = frule(atan, x, y)
+                r, pushforward = frule(atan, x, y)
                 @test r === ratan
-                @test df(NamedTuple(), 1, 2) === (datan,)
+                @test pushforward(NamedTuple(), 1, 2) === datan
 
                 r, pullback = rrule(atan, x, y)
-                (ds, df1, df2) = pullback(1)
                 @test r === ratan
-                @test ds === NO_FIELDS
+                dself, df1, df2 = pullback(1)
+                @test dself == NO_FIELDS
                 @test df1 + 2df2 === datan
             end
 
@@ -149,7 +150,7 @@
     @testset "hypot(x, y)" begin
         x, y = rand(2)
         h, pushforward = frule(hypot, x, y)
-        dxy(x, y) = pushforward(NamedTuple(), x, y)[1]
+        dxy(x, y) = pushforward(NamedTuple(), x, y)
 
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h
