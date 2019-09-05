@@ -26,7 +26,7 @@ include("helper_functions.jl")
 
 include("rulesets/Base/base.jl")
 include("rulesets/Base/array.jl")
-#include("rulesets/Base/broadcast.jl")
+include("rulesets/Base/broadcast.jl")
 #include("rulesets/Base/mapreduce.jl")
 
 
