@@ -20,7 +20,7 @@ end
 function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
     function hcat_pullback(Ȳ)
         Xs = (A, Bs...)
-        ntuple(length(Bs) + 1) do full_i
+        ntuple(length(Bs) + 2) do full_i
             full_i == 1 && return NO_FIELDS
 
             i = full_i - 1
