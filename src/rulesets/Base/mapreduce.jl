@@ -24,7 +24,7 @@ end
 #####
 
 for mf in (:mapreduce, :mapfoldl, :mapfoldr)
-    sig = :(rrule(::typeof($mf), f, op, x::AbstractArray{<:Real}))
+    sig = :(ChainRulesCore.rrule(::typeof($mf), f, op, x::AbstractArray{<:Real}))
     call = :($mf(f, op, x))
     if mf === :mapreduce
         insert!(sig.args, 2, Expr(:parameters, Expr(:kw, :dims, :(:))))
@@ -35,10 +35,11 @@ for mf in (:mapreduce, :mapfoldl, :mapfoldr)
         y = $call
         function $pullback_name(ȳ)
             ∂x = @thunk broadcast(x, ȳ) do xi, ȳi
-                _, ∂xi = _checked_rrule(f, xi)
-                extern(∂xi(ȳi))
+                _, pullback_f = _checked_rrule(f, xi)
+                _, ∂xi = pullback_f(ȳi)
+                extern(∂xi)
             end
-            (NO_FIELDS, DNERule(), DNERule(), ∂x)
+            (NO_FIELDS, DNE(), DNE(), ∂x)
         end
         return y, $pullback_name
     end
@@ -56,7 +57,7 @@ rrule(::typeof(sum), x) = (sum(x), ȳ->(NO_FIELDS, cast(ȳ)))
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
     y, mr_pullback = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
     function sum_pullback(ȳ)
-        NO_FIELDS, DNERule(), @thunk(last(mr_pullback(ȳ)))
+        NO_FIELDS, DNE(), last(mr_pullback(ȳ))
     end
     return y, sum_pullback
 end
@@ -64,7 +65,7 @@ end
 function rrule(::typeof(sum), x::AbstractArray{<:Real}; dims=:)
     y,  inner_pullback = rrule(sum, identity, x; dims=dims)
     function sum_pullback(ȳ)
-        NO_FIELDS, DNERule(), @thunk(last(inner_pullback(ȳ)))
+        NO_FIELDS, last(inner_pullback(ȳ))
     end
     return y, sum_pullback
 end
@@ -72,7 +73,7 @@ end
 function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
-        (NO_FIELDS, DNERule(), @thunk(2ȳ .* x))
+        (NO_FIELDS, DNE(), @thunk(2ȳ .* x))
     end
     return y, sum_abs2_pullback
 end

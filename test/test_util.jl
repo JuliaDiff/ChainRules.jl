@@ -5,6 +5,7 @@ using ChainRulesCore: AbstractDifferential
 
 const _fdm = central_fdm(5, 1)
 
+
 """
     test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), test_wirtinger=x isa Complex, kwargs...)
 
@@ -63,6 +64,10 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
 end
 
 function ensure_not_running_on_functor(f, name)
+    # if x itself is a Type, then it is a constructor, thus not a functor.
+    # This also catchs UnionAll constructors which have a `:var` and `:body` fields
+    f isa Type && return
+
     if fieldcount(typeof(f)) > 0
         throw(ArgumentError(
             "$name cannot be used on closures/functors (such as $f)"
@@ -161,6 +166,7 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     y, pullback = rrule(f, xs...)
     @test f(xs...) == y
 
+    @assert !(isa(ȳ, Thunk))
     ∂s = pullback(ȳ)
     ∂self = ∂s[1]
     x̄s_ad = ∂s[2:end]
@@ -173,7 +179,8 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
             # The way we've structured the above, this tests that the rule is a DNERule
             @test x̄_ad isa DNE
         else
-            @test isapprox(x̄_ad, x̄_fd; rtol=rtol, atol=atol, kwargs...)
+            # TODO: remove extern from the line below, it is just there to make test output readign easier for now
+            @test isapprox(extern(x̄_ad), x̄_fd; rtol=rtol, atol=atol, kwargs...)
         end
     end
 

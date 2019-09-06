@@ -103,16 +103,29 @@ function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatr
 end
 
 function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+    Aᵀ, dA = rrule(adjoint, A)
+    Bᵀ, dB = rrule(adjoint, B)
+    Cᵀ, (dBᵀ, dAᵀ) = rrule(\, Bᵀ, Aᵀ)
+    C, dC = rrule(adjoint, Cᵀ)
+    ∂A = Rule(dA∘dAᵀ∘dC)
+    ∂B = Rule(dA∘dBᵀ∘dC)
+    return C, (∂A, ∂B)
+end
+function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Aᵀ, dA_pb = rrule(adjoint, A)
     Bᵀ, dB_pb = rrule(adjoint, B)
     Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
     C, dC_pb = rrule(adjoint, Cᵀ)
     function slash_pullback(Ȳ)
+        # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
+        # this is not a problem if you want the 2nd or 3rd, but if you want the first, it
+        # is fairly wasteful
         _, dC = dC_pb(Ȳ)
-        _, dAᵀ, dBᵀ = dS_pb(dC)
+        _, dBᵀ, dAᵀ = dS_pb(extern(dC))
 
-        ∂A = @thunk last(dA_pb(dAᵀ))
-        ∂B = @thunk last(dA_pb(dBᵀ))
+        # need to extern as  dAᵀ, dBᵀ  are generally `Thunk`s, which don't support adjoint
+        ∂A = @thunk last(dA_pb(extern(dAᵀ)))
+        ∂B = @thunk last(dA_pb(extern(dBᵀ)))
 
         (NO_FIELDS, ∂A, ∂B)
     end
