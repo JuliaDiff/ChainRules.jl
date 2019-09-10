@@ -7,7 +7,7 @@
             (dself, dsin, dx) = pullback(One())
             @test dself == NO_FIELDS
             @test dsin == DNE()
-            @test extern(extern(dx)) == cos.(x)
+            @test extern(dx) == cos.(x)
 
             x̄, ȳ = rand(), rand()
             ∂x = pullback(ȳ)[3]
