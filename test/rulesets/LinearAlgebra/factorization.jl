@@ -2,21 +2,32 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
 @testset "Factorizations" begin
     @testset "svd" begin
-        rng = MersenneTwister(2)
+        rng = MersenneTwister(3)
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(rng, n, m)
-            F, dX = rrule(svd, X)
+            F, dX_pullback = rrule(svd, X)
             for p in [:U, :S, :V]
-                Y, (dF, dp) = rrule(getproperty, F, p)
-                @test dp isa ChainRules.DNERule
+                Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = randn(rng, size(Y)...)
-                X̄_ad = dX(dF(Ȳ))
+
+                dself1, dF, dp = dF_pullback(Ȳ)
+                @test dself1 === NO_FIELDS
+                @test dp === DNE()
+
+                ΔF = extern(dF)
+                dself2, dX = dX_pullback(ΔF)
+                @test dself2 === NO_FIELDS
+                X̄_ad = extern(dX)
                 X̄_fd = j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X)
                 @test X̄_ad ≈ X̄_fd rtol=1e-6 atol=1e-6
             end
-            @test_throws ArgumentError rrule(getproperty, F, :Vt)
+            @testset "Vt" begin
+                Y, dF_pullback = rrule(getproperty, F, :Vt)
+                Ȳ = randn(rng, size(Y)...)
+                @test_throws ArgumentError dF_pullback(Ȳ)
+            end
         end
-        #== TODO: re-enable me
+        #== TODO: re-enable me, once updating rules work
         @testset "accumulate!" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX = rrule(svd, X)
@@ -44,18 +55,22 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         @testset "the thing" begin
             X = generate_well_conditioned_matrix(rng, 10)
             V = generate_well_conditioned_matrix(rng, 10)
-            F, dX = rrule(cholesky, X)
+            F, dX_pullback = rrule(cholesky, X)
             for p in [:U, :L]
-                Y, (dself, dF, dp) = rrule(getproperty, F, p)
-                @test dself === NO_FIELDS
-                @test dp isa ChainRules.DNERule
+                Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(rng, size(Y)))
+                (dself, dF, dp) = dF_pullback(Ȳ)
+                @test dself === NO_FIELDS
+                @test dp === DNE()
+
                 # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
                 # machinery from FiniteDifferences because that isn't set up to respect
                 # necessary special properties of the input. In the case of the Cholesky
                 # factorization, we need the input to be Hermitian.
-                X̄_ad = dot(dX(dF(Ȳ)), V)
-                X̄_fd = central_fdm(5, 1)() do ε
+                ΔF = extern(dF)
+                _, dX = dX_pullback(ΔF)
+                X̄_ad = dot(extern(dX), V)
+                X̄_fd = central_fdm(5,1)() do ε
                     dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
                 end
                 @test X̄_ad ≈ X̄_fd rtol=1e-6 atol=1e-6

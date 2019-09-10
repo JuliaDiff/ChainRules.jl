@@ -7,25 +7,31 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    ∂X = Rule() do Ȳ::NamedTuple{(:U,:S,:V)}
-        svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
+    function svd_pullback(Ȳ::NamedTuple{(:U,:S,:V)})
+        ∂X = @thunk(svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V))
+        return (NO_FIELDS, ∂X)
     end
-    return F, (NO_FIELDS, ∂X)
+    return F, svd_pullback
 end
 
 function rrule(::typeof(getproperty), F::SVD, x::Symbol)
-    if x === :U
-        rule = Ȳ->(U=Ȳ, S=zero(F.S), V=zero(F.V))
-    elseif x === :S
-        rule = Ȳ->(U=zero(F.U), S=Ȳ, V=zero(F.V))
-    elseif x === :V
-        rule = Ȳ->(U=zero(F.U), S=zero(F.S), V=Ȳ)
-    elseif x === :Vt
-        # TODO: This could be made to work, but it'd be a pain
-        throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
+    function getproperty_svd_pullback(Ȳ)
+        if x === :U
+            ∂ = @thunk((; U=Ȳ, S=(zero(F.S)), V=(zero(F.V))))
+        elseif x === :S
+            ∂ = @thunk((; U=(zero(F.U)), S=Ȳ, V=(zero(F.V))))
+        elseif x === :V
+            ∂ = @thunk((; U=(zero(F.U)), S=(zero(F.S)), V=Ȳ))
+        elseif x === :Vt
+            # TODO: This could be made to work, but it'd be a pain
+            throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
+        end
+        # TODO use update
+        update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
+
+        return NO_FIELDS, ∂, DNE()
     end
-    update = (X̄::NamedTuple{(:U,:S,:V)}, Ȳ)->_update!(X̄, rule(Ȳ), x)
-    return getproperty(F, x), (NO_FIELDS, Rule(rule, update), DNERule())
+    return getproperty(F, x), getproperty_svd_pullback
 end
 
 function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix)
@@ -65,25 +71,31 @@ end
 
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
-    ∂X = Rule(Ȳ->chol_blocked_rev(Matrix(Ȳ), Matrix(F.U), 25, true))
-    return F, (NO_FIELDS, ∂X)
+    function cholesky_pullback(Ȳ)
+        ∂X = @thunk(chol_blocked_rev(Matrix(Ȳ), Matrix(F.U), 25, true))
+        return (NO_FIELDS, ∂X)
+    end
+    return F, cholesky_pullback
 end
 
 function rrule(::typeof(getproperty), F::Cholesky, x::Symbol)
-    if x === :U
-        if F.uplo === 'U'
-            ∂F = Ȳ->UpperTriangular(Ȳ)
-        else
-            ∂F = Ȳ->LowerTriangular(Ȳ')
+    function getproperty_cholesky_pullback(Ȳ)
+        if x === :U
+            if F.uplo === 'U'
+                ∂F = @thunk UpperTriangular(Ȳ)
+            else
+                ∂F = @thunk LowerTriangular(Ȳ')
+            end
+        elseif x === :L
+            if F.uplo === 'L'
+                ∂F = @thunk LowerTriangular(Ȳ)
+            else
+                ∂F = @thunk UpperTriangular(Ȳ')
+            end
         end
-    elseif x === :L
-        if F.uplo === 'L'
-            ∂F = Ȳ->LowerTriangular(Ȳ)
-        else
-            ∂F = Ȳ->UpperTriangular(Ȳ')
-        end
+        return NO_FIELDS, ∂F, DNE()
     end
-    return getproperty(F, x), (NO_FIELDS, Rule(∂F), DNERule())
+    return getproperty(F, x), getproperty_cholesky_pullback
 end
 
 # See "Differentiation of the Cholesky decomposition" (Murray 2016), pages 5-9 in particular,
