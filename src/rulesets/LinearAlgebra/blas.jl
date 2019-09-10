@@ -104,12 +104,17 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
                x::AbstractVector{T}) where T<:BlasFloat
     y = gemv(tA, α, A, x)
     function gemv_pullback(ȳ)
+        # TODO: make use of update rules
         if uppercase(tA) === 'N'
-            ∂A = @thunk(α * ȳ * x', (Ā, ȳ) -> ger!(α, ȳ, x, Ā))
-            ∂x = @thunk(gemv('T', α, A, ȳ), (x̄, ȳ) -> gemv!('T', α, A, ȳ, one(T), x̄))
+            ∂A = @thunk(α * ȳ * x')
+            ∂A_update = Ā -> ger!(α, ȳ, x, Ā)
+            ∂x = @thunk(gemv('T', α, A, ȳ))
+            ∂x_update = x̄ -> gemv!('T', α, A, ȳ, one(T), x̄)
         else
-            ∂A = @thunk(α * x * ȳ', (Ā, ȳ) -> ger!(α, x, ȳ, Ā))
-            ∂x = @thunk(gemv('N', α, A, ȳ), (x̄, ȳ) -> gemv!('N', α, A, ȳ, one(T), x̄))
+            ∂A = @thunk(α * x * ȳ')
+            ∂A_update = Ā -> ger!(α, x, ȳ, Ā)
+            ∂x = @thunk(gemv('N', α, A, ȳ))
+            ∂x_update = x̄ -> gemv!('N', α, A, ȳ, one(T), x̄)
         end
         return (NO_FIELDS, DNE(), @thunk(dot(ȳ, y) / α), ∂A, ∂x)
     end
@@ -160,7 +165,7 @@ function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
                 ∂A_update = B̄ -> gemm!('T', 'T', α, C̄, A, β, B̄)
             end
         end
-        # TODO: ∂A_update and ∂B_update. Requires working out update rules in the post #30 world
+        # TODO: use ∂A_update and ∂B_update. Requires working out update rules in the post #30 world
         return (NO_FIELDS, DNE(), DNE(), @thunk(dot(C̄, C) / α), ∂A, ∂B)
     end
     return C, gemv_pullback

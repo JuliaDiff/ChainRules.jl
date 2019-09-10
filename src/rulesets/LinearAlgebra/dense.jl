@@ -103,15 +103,6 @@ function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatr
 end
 
 function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Aᵀ, dA = rrule(adjoint, A)
-    Bᵀ, dB = rrule(adjoint, B)
-    Cᵀ, (dBᵀ, dAᵀ) = rrule(\, Bᵀ, Aᵀ)
-    C, dC = rrule(adjoint, Cᵀ)
-    ∂A = Rule(dA∘dAᵀ∘dC)
-    ∂B = Rule(dA∘dBᵀ∘dC)
-    return C, (∂A, ∂B)
-end
-function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Aᵀ, dA_pb = rrule(adjoint, A)
     Bᵀ, dB_pb = rrule(adjoint, B)
     Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
