@@ -115,7 +115,7 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
             )
         else
             ∂A = InplaceableThunk(
-                @thunk(α * x * ȳ),
+                @thunk(α * x * ȳ'),
                 Ā -> ger!(α, x, ȳ, Ā)
             )
             ∂x = InplaceableThunk(

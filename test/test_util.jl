@@ -126,9 +126,8 @@ function rrule_test(f, ȳ, (x, x̄)::Tuple{Any, Any}; rtol=1e-9, atol=1e-9, fdm
     @test isapprox(x̄_ad, x̄_fd; rtol=rtol, atol=atol, kwargs...)
 
     # Assuming x̄_ad to be correct, check that other ChainRules mechanisms are correct.
-    # TODO is this test nonsense now?
-    test_accumulation(x̄, x̄_ad, x̄_ad)
-    test_accumulation(Zero(), x̄_ad, x̄_ad)
+    test_accumulation(x̄, x̄_ad)
+    test_accumulation(Zero(), x̄_ad)
 end
 
 function _make_fdm_call(fdm, f, ȳ, xs, ignores)
@@ -186,8 +185,8 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
     # Assuming the above to be correct, check that other ChainRules mechanisms are correct.
     for (x̄, x̄_ad) in zip(x̄s, x̄s_ad)
         x̄ === nothing && continue
-        test_accumulation(x̄, x̄_ad, x̄_ad)
-        test_accumulation(Zero(), x̄_ad, x̄_ad)
+        test_accumulation(x̄, x̄_ad)
+        test_accumulation(Zero(), x̄_ad)
     end
 end
 
@@ -204,55 +203,51 @@ function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end
 
-function test_accumulation(x̄, dx, partial)
-    @test all(extern(x̄ + partial) .≈ extern(x̄) .+ extern(partial))
-    test_accumulate(x̄, dx, partial)
-    test_accumulate!(x̄, dx, partial)
-    test_store!(x̄, dx, partial)
-    return nothing
+function test_accumulation(x̄, ∂x)
+    @test all(extern(x̄ + ∂x) .≈ extern(x̄) .+ extern(∂x))
+    test_accumulate(x̄, ∂x)
+    test_accumulate!(x̄, ∂x)
+    test_store!(x̄, ∂x)
 end
 
-function test_accumulate(x̄::Zero, dx, partial)
-    @test extern(accumulate(x̄, dx)) ≈ extern(partial)
-    return nothing
+function test_accumulate(x̄::Zero, ∂x)
+    @test extern(accumulate(x̄, ∂x)) ≈ extern(∂x)
 end
 
-function test_accumulate(x̄::Number, dx, partial)
-    @test extern(accumulate(x̄, dx)) ≈ extern(x̄) + extern(partial)
-    return nothing
+function test_accumulate(x̄::Number, ∂x)
+    @test extern(accumulate(x̄, ∂x)) ≈ extern(x̄) + extern(∂x)
 end
 
-function test_accumulate(x̄::AbstractArray, dx, partial)
+function test_accumulate(x̄::AbstractArray, ∂x)
     x̄_old = copy(x̄)
-    @test all(extern(accumulate(x̄, dx)) .≈ (extern(x̄) .+ extern(partial)))
-    @test x̄ == x̄_old
-    return nothing
+    @test all(extern(accumulate(x̄, ∂x)) .≈ (extern(x̄) .+ extern(∂x)))
+    @test x̄ == x̄_old  # make sure didn't mutate x̄
 end
 
-test_accumulate!(x̄::Zero, dx, partial) = nothing
+test_accumulate!(x̄::Zero, ∂x) = nothing
 
-function test_accumulate!(x̄::Number, dx, partial)
-    @test accumulate!(x̄, dx) ≈ accumulate(x̄, dx)
-    return nothing
+function test_accumulate!(x̄::Number, ∂x)
+    # This case won't have been inplace as `Number` is immutable
+    @test accumulate!(x̄, ∂x) ≈ accumulate(x̄, ∂x)
 end
 
-function test_accumulate!(x̄::AbstractArray, dx, partial)
+function test_accumulate!(x̄::AbstractArray, ∂x)
     x̄_copy = copy(x̄)
 
-    accumulate!(x̄_copy, dx)
-    @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(partial))
-    return nothing
+    accumulate!(x̄_copy, ∂x)  # this should have actually been in-place
+    @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(∂x))
 end
 
-test_store!(x̄::Zero, dx, partial) = nothing
-test_store!(x̄::Number, dx, partial) = nothing
+test_store!(x̄::Zero, ∂x) = nothing
+test_store!(x̄::Number, ∂x) = nothing
 
-function test_store!(x̄::AbstractArray, dx, partial)
-    x̄_copy = copy(x̄)
-    store!(x̄_copy, dx)
+function test_store!(x̄::AbstractArray, ∂x)
+    x̄_store = copy(x̄)
+    store!(x̄_store, ∂x)
+    @test x̄_store ≈ extern(∂x)
 
-    @show extern(partial)
-    @show x̄_copy
-    @test x̄_copy ≈ extern(partial)
-    return nothing
+    # store! is the same as `accumulate!` to a zero array
+    x̄_acc = false.*x̄
+    accumulate!(x̄_acc, ∂x)
+    @test x̄_acc ≈ x̄_store
 end

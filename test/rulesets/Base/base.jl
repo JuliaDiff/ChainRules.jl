@@ -127,7 +127,7 @@
             test_scalar(conj, x; rtol=rtol)
         end
     end
-    
+
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
         z, pullback = rrule(*, x, y)
@@ -136,14 +136,14 @@
 
         z̄ = rand(3, 5)
         (ds, dx, dy) = pullback(z̄)
-
+        
         @test ds === NO_FIELDS
 
         @test extern(dx) == extern(accumulate(zeros(3, 2), dx))
         @test extern(dy) == extern(accumulate(zeros(2, 5), dy))
 
-        test_accumulation(rand(3, 2), dx, z̄ * y')
-        test_accumulation(rand(2, 5), dy, x' * z̄)
+        test_accumulation(rand(3, 2), dx)
+        test_accumulation(rand(2, 5), dy)
     end
 
     @testset "hypot(x, y)" begin

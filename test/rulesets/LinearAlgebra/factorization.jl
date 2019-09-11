@@ -30,18 +30,21 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
         @testset "accumulate!" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
-            F, dX = rrule(svd, X)
+            F, dX_pullback = rrule(svd, X)
             X̄ = (U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
             for p in [:U, :S, :V]
-                Y, (dF, _) = rrule(getproperty, F, p)
+                Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = ones(size(Y)...)
-                ChainRules.accumulate!(X̄, dF, Ȳ)
+                (dself, dF, dp) = dF_pullback(Ȳ)
+                @test dself === NO_FIELDS
+                @test dp === DNE()
+                ChainRules.accumulate!(X̄, dF)
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
             @test X̄.S ≈ ones(2) atol=1e-6
             @test X̄.V ≈ ones(2, 2) atol=1e-6
         end
-        
+
         @testset "Helper functions" begin
             X = randn(rng, 10, 10)
             Y = randn(rng, 10, 10)
