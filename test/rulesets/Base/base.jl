@@ -127,8 +127,7 @@
             test_scalar(conj, x; rtol=rtol)
         end
     end
-
-    #== TODO Renable me
+    
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
         z, pullback = rrule(*, x, y)
