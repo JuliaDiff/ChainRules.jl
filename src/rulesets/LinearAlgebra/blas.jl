@@ -104,17 +104,24 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
                x::AbstractVector{T}) where T<:BlasFloat
     y = gemv(tA, α, A, x)
     function gemv_pullback(ȳ)
-        # TODO: make use of update rules
         if uppercase(tA) === 'N'
-            ∂A = @thunk(α * ȳ * x')
-            ∂A_update = Ā -> ger!(α, ȳ, x, Ā)
-            ∂x = @thunk(gemv('T', α, A, ȳ))
-            ∂x_update = x̄ -> gemv!('T', α, A, ȳ, one(T), x̄)
+            ∂A = InplaceableThunk(
+                @thunk(α * ȳ * x'),
+                Ā -> ger!(α, ȳ, x, Ā)
+            )
+            ∂x = InplaceableThunk(
+                @thunk(gemv('T', α, A, ȳ)),
+                x̄ -> gemv!('T', α, A, ȳ, one(T), x̄)
+            )
         else
-            ∂A = @thunk(α * x * ȳ')
-            ∂A_update = Ā -> ger!(α, x, ȳ, Ā)
-            ∂x = @thunk(gemv('N', α, A, ȳ))
-            ∂x_update = x̄ -> gemv!('N', α, A, ȳ, one(T), x̄)
+            ∂A = InplaceableThunk(
+                @thunk(α * x * ȳ),
+                Ā -> ger!(α, x, ȳ, Ā)
+            )
+            ∂x = InplaceableThunk(
+                @thunk(gemv('N', α, A, ȳ)),
+                x̄ -> gemv!('N', α, A, ȳ, one(T), x̄)
+            )
         end
         return (NO_FIELDS, DNE(), @thunk(dot(ȳ, y) / α), ∂A, ∂x)
     end
@@ -142,30 +149,45 @@ function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
         β = one(T)
         if uppercase(tA) === 'N'
             if uppercase(tB) === 'N'
-                ∂A = @thunk(gemm('N', 'T', α, C̄, B))
-                ∂A_update = Ā -> gemm!('N', 'T', α, C̄, B, β, Ā)
-                ∂B = @thunk(gemm('T', 'N', α, A, C̄))
-                ∂B_update = B̄ -> gemm!('T', 'N', α, A, C̄, β, B̄)
+                ∂A = InplaceableThunk(
+                    @thunk(gemm('N', 'T', α, C̄, B)),
+                    Ā -> gemm!('N', 'T', α, C̄, B, β, Ā)
+                )
+                ∂B = InplaceableThunk(
+                    @thunk(gemm('T', 'N', α, A, C̄)),
+                    B̄ -> gemm!('T', 'N', α, A, C̄, β, B̄)
+                )
             else
-                ∂A = @thunk(gemm('N', 'N', α, C̄, B))
-                ∂A_update = Ā -> gemm!('N', 'N', α, C̄, B, β, Ā)
-                ∂B = @thunk(gemm('T', 'N', α, C̄, A))
-                ∂B_update = B̄ -> gemm!('T', 'N', α, C̄, A, β, B̄)
+                ∂A = InplaceableThunk(
+                    @thunk(gemm('N', 'N', α, C̄, B)),
+                    Ā -> gemm!('N', 'N', α, C̄, B, β, Ā)
+                )
+                ∂B = InplaceableThunk(
+                    @thunk(gemm('T', 'N', α, C̄, A)),
+                    B̄ -> gemm!('T', 'N', α, C̄, A, β, B̄)
+                )
             end
         else
             if uppercase(tB) === 'N'
-                ∂A = @thunk(gemm('N', 'T', α, B, C̄))
-                ∂A_update = Ā -> gemm!('N', 'T', α, B, C̄, β, Ā)
-                ∂B = @thunk(gemm('N', 'N', α, A, C̄))
-                ∂B_update = B̄ -> gemm!('N', 'N', α, A, C̄, β, B̄)
+                ∂A = InplaceableThunk(
+                    @thunk(gemm('N', 'T', α, B, C̄)),
+                    Ā -> gemm!('N', 'T', α, B, C̄, β, Ā)
+                )
+                ∂B = InplaceableThunk(
+                    @thunk(gemm('N', 'N', α, A, C̄)),
+                    B̄ -> gemm!('N', 'N', α, A, C̄, β, B̄)
+                )
             else
-                ∂A = @thunk(gemm('T', 'T', α, B, C̄))
-                ∂A_update = Ā -> gemm!('T', 'T', α, B, C̄, β, Ā)
-                ∂B = @thunk(gemm('T', 'T', α, C̄, A))
-                ∂A_update = B̄ -> gemm!('T', 'T', α, C̄, A, β, B̄)
+                ∂A = InplaceableThunk(
+                    @thunk(gemm('T', 'T', α, B, C̄)),
+                    Ā -> gemm!('T', 'T', α, B, C̄, β, Ā)
+                )
+                ∂B = InplaceableThunk(
+                    @thunk(gemm('T', 'T', α, C̄, A)),
+                    B̄ -> gemm!('T', 'T', α, C̄, A, β, B̄)
+                )
             end
         end
-        # TODO: use ∂A_update and ∂B_update. Requires working out update rules in the post #30 world
         return (NO_FIELDS, DNE(), DNE(), @thunk(dot(C̄, C) / α), ∂A, ∂B)
     end
     return C, gemv_pullback

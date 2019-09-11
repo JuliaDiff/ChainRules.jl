@@ -26,10 +26,10 @@ function rrule(::typeof(getproperty), F::SVD, x::Symbol)
             # TODO: This could be made to work, but it'd be a pain
             throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
         end
-        # TODO use update
-        update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
 
-        return NO_FIELDS, ∂, DNE()
+        update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
+        ∂F = InplaceableThunk(∂, update)
+        return NO_FIELDS, ∂F, DNE()
     end
     return getproperty(F, x), getproperty_svd_pullback
 end

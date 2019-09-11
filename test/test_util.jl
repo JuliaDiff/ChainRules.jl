@@ -179,8 +179,7 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
             # The way we've structured the above, this tests that the rule is a DNERule
             @test x̄_ad isa DNE
         else
-            # TODO: remove extern from the line below, it is just there to make test output readign easier for now
-            @test isapprox(extern(x̄_ad), x̄_fd; rtol=rtol, atol=atol, kwargs...)
+            @test isapprox(x̄_ad, x̄_fd; rtol=rtol, atol=atol, kwargs...)
         end
     end
 
@@ -251,6 +250,9 @@ test_store!(x̄::Number, dx, partial) = nothing
 function test_store!(x̄::AbstractArray, dx, partial)
     x̄_copy = copy(x̄)
     store!(x̄_copy, dx)
-    @test all(x̄_copy .≈ extern(partial))
+
+    @show extern(partial)
+    @show x̄_copy
+    @test x̄_copy ≈ extern(partial)
     return nothing
 end

@@ -27,7 +27,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test_throws ArgumentError dF_pullback(Ȳ)
             end
         end
-        #== TODO: re-enable me, once updating rules work
+
         @testset "accumulate!" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX = rrule(svd, X)
@@ -41,7 +41,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             @test X̄.S ≈ ones(2) atol=1e-6
             @test X̄.V ≈ ones(2, 2) atol=1e-6
         end
-        ==#
+        
         @testset "Helper functions" begin
             X = randn(rng, 10, 10)
             Y = randn(rng, 10, 10)

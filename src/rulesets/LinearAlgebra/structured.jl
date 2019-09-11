@@ -22,7 +22,7 @@ _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
 ##### `Adjoint`
 #####
 
-# TODO: Deal with complex-valued arrays as well
+# ✖️✖️✖️TODO: Deal with complex-valued arrays as well
 rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real}) = Adjoint(A), ȳ->(NO_FIELDS, adjoint(ȳ))
 rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real}) = Adjoint(A), ȳ->(NO_FIELDS, vec(adjoint(ȳ)))
 

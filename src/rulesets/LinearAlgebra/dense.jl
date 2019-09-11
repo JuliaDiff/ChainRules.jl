@@ -173,7 +173,7 @@ end
 function rrule(::typeof(norm), x::Real, p::Real=2)
     function norm_pullback(ȳ)
         ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  #TODO: should this be Zero()
+        ∂p = @thunk zero(x)  #TODO: should this be Zero()?
         (NO_FIELDS, ∂x, ∂p)
     end
     return norm(x, p), norm_pullback
