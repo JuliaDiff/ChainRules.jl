@@ -287,7 +287,7 @@ Zygote.gradient(foo, x)
 ## On writing good rrule / frules
 
 ### Return Zero or One
-rather tan `0` or `1`
+rather than `0` or `1`
 or even rather than `zeros(n)`, `ones(m,n)`
 
 ### Use thunks appropriately:
