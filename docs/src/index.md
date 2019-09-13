@@ -30,7 +30,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
     _Custom AD primitives_, _custom adjoints_, _custom sensitivities_.
 
 The rules are encoded as `rrules` and `frules`,
-for use in forward-mode and reverse-mode differentiation respectively.
+for use in reverse-mode and forward-mode differentiation respectively.
 
 The `rrule` for some function `foo`, takes the positional argument `args` and keyword argument `kwargs` is written:
 ```julia
