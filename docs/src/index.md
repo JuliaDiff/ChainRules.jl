@@ -356,3 +356,19 @@ Take a look at existing test and you should see how to do stuff.
 
 ### CAS systems are your friends.
 E.g. it is very easy to check gradients or deriviatives with [WolframAlpha](https://www.wolframalpha.com/input/?i=gradient+atan2%28x%2Cy%29).
+
+------------------------------------------
+
+### FAQ:
+
+### What is up with the different symbols?
+
+ - `Δx` is the input to a propagator, (i.e a _seed_ for a _pullback_; or a _perturbation_ for a _pushforward_)
+ - `∂x` is the output of a propagator
+ - `dx` could be anything, including a pullback. It really should show up outside of tests.
+ - `ẋ` is a derivative moving forward.
+ - `x̄` is a dderivative moving backward.
+
+ - `Ω` is often used as the return value of the function having the rule found for. Especially, (but not eexlusively.) for scalar functions.
+     - `ΔΩ` is thus a seed for the pullback.
+     - `∂Ω` is thus the output of a pushforward
