@@ -365,7 +365,7 @@ E.g. it is very easy to check gradients or deriviatives with [WolframAlpha](http
 
  - `Δx` is the input to a propagator, (i.e a _seed_ for a _pullback_; or a _perturbation_ for a _pushforward_)
  - `∂x` is the output of a propagator
- - `dx` could be anything, including a pullback. It really should show up outside of tests.
+ - `dx` could be anything, including a pullback. It really should not show up outside of tests.
  - `ẋ` is a derivative moving forward.
  - `x̄` is a dderivative moving backward.
 
