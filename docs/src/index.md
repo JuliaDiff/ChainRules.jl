@@ -13,7 +13,7 @@ of `a*x` is `a`, and the derivative of `sin(x)` is `cos(x)`, etc.
 And they learn how to combine simple rules, via the chain rule, to differentiate complicated functions.
 ChainRules.jl basically a progamatic repository of that knowledge, with the generalizations to higher dimensions.
 
-Autodiff (AD) tools roughly work by reducting a program down to simple parts that they know the rules for,
+Autodiff (AD) tools roughly work by reducing a problem down to simple parts that they know the rules for,
 and then combining those rules.
 Knowing rules for more complicated functions speeds up the autodiff process as it doesn't have to break things down as much.
 
