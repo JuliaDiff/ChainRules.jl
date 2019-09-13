@@ -32,7 +32,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 The rules are encoded as `rrules` and `frules`,
 for use in forward-mode and reverse-mode differentiation respectively.
 
-the `rrule` for some function `foo`, taking positional arguments `args` and keyword arguments kwargs is written:
+The `rrule` for some function `foo`, takes the positional argument `args` and keyword argument `kwargs` is written:
 ```julia
 function rrule(::typeof(foo), args; kwargs...)
     ...
