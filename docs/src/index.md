@@ -42,7 +42,7 @@ end
 where `y` must be equal to `foo(args; kwargs...)`,
 and _pullback_ is a function to propagate the derivative information backwards at that point (more later).
 Often but not always it is calculated directly.
-the exeception is we can calculate it indirect to make
+The exception is that we can calculate it indirectly to make
 the `pullback` faster. (more on _pullback_ later)
 
 Similarly, the `frule` is written:
@@ -83,7 +83,7 @@ function pushforward(Δself, Δargs...)
     return ∂Y
 end
 ```
-Note that there is one `Δargs...` per `arg` to the orginal function, and they are similar in type/structure to the ccorresponding inputs.
+**Note:** that there is one `Δargs...` per `arg` to the original function, and they are similar in type/structure to the corresponding inputs.
 Plus the `Δself` (don't worry we will be back to explain this soon).
 The `∂Y` will be similar in type/structure to the original function's output `Y`.
 In particular if that function returned a tuple then `∂Y` will be a tuple of same size.
@@ -100,7 +100,7 @@ function pullback(ΔY)
 end
 ```
 
-Note that the pullback returns one `∂arg` per original `arg` to the function, plus one for the s
+**Note:** that the pullback returns one `∂arg` per original `arg` to the function, plus one for the fields of the function itself (again will get to that below).
 
 The input to the pullback is often called the _seed_.
 If the function is `y=f(x)` often the pullback will be written `ȳ=pullback(x̄)`.
@@ -110,10 +110,10 @@ If the function is `y=f(x)` often the pullback will be written `ȳ=pullback(x̄
     Sometimes _pertubation_, _seed_, _sensitivity_ will be used interchangeably, depending on task/subfield (_sensitivity_ analysis and perturbation analysis are apparently very big on just calling everying _sensitivity_ or _pertubation_ respectively.)
     At the end of the day they are all _wibbles_ or _wobbles_.
 
-### self derivative `Δself`, `∂self` etc.
+### Self derivative `Δself`, `∂self` etc.
 
 !!! Terminology
-    To my knowledge there is no standard termanology for this.
+    To my knowledge there is no standard terminology for this.
     Other good names might be `Δinternal`/`∂internal`
 
 From the mathematical perspective,
@@ -132,7 +132,7 @@ For example a closure has the fields it closes over; and a callable object (i.e.
 which captures those fields.**
 So all _pushforward_ take in a extra argument,
 which unless they are for things with fields, they ignore. (thus common to write `function pushforward(_, Δargs...)` in those cases),
-and every _pullback_ return an extra `∂self`,,
+and every _pullback_ return an extra `∂self`,
 which is, for things without fields, the constant `NO_FIELDS` which indicates there is no fields within the function itself.
 
 
@@ -177,7 +177,6 @@ s̄, ā, b̄, c̄.
 s̄).
 Written mathematically as ``\dfrac{∂f}{∂a}``, ``\dfrac{∂f}{∂b}``, ``\dfrac{∂f}{∂c}``.
 
-
 ### Differentials
 
 The values that come back from pullbacks,
@@ -187,7 +186,7 @@ They are differentials,
 differency-equivalents.
 A differential might be such a regular type,
 like a Number, or a Matrix,
-or it might be one of the `AbstractDifferencial` subtypes.
+or it might be one of the `AbstractDifferential` subtypes.
 
 Differentials support a number of operations.
 Most importantly:
@@ -198,8 +197,6 @@ The most important AbstractDifferentials when getting started are the ones about
 
  - `Thunk`: this is a deferred computation. A thunk is a [word for a zero argument closure](https://en.wikipedia.org/wiki/Thunk). An computation wrapped in a `@thunk` doesn't get evaluated until `extern` is called on the `Thunk`. More on thunks later.
  - `One`, `Zero`: There are special representions of `1` and `0`. They do great things around avoiding expanding `Thunks` in multiplication and (for `Zero`) addition.
-
-
 
 #### Others: don't worry about them right now
  - Wirtinger: it is complex. The docs need to be better. [Read the links in this issue](https://github.com/JuliaDiff/ChainRulesCore.jl/issues/40).
