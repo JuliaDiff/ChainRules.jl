@@ -292,7 +292,7 @@ or even rather than `zeros(n)`, `ones(m,n)`
 
 ### Use thunks appropriately:
 
-If work is only required for 1 of the returned differentials it should be wrapped in a `@thunk` (potentially using a begin-end block)
+If work is only required for one of the returned differentials it should be wrapped in a `@thunk` (potentially using a begin-end block)
 
 If there are multiple return values, almost always their should be computation wrapped in a `@thunk`s
 
