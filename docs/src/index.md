@@ -309,7 +309,7 @@ return @thunk(∂A)
 ```
 In the bad example `foo(x)` gets computed eagerly, and all that the thunk is doing is wrapping the already calculated result in a function that returns it.
 
-### Becareful of using Adjoing when you mean Transpose
+### Be careful with using Adjoint when you mean Transpose
 
 Rember for complex numbers `a'` (i.e. `adjoint(a)`) takes the complex conjugate. Instead you probably want `transpose(a)`.
 
