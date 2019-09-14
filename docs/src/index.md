@@ -11,13 +11,13 @@ ChainRules is all about providing a rich set of rules for doing differentiation.
 When a person does introductory calculus, they learn that the derivative (with respect to `x`)
 of `a*x` is `a`, and the derivative of `sin(x)` is `cos(x)`, etc.
 And they learn how to combine simple rules, via the chain rule, to differentiate complicated functions.
-ChainRules.jl basically a progamatic repository of that knowledge, with the generalizations to higher dimensions.
+ChainRules.jl is a programmatic repository of that knowledge, with the generalizations to higher dimensions.
 
 Autodiff (AD) tools roughly work by reducing a problem down to simple parts that they know the rules for,
 and then combining those rules.
 Knowing rules for more complicated functions speeds up the autodiff process as it doesn't have to break things down as much.
 
-** ChainRules is an AD independent collection of rules to use in an differentiation system **
+** ChainRules is an AD independent collection of rules to use in a differentiation system **
 
 ### `rrule` and `frule`
 
@@ -32,7 +32,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 The rules are encoded as `rrules` and `frules`,
 for use in reverse-mode and forward-mode differentiation respectively.
 
-The `rrule` for some function `foo`, takes the positional argument `args` and keyword argument `kwargs` is written:
+The `rrule` for some function `foo`, which takes the positional argument `args` and keyword argument `kwargs`, is written:
 ```julia
 function rrule(::typeof(foo), args; kwargs...)
     ...
@@ -83,8 +83,8 @@ function pushforward(Δself, Δargs...)
     return ∂Y
 end
 ```
-**Note:** that there is one `Δargs...` per `arg` to the original function, and they are similar in type/structure to the corresponding inputs.
-Plus the `Δself` (don't worry we will be back to explain this soon).
+**Note:** that there is one `Δarg` per `arg` to the original function, and they (the `Δargs`)  are similar in type/structure to the corresponding inputs (`args`).
+as well as the `Δself` (the presence of `Δself` will be explained soon).
 The `∂Y` will be similar in type/structure to the original function's output `Y`.
 In particular if that function returned a tuple then `∂Y` will be a tuple of same size.
 
@@ -107,8 +107,8 @@ If the function is `y=f(x)` often the pullback will be written `ȳ=pullback(x̄
 
 
 !!! Terminology:
-    Sometimes _pertubation_, _seed_, _sensitivity_ will be used interchangeably, depending on task/subfield (_sensitivity_ analysis and perturbation analysis are apparently very big on just calling everying _sensitivity_ or _pertubation_ respectively.)
-    At the end of the day they are all _wibbles_ or _wobbles_.
+    Sometimes _perturbation_, _seed_, and _sensitivity_ will be used interchangeably, depending on task/subfield (_sensitivity_ analysis and perturbation theory are apparently very big on just calling everything _sensitivity_ or _perturbation_ respectively.)
+    At the end of the day, they are all _wibbles_ or _wobbles_.
 
 ### Self derivative `Δself`, `∂self` etc.
 
@@ -140,13 +140,13 @@ which is, for things without fields, the constant `NO_FIELDS` which indicates th
 - **Pushforward:**
     - returned by `ffrule`
     - takes input space wibbles, gives output space wobbles
-    - 1 argument per orignal function argument + 1 for the function itself
-    - 1 return per orignal function return
+    - 1 argument per original function argument + 1 for the function itself
+    - 1 return per original function return
 - **Pullback**
    -  return by `rrule`
    - takes output space wobbles, gives input space wibbles
    - 1 argument per original function return
-   - 1 return per orignal function argument + 1 for the function itself
+   - 1 return per original function argument + 1 for the function itself
 
 #### Pushforward/Pullback and Total Derivative/Gradient
 
@@ -164,8 +164,8 @@ written mathematically as ``df_{(a,b,c)}``
 Similarly:
 The most trivial use of the rrule+pullback is to calculate the [Gradient](https://en.wikipedia.org/wiki/Gradient):
 ```julia
-y, pullback = frule(f, a, b, c)
-∇f  = pushforward(1) # for appropriate `1`-like seed.
+y, pullback = rrule(f, a, b, c)
+∇f  = pullback(1)  # for appropriate `1`-like seed.
 s̄, ā, b̄, c̄ = ∇f
 ```
 Then we have that
@@ -185,7 +185,7 @@ are not always the same type as the input/outputs of the original function.
 They are differentials,
 differency-equivalents.
 A differential might be such a regular type,
-like a Number, or a Matrix,
+like a `Number`, or a `Matrix`,
 or it might be one of the `AbstractDifferential` subtypes.
 
 Differentials support a number of operations.
@@ -195,8 +195,8 @@ And `extern` which converts them into a conventional type.
 
 The most important AbstractDifferentials when getting started are the ones about avoiding work:
 
- - `Thunk`: this is a deferred computation. A thunk is a [word for a zero argument closure](https://en.wikipedia.org/wiki/Thunk). An computation wrapped in a `@thunk` doesn't get evaluated until `extern` is called on the `Thunk`. More on thunks later.
- - `One`, `Zero`: There are special representions of `1` and `0`. They do great things around avoiding expanding `Thunks` in multiplication and (for `Zero`) addition.
+ - `Thunk`: this is a deferred computation. A thunk is a [word for a zero argument closure](https://en.wikipedia.org/wiki/Thunk). A computation wrapped in a `@thunk` doesn't get evaluated until `extern` is called on the `Thunk`. More on thunks later.
+ - `One`, `Zero`: There are special representations of `1` and `0`. They do great things around avoiding expanding `Thunks` in multiplication and (for `Zero`) addition.
 
 #### Others: don't worry about them right now
  - Wirtinger: it is complex. The docs need to be better. [Read the links in this issue](https://github.com/JuliaDiff/ChainRulesCore.jl/issues/40).
@@ -208,10 +208,10 @@ The most important AbstractDifferentials when getting started are the ones about
 ## Example of using ChainRules directly.
 
 While ChainRules is largely intended as a backend for Autodiff systems it can be used directly.
-(Infact this can be very useful if you can constraint the code you need to differnetiate to only use thing that have rules defined for.
+(In fact, this can be very useful if you can constraint the code you need to differentiate to only use things that have rules defined for.
 This was once how all neural network code worked.)
 
-Using ChainRules directly also helped get a feel for it.
+Using ChainRules directly also helps get a feel for it.
 
 
 ```julia
@@ -288,15 +288,15 @@ Zygote.gradient(foo, x)
 
 ### Return Zero or One
 rather than `0` or `1`
-or even rather than `zeros(n)`, `ones(m,n)`
+or even rather than `zeros(n)`, or the identity matrix.
 
 ### Use thunks appropriately:
 
-If work is only required for one of the returned differentials it should be wrapped in a `@thunk` (potentially using a begin-end block)
+If work is only required for one of the returned differentials it should be wrapped in a `@thunk` (potentially using a `begin`-`end` block).
 
-If there are multiple return values, almost always their should be computation wrapped in a `@thunk`s
+If there are multiple return values, their computation should almost always be wrapped in a `@thunk`.
 
-Don’t wrap variables in thunks, wrap the computations that fill those variables in thunks: Eg:
+Don’t wrap variables in thunks, wrap the computations that fill those variables in thunks, e.g. write:
 Write:
 ```julia
 ∂A = @thunk(foo(x))
@@ -311,10 +311,10 @@ In the bad example `foo(x)` gets computed eagerly, and all that the thunk is doi
 
 ### Be careful with using Adjoint when you mean Transpose
 
-Rember for complex numbers `a'` (i.e. `adjoint(a)`) takes the complex conjugate. Instead you probably want `transpose(a)`.
+Remember for complex numbers `a'` (i.e. `adjoint(a)`) takes the complex conjugate. Instead, you probably want `transpose(a)`.
 
 While there are arguments that for reverse-mode
-taking the adjoint is correct, it is not currently the behavour of ChainRules to do so.
+taking the adjoint is correct, it is not currently the behavior of ChainRules to do so.
 Feel free to open an issue and fight about it.
 All differentials support `conj` efficiently, which makes it easy to change in post.
 
@@ -327,7 +327,7 @@ function frule(::typeof(foo), x)
         return (foo(x), (_, ẋ)->bar(ẋ))
 end
 ```
-Whichrite:
+write:
 ```julia
 function frule(::typeof(foo), x)
         Y = foo(x)
@@ -345,12 +345,12 @@ the gensymed name of the local function will include the name you gave it.
 Which makes it a lot simpler to debug from the stacktrace.
 
 ### Write tests
-There are faily decent tools for writing tests based on [FiniteDifferences.jl](https://github.com/JuliaDiff/FiniteDifferences.jl)
+There are fairly decent tools for writing tests based on [FiniteDifferences.jl](https://github.com/JuliaDiff/FiniteDifferences.jl).
 They are in [`tests/test_utils.jl`](https://github.com/JuliaDiff/ChainRules.jl/blob/master/test/test_util.jl)
 Take a look at existing test and you should see how to do stuff.
 
 !!! important
-    Don't write equations in tests.
+    Don't use analytical derivations for derivatives in the tests?
     Use finite differencing.
     If you are writing equations in the tests, then you use those same equations as use are using to write your code. Then that is not Ok. We've had several bugs from people misreading/misunderstanding equations, and then using them for both tests and code. And then we have good coverage that is worthless.
 
@@ -369,6 +369,6 @@ E.g. it is very easy to check gradients or deriviatives with [WolframAlpha](http
  - `ẋ` is a derivative moving forward.
  - `x̄` is a dderivative moving backward.
 
- - `Ω` is often used as the return value of the function having the rule found for. Especially, (but not eexlusively.) for scalar functions.
+ - `Ω` is often used as the return value of the function having the rule found for. Especially, (but not exclusively.) for scalar functions.
      - `ΔΩ` is thus a seed for the pullback.
      - `∂Ω` is thus the output of a pushforward
