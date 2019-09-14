@@ -130,7 +130,7 @@ For example a closure has the fields it closes over; and a callable object (i.e.
 
 **Thus every function is treated as having the extra implicit argument `self`,
 which captures those fields.**
-So all _pushforward_ take in a extra argument,
+So all _pushforward_ take in an extra argument,
 which unless they are for things with fields, they ignore. (thus common to write `function pushforward(_, Δargs...)` in those cases),
 and every _pullback_ return an extra `∂self`,
 which is, for things without fields, the constant `NO_FIELDS` which indicates there is no fields within the function itself.
