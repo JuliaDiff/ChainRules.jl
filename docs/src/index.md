@@ -40,9 +40,6 @@ end
 ```
 where `y` must be equal to `foo(args; kwargs...)`,
 and _pullback_ is a function to propagate the derivative information backwards at that point (more later).
-Often but not always it is calculated directly.
-The exception is that we can calculate it indirectly to make
-the `pullback` faster. (more on _pullback_ later)
 
 Similarly, the `frule` is written:
 ```julia
@@ -358,7 +355,7 @@ E.g. it is very easy to check gradients or deriviatives with [WolframAlpha](http
 
 ------------------------------------------
 
-### FAQ:
+## FAQ:
 
 ### What is up with the different symbols?
 
@@ -370,4 +367,15 @@ E.g. it is very easy to check gradients or deriviatives with [WolframAlpha](http
 
  - `Ω` is often used as the return value of the function having the rule found for. Especially, (but not exclusively.) for scalar functions.
      - `ΔΩ` is thus a seed for the pullback.
-     - `∂Ω` is thus the output of a pushforward
+     - `∂Ω` is thus the output of a pushforward.
+
+### Why does `frule` and `rrule` return the function evaluation?
+You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`,
+and similarly for `rrule` returing `f(x)` and the pullback for `f` at `x`.
+Why not just return the pushforward/pullback,
+and let the user call `f(x)` to get the answer seperately?
+
+Their are two reasons the rules also create the `f(x)`.
+1. For some rules the output value is used in the definition of its propagator. For example `tan`.
+2. For some rules an alternative way of calculating `f(x)` can give the same answer,
+but also define intermediate values that can be used in the calculations within the propagator.
