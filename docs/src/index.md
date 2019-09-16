@@ -21,8 +21,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 
 ### `rrule` and `frule`
 
-!!! Terminology "`rrule` and `frule`"
-
+!!! terminology "`rrule` and `frule`"
     `rrule` and `frule` are ChainRules.jl specific terms.
     And there exact functioning is kind of ChainRule specific,
     though other tools may do similar.
@@ -59,7 +58,7 @@ Almost always the _pushforward_/_pullback_ will be declared locally with-in the 
 
 ### The propagators: pushforward and pullback
 
-!!! Terminology "Pushforward and Pullback"
+!!! terminology "Pushforward and Pullback"
 
     _Pushforward_ and _Pullback_ are fancy words that the autodiff community recently stole from Differential Geometry.
     The are broadly in agreement with the use of these terms in differential geometry. But any geometer will tell you these are the super-boring flat cases. Some will also frown at you.
@@ -106,13 +105,13 @@ The input to the pullback is often called the _seed_.
 If the function is `y=f(x)` often the pullback will be written `ȳ=pullback(x̄)`.
 
 
-!!! Terminology:
+!!! terminology
     Sometimes _perturbation_, _seed_, and _sensitivity_ will be used interchangeably, depending on task/subfield (_sensitivity_ analysis and perturbation theory are apparently very big on just calling everything _sensitivity_ or _perturbation_ respectively.)
     At the end of the day, they are all _wibbles_ or _wobbles_.
 
 ### Self derivative `Δself`, `∂self` etc.
 
-!!! Terminology
+!!! terminology
     To my knowledge there is no standard terminology for this.
     Other good names might be `Δinternal`/`∂internal`
 

@@ -1,0 +1,40 @@
+/* TOC */
+nav.toc {
+	background-color: #FFEC8B;
+	box-shadow: inset -14px 0px 5px -12px rgb(210,210,210);
+}
+
+nav.toc ul.internal {
+	background-color: #FFFEDD;
+	box-shadow: inset -14px 0px 5px -12px rgb(210,210,210);
+	list-style: none;
+}
+
+nav.toc ul.internal a:hover {
+	background-color: #FFEC8B;
+	color: black;
+}
+
+nav.toc ul a:hover {
+	color: #fcfcfc;
+	background-color: #B8860B;
+}
+
+nav.toc li.current > .toctext {
+	background-color: #B8860B;
+}
+
+/* Terminology Block */
+
+div.admonition.terminology div.admonition-title:before {
+	content: "Terminology: ";
+	font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
+	font-weight: bold;
+}
+div.admonition.terminology div.admonition-title {
+	background-color: #FFEC8B;
+}
+
+div.admonition.terminology div.admonition-text {
+	background-color: #FFFEDD;
+}
