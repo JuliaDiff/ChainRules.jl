@@ -1,34 +1,58 @@
-/* TOC */
-nav.toc {
-	background-color: #FFEC8B;
-	box-shadow: inset -14px 0px 5px -12px rgb(210,210,210);
+/* Links */
+
+a {
+    color: #4595D1;
 }
 
-nav.toc ul.internal {
-	background-color: #FFFEDD;
-	box-shadow: inset -14px 0px 5px -12px rgb(210,210,210);
-	list-style: none;
+a:hover, a:focus {
+    color: #194E82;
 }
 
+/* Navigation */
+
+nav.toc ul a:hover,
 nav.toc ul.internal a:hover {
-	background-color: #FFEC8B;
-	color: black;
+    color: #FFFFFF;
+    background-color: #4595D1;
 }
 
-nav.toc ul a:hover {
-	color: #fcfcfc;
-	background-color: #B8860B;
+nav.toc ul .toctext {
+    color: #FFFFFF;
+}
+
+nav.toc {
+    box-shadow: none;
+    color: #FFFFFF;
+    background-color: #194E82;
 }
 
 nav.toc li.current > .toctext {
-	background-color: #B8860B;
+    color: #FFFFFF;
+    background-color: #4595D1;
+    border-top-width: 0px;
+    border-bottom-width: 0px;
+}
+
+nav.toc ul.internal a {
+    color: #194E82;
+    background-color: #FFFFFF;
+}
+
+/* Text */
+
+article#docs a.nav-anchor {
+    color: #194E82;
+}
+
+article#docs blockquote {
+    font-style: italic;
 }
 
 /* Terminology Block */
 
 div.admonition.terminology div.admonition-title:before {
 	content: "Terminology: ";
-	font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
+    font-family: "Liberation Mono", "Consolas", "DejaVu Sans Mono", "Ubuntu Mono", "Courier New", "andale mono", "lucida console", monospace;
 	font-weight: bold;
 }
 div.admonition.terminology div.admonition-title {
@@ -37,4 +61,18 @@ div.admonition.terminology div.admonition-title {
 
 div.admonition.terminology div.admonition-text {
 	background-color: #FFFEDD;
+}
+
+/* Code */
+
+code .hljs-meta {
+    color: #4595D1;
+}
+
+code .hljs-keyword {
+    color: #194E82;
+}
+
+pre, code {
+    font-family: "Liberation Mono", "Consolas", "DejaVu Sans Mono", "Ubuntu Mono", "Courier New", "andale mono", "lucida console", monospace;
 }
