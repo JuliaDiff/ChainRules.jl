@@ -129,18 +129,18 @@ end
 
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
-    function forwardslash_pullback(Ȳ)
+    function backslash_pullback(Ȳ)
         S = T.name.wrapper
         ∂A = @thunk S(-(A' \ Ȳ) * Y')
         ∂B = @thunk A' \ Ȳ
         return NO_FIELDS, ∂A, ∂B
     end
-    return Y, forwardslash_pullback
+    return Y, backslash_pullback
 end
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Y = A \ B
-    function forwardslash_pullback(Ȳ)
+    function backslash_pullback(Ȳ)
         ∂A = @thunk begin
             B̄ = A' \ Ȳ
             Ā = -B̄ * Y'
@@ -151,7 +151,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         ∂B = @thunk A' \ Ȳ
         return NO_FIELDS, ∂A, ∂B
     end
-    return Y, forwardslash_pullback
+    return Y, backslash_pullback
 
 end
 

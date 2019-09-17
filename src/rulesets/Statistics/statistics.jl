@@ -14,11 +14,11 @@ function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
     function mean_pullback(ȳ)
         ∂x = Thunk() do
             _, ∂sum_x = sum_pullback(ȳ)
-            extern(∂sum_x)/n
+            extern(∂sum_x) / n
         end
         return (NO_FIELDS, ∂x)
     end
-    return y_sum/n, mean_pullback
+    return y_sum / n, mean_pullback
 end
 
 function rrule(::typeof(mean), f, x::AbstractArray{<:Real})
@@ -27,9 +27,9 @@ function rrule(::typeof(mean), f, x::AbstractArray{<:Real})
     function mean_pullback(ȳ)
         ∂x = Thunk() do
             _, _, ∂sum_x = sum_pullback(ȳ)
-            extern(∂sum_x)/n
+            extern(∂sum_x) / n
         end
         return (NO_FIELDS, DNE(), ∂x)
     end
-    return y_sum/n, mean_pullback
+    return y_sum / n, mean_pullback
 end
