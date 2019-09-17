@@ -23,7 +23,7 @@ For an
 
 !!! terminology "`rrule` and `frule`"
     `rrule` and `frule` are ChainRules specific terms.
-    There exact functioning is fairly ChainRules specific, though other tools may do similar.
+    Their exact functioning is fairly ChainRules specific, though other tools have similar functions.
     The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom sensitivities_.
 
 The rules are encoded as `rrules` and `frules`, for use in reverse-mode and forward-mode differentiation respectively.
