@@ -50,11 +50,9 @@ end
 
 function frule(::typeof(det), x)
     Ω = det(x)
-    , @thunk(inv(x))
     function det_pushforward(_, ẋ)
         # PERF-OPT: probably there is an efficent
         # way to compute this trace without during the full compution within
-
         return Ω * tr(inv(x) * ẋ)
     end
     return Ω, det_pushforward
@@ -64,6 +62,7 @@ function rrule(::typeof(det), x)
     Ω = det(x)
     function det_pullback(ΔΩ)
         return NO_FIELDS, @thunk(Ω * ΔΩ * inv(x)')
+    end
     return Ω, det_pullback
 end
 
@@ -72,28 +71,49 @@ end
 #####
 
 function frule(::typeof(logdet), x)
-    Ω, m = logdet(x), @thunk(inv(x))
-    return Ω, (_, Δx) -> tr(extern(m * Δx))
+    Ω = logdet(x)
+    function logdet_pushforward(_, Δx)
+        return tr(inv(x) * Δx)
+    end
+    return Ω, logdet_pushforward
 end
 
 function rrule(::typeof(logdet), x)
-    Ω, m = logdet(x), @thunk(inv(x)')
-    return Ω, ΔΩ -> (NO_FIELDS, ΔΩ * m)
+    Ω = logdet(x)
+    function logdet_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(ΔΩ * inv(x)'))
+    end
+    return Ω, logdet_pullback
 end
 
 #####
 ##### `trace`
 #####
 
-frule(::typeof(tr), x) = (tr(x), (_, Δx) -> tr(extern(Δx)))
-rrule(::typeof(tr), x) = (tr(x), ΔΩ -> (NO_FIELDS, Diagonal(fill(ΔΩ, size(x, 1)))))
+function frule(::typeof(tr), x)
+    function tr_pushforward(_, Δx)
+        return tr(Δx)
+    end
+    return tr(x), tr_pushforward
+end
+
+function rrule(::typeof(tr), x)
+    function tr_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk Diagonal(fill(ΔΩ, size(x, 1))))
+    end
+    return tr(x), tr_pullback
+end
+
 
 #####
 ##### `*`
 #####
 
 function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
-    return A * B, Ȳ -> (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
+    function times_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
+    end
+    return A * B, times_pullback
 end
 
 #####
