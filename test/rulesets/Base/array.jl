@@ -8,7 +8,7 @@
     (s̄, Ā, d̄) = pullback(Ȳ)
     @test s̄ == NO_FIELDS
     @test d̄ isa DNE
-    @test Ā == reshape(Ȳ, (5, 4))
+    @test extern(Ā) == reshape(Ȳ, (5, 4))
 
     B, pullback = rrule(reshape, A, 5, 4)
     @test B == reshape(A, 5, 4)
@@ -18,7 +18,7 @@
     @test s̄ == NO_FIELDS
     @test d̄1 isa DNE
     @test d̄2 isa DNE
-    @test Ā == reshape(Ȳ, 5, 4)
+    @test extern(Ā) == reshape(Ȳ, 5, 4)
 end
 
 @testset "hcat" begin
@@ -57,7 +57,7 @@ end
     (ds, dv, dd) = pullback(ones(4))
     @test ds === NO_FIELDS
     @test dd isa DNE
-    @test dv == 4
+    @test extern(dv) == 4
 
     y, pullback = rrule(fill, 2.0, (3, 3, 3))
     @test y == fill(2.0, (3, 3, 3))

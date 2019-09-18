@@ -56,14 +56,14 @@ function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
     function adjoint_pullback(ȳ)
         return (NO_FIELDS, @thunk(adjoint(ȳ)))
     end
-    return adjoint(A),
+    return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
     function adjoint_pullback(ȳ)
         return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
     end
-    return adjoint(A),
+    return adjoint(A), adjoint_pullback
 end
 
 #####
