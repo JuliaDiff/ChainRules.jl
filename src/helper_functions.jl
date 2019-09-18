@@ -17,17 +17,6 @@ function _update!(x::NamedTuple, y, p::Symbol)
     return merge(x, new)
 end
 
-#==
-function _update!(x::NamedTuple{Ns}, y::NamedTuple{Ns}) where Ns
-    return NamedTuple{Ns}(map(p->_update!(getproperty(x, p), getproperty(y, p)), Ns))
-end
-
-
-function _update!(x::NamedTuple{Ns}, y::NamedTuple{Ns}, p::Symbol) where Ns
-    return _update!(x, getproperty(y, p), p)
-end
-==#
-
 """
     _checked_rrule
 
