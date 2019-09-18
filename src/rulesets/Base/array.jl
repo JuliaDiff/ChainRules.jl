@@ -3,14 +3,18 @@
 #####
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
-    return reshape(A, dims), Ȳ -> (NO_FIELDS, reshape(Ȳ, dims), DNE())
+    function reshape_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(reshape(Ȳ, dims)), DNE())
+    end
+    return reshape(A, dims), reshape_pullback
 end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
-    return (
-        reshape(A, dims...),
-        Ȳ -> (NO_FIELDS, reshape(Ȳ, dims), fill(DNE(), length(dims))...)
-    )
+    function reshape_pullback(Ȳ)
+        ∂A = @thunk(reshape(Ȳ, dims))
+        return (NO_FIELDS, ∂A, fill(DNE(), length(dims))...)
+    end
+    return reshape(A, dims...), reshape_pullback
 end
 
 #####
@@ -58,9 +62,15 @@ end
 #####
 
 function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
-    return fill(value, dims), Ȳ -> (NO_FIELDS, sum(Ȳ), DNE())
+    function fill_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(sum(Ȳ)), DNE())
+    end
+    return fill(value, dims), fill_pullback
 end
 
 function rrule(::typeof(fill), value::Any, dims::Int...)
-    return fill(value, dims), Ȳ -> (NO_FIELDS, sum(Ȳ), ntuple(_->DNE(), length(dims))...)
+    function fill_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(sum(Ȳ)), ntuple(_->DNE(), length(dims))...)
+    end
+    return fill(value, dims), fill_pullback
 end
