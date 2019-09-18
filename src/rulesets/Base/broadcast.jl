@@ -15,10 +15,16 @@ end
 
 function frule(::typeof(broadcast), f, x)
     Ω, ∂x = _cast_diff(f, x)
-    return Ω, (_, Δf, Δx) -> Δx * cast(∂x)
+    function broadcast_pushforward(_, Δf, Δx)
+        return Δx * cast(∂x)
+    end
+    return Ω, broadcast_pushforward
 end
 
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
-    return values, ΔΩ -> (NO_FIELDS, DNE(), @thunk(ΔΩ * cast(derivs)))
+    function broadcast_pullback(ΔΩ)
+        return (NO_FIELDS, DNE(), @thunk(ΔΩ * cast(derivs)))
+    end
+    return values, broadcast_pullback
 end
