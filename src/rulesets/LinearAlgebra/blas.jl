@@ -71,11 +71,17 @@ end
 #####
 
 function frule(::typeof(BLAS.asum), x)
-    return BLAS.asum(x), (_, Δx) -> sum(cast(sign, x) * Δx)
+    function asum_pushforward(_, Δx)
+        return sum(cast(sign, x) * Δx)
+    end
+    return BLAS.asum(x), asum_pushforward
 end
 
 function rrule(::typeof(BLAS.asum), x)
-    return BLAS.asum(x), ΔΩ -> (NO_FIELDS, @thunk(ΔΩ * cast(sign, x)))
+    function asum_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(ΔΩ * cast(sign, x)))
+    end
+    return BLAS.asum(x), asum_pullback
 end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
