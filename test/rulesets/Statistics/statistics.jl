@@ -22,7 +22,7 @@
     end
 
     @testset "with dims kwargs" begin
-        X = randn(rng, n, n)
+        X = randn(rng, n, n+1)
         y, mean_pullback = rrule(mean, X; dims=1)
         ȳ = randn(rng, size(y))
         _, dX = mean_pullback(ȳ)

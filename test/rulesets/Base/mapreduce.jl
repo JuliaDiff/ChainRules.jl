@@ -57,7 +57,7 @@
         @testset "keyword arguments" begin
             rng = MersenneTwister(33)
             n = 4
-            X = randn(rng, n, n)
+            X = randn(rng, n, n+1)
             y, pullback = rrule(sum, X; dims=2)
             ȳ = randn(rng, size(y))
             _, x̄_ad = pullback(ȳ)
