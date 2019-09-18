@@ -103,8 +103,30 @@
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
-frule(::typeof(*), x::Number, y::Number) = x * y, (_, Δx, Δy) -> Δx * y + x * Δy
-rrule(::typeof(*), x::Number, y::Number) = x * y, (ΔΩ -> (NO_FIELDS,  ΔΩ * y', x' * ΔΩ))
+function frule(::typeof(*), x::Number, y::Number)
+    function times_pushforward(_, Δx, Δy)
+        return Δx * y + x * Δy
+    end
+    return x * y, times_pushforward
+end
 
-frule(::typeof(identity), x) = x, (_, ȳ) -> ȳ
-rrule(::typeof(identity), x) = x, ȳ -> (NO_FIELDS, ȳ)
+function rrule(::typeof(*), x::Number, y::Number)
+    function times_pullback(ΔΩ)
+        return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
+    end
+    return x * y, times_pullback
+end
+
+function frule(::typeof(identity), x)
+    function identity_pushforward(_, ẏ)
+        return ẏ
+    end
+    return x, identity_pushforward
+end
+
+function rrule(::typeof(identity), x)
+    function identity_pullback(ȳ)
+        return (NO_FIELDS, ȳ)
+    end
+    return x, identity_pullback
+end
