@@ -5,15 +5,30 @@
 ##### `Diagonal`
 #####
 
-rrule(::Type{<:Diagonal}, d::AbstractVector) = Diagonal(d), ȳ->(NO_FIELDS, diag(ȳ))
+function rrule(::Type{<:Diagonal}, d::AbstractVector)
+    function Diagonal_pullback(ȳ)
+        return (NO_FIELDS, @thunk(diag(ȳ)))
+    end
+    return Diagonal(d), Diagonal_pullback
+end
 
-rrule(::typeof(diag), A::AbstractMatrix) = diag(A), ȳ->(NO_FIELDS, Diagonal(ȳ))
+function rrule(::typeof(diag), A::AbstractMatrix)
+    function diag_pullback(ȳ)
+        return (NO_FIELDS, @thunk(Diagonal(ȳ)))
+    end
+    return diag(A), diag_pullback
+end
 
 #####
 ##### `Symmetric`
 #####
 
-rrule(::Type{<:Symmetric}, A::AbstractMatrix) = Symmetric(A), ȳ->(NO_FIELDS, _symmetric_back(ȳ))
+function rrule(::Type{<:Symmetric}, A::AbstractMatrix)
+    function Symmetric_pullback(ȳ)
+        return (NO_FIELDS, @thunk(_symmetric_back(ȳ)))
+    end
+    return Symmetric(A), Symmetric_pullback
+end
 
 _symmetric_back(ΔΩ) = @thunk(UpperTriangular(ΔΩ) + LowerTriangular(ΔΩ)' - Diagonal(ΔΩ))
 _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
@@ -23,26 +38,80 @@ _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
 #####
 
 # ✖️✖️✖️TODO: Deal with complex-valued arrays as well
-rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real}) = Adjoint(A), ȳ->(NO_FIELDS, adjoint(ȳ))
-rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real}) = Adjoint(A), ȳ->(NO_FIELDS, vec(adjoint(ȳ)))
+function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real})
+    function Adjoint_pullback(ȳ)
+        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+    end
+    return Adjoint(A), Adjoint_pullback
+end
 
-rrule(::typeof(adjoint), A::AbstractMatrix{<:Real}) = adjoint(A),  ȳ->(NO_FIELDS, adjoint(ȳ))
-rrule(::typeof(adjoint), A::AbstractVector{<:Real}) = adjoint(A),  ȳ->(NO_FIELDS, vec(adjoint(ȳ)))
+function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real})
+    function Adjoint_pullback(ȳ)
+        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+    end
+    return Adjoint(A), Adjoint_pullback
+end
+
+function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
+    function adjoint_pullback(ȳ)
+        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+    end
+    return adjoint(A),
+end
+
+function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
+    function adjoint_pullback(ȳ)
+        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+    end
+    return adjoint(A),
+end
 
 #####
 ##### `Transpose`
 #####
 
-rrule(::Type{<:Transpose}, A::AbstractMatrix) = Transpose(A), ȳ->(NO_FIELDS, transpose(ȳ))
-rrule(::Type{<:Transpose}, A::AbstractVector) = Transpose(A), ȳ->(NO_FIELDS, vec(transpose(ȳ)))
+function rrule(::Type{<:Transpose}, A::AbstractMatrix)
+    function Transpose_pullback(ȳ)
+        return (NO_FIELDS, @thunk transpose(ȳ))
+    end
+    return Transpose(A), Transpose_pullback
+end
 
-rrule(::typeof(transpose), A::AbstractMatrix) = transpose(A), ȳ->(NO_FIELDS, transpose(ȳ))
-rrule(::typeof(transpose), A::AbstractVector) = transpose(A), ȳ->(NO_FIELDS, vec(transpose(ȳ)))
+function rrule(::Type{<:Transpose}, A::AbstractVector)
+    function Transpose_pullback(ȳ)
+        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+    end
+    return Transpose(A), Transpose_pullback
+end
+
+function rrule(::typeof(transpose), A::AbstractMatrix)
+    function transpose_pullback(ȳ)
+        return (NO_FIELDS, @thunk transpose(ȳ))
+    end
+    return transpose(A), transpose_pullback
+end
+
+function rrule(::typeof(transpose), A::AbstractVector)
+    function transpose_pullback(ȳ)
+        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+    end
+    return transpose(A), transpose_pullback
+end
 
 #####
 ##### Triangular matrices
 #####
 
-rrule(::Type{<:UpperTriangular}, A::AbstractMatrix) = UpperTriangular(A), ȳ->(NO_FIELDS, Matrix(ȳ))
+function rrule(::Type{<:UpperTriangular}, A::AbstractMatrix)
+    function UpperTriangular_pullback(ȳ)
+        return (NO_FIELDS, @thunk Matrix(ȳ))
+    end
+    return UpperTriangular(A), UpperTriangular_pullback
+end
 
-rrule(::Type{<:LowerTriangular}, A::AbstractMatrix) = LowerTriangular(A), ȳ->(NO_FIELDS, Matrix(ȳ))
+function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
+    function LowerTriangular_pullback(ȳ)
+        return (NO_FIELDS, @thunk Matrix(ȳ))
+    end
+    return LowerTriangular(A), LowerTriangular_pullback
+end
