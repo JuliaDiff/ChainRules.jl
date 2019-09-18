@@ -49,13 +49,22 @@ end
 #####
 
 function frule(::typeof(det), x)
-    Ω, m = det(x), @thunk(inv(x))
-    return Ω, (_, Δx) -> Ω * tr(extern(m * Δx))
+    Ω = det(x)
+    , @thunk(inv(x))
+    function det_pushforward(_, ẋ)
+        # PERF-OPT: probably there is an efficent
+        # way to compute this trace without during the full compution within
+
+        return Ω * tr(inv(x) * ẋ)
+    end
+    return Ω, det_pushforward
 end
 
 function rrule(::typeof(det), x)
-    Ω, m = det(x), @thunk(inv(x)')
-    return Ω, ΔΩ -> (NO_FIELDS, Ω * ΔΩ * m)
+    Ω = det(x)
+    function det_pullback(ΔΩ)
+        return NO_FIELDS, @thunk(Ω * ΔΩ * inv(x)')
+    return Ω, det_pullback
 end
 
 #####
