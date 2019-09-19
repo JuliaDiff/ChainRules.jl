@@ -16,7 +16,7 @@ makedocs(
 
 const repo=="github.com/JuliaDiff/ChainRules.jl.git"
 if get(ENV, "TRAVIS_PULL_REQUEST", "false") == "false"
-    # Normal Case
+    # Normal case, only reply docs if merging to master or release tagged
     deploydocs(repo=repo)
 else
     @info "Deploying review docs for PR #$PR"
