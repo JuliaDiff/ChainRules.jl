@@ -50,9 +50,19 @@ end
 ##### `sum`
 #####
 
-frule(::typeof(sum), x) = (sum(x), (_, ẋ)->sum(ẋ))
+function frule(::typeof(sum), x)
+    function sum_pushforward(_, ẋ)
+        return sum(ẋ)
+    end
+    return sum(x), sum_pushforward
+end
 
-rrule(::typeof(sum), x) = (sum(x), ȳ->(NO_FIELDS, cast(ȳ)))
+function rrule(::typeof(sum), x)
+    function sum_pullback(ȳ)
+        return (NO_FIELDS, cast(ȳ))
+    end
+    return sum(x), sum_pullback
+end
 
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
     y, mr_pullback = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
