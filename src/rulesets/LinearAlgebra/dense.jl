@@ -10,14 +10,14 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 
 function frule(::typeof(dot), x, y)
     function dot_pushforward(Δself, Δx, Δy)
-        sum(Δx * cast(y)) + sum(cast(x) * Δy)
+        return sum(Δx * cast(y)) + sum(cast(x) * Δy)
     end
     return dot(x, y), dot_pushforward
 end
 
 function rrule(::typeof(dot), x, y)
     function dot_pullback(ΔΩ)
-        (NO_FIELDS, ΔΩ * cast(y), cast(x) * ΔΩ,)
+        return (NO_FIELDS, ΔΩ * cast(y), cast(x) * ΔΩ,)
     end
     return dot(x, y), dot_pullback
 end
@@ -30,7 +30,7 @@ function frule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω)
     function inv_pushforward(_, Δx)
-        m * Δx * Ω
+        return m * Δx * Ω
     end
     return Ω, inv_pushforward
 end
@@ -39,7 +39,7 @@ function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     m = @thunk(-Ω')
     function inv_pullback(ΔΩ)
-        NO_FIELDS, m * ΔΩ * Ω'
+        return NO_FIELDS, m * ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end
@@ -51,7 +51,7 @@ end
 function frule(::typeof(det), x)
     Ω = det(x)
     function det_pushforward(_, ẋ)
-        # PERF-OPT: probably there is an efficent
+        # TODO Performance optimization: probably there is an efficent
         # way to compute this trace without during the full compution within
         return Ω * tr(inv(x) * ẋ)
     end
@@ -126,7 +126,7 @@ function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatr
         S = T.name.wrapper
         ∂A = @thunk Ȳ / B'
         ∂B = @thunk S(-Y' * (Ȳ / B'))
-        (NO_FIELDS, ∂A, ∂B)
+        return (NO_FIELDS, ∂A, ∂B)
     end
     return Y, slash_pullback
 end
@@ -202,7 +202,7 @@ end
 function rrule(::typeof(norm), x::Real, p::Real=2)
     function norm_pullback(ȳ)
         ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  #TODO: should this be Zero()?
+        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
         (NO_FIELDS, ∂x, ∂p)
     end
     return norm(x, p), norm_pullback

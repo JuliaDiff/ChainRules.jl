@@ -46,7 +46,7 @@ end
 function rrule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
     function nrm2_pullback(ΔΩ)
-        return NO_FIELDS, @thunk(ΔΩ * @thunk(x * inv(Ω)))
+        return NO_FIELDS, @thunk(ΔΩ * x * inv(Ω))
     end
     return Ω, nrm2_pullback
 end
@@ -92,7 +92,8 @@ function rrule(::typeof(BLAS.asum), n, X, incx)
         else
             ΔΩ = extern(ΔΩ)
             ∂X = @thunk scal!(
-                n, ΔΩ,
+                n, 
+                ΔΩ,
                 blascopy!(n, sign.(X), incx, _zeros(X), incx),
                 incx
             )

@@ -24,7 +24,7 @@ end
 #####
 
 for mf in (:mapreduce, :mapfoldl, :mapfoldr)
-    sig = :(ChainRulesCore.rrule(::typeof($mf), f, op, x::AbstractArray{<:Real}))
+    sig = :(rrule(::typeof($mf), f, op, x::AbstractArray{<:Real}))
     call = :($mf(f, op, x))
     if mf === :mapreduce
         insert!(sig.args, 2, Expr(:parameters, Expr(:kw, :dims, :(:))))
@@ -73,7 +73,7 @@ end
 function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
-        (NO_FIELDS, DNE(), @thunk(2ȳ .* x))
+        return (NO_FIELDS, DNE(), @thunk(2ȳ .* x))
     end
     return y, sum_abs2_pullback
 end

@@ -30,7 +30,7 @@ function rrule(::Type{<:Symmetric}, A::AbstractMatrix)
     return Symmetric(A), Symmetric_pullback
 end
 
-_symmetric_back(ΔΩ) = @thunk(UpperTriangular(ΔΩ) + LowerTriangular(ΔΩ)' - Diagonal(ΔΩ))
+_symmetric_back(ΔΩ) = UpperTriangular(ΔΩ) + LowerTriangular(ΔΩ)' - Diagonal(ΔΩ)
 _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
 
 #####
