@@ -55,7 +55,7 @@
             x, y = rand(2)
             @testset "atan2" begin
                 # https://en.wikipedia.org/wiki/Atan2
-                ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
+                ratan = atan(x, y)
                 u = x^2 + y^2
                 datan = y/u - 2x/u
 
