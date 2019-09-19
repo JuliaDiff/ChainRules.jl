@@ -66,17 +66,20 @@ end
     end
     @testset "$f" for f in [/, \]
         rng = MersenneTwister(42)
-        for n in 3:5, m in 3:5
-            A = randn(rng, m, n)
-            B = randn(rng, m, n)
-            Ȳ = randn(rng, size(f(A, B)))
-            rrule_test(f, Ȳ, (A, randn(rng, m, n)), (B, randn(rng, m, n)))
+        @testset "Matrix" begin
+            for n in 3:5, m in 3:5
+                A = randn(rng, m, n)
+                B = randn(rng, m, n)
+                Ȳ = randn(rng, size(f(A, B)))
+                rrule_test(f, Ȳ, (A, randn(rng, m, n)), (B, randn(rng, m, n)))
+            end
         end
-        # Vectors
-        x = randn(rng, 10)
-        y = randn(rng, 10)
-        ȳ = randn(rng, size(f(x, y))...)
-        rrule_test(f, ȳ, (x, randn(rng, 10)), (y, randn(rng, 10)))
+        @testset "Vector" begin
+            x = randn(rng, 10)
+            y = randn(rng, 10)
+            ȳ = randn(rng, size(f(x, y))...)
+            rrule_test(f, ȳ, (x, randn(rng, 10)), (y, randn(rng, 10)))
+        end
         if f == (/)
             @testset "$T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
                 RHS = T(randn(rng, T == Diagonal ? 10 : (10, 10)))

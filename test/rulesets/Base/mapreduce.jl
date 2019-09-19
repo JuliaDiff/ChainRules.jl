@@ -15,11 +15,12 @@
         vx = randn(rng, n)
         ȳ = randn(rng)
         rrule_test(mapreduce, ȳ, (sin, nothing), (+, nothing), (x, vx))
+
         # With keyword arguments (not yet supported in rrule_test)
         X = randn(rng, n, n)
-        y, (_, _, dx) = rrule(mapreduce, abs2, +, X; dims=2)
+        y, pullback = rrule(mapreduce, abs2, +, X; dims=2)
         ȳ = randn(rng, size(y))
-        x̄_ad = dx(ȳ)
+        (_, _, _, x̄_ad) = pullback(ȳ)
         x̄_fd = j′vp(central_fdm(5, 1), x->mapreduce(abs2, +, x; dims=2), ȳ, X)
         @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
     end
@@ -56,10 +57,10 @@
         @testset "keyword arguments" begin
             rng = MersenneTwister(33)
             n = 4
-            X = randn(rng, n, n)
-            y, dX = rrule(sum, X; dims=2)
+            X = randn(rng, n, n+1)
+            y, pullback = rrule(sum, X; dims=2)
             ȳ = randn(rng, size(y))
-            x̄_ad = dX(ȳ)
+            _, x̄_ad = pullback(ȳ)
             x̄_fd = j′vp(central_fdm(5, 1), x->sum(x, dims=2), ȳ, X)
             @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
         end

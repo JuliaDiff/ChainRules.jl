@@ -4,15 +4,19 @@
 
 function rrule(::typeof(map), f, xs...)
     y = map(f, xs...)
-    ∂xs = ntuple(length(xs)) do i
-        Rule() do ȳ
-            map(ȳ, xs...) do ȳi, xis...
-                _, ∂xis = _checked_rrule(f, xis...)
-                extern(∂xis[i](ȳi))
+    function map_pullback(ȳ)
+        ntuple(length(xs)+2) do full_i
+            full_i == 1 && return NO_FIELDS
+            full_i == 2 && return DNE()
+            i = full_i-2
+            @thunk map(ȳ, xs...) do ȳi, xis...
+                _, pullback = _checked_rrule(f, xis...)
+                ∂xis = pullback(ȳi)
+                extern(∂xis[i+1])  #+1 to skp ∂self
             end
         end
     end
-    return y, (DNERule(), ∂xs...)
+    return y, map_pullback
 end
 
 #####
@@ -26,15 +30,18 @@ for mf in (:mapreduce, :mapfoldl, :mapfoldr)
         insert!(sig.args, 2, Expr(:parameters, Expr(:kw, :dims, :(:))))
         insert!(call.args, 2, Expr(:parameters, Expr(:kw, :dims, :dims)))
     end
+    pullback_name = Symbol(mf, :_pullback)
     body = quote
         y = $call
-        ∂x = Rule() do ȳ
-            broadcast(x, ȳ) do xi, ȳi
-                _, ∂xi = _checked_rrule(f, xi)
-                extern(∂xi(ȳi))
+        function $pullback_name(ȳ)
+            ∂x = @thunk broadcast(x, ȳ) do xi, ȳi
+                _, pullback_f = _checked_rrule(f, xi)
+                _, ∂xi = pullback_f(ȳi)
+                extern(∂xi)
             end
+            (NO_FIELDS, DNE(), DNE(), ∂x)
         end
-        return y, (DNERule(), DNERule(), ∂x)
+        return y, $pullback_name
     end
     eval(Expr(:function, sig, body))
 end
@@ -43,22 +50,40 @@ end
 ##### `sum`
 #####
 
-frule(::typeof(sum), x) = (sum(x), Rule(sum))
+function frule(::typeof(sum), x)
+    function sum_pushforward(_, ẋ)
+        return sum(ẋ)
+    end
+    return sum(x), sum_pushforward
+end
 
-rrule(::typeof(sum), x) = (sum(x), Rule(cast))
+function rrule(::typeof(sum), x)
+    function sum_pullback(ȳ)
+        return (NO_FIELDS, cast(ȳ))
+    end
+    return sum(x), sum_pullback
+end
 
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
-    y, (_, _, ∂x) = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
-    return y, (DNERule(), ∂x)
+    y, mr_pullback = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
+    function sum_pullback(ȳ)
+        NO_FIELDS, DNE(), last(mr_pullback(ȳ))
+    end
+    return y, sum_pullback
 end
 
 function rrule(::typeof(sum), x::AbstractArray{<:Real}; dims=:)
-    y, (_, ∂x) = rrule(sum, identity, x; dims=dims)
-    return y, ∂x
+    y,  inner_pullback = rrule(sum, identity, x; dims=dims)
+    function sum_pullback(ȳ)
+        NO_FIELDS, last(inner_pullback(ȳ))
+    end
+    return y, sum_pullback
 end
 
 function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
     y = sum(abs2, x; dims=dims)
-    ∂x = Rule(ȳ -> 2ȳ .* x)
-    return y, (DNERule(), ∂x)
+    function sum_abs2_pullback(ȳ)
+        return (NO_FIELDS, DNE(), @thunk(2ȳ .* x))
+    end
+    return y, sum_abs2_pullback
 end

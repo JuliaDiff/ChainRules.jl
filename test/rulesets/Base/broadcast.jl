@@ -1,20 +1,32 @@
 @testset "broadcast" begin
-    @testset "Misc. Tests" begin
-        @testset "sin.(x)" begin
+    @testset "sin.(x)" begin
+        @testset "rrule" begin
             x = rand(3, 3)
-            y, (dsin, dx) = rrule(broadcast, sin, x)
-
+            y, pullback = rrule(broadcast, sin, x)
             @test y == sin.(x)
-            @test extern(dx(One())) == cos.(x)
+            (dself, dsin, dx) = pullback(One())
+            @test dself == NO_FIELDS
+            @test dsin == DNE()
+            @test extern(dx) == cos.(x)
 
             x̄, ȳ = rand(), rand()
+            ∂x = pullback(ȳ)[3]
             @test isequal(
-                extern(ChainRules.accumulate(x̄, dx, ȳ)),
+                extern(ChainRules.accumulate(x̄, ∂x)),
                 x̄ .+ ȳ .* cos.(x)
             )
 
             x̄, ȳ = Zero(), rand(3, 3)
-            @test extern(accumulate(x̄, dx, ȳ)) == ȳ .* cos.(x)
+            ∂x = pullback(ȳ)[3]
+            @test extern(extern(accumulate(x̄, ∂x))) == ȳ .* cos.(x)
+        end
+        @testset "frule" begin
+            x = rand(3, 3)
+            y, pushforward = frule(broadcast, sin, x)
+            @test y == sin.(x)
+
+            ẏ = pushforward(NamedTuple(), NamedTuple(), One())
+            @test extern(ẏ) == cos.(x)
         end
     end
 end

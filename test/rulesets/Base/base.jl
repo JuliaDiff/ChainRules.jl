@@ -53,24 +53,38 @@
         end
         @testset "Multivariate" begin
             x, y = rand(2)
-            ratan = atan(x, y) # https://en.wikipedia.org/wiki/Atan2
-            u = x^2 + y^2
-            datan = y/u - 2x/u
-            r, df = frule(atan, x, y)
-            @test r === ratan
-            @test df(1, 2) === datan
-            r, (df1, df2) = rrule(atan, x, y)
-            @test r === ratan
-            @test df1(1) + df2(2) === datan
+            @testset "atan2" begin
+                # https://en.wikipedia.org/wiki/Atan2
+                ratan = atan(x, y)
+                u = x^2 + y^2
+                datan = y/u - 2x/u
 
-            rsincos = sincos(x)
-            dsincos = cos(x) - 2sin(x)
-            r, (df1, df2) = frule(sincos, x)
-            @test r === rsincos
-            @test df1(1) + df2(2) === dsincos
-            r, df = rrule(sincos, x)
-            @test r === rsincos
-            @test df(1, 2) === dsincos
+                r, pushforward = frule(atan, x, y)
+                @test r === ratan
+                @test pushforward(NamedTuple(), 1, 2) === datan
+
+                r, pullback = rrule(atan, x, y)
+                @test r === ratan
+                dself, df1, df2 = pullback(1)
+                @test dself == NO_FIELDS
+                @test df1 + 2df2 === datan
+            end
+
+            @testset "sincos" begin
+                rsincos = sincos(x)
+                dsincos = cos(x) - 2sin(x)
+
+                r, pushforward = frule(sincos, x)
+                @test r === rsincos
+                df1, df2 = pushforward(NamedTuple(), 1)
+                @test df1 + 2df2 === dsincos
+
+                r, pullback = rrule(sincos, x)
+                @test r === rsincos
+                ds, df = pullback(1, 2)
+                @test df === dsincos
+                @test ds === NO_FIELDS
+            end
         end
     end  # Trig
 
@@ -116,22 +130,26 @@
 
     @testset "*(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
-        z, (dx, dy) = rrule(*, x, y)
+        z, pullback = rrule(*, x, y)
 
         @test z == x * y
 
         z̄ = rand(3, 5)
+        (ds, dx, dy) = pullback(z̄)
+        
+        @test ds === NO_FIELDS
 
-        @test dx(z̄) == extern(accumulate(zeros(3, 2), dx, z̄))
-        @test dy(z̄) == extern(accumulate(zeros(2, 5), dy, z̄))
+        @test extern(dx) == extern(accumulate(zeros(3, 2), dx))
+        @test extern(dy) == extern(accumulate(zeros(2, 5), dy))
 
-        test_accumulation(rand(3, 2), dx, z̄, z̄ * y')
-        test_accumulation(rand(2, 5), dy, z̄, x' * z̄)
+        test_accumulation(rand(3, 2), dx)
+        test_accumulation(rand(2, 5), dy)
     end
 
     @testset "hypot(x, y)" begin
         x, y = rand(2)
-        h, dxy = frule(hypot, x, y)
+        h, pushforward = frule(hypot, x, y)
+        dxy(x, y) = pushforward(NamedTuple(), x, y)
 
         @test extern(dxy(One(), Zero())) === x / h
         @test extern(dxy(Zero(), One())) === y / h
@@ -149,7 +167,6 @@
 
     @testset "identity" begin
         rng = MersenneTwister(1)
-        n = 4
         rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
     end
