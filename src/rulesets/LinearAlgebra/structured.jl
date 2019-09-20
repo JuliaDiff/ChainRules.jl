@@ -19,6 +19,13 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     return diag(A), diag_pullback
 end
 
+function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
+    function times_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(Diagonal(Ȳ .* V)), @thunk(D.diag .* Ȳ))
+    end
+    return D.diag .* V, times_pullback
+end
+
 #####
 ##### `Symmetric`
 #####
