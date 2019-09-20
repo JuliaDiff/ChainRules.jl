@@ -9,9 +9,12 @@
     end
     @testset "::Diagonal * ::AbstractVector" begin
         rng, N = MersenneTwister(123456), 3
-        rrule_test(*, randn(rng, N),
-                   (Diagonal(randn(rng, N)), Diagonal(randn(rng, N))),
-                   (randn(rng, N), randn(rng, N)))
+        rrule_test(
+            *,
+            randn(rng, N),
+            (Diagonal(randn(rng, N)), Diagonal(randn(rng, N))),
+            (randn(rng, N), randn(rng, N)),
+        )
     end
     @testset "diag" begin
         rng, N = MersenneTwister(123456), 7
