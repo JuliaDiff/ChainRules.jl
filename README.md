@@ -3,7 +3,7 @@
 [![Travis](https://travis-ci.org/JuliaDiff/ChainRules.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ChainRules.jl)
 [![Coveralls](https://coveralls.io/repos/github/JuliaDiff/ChainRules.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ChainRules.jl?branch=master)
 
-Docs: 
+**Docs:* 
 [![](https://img.shields.io/badge/docs-master-blue.svg)](https://JuliaDiff.github.io/ChainRules.jl/dev)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDiff.github.io/ChainRules.jl/stable)
 
