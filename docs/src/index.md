@@ -80,6 +80,7 @@ end
 
 The input to the pushforward is often called the _perturbation_.
 If the function is `y = f(x)` often the pushforward will be written `ẏ = pushforward(ḟ, ẋ)`.
+(`ẏ` is commonly used to represent the permutation for `y`)
 
 !!! note
 
