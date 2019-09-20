@@ -14,6 +14,7 @@ makedocs(
     ],
 )
 
+@show ENV
 const repo="github.com/JuliaDiff/ChainRules.jl.git"
 const PR = get(ENV, "TRAVIS_PULL_REQUEST", "false")
 @show PR
