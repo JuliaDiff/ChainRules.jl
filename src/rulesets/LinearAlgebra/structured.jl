@@ -21,9 +21,9 @@ end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(Diagonal(Ȳ .* V)), @thunk(D.diag .* Ȳ))
+        return (NO_FIELDS, @thunk(Diagonal(Ȳ .* V)), @thunk(D * Ȳ))
     end
-    return D.diag .* V, times_pullback
+    return D * V, times_pullback
 end
 
 #####
