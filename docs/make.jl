@@ -2,6 +2,8 @@ using ChainRules
 using ChainRulesCore
 using Documenter
 
+@show ENV
+
 makedocs(
     modules=[ChainRules, ChainRulesCore],
     format=Documenter.HTML(prettyurls=false, assets = ["assets/chainrules.css"]),
