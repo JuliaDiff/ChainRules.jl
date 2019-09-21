@@ -7,7 +7,7 @@
 
     (s̄, Ā, d̄) = pullback(Ȳ)
     @test s̄ == NO_FIELDS
-    @test d̄ isa DNE
+    @test d̄ isa DoesNotExist
     @test extern(Ā) == reshape(Ȳ, (5, 4))
 
     B, pullback = rrule(reshape, A, 5, 4)
@@ -16,8 +16,8 @@
     Ȳ = randn(rng, 4, 5)
     (s̄, Ā, d̄1, d̄2) = pullback(Ȳ)
     @test s̄ == NO_FIELDS
-    @test d̄1 isa DNE
-    @test d̄2 isa DNE
+    @test d̄1 isa DoesNotExist
+    @test d̄2 isa DoesNotExist
     @test extern(Ā) == reshape(Ȳ, 5, 4)
 end
 
@@ -56,13 +56,13 @@ end
     @test y == [44, 44, 44, 44]
     (ds, dv, dd) = pullback(ones(4))
     @test ds === NO_FIELDS
-    @test dd isa DNE
+    @test dd isa DoesNotExist
     @test extern(dv) == 4
 
     y, pullback = rrule(fill, 2.0, (3, 3, 3))
     @test y == fill(2.0, (3, 3, 3))
     (ds, dv, dd) = pullback(ones(3, 3, 3))
     @test ds === NO_FIELDS
-    @test dd isa DNE
+    @test dd isa DoesNotExist
     @test dv ≈ 27.0
 end

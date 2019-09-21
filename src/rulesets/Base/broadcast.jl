@@ -24,7 +24,7 @@ end
 function rrule(::typeof(broadcast), f, x)
     values, derivs = _cast_diff(f, x)
     function broadcast_pullback(ΔΩ)
-        return (NO_FIELDS, DNE(), @thunk(ΔΩ .* derivs))
+        return (NO_FIELDS, DoesNotExist(), @thunk(ΔΩ .* derivs))
     end
     return values, broadcast_pullback
 end

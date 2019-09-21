@@ -29,7 +29,7 @@ function rrule(::typeof(getproperty), F::SVD, x::Symbol)
 
         update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
         ∂F = InplaceableThunk(∂, update)
-        return NO_FIELDS, ∂F, DNE()
+        return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_svd_pullback
 end
@@ -93,7 +93,7 @@ function rrule(::typeof(getproperty), F::Cholesky, x::Symbol)
                 ∂F = @thunk UpperTriangular(Ȳ')
             end
         end
-        return NO_FIELDS, ∂F, DNE()
+        return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end

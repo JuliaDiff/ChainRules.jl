@@ -58,7 +58,7 @@
 @scalar_rule(abs(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(hypot(x::Real), sign(x))
 @scalar_rule(hypot(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
-@scalar_rule(rem2pi(x, r::RoundingMode), (One(), DNE()))
+@scalar_rule(rem2pi(x, r::RoundingMode), (One(), DoesNotExist()))
 
 @scalar_rule(+(x), One())
 @scalar_rule(-(x), -1)

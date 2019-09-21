@@ -29,7 +29,7 @@ function rrule(::typeof(mean), f, x::AbstractArray{<:Real})
             _, _, ∂sum_x = sum_pullback(ȳ)
             extern(∂sum_x) / n
         end
-        return (NO_FIELDS, DNE(), ∂x)
+        return (NO_FIELDS, DoesNotExist(), ∂x)
     end
     return y_sum / n, mean_pullback
 end
