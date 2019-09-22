@@ -268,7 +268,7 @@ If work is only required for one of the returned differentials, then it should b
 
 If there are multiple return values, their computation should almost always be wrapped in a `@thunk`.
 
-Do _not_ wrap _variables_ in a `@thunk`, wrap the _computations_ that fill those variables in `@thunk`:
+Do _not_ wrap _variables_ in a `@thunk`; wrap the _computations_ that fill those variables in `@thunk`:
 
 ```julia
 # good:
