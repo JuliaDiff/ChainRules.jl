@@ -18,14 +18,26 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 
 **ChainRules is an AD-independent collection of rules to use in a differentiation system.**
 
-### `rrule` and `frule`
+### `frule` and `rrule`
 
-!!! terminology "`rrule` and `frule`"
-    `rrule` and `frule` are ChainRules specific terms.
+!!! terminology "`frule` and `rrule`"
+    `frule` and `rrule` are ChainRules specific terms.
     Their exact functioning is fairly ChainRules specific, though other tools have similar functions.
-    The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom sensitivities_.
+    The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom_gradients_, _custom sensitivities_.
+    (Potentially incorrectly, terminology is often abused.)
 
-The rules are encoded as `rrule`s and `frule`s, for use in reverse-mode and forward-mode differentiation respectively.
+The rules are encoded as `frule`s and `rrule`s, for use in forward-mode and reverse-mode differentiation respectively.
+
+Similarly, the `frule` is written:
+```julia
+function frule(::typeof(foo), args; kwargs...)
+    ...
+    return y, pushforward
+end
+```
+where `y = foo(args; kwargs...)`, and `pushforward` is a function to propagate the derivative information forwards at that point (more later).
+
+
 
 The `rrule` for some function `foo`, which takes the positional argument `args` and keyword argument `kwargs`, is written:
 
@@ -35,16 +47,8 @@ function rrule(::typeof(foo), args; kwargs...)
     return y, pullback
 end
 ```
-where `y` must be equal to `foo(args; kwargs...)`, and `pullback` is a function to propagate the derivative information backwards at that point (more later).
+again `y` must be equal to `foo(args; kwargs...)`, and `pullback` is a function to propagate the derivative information backwards at that point (more later).
 
-Similarly, the `frule` is written:
-```julia
-function frule(::typeof(foo), args; kwargs...)
-    ...
-    return y, pushforward
-end
-```
-again `y = foo(args; kwargs...)`, and `pushforward` is a function to propagate the derivative information forwards at that point (more later).
 
 Almost always the _pushforward_/_pullback_ will be declared locally within the `ffrule`/`rrule`, and will be a _closure_ over some of the other arguments.
 
