@@ -52,7 +52,7 @@ article#docs blockquote {
 
 div.admonition.terminology div.admonition-title:before {
   content: "Terminology: ";
-  font-family: inherit
+  font-family: inherit;
   font-weight: bold;
 }
 div.admonition.terminology div.admonition-title {
