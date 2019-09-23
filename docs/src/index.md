@@ -15,7 +15,6 @@ ChainRules is a programmatic repository of that knowledge, with the generalizati
 
 [Autodiff (AD)](https://en.wikipedia.org/wiki/Automatic_differentiation) tools roughly work by reducing a problem down to simple parts that they know the rules for, and then combining those rules.
 Knowing rules for more complicated functions speeds up the autodiff process as it doesn't have to break things down as much.
-For an
 
 **ChainRules is an AD-independent collection of rules to use in a differentiation system.**
 
