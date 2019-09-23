@@ -65,6 +65,20 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
 
 #### Core Idea
 
+
+
+----
+##### TODO: Incorperate this:
+
+###### wesselb 9 days ago Member
+Are these ideas consistent with what pushforward and pullback do? I'm not familiar with ChainRules and its internals, but I anticipated pushforward and pullback to do the following: Consider a computation x -> u -> f(u) = v -> y. Then pushforward for f turns du/dx into dv/dx, whereas pullback turns dy/dv into dy/du. So pushforward pushes a "sensitivity with respect to the input through the function", whereas pullback pulls a "sensitivity with respect to the output back through the function". Perhaps that's what the below convey, not sure... maybe I'm just rambling.
+
+###### @jekbradbury
+Yeah, I think the below is accurate for the pushforward but misleading for the pullback. The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
+
+If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
+----------
+
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
  - The **pullback** takes a wobble in the _output space_, and tells you what wiggle you would need to make in the _input space_ to achieve it.
 
@@ -82,7 +96,7 @@ end
 ```
 
 The input to the pushforward is often called the _perturbation_.
-If the function is `y = f(x)` often the pushforward will be written `ẏ = pushforward(ḟ, ẋ)`.
+If the function is `y = f(x)` often the pushforward will be written `ẏ = pushforward(ṡelf, ẋ)`.
 (`ẏ` is commonly used to represent the pertubation for `y`)
 
 !!! note
@@ -102,7 +116,7 @@ end
 ```
 
 The input to the pullback is often called the _seed_.
-If the function is `y = f(x)` often the pullback will be written `x̄ = pullback(ȳ)`.
+If the function is `y = f(x)` often the pullback will be written `s̄elf, x̄ = pullback(ȳ)`.
 
 !!! note
 
@@ -112,11 +126,13 @@ If the function is `y = f(x)` often the pullback will be written `x̄ = pullback
     Sometimes _perturbation_, _seed_, and _sensitivity_ will be used interchangeably, depending on task/subfield (sensitivity analysis and perturbation theory are apparently very big on just calling everything _sensitivity_ or _perturbation_ respectively.)
     At the end of the day, they are all _wiggles_ or _wobbles_.
 
-### Self derivative `Δself`, `∂self` etc.
+### Self derivative `Δself`, `∂self`, `s̄elf`, `ṡelf` etc.
 
-!!! terminology
-    To my knowledge there is no standard terminology for this.
+!!! terminology  `Δself`, `∂self`, `s̄elf`, `ṡelf`
+    It is the derivatives with respect to the internal fields of the function.
+    To the best of our knowledge there is no standard terminology for this.
     Other good names might be `Δinternal`/`∂internal`.
+
 
 From the mathematical perspective, one may have been wondering what all this `Δself`, `∂self` is.
 After all, a function with two inputs, say `f(a, b)`, only has two partial derivatives:
