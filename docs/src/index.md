@@ -124,7 +124,7 @@ For example a closure has the fields it closes over; a callable object (i.e. a f
 
 **Thus every function is treated as having the extra implicit argument `self`, which captures those fields.**
 So every `pushforward` takes in an extra argument, which is ignored unless the original function has fields.
-In is common to write `function foo_pushforward(_, Δargs...)` in the case when `foo` does not have fields.
+It is common to write `function foo_pushforward(_, Δargs...)` in the case when `foo` does not have fields.
 Similarly every `pullback` return an extra `∂self`, which for things without fields is the constant `NO_FIELDS`, indicating there are no fields within the function itself.
 
 #### Pushforward / Pullback summary
