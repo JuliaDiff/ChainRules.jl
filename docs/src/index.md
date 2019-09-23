@@ -25,7 +25,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
     Their exact functioning is fairly ChainRules specific, though other tools have similar functions.
     The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom sensitivities_.
 
-The rules are encoded as `rrules` and `frules`, for use in reverse-mode and forward-mode differentiation respectively.
+The rules are encoded as `rrule`s and `frule`s, for use in reverse-mode and forward-mode differentiation respectively.
 
 The `rrule` for some function `foo`, which takes the positional argument `args` and keyword argument `kwargs`, is written:
 
