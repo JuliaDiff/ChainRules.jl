@@ -52,7 +52,7 @@ article#docs blockquote {
 
 div.admonition.terminology div.admonition-title:before {
 	content: "Terminology: ";
-    font-family: "Liberation Mono", "Consolas", "DejaVu Sans Mono", "Ubuntu Mono", "Courier New", "andale mono", "lucida console", monospace;
+    font-family: inherit
 	font-weight: bold;
 }
 div.admonition.terminology div.admonition-title {
