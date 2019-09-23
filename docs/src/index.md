@@ -169,8 +169,9 @@ And we thus have the partial derivatives ``s̄elf, = \dfrac{∂f}{∂s̄elf}``, 
 ### Differentials
 
 The values that come back from pullbacks or pushforwards are not always the same type as the input/outputs of the original function.
-They are differentials; differency-equivalents.
-A differential might be such a regular type, like a `Number`, or a `Matrix`, or it might be one of the `AbstractDifferential` subtypes.
+They are differentials, which correspond roughly to something able to represent the difference between two values of the original types.
+A differential might be such a regular type, like a `Number`, or a `Matrix`, matching to the original type;
+or it might be one of the `AbstractDifferential` subtypes.
 
 Differentials support a number of operations.
 Most importantly: `+` and `*`, which let them act as mathematical objects.
