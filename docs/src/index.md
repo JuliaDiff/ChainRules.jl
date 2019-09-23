@@ -66,7 +66,7 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
 #### Core Idea
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
- - The **pullback** takes a wobble in the _output space_, and tells you what wiggle you would need to make in the _input_ space to achieve it.
+ - The **pullback** takes a wobble in the _output space_, and tells you what wiggle you would need to make in the _input space_ to achieve it.
 
 #### The anatomy of pushforward and pullback
 
@@ -83,7 +83,7 @@ end
 
 The input to the pushforward is often called the _perturbation_.
 If the function is `y = f(x)` often the pushforward will be written `ẏ = pushforward(ḟ, ẋ)`.
-(`ẏ` is commonly used to represent the permutation for `y`)
+(`ẏ` is commonly used to represent the pertubation for `y`)
 
 !!! note
 
@@ -119,7 +119,7 @@ If the function is `y = f(x)` often the pullback will be written `x̄ = pullback
     Other good names might be `Δinternal`/`∂internal`.
 
 From the mathematical perspective, one may have been wondering what all this `Δself`, `∂self` is.
-After all a function with two inputs, say `f(a, b)`, only has two partial derivatives:
+After all, a function with two inputs, say `f(a, b)`, only has two partial derivatives:
 ``\dfrac{∂f}{∂a}``, ``\dfrac{∂f}{∂b}``.
 Why then does a `pushforward` take in this extra `Δself`, and why does a `pullback` return this extra `∂self`?
 
@@ -129,7 +129,7 @@ For example a closure has the fields it closes over; a callable object (i.e. a f
 **Thus every function is treated as having the extra implicit argument `self`, which captures those fields.**
 So every `pushforward` takes in an extra argument, which is ignored unless the original function has fields.
 It is common to write `function foo_pushforward(_, Δargs...)` in the case when `foo` does not have fields.
-Similarly every `pullback` return an extra `∂self`, which for things without fields is the constant `NO_FIELDS`, indicating there are no fields within the function itself.
+Similarly every `pullback` returns an extra `∂self`, which for things without fields is the constant `NO_FIELDS`, indicating there are no fields within the function itself.
 
 #### Pushforward / Pullback summary
 
@@ -161,10 +161,10 @@ Similarly, the most trivial use of `rrule` and returned `pullback` is to calcula
 ```julia
 y, f_pullback = rrule(f, a, b, c)
 ∇f = f_pullback(1)  # for appropriate `1`-like seed.
-s̄, ā, b̄, c̄ = ∇f
+s̄elf, ā, b̄, c̄ = ∇f
 ```
 Then we have that `∇f` is the _gradient_ of `f` at `(a, b, c)`.
-And we thus have the partial derivatives ``f̄ = \dfrac{∂f}{∂f}``, ``ā` = \dfrac{∂f}{∂a}``, ``b̄ = \dfrac{∂f}{∂b}``, ``c̄ = \dfrac{∂f}{∂c}``, including the and the self-partial derivative, ``f̄``.
+And we thus have the partial derivatives ``s̄elf, = \dfrac{∂f}{∂s̄elf}``, ``ā` = \dfrac{∂f}{∂a}``, ``b̄ = \dfrac{∂f}{∂b}``, ``c̄ = \dfrac{∂f}{∂c}``, including the and the self-partial derivative, ``s̄elf,``.
 
 ### Differentials
 
@@ -173,7 +173,7 @@ They are differentials; differency-equivalents.
 A differential might be such a regular type, like a `Number`, or a `Matrix`, or it might be one of the `AbstractDifferential` subtypes.
 
 Differentials support a number of operations.
-Most importantly: `+` and `*` which lets them act as mathematically objects.
+Most importantly: `+` and `*`, which let them act as mathematical objects.
 And `extern` which converts `AbstractDifferential` types into a conventional non-ChainRules type.
 
 The most important `AbstractDifferential`s when getting started are the ones about avoiding work:
@@ -261,9 +261,12 @@ Zygote.gradient(foo, x)
 
 ## On writing good `rrule` / `frule` methods
 
-### Return Zero or One
+### Use `Zero()` or `One()` as return value
 
-Rather than `0` or `1` or even rather than `zeros(n)`, `ones(n)`, or the identity matrix `I`.
+The `Zero()` and `One()` differential objects exist as an alternative to directly returning
+`0` or `zeros(n)`, and `1` or `I`.
+They allow more optimal computation when chaining pullbacks/pushforwards, to avoid work.
+They should be used where possible.
 
 ### Use `Thunk`s appropriately:
 
@@ -342,7 +345,7 @@ It is very easy to check gradients or derivatives with a computer algebra system
  - `dx` could be anything, including a pullback. It really should not show up outside of tests.
  - `v̇` is a derivative of the input moving forward: ``v̇ = \frac{∂v}{∂x}`` for input ``x``, intermediate value ``v``.
  - `v̄` is a derivative of the output moving backward: ``v̄ = \frac{∂y}{∂v}`` for output ``y``, intermediate value ``v``.
- - `Ω` is often used as the return value of the function having the rule found for. Especially, (but not exclusively.) for scalar functions.
+ - `Ω` is often used as the return value of the function. Especially, but not exclusively, for scalar functions.
      - `ΔΩ` is thus a seed for the pullback.
      - `∂Ω` is thus the output of a pushforward.
 
@@ -351,6 +354,6 @@ It is very easy to check gradients or derivatives with a computer algebra system
 You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`, and similarly for `rrule` returing `f(x)` and the pullback for `f` at `x`.
 Why not just return the pushforward/pullback, and let the user call `f(x)` to get the answer seperately?
 
-Their are two reasons the rules also create the `f(x)`.
+There are two reasons the rules also calculate the `f(x)`.
 1. For some rules the output value is used in the definition of its propagator. For example `tan`.
 2. For some rules an alternative way of calculating `f(x)` can give the same answer while also generating intermediate values that can be used in the calculations within the propagator.
