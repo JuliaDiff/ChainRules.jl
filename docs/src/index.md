@@ -362,3 +362,12 @@ Why not just return the pushforward/pullback, and let the user call `f(x)` to ge
 There are two reasons the rules also calculate the `f(x)`.
 1. For some rules the output value is used in the definition of its propagator. For example `tan`.
 2. For some rules an alternative way of calculating `f(x)` can give the same answer while also generating intermediate values that can be used in the calculations within the propagator.
+
+### Where are the gradients for keyword arguments?
+_pullbacks_ do not return a gradient for keyword arguments;
+similarly _pushfowards_ do not accept a pertubation for keyword arguments.
+This is because in practice functions are very rarely differentiable with respect to keyword arguments.
+As a rule keyword arguments tend to control side-effects, like logging verbsoity,
+or to be functionality changing to perform a different operation, e.g. `dims=3`, and thus not differentiable.
+To the best of our knowledge no julia AD system, with support for the definition of custom primatives, supports differentating with respect to keyword arguments.
+At some point in the future ChainRules may support these. Maybe.
