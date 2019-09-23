@@ -77,6 +77,14 @@ Are these ideas consistent with what pushforward and pullback do? I'm not famili
 Yeah, I think the below is accurate for the pushforward but misleading for the pullback. The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
 
 If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
+
+
+
+This is still misleading for the pullback. Reposting a comment that got lost:
+The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
+
+If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
+
 ----------
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
@@ -135,7 +143,7 @@ If the function is `y = f(x)` often the pullback will be written `s̄elf, x̄ = 
 
 
 From the mathematical perspective, one may have been wondering what all this `Δself`, `∂self` is.
-After all, a function with two inputs, say `f(a, b)`, only has two partial derivatives:
+Given that a function with two inputs, say `f(a, b)`, only has two partial derivatives:
 ``\dfrac{∂f}{∂a}``, ``\dfrac{∂f}{∂b}``.
 Why then does a `pushforward` take in this extra `Δself`, and why does a `pullback` return this extra `∂self`?
 
