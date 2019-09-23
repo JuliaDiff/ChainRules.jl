@@ -61,7 +61,7 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
     But any geometer will tell you these are the super-boring flat cases. Some will also frown at you.
     Other terms that may be used include for _pullback_ the **backpropagator**, and by analogy for _pushforward_ the **forwardpropagator**, thus these are the _propagators_.
     These are also good names because effectively they propagate wiggles and wobbles through them, via the chain rule.
-    (the term **backpropagator** may originate with ["Lambda The Ultimate Backpropagator"](http://www-bcl.cs.may.ie/~barak/papers/toplas-reverse.pdf) by Bearlmutter and Siskind, 2008)
+    (the term **backpropagator** may originate with ["Lambda The Ultimate Backpropagator"](http://www-bcl.cs.may.ie/~barak/papers/toplas-reverse.pdf) by Pearlmutter and Siskind, 2008)
 
 #### Core Idea
 
