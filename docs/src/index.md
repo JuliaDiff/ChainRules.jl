@@ -290,10 +290,7 @@ In the bad example `foo(x)` gets computed eagerly, and all that the thunk is doi
 ### Be careful with using `adjoint` when you mean `transpose`
 
 Remember for complex numbers `a'` (i.e. `adjoint(a)`) takes the complex conjugate.
-Instead you probably want `transpose(a)`.
-
-While there are arguments that for reverse-mode taking the adjoint is correct, it is not currently the behavior of ChainRules to do so.
-Feel free to open an issue to discuss it.
+Instead you probably want `transpose(a)`, unless you've already restricted `a` to be a `AbstractMatrix{<:Real}`.
 
 ### Code Style
 
@@ -308,11 +305,19 @@ function frule(::typeof(foo), x)
     end
     return Y, foo_pushforward
 end
+#== output
+julia> frule(foo, 2)
+(4, var"#foo_pushforward#11"())
+==#
 
 # bad:
 function frule(::typeof(foo), x)
     return foo(x), (_, ẋ) -> bar(ẋ)
 end
+#== output:
+julia> frule(foo, 2)
+(4, var"##9#10"())
+==#
 ```
 
 While this is more verbose, it ensures that if an error is thrown during the `pullback`/`pushforward` the [`gensym`](https://docs.julialang.org/en/v1/base/base/#Base.gensym) name of the local function will include the name you gave it.
@@ -326,9 +331,9 @@ Take a look at existing test and you should see how to do stuff.
 
 !!! warning
     Use finite differencing to test derivatives.
-    Don't use analytical derivations for derivatives in the tests!
-    Since the rules are analytic expressions, re-writing those same expressions in the tests
-    can not be an effective way to test, and will give misleading test coverage.
+    Don't use analytical derivations for derivatives in the tests.
+    Those are what you use to define the rules, and so can not be confidently used in the test.
+    If you misread/misunderstood them, then your tests/implementation will have the same mistake.
 
 ### CAS systems are your friends.
 
