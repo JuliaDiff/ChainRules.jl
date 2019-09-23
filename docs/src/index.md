@@ -50,7 +50,7 @@ end
 again `y` must be equal to `foo(args; kwargs...)`, and `pullback` is a function to propagate the derivative information backwards at that point (more later).
 
 
-Almost always the _pushforward_/_pullback_ will be declared locally within the `ffrule`/`rrule`, and will be a _closure_ over some of the other arguments.
+Almost always the _pushforward_/_pullback_ will be declared locally within the `frule`/`rrule`, and will be a _closure_ over some of the other arguments.
 
 ### The propagators: pushforward and pullback
 
@@ -134,7 +134,7 @@ Similarly every `pullback` returns an extra `∂self`, which for things without 
 #### Pushforward / Pullback summary
 
 - **Pushforward:**
-    - returned by `ffrule`
+    - returned by `frule`
     - takes input space wiggles, gives output space wobbles
     - 1 argument per original function argument + 1 for the function itself
     - 1 return per original function return
