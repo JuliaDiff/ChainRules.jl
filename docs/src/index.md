@@ -271,7 +271,7 @@ using FiniteDifferences
 central_fdm(5, 1)(foo, x)
 # -2.0638950738670734
 
-#### Find dfoo/dx via finite-differences ForwardDiff.jl
+#### Find dfoo/dx via ForwardDiff.jl
 using ForwardDiff
 ForwardDiff.derivative(foo, x)
 # -2.0638950738662625
