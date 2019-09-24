@@ -18,7 +18,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 
 **ChainRules is an AD-independent collection of rules to use in a differentiation system.**
 
-!!! terminology The whole field is a mess.
+!!! note "The whole field is a mess for terminology"
     It isn't just ChainRules, it is everyone.
     Internally ChainRules tries to be consistent.
     Help with that is always welcomed.
