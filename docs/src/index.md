@@ -67,7 +67,8 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
 
 
 
-----
+
+<!-----
 ##### TODO: Incorperate this:
 
 ###### wesselb 9 days ago Member
@@ -79,16 +80,44 @@ Yeah, I think the below is accurate for the pushforward but misleading for the p
 If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
 
 
-
 This is still misleading for the pullback. Reposting a comment that got lost:
 The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
 
 If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
 
-----------
+---------->
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
- - The **pullback** takes a wobble in the _output space_, and tells you what wiggle you would need to make in the _input space_ to achieve it.
+ - The **pullback** takes wobblyness information with respect to the function's output, and tells the equivalent wobblyness with repect to the functions input.
+
+Definitions:
+ - wobblyness: a sensitivity
+ - wobble: a differential in the output space
+ - wiggle: a differential in the input space
+
+#### Math
+
+If I have some functions: ``g(a)``, `h(b)` and ``f(x)=g(h(x))``,
+∂
+and I know the pullback of ``g``, ``at h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
+
+and I know the deriviative of h with respect to its input ``b`` at ``g(x)``, written:
+``\left.\dfrac{\text{∂h}{\text{∂b}\right|_{b=g(x)}``
+
+Then I can use the pullback to find: ``\dfrac{\text{∂f}{\text{∂x}``
+
+``\dfrac{\text{∂f}{\text{∂x}=\mathrm{\mathrm{pullback}_{g(a)|a=h(x)}}\left(\left.\dfrac{\text{∂h}{\text{∂b}\right|_{b=g(x)}\right)``
+
+—
+
+If I know the deriviative of g with respect to its input a at x, written: ``\left.\dfrac{\text{∂g}{\text{∂a}\right|_{a=x}``
+
+and I know the pushforward of ``h`` at ``g(x)`` written: ``\mathrm{pushforward}_{h(b)|b=g(x)}``
+
+then I can use the pushforward to find ``\dfrac{\text{∂f}{\text{∂x}``
+
+``\dfrac{\text{∂f}{\text{∂x}=\mathrm{pushforward}_{h(b)|b=g(x)}\left(\left.\dfrac{\text{∂g}{\text{∂a}\right|_{a=x}\right)``
+
 
 #### The anatomy of pushforward and pullback
 
