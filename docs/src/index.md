@@ -276,7 +276,7 @@ using ForwardDiff
 ForwardDiff.derivative(foo, x)
 # -2.0638950738662625
 
-#### Find dfoo/dx via finite-differences Zygote.jl
+#### Find dfoo/dx via Zygote.jl
 using Zygote
 Zygote.gradient(foo, x)
 # (-2.0638950738662625,)
