@@ -66,10 +66,9 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
 #### Core Idea
 
 
-
-
-<!-----
-##### TODO: Incorperate this:
+```@raw html
+<!-- ---
+This is attempt to condense this feedback
 
 ###### wesselb 9 days ago Member
 Are these ideas consistent with what pushforward and pullback do? I'm not familiar with ChainRules and its internals, but I anticipated pushforward and pullback to do the following: Consider a computation x -> u -> f(u) = v -> y. Then pushforward for f turns du/dx into dv/dx, whereas pullback turns dy/dv into dy/du. So pushforward pushes a "sensitivity with respect to the input through the function", whereas pullback pulls a "sensitivity with respect to the output back through the function". Perhaps that's what the below convey, not sure... maybe I'm just rambling.
@@ -85,7 +84,9 @@ The pullback doesn’t take an output wobble and produce an input wiggle (that w
 
 If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
 
----------->
+-------- -->
+```
+
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
  - The **pullback** takes wobblyness information with respect to the function's output, and tells the equivalent wobblyness with repect to the functions input.
