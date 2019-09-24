@@ -188,7 +188,7 @@ y, f_pullback = rrule(f, a, b, c)
 s̄elf, ā, b̄, c̄ = ∇f
 ```
 Then we have that `∇f` is the _gradient_ of `f` at `(a, b, c)`.
-And we thus have the partial derivatives ``s̄elf, = \dfrac{∂f}{∂s̄elf}``, ``ā` = \dfrac{∂f}{∂a}``, ``b̄ = \dfrac{∂f}{∂b}``, ``c̄ = \dfrac{∂f}{∂c}``, including the and the self-partial derivative, ``s̄elf,``.
+And we thus have the partial derivatives ``\overline{\mathrm{self}}, = \dfrac{∂f}{∂\mathrm{self}}``, ``\overline{a} = \dfrac{∂f}{∂a}``, ``\overline{b} = \dfrac{∂f}{∂b}``, ``\overline{c} = \dfrac{∂f}{∂c}``, including the and the self-partial derivative, ``\overline{\mathrm{self}}``.
 
 ### Differentials
 
