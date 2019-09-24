@@ -18,17 +18,21 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
 
 **ChainRules is an AD-independent collection of rules to use in a differentiation system.**
 
+!!! terminology The whole field is a mess.
+    It isn't just ChainRules, it is everyone.
+    Internally ChainRules tries to be consistent.
+    Help with that is always welcomed.
+
 ### `frule` and `rrule`
 
 !!! terminology "`frule` and `rrule`"
     `frule` and `rrule` are ChainRules specific terms.
     Their exact functioning is fairly ChainRules specific, though other tools have similar functions.
     The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom_gradients_, _custom sensitivities_.
-    (Potentially incorrectly, terminology is often abused.)
 
 The rules are encoded as `frule`s and `rrule`s, for use in forward-mode and reverse-mode differentiation respectively.
 
-Similarly, the `frule` is written:
+The `frule` is written:
 ```julia
 function frule(::typeof(foo), args; kwargs...)
     ...
@@ -59,47 +63,42 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
     _Pushforward_ and _pullback_ are fancy words that the autodiff community adopted from Differential Geometry.
     The are broadly in agreement with the use of [pullback](https://en.wikipedia.org/wiki/Pullback_(differential_geometry)) and [pushforward](https://en.wikipedia.org/wiki/Pushforward_(differential)) in differential geometry.
     But any geometer will tell you these are the super-boring flat cases. Some will also frown at you.
+    They are also sometimes described in terms of the jacobian:
+    The _pushforward_ is _jacobian vector product_ (`jvp`), and _pullback_ is _jacobian transpose vector product_ (`j'vp`).
     Other terms that may be used include for _pullback_ the **backpropagator**, and by analogy for _pushforward_ the **forwardpropagator**, thus these are the _propagators_.
     These are also good names because effectively they propagate wiggles and wobbles through them, via the chain rule.
     (the term **backpropagator** may originate with ["Lambda The Ultimate Backpropagator"](http://www-bcl.cs.may.ie/~barak/papers/toplas-reverse.pdf) by Pearlmutter and Siskind, 2008)
 
 #### Core Idea
 
-
-```@raw html
-<!-- ---
-This is attempt to condense this feedback
-
-###### wesselb 9 days ago Member
-Are these ideas consistent with what pushforward and pullback do? I'm not familiar with ChainRules and its internals, but I anticipated pushforward and pullback to do the following: Consider a computation x -> u -> f(u) = v -> y. Then pushforward for f turns du/dx into dv/dx, whereas pullback turns dy/dv into dy/du. So pushforward pushes a "sensitivity with respect to the input through the function", whereas pullback pulls a "sensitivity with respect to the output back through the function". Perhaps that's what the below convey, not sure... maybe I'm just rambling.
-
-###### @jekbradbury
-Yeah, I think the below is accurate for the pushforward but misleading for the pullback. The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
-
-If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
-
-
-This is still misleading for the pullback. Reposting a comment that got lost:
-The pullback doesn’t take an output wobble and produce an input wiggle (that would be left-multiplying by the inverse of the Jacobian); it takes an output sensitivity (“how much does the loss function wobble when you wiggle the output”) and produces an input sensitivity (“how much does the loss function wobble when you wiggle the input”). This corresponds to left-multiplying by the adjoint of the Jacobian—an important distinction!
-
-If the output is the scalar loss and you call the pullback on the scalar 1, then it will produce the gradient of the input (also a vector in the cotangent space, aka a wobble-wiggle ratio).
-
--------- -->
-```
-
+##### Less formally
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
  - The **pullback** takes wobblyness information with respect to the function's output, and tells the equivalent wobblyness with repect to the functions input.
 
-Definitions:
- - wobblyness: a sensitivity
- - wobble: a differential in the output space
- - wiggle: a differential in the input space
+##### More formally
+The **pushforward** of ``f`` takes the _sensitivity_ of the input of ``f`` to a quantity, and gives the _sensitivity_ of the output of ``f`` to that quantity
+The **pullback** of ``f`` takes the _sensitivity_ of a quantity to the output of ``f``, and gives the _sensitivity_ of that quantity to the input of ``f``.
 
 #### Math
+This is all a bit simplied by talking in 1D.
 
+##### Lighter Math
+For a chain of expressions:
+```
+a = f(x)
+b = g(a)
+c = h(b)
+```
+
+The pullback of `g`, which incorperates the knowledge of `∂b/∂a`,
+applies the chainrule to go from `∂c/∂b` to `∂c/∂a`.
+
+the pushforward of `g`,  which also incorperates the knowledge of `∂b/∂a`,
+applies the chainrule to go from `∂a/∂x` to `∂b/∂x`.
+
+#### Heavier Math
 If I have some functions: ``g(a)``, ``h(b)`` and ``f(x)=g(h(x))``,
-∂
 and I know the pullback of ``g``, at ``h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
 
 and I know the deriviative of h with respect to its input ``b`` at ``g(x)``, written:
