@@ -399,17 +399,26 @@ It is very easy to check gradients or derivatives with a computer algebra system
 
 ### What is up with the different symbols?
 
+#### `Δx`, `∂x`, `dx`
+ChainRules uses these perhaps atyptically.
+As a notation that is the same across propagators, regardless of direction. (Incontrast see `ẋ` and `x̄` below)
+
  - `Δx` is the input to a propagator, (i.e a _seed_ for a _pullback_; or a _perturbation_ for a _pushforward_)
  - `∂x` is the output of a propagator
- - `dx` could be anything, including a pullback. It really should not show up outside of tests.
+ - `dx` could be anything, including a pullback/pushforward. It really should not show up outside of tests.
+
+
+#### ``\dot{y} = \dfrac{∂y}{∂x} = \overbar{x}``
  - `v̇` is a derivative of the input moving forward: ``v̇ = \frac{∂v}{∂x}`` for input ``x``, intermediate value ``v``.
  - `v̄` is a derivative of the output moving backward: ``v̄ = \frac{∂y}{∂v}`` for output ``y``, intermediate value ``v``.
+
+#### others
  - `Ω` is often used as the return value of the function. Especially, but not exclusively, for scalar functions.
      - `ΔΩ` is thus a seed for the pullback.
      - `∂Ω` is thus the output of a pushforward.
 
-### Why does `frule` and `rrule` return the function evaluation?
 
+### Why does `frule` and `rrule` return the function evaluation?
 You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`, and similarly for `rrule` returing `f(x)` and the pullback for `f` at `x`.
 Why not just return the pushforward/pullback, and let the user call `f(x)` to get the answer seperately?
 
