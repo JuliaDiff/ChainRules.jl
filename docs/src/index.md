@@ -102,21 +102,21 @@ If I have some functions: ``g(a)``, `h(b)` and ``f(x)=g(h(x))``,
 and I know the pullback of ``g``, ``at h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
 
 and I know the deriviative of h with respect to its input ``b`` at ``g(x)``, written:
-``\left.\dfrac{\text{∂h}{\text{∂b}\right|_{b=g(x)}``
+``\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}``
 
-Then I can use the pullback to find: ``\dfrac{\text{∂f}{\text{∂x}``
+Then I can use the pullback to find: ``\dfrac{∂f}{∂x}``
 
-``\dfrac{\text{∂f}{\text{∂x}=\mathrm{\mathrm{pullback}_{g(a)|a=h(x)}}\left(\left.\dfrac{\text{∂h}{\text{∂b}\right|_{b=g(x)}\right)``
+``\dfrac{∂f}{∂x}=\mathrm{\mathrm{pullback}_{g(a)|a=h(x)}}\left(\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}\right)``
 
 —
 
-If I know the deriviative of g with respect to its input a at x, written: ``\left.\dfrac{\text{∂g}{\text{∂a}\right|_{a=x}``
+If I know the deriviative of g with respect to its input a at x, written: ``\left.\dfrac{∂g}{∂a}\right|_{a=x}``
 
 and I know the pushforward of ``h`` at ``g(x)`` written: ``\mathrm{pushforward}_{h(b)|b=g(x)}``
 
-then I can use the pushforward to find ``\dfrac{\text{∂f}{\text{∂x}``
+then I can use the pushforward to find ``\dfrac{∂f}{∂x}``
 
-``\dfrac{\text{∂f}{\text{∂x}=\mathrm{pushforward}_{h(b)|b=g(x)}\left(\left.\dfrac{\text{∂g}{\text{∂a}\right|_{a=x}\right)``
+``\dfrac{∂f}{∂x}=\mathrm{pushforward}_{h(b)|b=g(x)}\left(\left.\dfrac{∂g}{∂a}\right|_{a=x}\right)``
 
 
 #### The anatomy of pushforward and pullback
