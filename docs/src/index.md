@@ -97,9 +97,9 @@ Definitions:
 
 #### Math
 
-If I have some functions: ``g(a)``, `h(b)` and ``f(x)=g(h(x))``,
+If I have some functions: ``g(a)``, ``h(b)`` and ``f(x)=g(h(x))``,
 ∂
-and I know the pullback of ``g``, ``at h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
+and I know the pullback of ``g``, at ``h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
 
 and I know the deriviative of h with respect to its input ``b`` at ``g(x)``, written:
 ``\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}``
