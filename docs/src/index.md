@@ -160,7 +160,9 @@ If the function is `y = f(x)` often the pullback will be written `s̄elf, x̄ = 
     The pullback returns one `∂arg` per `arg` to the original function, plus one for the fields of the function itself (explained below).
 
 !!! terminology
-    Sometimes _perturbation_, _seed_, and _sensitivity_ will be used interchangeably, depending on task/subfield (sensitivity analysis and perturbation theory are apparently very big on just calling everything _sensitivity_ or _perturbation_ respectively.)
+    Sometimes _perturbation_, _seed_, and even _sensitivity_ will be used interchangeably.
+    They are not generally synonymous, and ChainRules shouldn't mix them up.
+    One must be careful when reading literature.
     At the end of the day, they are all _wiggles_ or _wobbles_.
 
 ### Self derivative `Δself`, `∂self`, `s̄elf`, `ṡelf` etc.
