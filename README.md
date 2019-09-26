@@ -19,7 +19,7 @@ Here are some of the core features of the package:
 
 - Mixed-mode composability without being coupled to a specific AD implementation.
 - Extensible rules: package authors can add rules (and thus AD support) to the functions in their packages in their packages. They don't need to edit the ChainRules repo.
-- Control-inverted design: rule authors can fully specify derivatives in a concise manner while naturally allowing the caller to compute only what they need.
+- Control-inverted design: rule authors can fully specify derivatives in a concise manner that supports computational efficiencies, so we will only compute as much as the user requests.
 - Propagation semantics built-in, with default implementations that allow rule authors to easily opt-in to common optimizations (fusion, increment elision, memoization, etc.).
 
 
