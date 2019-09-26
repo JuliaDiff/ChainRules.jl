@@ -11,7 +11,8 @@ The ChainRules package provides a variety of common utilities that can be used b
 
 The Core logic of ChainRules is implemented in [ChainRulesCore.jl](https://github.com/JuliaDiff/ChainRulesCore.jl).
 If adding ChainRules support to your package (defining `rrule`s or `ffules` you only need to depend on that very light-weight package.
-This repo: ChainRules.jl is what people actually use, it reexports all the ChainRules functionality,
+This repository contains ChainRules.jl, which is what people actually use directly. 
+ChainRules reexports all the ChainRulesCore functionality, and has all the rules for the Julia standard library.
 and has all the rules for the julia standard library.
 
 
