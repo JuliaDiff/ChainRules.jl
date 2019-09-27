@@ -1,3 +1,5 @@
+<img src="docs/src/assets/logo.svg"/>
+
 # ChainRules
 
 [![Travis](https://travis-ci.org/JuliaDiff/ChainRules.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ChainRules.jl)
