@@ -10,7 +10,7 @@
 The ChainRules package provides a variety of common utilities that can be used by downstream automatic differentiation (AD) tools to define and execute forward-, reverse-, and mixed-mode primitives.
 
 The Core logic of ChainRules is implemented in [ChainRulesCore.jl](https://github.com/JuliaDiff/ChainRulesCore.jl).
-If adding ChainRules support to your package (defining `rrule`s or `ffules` you only need to depend on that very light-weight package.
+To add ChainRules support to your package, by defining new `rrule`s or `ffrules`, you only need to depend on the very light-weight package ChainRulesCore.jl.
 This repository contains ChainRules.jl, which is what people actually use directly. 
 ChainRules reexports all the ChainRulesCore functionality, and has all the rules for the Julia standard library.
 and has all the rules for the julia standard library.
