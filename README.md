@@ -1,4 +1,4 @@
-<img src="docs/src/assets/logo.svg" style="max-width:256px;"/>
+![]("docs/src/assets/logo.svg" =256x256")
 # ChainRules
 
 [![Travis](https://travis-ci.org/JuliaDiff/ChainRules.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ChainRules.jl)
