@@ -15,7 +15,6 @@ The core logic of ChainRules is implemented in [ChainRulesCore.jl](https://githu
 To add ChainRules support to your package, by defining new `rrule`s or `frules`, you only need to depend on the very light-weight package ChainRulesCore.jl.
 This repository contains ChainRules.jl, which is what people actually use directly. 
 ChainRules reexports all the ChainRulesCore functionality, and has all the rules for the Julia standard library.
-and has all the rules for the julia standard library.
 
 
 Here are some of the core features of the package:
