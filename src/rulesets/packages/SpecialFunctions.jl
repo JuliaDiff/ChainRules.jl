@@ -1,6 +1,6 @@
 module SpecialFunctionsGlue
 using ChainRulesCore
-using SpecialFunctions
+using ..SpecialFunctions
 
 
 @scalar_rule(SpecialFunctions.lgamma(x), SpecialFunctions.digamma(x))
