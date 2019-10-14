@@ -50,14 +50,7 @@ elseif VERSION ∈ version_spec"~1.1"
         pkg_info = Pkg.Types.manifest_info(env, pkg_id.uuid)
         return VersionNumber(pkg_info.version)
     end
-elseif VERSION ∈ version_spec"~1.2"
-    function pkg_version(_module::Module)
-        pkg_id = Base.PkgId(_module)
-        env = Pkg.Types.Context().env
-        pkg_info = Pkg.Types.manifest_info(env, pkg_id.uuid)
-        return pkg_info.version
-    end
-elseif VERSION ∈ version_spec"~1.3"
+elseif VERSION ∈ version_spec"~1.2, ~1.3"
     function pkg_version(_module::Module)
         pkg_id = Base.PkgId(_module)
         env = Pkg.Types.Context().env
