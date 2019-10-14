@@ -12,6 +12,7 @@ const accumulate! = ChainRulesCore.accumulate!
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Requires
+using Pkg: Pkg
 using Statistics
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 
@@ -22,6 +23,7 @@ if VERSION < v"1.3.0-DEV.142"
     import LinearAlgebra: dot
 end
 
+include("glue_utils.jl")
 include("helper_functions.jl")
 
 include("rulesets/Base/base.jl")

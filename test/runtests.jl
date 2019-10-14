@@ -18,6 +18,8 @@ include("test_util.jl")
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
+    include("glue_utils.jl")
+    exit()
     include("helper_functions.jl")
     @testset "rulesets" begin
         @testset "Base" begin
