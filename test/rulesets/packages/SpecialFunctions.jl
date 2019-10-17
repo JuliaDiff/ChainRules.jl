@@ -1,5 +1,5 @@
 using SpecialFunctions
-
+#=
 @testset "SpecialFunctions" for x in (1, -1, 0, 0.5, 10, -17.1, 1.5 + 0.7im)
     test_scalar(SpecialFunctions.erf, x)
     test_scalar(SpecialFunctions.erfc, x)
@@ -31,6 +31,24 @@ using SpecialFunctions
         test_scalar(SpecialFunctions.gamma, x)
         test_scalar(SpecialFunctions.digamma, x)
         test_scalar(SpecialFunctions.trigamma, x)
-        test_scalar(SpecialFunctions.lgamma, x)
     end
+end
+=#
+@testset "log gamma and co" begin
+    # SpecialFunctions 0.7->0.8 changes:
+    for x in (1.5, 2.5, 10.5, -0.6, -2.6, 1.6+1.6im, 1.6-1.6im, -4.6+1.6im)
+        if isdefined(SpecialFunctions, :lgamma)
+            test_scalar(SpecialFunctions.lgamma, x)
+        end
+        if isdefined(SpecialFunctions, :loggamma)
+            isreal(x) && x < 0 && continue
+            test_scalar(SpecialFunctions.loggamma, x)
+        end
+
+        if isdefined(SpecialFunctions, :logabsgamma)
+            isreal(x) || continue
+            
+        end
+    end
+
 end

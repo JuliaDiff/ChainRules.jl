@@ -22,11 +22,11 @@ println("Testing ChainRules.jl")
     @testset "rulesets" begin
         @testset "Base" begin
             include(joinpath("rulesets", "Base", "base.jl"))
-            include(joinpath("rulesets", "Base", "array.jl"))
-            include(joinpath("rulesets", "Base", "mapreduce.jl"))
-            include(joinpath("rulesets", "Base", "broadcast.jl"))
+            #include(joinpath("rulesets", "Base", "array.jl"))
+            #include(joinpath("rulesets", "Base", "mapreduce.jl"))
+            #include(joinpath("rulesets", "Base", "broadcast.jl"))
         end
-
+        #==
         print(" ")
 
         @testset "Statistics" begin
@@ -41,6 +41,7 @@ println("Testing ChainRules.jl")
             include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
         end
+        ==#
 
         print(" ")
 

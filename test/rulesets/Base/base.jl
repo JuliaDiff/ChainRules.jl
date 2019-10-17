@@ -166,4 +166,23 @@
         test_scalar(one, x)
         test_scalar(zero, x)
     end
+
+    @testset "sign" begin
+        @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
+            test_scalar(sign, x)
+        end
+
+        @testset "Zero over the point discontinuity" begin
+            # Can't do finite differencing because we are lying
+            # following the subgradient convention.
+            
+            _, pb = rrule(sign, 0.0)
+            _, x̄ = pb(10.5)
+            @test extern(x̄) == 0
+
+            _, pf = frule(sign, 0.0)
+            ẏ = pf(NamedTuple(), 10.5)
+            @test extern(ẏ) == 0
+        end
+    end
 end
