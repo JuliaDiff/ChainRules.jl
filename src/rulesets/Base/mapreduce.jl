@@ -59,7 +59,7 @@ end
 
 function rrule(::typeof(sum), x)
     function sum_pullback(ȳ)
-        return (NO_FIELDS, cast(ȳ))
+        return (NO_FIELDS, @thunk(fill(ȳ, size(x))))
     end
     return sum(x), sum_pullback
 end
