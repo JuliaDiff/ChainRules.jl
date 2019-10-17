@@ -1,5 +1,5 @@
 using SpecialFunctions
-#=
+
 @testset "SpecialFunctions" for x in (1, -1, 0, 0.5, 10, -17.1, 1.5 + 0.7im)
     test_scalar(SpecialFunctions.erf, x)
     test_scalar(SpecialFunctions.erfc, x)
@@ -33,7 +33,7 @@ using SpecialFunctions
         test_scalar(SpecialFunctions.trigamma, x)
     end
 end
-=#
+
 @testset "log gamma and co" begin
     # SpecialFunctions 0.7->0.8 changes:
     for x in (1.5, 2.5, 10.5, -0.6, -2.6, 1.6+1.6im, 1.6-1.6im, -4.6+1.6im)
@@ -47,7 +47,12 @@ end
 
         if isdefined(SpecialFunctions, :logabsgamma)
             isreal(x) || continue
-            
+
+            x, Δx, x̄ = randn(3)
+            Δz = (randn(), randn())
+
+            frule_test(SpecialFunctions.logabsgamma, (x, Δx))
+            rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))
         end
     end
 
