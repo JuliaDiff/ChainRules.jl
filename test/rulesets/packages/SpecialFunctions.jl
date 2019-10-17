@@ -34,9 +34,10 @@ using SpecialFunctions
     end
 end
 
+# SpecialFunctions 0.7->0.8 changes:
 @testset "log gamma and co" begin
-    # SpecialFunctions 0.7->0.8 changes:
-    for x in (1.5, 2.5, 10.5, -0.6, -2.6, 1.6+1.6im, 1.6-1.6im, -4.6+1.6im)
+    #It is important that we have negative numbers with both odd and even integer parts    
+    for x in (1.5, 2.5, 10.5, -0.6, -2.6, -3.3, 1.6+1.6im, 1.6-1.6im, -4.6+1.6im)
         if isdefined(SpecialFunctions, :lgamma)
             test_scalar(SpecialFunctions.lgamma, x)
         end
@@ -48,12 +49,11 @@ end
         if isdefined(SpecialFunctions, :logabsgamma)
             isreal(x) || continue
 
-            x, Δx, x̄ = randn(3)
+            Δx, x̄ = randn(2)
             Δz = (randn(), randn())
 
             frule_test(SpecialFunctions.logabsgamma, (x, Δx))
             rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))
         end
     end
-
 end
