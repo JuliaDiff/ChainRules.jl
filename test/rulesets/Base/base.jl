@@ -136,7 +136,7 @@
 
         z̄ = rand(3, 5)
         (ds, dx, dy) = pullback(z̄)
-        
+
         @test ds === NO_FIELDS
 
         @test extern(dx) == extern(accumulate(zeros(3, 2), dx))
@@ -147,22 +147,13 @@
     end
 
     @testset "hypot(x, y)" begin
-        x, y = rand(2)
-        h, pushforward = frule(hypot, x, y)
-        dxy(x, y) = pushforward(NamedTuple(), x, y)
+        rng = MersenneTwister(123456)
+        x, Δx, x̄ = randn(rng, 3)
+        y, Δy, ȳ = randn(rng, 3)
+        Δz = randn(rng)
 
-        @test extern(dxy(One(), Zero())) === x / h
-        @test extern(dxy(Zero(), One())) === y / h
-
-        cx, cy = cast((One(), Zero())), cast((Zero(), One()))
-        dx, dy = extern(dxy(cx, cy))
-        @test dx === x / h
-        @test dy === y / h
-
-        cx, cy = cast((rand(), Zero())), cast((Zero(), rand()))
-        dx, dy = extern(dxy(cx, cy))
-        @test dx === x / h * cx.value[1]
-        @test dy === y / h * cy.value[2]
+        frule_test(hypot, (x, Δx), (y, Δy))
+        rrule_test(hypot, Δz, (x, x̄), (y, ȳ))
     end
 
     @testset "identity" begin

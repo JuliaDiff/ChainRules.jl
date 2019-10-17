@@ -193,12 +193,11 @@ end
 function Base.isapprox(ad::Wirtinger, fd; kwargs...)
     error("Finite differencing with Wirtinger rules not implemented")
 end
-function Base.isapprox(d_ad::Casted, d_fd; kwargs...)
-    return all(isapprox.(extern(d_ad), d_fd; kwargs...))
-end
+
 function Base.isapprox(d_ad::DNE, d_fd; kwargs...)
     error("Tried to differentiate w.r.t. a DNE")
 end
+
 function Base.isapprox(d_ad::AbstractDifferential, d_fd; kwargs...)
     return isapprox(extern(d_ad), d_fd; kwargs...)
 end

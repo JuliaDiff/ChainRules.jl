@@ -10,14 +10,14 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 
 function frule(::typeof(dot), x, y)
     function dot_pushforward(Δself, Δx, Δy)
-        return sum(Δx * cast(y)) + sum(cast(x) * Δy)
+        return sum(Δx .* y) + sum(x .* Δy)
     end
     return dot(x, y), dot_pushforward
 end
 
 function rrule(::typeof(dot), x, y)
     function dot_pullback(ΔΩ)
-        return (NO_FIELDS, ΔΩ * cast(y), cast(x) * ΔΩ,)
+        return (NO_FIELDS, @thunk(ΔΩ .* y), @thunk(x .* ΔΩ))
     end
     return dot(x, y), dot_pullback
 end
