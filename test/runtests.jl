@@ -14,7 +14,7 @@ using ChainRulesCore: extern, accumulate, accumulate!, store!, @scalar_rule,
     Wirtinger, wirtinger_primal, wirtinger_conjugate,
     Zero, One, DNE, Thunk, AbstractDifferential
 
-Random.seed(1) # Set seed that all testsets should reset to.
+Random.seed!(1) # Set seed that all testsets should reset to.
 
 include("test_util.jl")
 
