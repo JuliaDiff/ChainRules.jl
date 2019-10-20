@@ -35,7 +35,7 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa 
         else # rule == frule
             # Got to input extra first aguement for internals
             # But it is only a dummy since this is not a functor
-            ∂x, = prop_rule(NamedTuple(), 1)
+            ∂x = prop_rule(NamedTuple(), 1)
         end
 
 
