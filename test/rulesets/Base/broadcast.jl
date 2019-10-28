@@ -6,7 +6,7 @@
             @test y == sin.(x)
             (dself, dsin, dx) = pullback(One())
             @test dself == NO_FIELDS
-            @test dsin == DNE()
+            @test dsin == DoesNotExist()
             @test extern(dx) == cos.(x)
 
             x̄, ȳ = rand(), rand()

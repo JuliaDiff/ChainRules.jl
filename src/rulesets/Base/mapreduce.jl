@@ -7,7 +7,7 @@ function rrule(::typeof(map), f, xs...)
     function map_pullback(ȳ)
         ntuple(length(xs)+2) do full_i
             full_i == 1 && return NO_FIELDS
-            full_i == 2 && return DNE()
+            full_i == 2 && return DoesNotExist()
             i = full_i-2
             @thunk map(ȳ, xs...) do ȳi, xis...
                 _, pullback = _checked_rrule(f, xis...)
@@ -39,7 +39,7 @@ for mf in (:mapreduce, :mapfoldl, :mapfoldr)
                 _, ∂xi = pullback_f(ȳi)
                 extern(∂xi)
             end
-            (NO_FIELDS, DNE(), DNE(), ∂x)
+            (NO_FIELDS, DoesNotExist(), DoesNotExist(), ∂x)
         end
         return y, $pullback_name
     end
@@ -67,7 +67,7 @@ end
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
     y, mr_pullback = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
     function sum_pullback(ȳ)
-        return NO_FIELDS, DNE(), last(mr_pullback(ȳ))
+        return NO_FIELDS, DoesNotExist(), last(mr_pullback(ȳ))
     end
     return y, sum_pullback
 end
@@ -83,7 +83,7 @@ end
 function rrule(::typeof(sum), ::typeof(abs2), x::AbstractArray{<:Real}; dims=:)
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
-        return (NO_FIELDS, DNE(), @thunk(2ȳ .* x))
+        return (NO_FIELDS, DoesNotExist(), @thunk(2ȳ .* x))
     end
     return y, sum_abs2_pullback
 end

@@ -26,7 +26,7 @@ function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
             ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
             ∂Y = @thunk scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
         end
-        return (NO_FIELDS, DNE(), ∂X, DNE(), ∂Y, DNE())
+        return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist(), ∂Y, DoesNotExist())
     end
     return Ω, blas_dot_pullback
 end
@@ -60,7 +60,7 @@ function rrule(::typeof(BLAS.nrm2), n, X, incx)
             ΔΩ = extern(ΔΩ)
             ∂X = scal!(n, ΔΩ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
         end
-        return (NO_FIELDS, DNE(), ∂X, DNE())
+        return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
 
     return Ω, nrm2_pullback
@@ -92,13 +92,13 @@ function rrule(::typeof(BLAS.asum), n, X, incx)
         else
             ΔΩ = extern(ΔΩ)
             ∂X = @thunk scal!(
-                n, 
+                n,
                 ΔΩ,
                 blascopy!(n, sign.(X), incx, _zeros(X), incx),
                 incx
             )
         end
-        return (NO_FIELDS, DNE(), ∂X, DNE())
+        return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
     return Ω, asum_pullback
 end
@@ -130,7 +130,7 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
                 x̄ -> gemv!('N', α, A, ȳ, one(T), x̄)
             )
         end
-        return (NO_FIELDS, DNE(), @thunk(dot(ȳ, y) / α), ∂A, ∂x)
+        return (NO_FIELDS, DoesNotExist(), @thunk(dot(ȳ, y) / α), ∂A, ∂x)
     end
     return y, gemv_pullback
 end
@@ -195,7 +195,7 @@ function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
                 )
             end
         end
-        return (NO_FIELDS, DNE(), DNE(), @thunk(dot(C̄, C) / α), ∂A, ∂B)
+        return (NO_FIELDS, DoesNotExist(), DoesNotExist(), @thunk(dot(C̄, C) / α), ∂A, ∂B)
     end
     return C, gemv_pullback
 end

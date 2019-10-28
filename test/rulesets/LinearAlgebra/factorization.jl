@@ -12,7 +12,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
                 dself1, dF, dp = dF_pullback(Ȳ)
                 @test dself1 === NO_FIELDS
-                @test dp === DNE()
+                @test dp === DoesNotExist()
 
                 ΔF = extern(dF)
                 dself2, dX = dX_pullback(ΔF)
@@ -37,7 +37,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 Ȳ = ones(size(Y)...)
                 (dself, dF, dp) = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
-                @test dp === DNE()
+                @test dp === DoesNotExist()
                 ChainRules.accumulate!(X̄, dF)
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
@@ -64,7 +64,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(rng, size(Y)))
                 (dself, dF, dp) = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
-                @test dp === DNE()
+                @test dp === DoesNotExist()
 
                 # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
                 # machinery from FiniteDifferences because that isn't set up to respect
