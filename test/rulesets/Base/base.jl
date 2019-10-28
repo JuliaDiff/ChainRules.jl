@@ -52,9 +52,9 @@
             test_scalar(acotd, 1/x)
         end
         @testset "Multivariate" begin
-            x, y = rand(2)
             @testset "atan2" begin
                 # https://en.wikipedia.org/wiki/Atan2
+                x, y = rand(2)
                 ratan = atan(x, y)
                 u = x^2 + y^2
                 datan = y/u - 2x/u
@@ -71,19 +71,11 @@
             end
 
             @testset "sincos" begin
-                rsincos = sincos(x)
-                dsincos = cos(x) - 2sin(x)
+                x, Δx, x̄ = randn(3)
+                Δz = (randn(), randn())
 
-                r, pushforward = frule(sincos, x)
-                @test r === rsincos
-                df1, df2 = pushforward(NamedTuple(), 1)
-                @test df1 + 2df2 === dsincos
-
-                r, pullback = rrule(sincos, x)
-                @test r === rsincos
-                ds, df = pullback(1, 2)
-                @test df === dsincos
-                @test ds === NO_FIELDS
+                frule_test(sincos, (x, Δx))
+                rrule_test(sincos, Δz, (x, x̄))
             end
         end
     end  # Trig
@@ -114,17 +106,16 @@
     end
 
     @testset "Unary complex functions" begin
-        for x in (-6, rand.((Float32, Float64, Complex{Float32}, Complex{Float64}))...)
-            rtol = x isa Complex{Float32} ? 1e-6 : 1e-9
-            test_scalar(real, x; rtol=rtol)
-            test_scalar(imag, x; rtol=rtol)
+        for x in (-4.1, 6.4, 1.0+0.5im, -10.0+1.5im)
+            test_scalar(real, x)
+            test_scalar(imag, x)
 
-            test_scalar(abs, x; rtol=rtol)
-            test_scalar(hypot, x; rtol=rtol)
+            test_scalar(abs, x)
+            test_scalar(hypot, x)
 
-            test_scalar(angle, x; rtol=rtol)
-            test_scalar(abs2, x; rtol=rtol)
-            test_scalar(conj, x; rtol=rtol)
+            test_scalar(angle, x)
+            test_scalar(abs2, x)
+            test_scalar(conj, x)
         end
     end
 
@@ -146,14 +137,14 @@
         test_accumulation(rand(2, 5), dy)
     end
 
-    @testset "hypot(x, y)" begin
+    @testset "binary trig ($f)" for f in (hypot, atan)
         rng = MersenneTwister(123456)
-        x, Δx, x̄ = randn(rng, 3)
+        x, Δx, x̄ = 10randn(rng, 3)
         y, Δy, ȳ = randn(rng, 3)
         Δz = randn(rng)
 
-        frule_test(hypot, (x, Δx), (y, Δy))
-        rrule_test(hypot, Δz, (x, x̄), (y, ȳ))
+        frule_test(f, (x, Δx), (y, Δy))
+        rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
     @testset "identity" begin
@@ -165,5 +156,24 @@
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
+    end
+
+    @testset "sign" begin
+        @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
+            test_scalar(sign, x)
+        end
+
+        @testset "Zero over the point discontinuity" begin
+            # Can't do finite differencing because we are lying
+            # following the subgradient convention.
+
+            _, pb = rrule(sign, 0.0)
+            _, x̄ = pb(10.5)
+            @test extern(x̄) == 0
+
+            _, pf = frule(sign, 0.0)
+            ẏ = pf(NamedTuple(), 10.5)
+            @test extern(ẏ) == 0
+        end
     end
 end

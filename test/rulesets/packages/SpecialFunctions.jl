@@ -31,6 +31,29 @@ using SpecialFunctions
         test_scalar(SpecialFunctions.gamma, x)
         test_scalar(SpecialFunctions.digamma, x)
         test_scalar(SpecialFunctions.trigamma, x)
-        test_scalar(SpecialFunctions.lgamma, x)
+    end
+end
+
+# SpecialFunctions 0.7->0.8 changes:
+@testset "log gamma and co" begin
+    #It is important that we have negative numbers with both odd and even integer parts    
+    for x in (1.5, 2.5, 10.5, -0.6, -2.6, -3.3, 1.6+1.6im, 1.6-1.6im, -4.6+1.6im)
+        if isdefined(SpecialFunctions, :lgamma)
+            test_scalar(SpecialFunctions.lgamma, x)
+        end
+        if isdefined(SpecialFunctions, :loggamma)
+            isreal(x) && x < 0 && continue
+            test_scalar(SpecialFunctions.loggamma, x)
+        end
+
+        if isdefined(SpecialFunctions, :logabsgamma)
+            isreal(x) || continue
+
+            Δx, x̄ = randn(2)
+            Δz = (randn(), randn())
+
+            frule_test(SpecialFunctions.logabsgamma, (x, Δx))
+            rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))
+        end
     end
 end
