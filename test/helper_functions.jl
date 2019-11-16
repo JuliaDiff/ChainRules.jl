@@ -19,10 +19,11 @@
     end
     @testset "_update! NamedTuple" begin
         X = (A=[1 0; 0 1], B=[2 2; 2 2])
+        old_X = deepcopy(X)
         Y = deepcopy(X)
-        @test ChainRules._update!(X, Y) == (A=[2 0; 0 2], B=[4 4; 4 4])
-        @test X.A != Y.A
-        @test X.B != Y.B
+        @test ChainRules._update!(X, Y, :A) == (A=[2 0; 0 2], B=[2 2; 2 2])
+        @test X.A != old_X.A
+        @test X.B == old_X.B
     end
     @testset "_checked_rrule" begin
         try

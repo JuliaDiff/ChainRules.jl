@@ -2,13 +2,12 @@ module ChainRules
 using Reexport
 @reexport using ChainRulesCore
 # Basically everything this package does is overloading these, so we make an exception
-# to the normal rule of only overload via `AbstractChainRules.rrule`.
+# to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
 
 # Deal with name clashes, by defining in this module which one we mean.
 const accumulate = ChainRulesCore.accumulate
 const accumulate! = ChainRulesCore.accumulate!
-
 
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -29,6 +28,8 @@ include("rulesets/Base/base.jl")
 include("rulesets/Base/array.jl")
 include("rulesets/Base/broadcast.jl")
 include("rulesets/Base/mapreduce.jl")
+
+include("rulesets/Statistics/statistics.jl")
 
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")

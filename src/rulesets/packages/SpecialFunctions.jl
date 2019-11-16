@@ -1,9 +1,8 @@
 module SpecialFunctionsGlue
 using ChainRulesCore
-using SpecialFunctions
+using ..SpecialFunctions
 
 
-@scalar_rule(SpecialFunctions.lgamma(x), SpecialFunctions.digamma(x))
 @scalar_rule(SpecialFunctions.erf(x), (2 / sqrt(π)) * exp(-x * x))
 @scalar_rule(SpecialFunctions.erfc(x), -(2 / sqrt(π)) * exp(-x * x))
 @scalar_rule(SpecialFunctions.erfi(x), (2 / sqrt(π)) * exp(x * x))
@@ -64,4 +63,20 @@ using SpecialFunctions
 @scalar_rule(SpecialFunctions.lbeta(a, b),
              (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
               SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b)))
+
+# Changes between SpecialFunctions 0.7 and 0.8
+if isdefined(SpecialFunctions, :lgamma)
+    # actually is the absolute value of the logorithm of gamma
+    @scalar_rule(SpecialFunctions.lgamma(x), SpecialFunctions.digamma(x))
+end
+
+if isdefined(SpecialFunctions, :logabsgamma)
+    # actually is the absolute value of the logorithm of gamma, paired with sign gamma
+    @scalar_rule(SpecialFunctions.logabsgamma(x), SpecialFunctions.digamma(x), Zero())
+end
+
+if isdefined(SpecialFunctions, :loggamma)
+    @scalar_rule(SpecialFunctions.loggamma(x), SpecialFunctions.digamma(x))
+end
+
 end #module

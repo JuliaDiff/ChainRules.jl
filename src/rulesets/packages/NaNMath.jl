@@ -1,7 +1,7 @@
 module NaNMathGlue
 using ChainRulesCore
-using NaNMath
-using SpecialFunctions
+using ..NaNMath
+using ..SpecialFunctions
 
 @scalar_rule(NaNMath.sin(x), NaNMath.cos(x))
 @scalar_rule(NaNMath.cos(x), -NaNMath.sin(x))
