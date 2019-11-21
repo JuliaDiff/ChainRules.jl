@@ -99,7 +99,7 @@ function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm
     # Correctness testing via finite differencing.
     dΩ_fd = jvp(fdm, xs->f(xs...), (xs, ẋs))
     @test isapprox(
-        collect(dΩ_ad),  # Use collect so can use vector equality
+        collect(extern.(dΩ_ad)),  # Use collect so can use vector equality
         collect(dΩ_fd);
         rtol=rtol,
         atol=atol,
