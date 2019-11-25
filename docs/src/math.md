@@ -44,7 +44,7 @@ For example, for the Primal Type of `DateTime`, the valid Differential Types inc
     For example booleans, and integers except when they are being uses as special cases of real numbers; as a computational optimization.
 
 
-### Direct Differential Type
+### Direct Differential Types
 Formally speaking:
 For a given Primal Type ``\mathcal P``,
 qnd a type ``\mathcal D``.
