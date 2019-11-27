@@ -84,3 +84,29 @@ Note: in this case it is also true that every other type in the type-union ``\ma
 The informal version of this if a direct-differential type are closed under addition to always give a instance of a direct differential type (potentiall the same one), then it is a valid differential type.
 The important take away is you can add instances of all valid differential types for ``\mathcal P``,
 and know you will always get an instance of valid differential type back.
+
+
+-----
+
+### REWRITE: Differential Type
+
+Consider a Primal Type ``\mathcal P``.
+Consider some type ``\mathcal D``.
+
+
+ - If there exists a type-union ``\mathbb U``, with ``\mathcal D <: \mathbb U``,
+ - if for all ``u :: \mathbb U`` and for all ``p :: \mathcal P``, there exists a ``q :: \mathcal P`` such that `u + p = p + u = q`
+ - and for all ``d :: \mathcal D``, and for all ``x :: \mathbb U``,  exists ``s :: \mathbb U`` such that ``d + x = x + d = s``
+(!!# TODO should this be on just ``d :: \mathcal D`` or on all of U)
+
+
+then we say that ``\mathcal D`` is a (valid) differential type for ``\mathcal P`.
+And we write this as ``\mathcal D \triangleleft \mathcal P``.
+
+Note: in this case it is also true that every other type in the type-union ``\mathbb D``, and and indeed ``\mathbb D`` itself are also valid differential types for ``\mathcal P``.
+
+
+The short version of this is that a differential type is one that is a member of some type-union that is closed  under addition, and that can be added to the primal type to give an element of the primal type
+
+The important take away is you can add instances of all valid differential types for ``\mathcal P``,
+and know you will always get an instance of valid differential type back.
