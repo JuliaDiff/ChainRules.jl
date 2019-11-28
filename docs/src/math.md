@@ -45,50 +45,7 @@ For example, for the Primal Type of `DateTime`, the valid Differential Types inc
     If there is only that one then one normally says that the type is not differentiable.
     For example booleans, and integers except when they are being uses as special cases of real numbers; as a computational optimization.
 
-
-### Direct Differential Types
-For purposes of definitions, we introduct the notion of a direct differntial.
-This is a much weaker requirement than we actually need, but will make the defintions that follow easier.
-A direct differntial type for a given primal type is something that can be added to an instance primal type to get another instance of the primal type.
-
-Formally speaking:
-For a given Primal Type ``\mathcal P``,
-qnd a type ``\mathcal D``.
-If for all values ``d::\mathcal D``
-and for all values ``p::\mathcal P``
-there exists a ``q::\mathcal P`` such that
-``p + d = d + p = q``.
-Then we say that  ``\mathcal D`` is a direct-differential type for the primal type ``\mathcal P``.
-Which we write as ``\mathcal D \triangleleft \mathcal P``.
-
-The valid differntial extends the requirements of a direct differnetial to also require a form of closed-ness under addition.
-
-### Valid Differential Types
-As a stronger condition, we define a valid differential type for a given primal type.
-This is what we actually require.
-Consider a Primal Type ``\mathcal P``.
-
-Consider some type ``\mathcal D \triangleleft P``.
-
-If there exists a type-union ``\mathbb D \triangleleft \mathcal P``, with ``\mathcal D <: \mathbb D``.
-(i.e. a type union of direct differential types for ``\mathcal P`` exist, and ``\mathcal D`` is part of that union);
-and for all ``d_x :: \mathcal D`` and forall ``d_u :: \mathbb D``,
-there exists a ``d_s :: \mathbb D``
-such that ``d_x + d_u = d_u + d_x = d_s``,
-then we say that ``\mathcal D`` is a valid differential type for ``\mathcal P`.
-And we write this as ``\mathcal D \blacktriangleleft \mathcal P``.
-
-Note: in this case it is also true that every other type in the type-union ``\mathbb D`` and ``\mathbb D`` itself are also valid differential types for ``\mathcal P``.
-
-
-The informal version of this if a direct-differential type are closed under addition to always give a instance of a direct differential type (potentiall the same one), then it is a valid differential type.
-The important take away is you can add instances of all valid differential types for ``\mathcal P``,
-and know you will always get an instance of valid differential type back.
-
-
------
-
-### REWRITE: Differential Type
+### Differential Type
 
 Consider a Primal Type ``\mathcal P``.
 Consider some type ``\mathcal D``.
