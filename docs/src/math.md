@@ -17,7 +17,7 @@ dependencing on the types of the inputs.
 We thus can have defined different ``+``
 for different input types, and so will not distinguish between them.
 The functions thus stand alone from the types,
-except that a set of input type may special case them.
+except that a set of input types may special case them.
 Where as most similar definitions might decribe a object as a type and some operations on the type,
 we can consider them seperately.
 
