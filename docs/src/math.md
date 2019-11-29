@@ -57,7 +57,7 @@ Consider some type ``\mathcal D``.
 (!!# TODO should this be on just ``d :: \mathcal D`` or on all of U)
 
 
-then we say that ``\mathcal D`` is a (valid) differential type for ``\mathcal P`.
+then we say that ``\mathcal D`` is a (valid) differential type for ``\mathcal P``.
 And we write this as ``\mathcal D \triangleleft \mathcal P``.
 
 Note: in this case it is also true that every other type in the type-union ``\mathbb D``, and and indeed ``\mathbb D`` itself are also valid differential types for ``\mathcal P``.
