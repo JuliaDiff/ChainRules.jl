@@ -21,7 +21,7 @@ except that a set of input type may special case them.
 Where as most similar definitions might decribe a object as a type and some operations on the type,
 we can consider them seperately.
 
-!!! terminology Notation:
+!!! terminology "Notation"
     We use some notation here based closely off of how JuliaLang indicates type relationships. </br>
     - ``d::\mathcal D``: a value ``d`` of type ``\mathcal D``, or the assertion that the value ``d`` has type ``\mathcal D`` </br>
     - ``\mathcal D <: \mathbb D``: the type ``\mathcal D`` is a subtype of the type ``\mathbb D``. In particular, we are only concerned with the case of ``\mathbb D`` being a type-union. So in this case it can be seen as also saying that ``\mathcal D`` is a member of the type-union ``\mathbb D``.
