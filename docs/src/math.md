@@ -13,7 +13,7 @@ As Julia is a dynamic programming language functions can return different types 
 
 Bacause of multiple dispatch,
 all functions are able to be define different _methods_
-dependencing on the types of the inputs.
+depending on the types of the inputs.
 We thus can have defined different ``+``
 for different input types, and so will not distinguish between them.
 The functions thus stand alone from the types,
