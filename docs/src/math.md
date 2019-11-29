@@ -11,7 +11,7 @@ The key feature of the the Julia type system is that it enables multiple dispatc
 
 As Julia is a dynamic programming language functions can return different types of values depending on the values of their inputs (i.e. not be type stable).
 
-Bacause of multiple dispatch,
+Because of multiple dispatch,
 all functions are able to be define different _methods_
 depending on the types of the inputs.
 We thus can have defined different ``+``
