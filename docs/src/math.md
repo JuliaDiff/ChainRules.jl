@@ -26,6 +26,18 @@ we can consider them seperately.
     - ``d::\mathcal D``: a value ``d`` of type ``\mathcal D``, or the assertion that the value ``d`` has type ``\mathcal D`` </br>
     - ``\mathcal D <: \mathbb D``: the type ``\mathcal D`` is a subtype of the type ``\mathbb D``. In particular, we are only concerned with the case of ``\mathbb D`` being a type-union. So in this case it can be seen as also saying that ``\mathcal D`` is a member of the type-union ``\mathbb D``.
 
+### On Computational Practicalities and Errors.
+In this writeup we will ignore many of the practicalities of computation.
+For example we will treat `Float64` as if they were the real number field.
+We will also ingore basically all errors (except `MethodError`s).
+In particular, we will ignore overflow and underflow, and even `ArgumentError`s.
+If you attempt to add a ``3 \times 3`` matrix to a ``4 \times 4`` matrix,
+then indeed that does not work.
+However, we will not let that prevent that from letting us say that `Matrix` is a differential for `Matrix`.
+Roughly speaking on consider all requirements on functions to he an option to do this or throw an error.
+E.g. that `a + b = c`, to be `a + b = c` or `a + b` throws an error. 
+
+
 ## Part 1: What is a Differential ?
 
 We begin by considering some function we would like to differentiate.
@@ -53,8 +65,7 @@ Consider some type ``\mathcal D``.
 
  - If there exists a type-union ``\mathbb U``, with ``\mathcal D <: \mathbb U``,
  - if for all ``u :: \mathbb U`` and for all ``p :: \mathcal P``, there exists a ``q :: \mathcal P`` such that `u + p = p + u = q`
- - and for all ``d :: \mathcal D``, and for all ``x :: \mathbb U``,  exists ``s :: \mathbb U`` such that ``d + x = x + d = s``
-(!!# TODO should this be on just ``d :: \mathcal D`` or on all of U)
+ - and for all ``d :: \mathcal U``, and for all ``x :: \mathbb U``,  exists ``s :: \mathbb U`` such that ``d + x = x + d = s``
 
 
 then we say that ``\mathcal D`` is a (valid) differential type for ``\mathcal P``.
