@@ -13,7 +13,12 @@ matrix:
   - julia: 1.3
   - julia: nightly
 notifications:
-  email: false
+  email:
+    recipients:
+      - nightly-rse@invenia.ca
+    on_success: never
+    on_failure: always
+    if: type = cron
 # uncomment the following lines to override the default test script
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
