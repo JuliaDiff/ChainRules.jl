@@ -410,7 +410,7 @@ As a notation that is the same across propagators, regardless of direction. (Inc
  - `dx` could be anything, including a pullback/pushforward. It really should not show up outside of tests.
 
 
-#### ``\dot{y} = \dfrac{∂y}{∂x} = \overbar{x}``
+#### ``\dot{y} = \dfrac{∂y}{∂x} = \overline{x}``
  - `v̇` is a derivative of the input moving forward: ``v̇ = \frac{∂v}{∂x}`` for input ``x``, intermediate value ``v``.
  - `v̄` is a derivative of the output moving backward: ``v̄ = \frac{∂y}{∂v}`` for output ``y``, intermediate value ``v``.
 
