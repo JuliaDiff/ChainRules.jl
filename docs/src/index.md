@@ -74,14 +74,14 @@ Almost always the _pushforward_/_pullback_ will be declared locally within the `
 ##### Less formally
 
  - The **pushforward** takes a wiggle in the _input space_, and tells what wobble you would create in the output space, by passing it through the function.
- - The **pullback** takes wobblyness information with respect to the function's output, and tells the equivalent wobblyness with repect to the functions input.
+ - The **pullback** takes wobbliness information with respect to the function's output, and tells the equivalent wobbliness with respect to the functions input.
 
 ##### More formally
 The **pushforward** of ``f`` takes the _sensitivity_ of the input of ``f`` to a quantity, and gives the _sensitivity_ of the output of ``f`` to that quantity
 The **pullback** of ``f`` takes the _sensitivity_ of a quantity to the output of ``f``, and gives the _sensitivity_ of that quantity to the input of ``f``.
 
 #### Math
-This is all a bit simplied by talking in 1D.
+This is all a bit simplified by talking in 1D.
 
 ##### Lighter Math
 For a chain of expressions:
@@ -91,30 +91,25 @@ b = g(a)
 c = h(b)
 ```
 
-The pullback of `g`, which incorperates the knowledge of `∂b/∂a`,
-applies the chainrule to go from `∂c/∂b` to `∂c/∂a`.
+The pullback of `g`, which incorporates the knowledge of `∂b/∂a`,
+applies the chain rule to go from `∂c/∂b` to `∂c/∂a`.
 
-the pushforward of `g`,  which also incorperates the knowledge of `∂b/∂a`,
-applies the chainrule to go from `∂a/∂x` to `∂b/∂x`.
+The pushforward of `g`,  which also incorporates the knowledge of `∂b/∂a`,
+applies the chain rule to go from `∂a/∂x` to `∂b/∂x`.
 
 #### Heavier Math
-If I have some functions: ``g(a)``, ``h(b)`` and ``f(x)=g(h(x))``,
-and I know the pullback of ``g``, at ``h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
+If I have some functions: ``g(a)``, ``h(b)`` and ``f(x)=g(h(x))``, and I know
+the pullback of ``g``, at ``h(x)`` written: ``\mathrm{pullback}_{g(a)|a=h(x)}``,
+and I know the derivative of ``h`` with respect to its input ``b`` at ``g(x)``,
+written: ``\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}`` Then I can use the pullback to
+find: ``\dfrac{∂f}{∂x}``:
 
-and I know the deriviative of h with respect to its input ``b`` at ``g(x)``, written:
-``\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}``
+``\dfrac{∂f}{∂x}=\mathrm{\mathrm{pullback}_{g(a)|a=h(x)}}\left(\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}\right).``
 
-Then I can use the pullback to find: ``\dfrac{∂f}{∂x}``
-
-``\dfrac{∂f}{∂x}=\mathrm{\mathrm{pullback}_{g(a)|a=h(x)}}\left(\left.\dfrac{∂h}{∂b}\right|_{b=g(x)}\right)``
-
-—
-
-If I know the deriviative of g with respect to its input a at x, written: ``\left.\dfrac{∂g}{∂a}\right|_{a=x}``
-
-and I know the pushforward of ``h`` at ``g(x)`` written: ``\mathrm{pushforward}_{h(b)|b=g(x)}``
-
-then I can use the pushforward to find ``\dfrac{∂f}{∂x}``
+If I know the derivative of ``g`` with respect to its input a at ``x``, written:
+``\left.\dfrac{∂g}{∂a}\right|_{a=x}``, and I know the pushforward of ``h`` at
+``g(x)`` written: ``\mathrm{pushforward}_{h(b)|b=g(x)}``. Then I can use the
+pushforward to find ``\dfrac{∂f}{∂x}``:
 
 ``\dfrac{∂f}{∂x}=\mathrm{pushforward}_{h(b)|b=g(x)}\left(\left.\dfrac{∂g}{∂a}\right|_{a=x}\right)``
 
@@ -134,7 +129,7 @@ end
 
 The input to the pushforward is often called the _perturbation_.
 If the function is `y = f(x)` often the pushforward will be written `ẏ = pushforward(ṡelf, ẋ)`.
-(`ẏ` is commonly used to represent the pertubation for `y`)
+(`ẏ` is commonly used to represent the perturbation for `y`)
 
 !!! note
 
@@ -421,8 +416,8 @@ As a notation that is the same across propagators, regardless of direction. (Inc
 
 
 ### Why does `frule` and `rrule` return the function evaluation?
-You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`, and similarly for `rrule` returing `f(x)` and the pullback for `f` at `x`.
-Why not just return the pushforward/pullback, and let the user call `f(x)` to get the answer seperately?
+You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`, and similarly for `rrule` returning `f(x)` and the pullback for `f` at `x`.
+Why not just return the pushforward/pullback, and let the user call `f(x)` to get the answer separately?
 
 There are two reasons the rules also calculate the `f(x)`.
 1. For some rules the output value is used in the definition of its propagator. For example `tan`.
@@ -430,9 +425,9 @@ There are two reasons the rules also calculate the `f(x)`.
 
 ### Where are the gradients for keyword arguments?
 _pullbacks_ do not return a gradient for keyword arguments;
-similarly _pushfowards_ do not accept a pertubation for keyword arguments.
+similarly _pushfowards_ do not accept a perturbation for keyword arguments.
 This is because in practice functions are very rarely differentiable with respect to keyword arguments.
-As a rule keyword arguments tend to control side-effects, like logging verbsoity,
+As a rule keyword arguments tend to control side-effects, like logging verbosity,
 or to be functionality changing to perform a different operation, e.g. `dims=3`, and thus not differentiable.
-To the best of our knowledge no julia AD system, with support for the definition of custom primatives, supports differentating with respect to keyword arguments.
+To the best of our knowledge no Julia AD system, with support for the definition of custom primitives, supports differentiating with respect to keyword arguments.
 At some point in the future ChainRules may support these. Maybe.
