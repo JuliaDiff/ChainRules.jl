@@ -66,7 +66,7 @@
 @scalar_rule(-(x, y), (One(), -1))
 @scalar_rule(/(x, y), (inv(y), -(x / y / y)))
 @scalar_rule(\(x, y), (-(y / x / x), inv(x)))
-@scalar_rule(^(x, y), (ifelse(iszero(y), Zero(), y * x^(y - 1)), Ω * log(x)))
+@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(x)))
 
 @scalar_rule(inv(x), -Ω^2)
 @scalar_rule(sqrt(x), inv(2 * Ω))
