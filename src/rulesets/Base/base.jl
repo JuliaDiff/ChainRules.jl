@@ -36,7 +36,7 @@
 
 @scalar_rule(sinh(x), cosh(x))
 @scalar_rule(cosh(x), sinh(x))
-@scalar_rule(tanh(x), sech(x)^2)
+@scalar_rule(tanh(x), 1-Ω^2)
 @scalar_rule(coth(x), -(csch(x)^2))
 
 @scalar_rule(asinh(x), inv(sqrt(x^2 + 1)))
@@ -66,7 +66,7 @@
 @scalar_rule(-(x, y), (One(), -1))
 @scalar_rule(/(x, y), (inv(y), -(x / y / y)))
 @scalar_rule(\(x, y), (-(y / x / x), inv(x)))
-@scalar_rule(^(x, y), (y * x^(y - 1), Ω * log(x)))
+@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(x)))
 
 @scalar_rule(inv(x), -Ω^2)
 @scalar_rule(sqrt(x), inv(2 * Ω))
@@ -92,10 +92,12 @@
 
 @scalar_rule(max(x, y), @setup(gt = x > y), (gt, !gt))
 @scalar_rule(min(x, y), @setup(gt = x > y), (!gt, gt))
-@scalar_rule(mod(x, y), @setup((u, nan) = promote(x / y, NaN16)),
+@scalar_rule(mod(x, y), @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))))
-@scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16)),
+@scalar_rule(rem(x, y), @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
+@scalar_rule(fma(x, y, z), (y, x, One()))
+@scalar_rule(muladd(x, y, z), (y, x, One()))
 @scalar_rule(angle(x::Complex), @setup(u = abs2(x)), Wirtinger(-im//2 * x' / u, im//2 * x / u))
 @scalar_rule(angle(x::Real), Zero())
 @scalar_rule(real(x::Complex), Wirtinger(1//2, 1//2))

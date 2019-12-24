@@ -137,11 +137,11 @@
         test_accumulation(rand(2, 5), dy)
     end
 
-    @testset "binary trig ($f)" for f in (hypot, atan)
+    @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
         rng = MersenneTwister(123456)
-        x, Δx, x̄ = 10randn(rng, 3)
-        y, Δy, ȳ = randn(rng, 3)
-        Δz = randn(rng)
+        x, Δx, x̄ = 10rand(rng, 3)
+        y, Δy, ȳ = rand(rng, 3)
+        Δz = rand(rng)
 
         frule_test(f, (x, Δx), (y, Δy))
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
@@ -175,5 +175,16 @@
             ẏ = pf(NamedTuple(), 10.5)
             @test extern(ẏ) == 0
         end
+    end
+
+    @testset "trinary ($f)" for f in (muladd, fma)
+        rng = MersenneTwister(123456)
+        x, Δx, x̄ = 10randn(rng, 3)
+        y, Δy, ȳ = randn(rng, 3)
+        z, Δz, z̄ = randn(rng, 3)
+        Δk = randn(rng)
+
+        frule_test(f, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
 end

@@ -23,6 +23,47 @@ using ..SpecialFunctions
 @scalar_rule(SpecialFunctions.erfcx(x), (2 * x * Ω) - (2 / sqrt(π)))
 @scalar_rule(SpecialFunctions.dawson(x), 1 - (2 * x * Ω))
 
+# binary
+@scalar_rule(SpecialFunctions.besselj(ν, x),
+             (NaN,
+              (SpecialFunctions.besselj(ν - 1, x) -
+               SpecialFunctions.besselj(ν + 1, x)) / 2))
+
+@scalar_rule(SpecialFunctions.besseli(ν, x),
+             (NaN,
+              (SpecialFunctions.besseli(ν - 1, x) +
+               SpecialFunctions.besseli(ν + 1, x)) / 2))
+@scalar_rule(SpecialFunctions.bessely(ν, x),
+             (NaN,
+              (SpecialFunctions.bessely(ν - 1, x) -
+               SpecialFunctions.bessely(ν + 1, x)) / 2))
+
+@scalar_rule(SpecialFunctions.besselk(ν, x),
+             (NaN,
+              -(SpecialFunctions.besselk(ν - 1, x) +
+                SpecialFunctions.besselk(ν + 1, x)) / 2))
+
+@scalar_rule(SpecialFunctions.hankelh1(ν, x),
+             (NaN,
+              (SpecialFunctions.hankelh1(ν - 1, x) -
+               SpecialFunctions.hankelh1(ν + 1, x)) / 2))
+@scalar_rule(SpecialFunctions.hankelh2(ν, x),
+             (NaN,
+              (SpecialFunctions.hankelh2(ν - 1, x) -
+               SpecialFunctions.hankelh2(ν + 1, x)) / 2))
+
+@scalar_rule(SpecialFunctions.polygamma(m, x),
+             (NaN, SpecialFunctions.polygamma(m + 1, x)))
+
+# todo: setup for common expr
+@scalar_rule(SpecialFunctions.beta(a, b),
+             (Ω*(SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b)),
+              Ω*(SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b))))
+
+@scalar_rule(SpecialFunctions.lbeta(a, b),
+             (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
+              SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b)))
+
 # Changes between SpecialFunctions 0.7 and 0.8
 if isdefined(SpecialFunctions, :lgamma)
     # actually is the absolute value of the logorithm of gamma
