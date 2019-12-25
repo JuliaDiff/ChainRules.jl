@@ -43,12 +43,10 @@ include("rulesets/LinearAlgebra/factorization.jl")
 function __init__()
     @require NaNMath="77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" begin
         include("rulesets/packages/NaNMath.jl")
-        using .NaNMathGlue
     end
 
     @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
         include("rulesets/packages/SpecialFunctions.jl")
-        using .SpecialFunctionsGlue
     end
 end
 
