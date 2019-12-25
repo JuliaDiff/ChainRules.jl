@@ -1,7 +1,4 @@
-module SpecialFunctionsGlue
 using ChainRulesCore
-using ..SpecialFunctions
-
 
 @scalar_rule(SpecialFunctions.erf(x), (2 / sqrt(π)) * exp(-x * x))
 @scalar_rule(SpecialFunctions.erfc(x), -(2 / sqrt(π)) * exp(-x * x))
@@ -78,5 +75,3 @@ end
 if isdefined(SpecialFunctions, :loggamma)
     @scalar_rule(SpecialFunctions.loggamma(x), SpecialFunctions.digamma(x))
 end
-
-end #module

@@ -57,13 +57,6 @@ function frule(::typeof(sum), x)
     return sum(x), sum_pushforward
 end
 
-function rrule(::typeof(sum), x::AbstractArray{<:Real})
-    function sum_pullback(ȳ)
-        return (NO_FIELDS, @thunk(fill(ȳ, size(x))))
-    end
-    return sum(x), sum_pullback
-end
-
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
     y, mr_pullback = rrule(mapreduce, f, Base.add_sum, x; dims=dims)
     function sum_pullback(ȳ)
@@ -73,7 +66,7 @@ function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)
 end
 
 function rrule(::typeof(sum), x::AbstractArray{<:Real}; dims=:)
-    y,  inner_pullback = rrule(sum, identity, x; dims=dims)
+    y, inner_pullback = rrule(sum, identity, x; dims=dims)
     function sum_pullback(ȳ)
         return NO_FIELDS, last(inner_pullback(ȳ))
     end
