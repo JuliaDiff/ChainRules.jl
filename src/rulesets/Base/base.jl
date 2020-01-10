@@ -2,7 +2,6 @@
 @scalar_rule(zero(x), Zero())
 @scalar_rule(sign(x), Zero())
 
-@scalar_rule(abs2(x), Wirtinger(x', x))
 @scalar_rule(log(x), inv(x))
 @scalar_rule(log10(x), inv(x) / log(oftype(x, 10)))
 @scalar_rule(log2(x), inv(x) / log(oftype(x, 2)))
@@ -50,14 +49,13 @@
 @scalar_rule(deg2rad(x), π / oftype(x, 180))
 @scalar_rule(rad2deg(x), oftype(x, 180) / π)
 
-@scalar_rule(conj(x), Wirtinger(Zero(), One()))
-@scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
+@scalar_rule(conj(x), One())
+@scalar_rule(adjoint(x), One())
 @scalar_rule(transpose(x), One())
 
 @scalar_rule(abs(x::Real), sign(x))
-@scalar_rule(abs(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
+@scalar_rule(abs2(x), 2sign(x))
 @scalar_rule(hypot(x::Real), sign(x))
-@scalar_rule(hypot(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(rem2pi(x, r::RoundingMode), (One(), DoesNotExist()))
 
 @scalar_rule(+(x), One())
