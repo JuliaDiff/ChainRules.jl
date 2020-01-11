@@ -33,6 +33,8 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
             ∂self, ∂x = ∂x
             @test ∂self === NO_FIELDS
         end
+        @test isapprox(∂x, fdm(f, x);
+                       rtol=rtol, atol=atol, kwargs...)
     end
 end
 
