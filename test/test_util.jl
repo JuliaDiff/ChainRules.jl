@@ -69,7 +69,6 @@ function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm
     xs, ẋs = collect(zip(xẋs...))
     dself = Zero()
     Ω, dΩ_ad = ChainRules.frule(f, xs..., dself, ẋs...)
-    dΩ_ad = dΩ_ad .+ 0
     @test f(xs...) == Ω
 
     # Correctness testing via finite differencing.
