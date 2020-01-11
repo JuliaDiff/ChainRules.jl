@@ -62,7 +62,7 @@
     end  # Trig
 
     @testset "math" begin
-        for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im)
+        for x in (-0.1, 6.4)
             test_scalar(deg2rad, x)
             test_scalar(rad2deg, x)
 
@@ -73,30 +73,6 @@
             test_scalar(exp10, x)
 
             x isa Real && test_scalar(cbrt, x)
-            if (x isa Real && x >= 0) || x isa Complex
-                # this check is needed because these have discontinuities between
-                # `-10 + im*eps()` and `-10 - im*eps()`
-                should_test_wirtinger = imag(x) != 0 && real(x) < 0
-                test_scalar(sqrt, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log2, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log10, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log1p, x; test_wirtinger=should_test_wirtinger)
-            end
-        end
-    end
-
-    @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4, 1.0+0.5im, -10.0+1.5im)
-            test_scalar(real, x)
-            test_scalar(imag, x)
-
-            test_scalar(abs, x)
-            test_scalar(hypot, x)
-
-            test_scalar(angle, x)
-            test_scalar(abs2, x)
-            test_scalar(conj, x)
         end
     end
 

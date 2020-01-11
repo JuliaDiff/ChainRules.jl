@@ -233,7 +233,6 @@ The most important `AbstractDifferential`s when getting started are the ones abo
  - `One`, `Zero`: There are special representations of `1` and `0`. They do great things around avoiding expanding `Thunks` in multiplication and (for `Zero`) addition.
 
 #### Other `AbstractDifferential`s: don't worry about them right now
- - `Wirtinger`: it is complex. The docs need to be better. [Read the links in this issue](https://github.com/JuliaDiff/ChainRulesCore.jl/issues/40).
  - `Casted`: it implements broadcasting mechanics. See [#10](https://github.com/JuliaDiff/ChainRulesCore.jl/issues/10)
  - `InplaceableThunk`: it is like a Thunk but it can do `store!` and `accumulate!` in-place.
 
