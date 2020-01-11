@@ -50,11 +50,8 @@ end
 ##### `sum`
 #####
 
-function frule(::typeof(sum), x)
-    function sum_pushforward(_, ẋ)
-        return sum(ẋ)
-    end
-    return sum(x), sum_pushforward
+function frule(::typeof(sum), x, _, ẋ)
+    return sum(x), sum(ẋ)
 end
 
 function rrule(::typeof(sum), f, x::AbstractArray{<:Real}; dims=:)

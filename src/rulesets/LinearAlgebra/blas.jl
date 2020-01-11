@@ -11,7 +11,7 @@ _zeros(x) = fill!(similar(x), zero(eltype(x)))
 ##### `BLAS.dot`
 #####
 
-frule(::typeof(BLAS.dot), x, y) = frule(dot, x, y)
+frule(::typeof(BLAS.dot), x, y, Δself, Δx, Δy) = frule(dot, x, y, Δself, Δx, Δy)
 
 rrule(::typeof(BLAS.dot), x, y) = rrule(dot, x, y)
 
@@ -35,12 +35,9 @@ end
 ##### `BLAS.nrm2`
 #####
 
-function frule(::typeof(BLAS.nrm2), x)
+function frule(::typeof(BLAS.nrm2), x, _, Δ)
     Ω = BLAS.nrm2(x)
-    function nrm2_pushforward(_, Δx)
-        return sum(Δx * cast(@thunk(x * inv(Ω))))
-    end
-    return Ω, nrm2_pushforward
+    return Ω, sum(Δx * cast(@thunk(x * inv(Ω))))
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
@@ -70,11 +67,8 @@ end
 ##### `BLAS.asum`
 #####
 
-function frule(::typeof(BLAS.asum), x)
-    function asum_pushforward(_, Δx)
-        return sum(cast(sign, x) * Δx)
-    end
-    return BLAS.asum(x), asum_pushforward
+function frule(::typeof(BLAS.asum), x, _, Δx)
+    return BLAS.asum(x), sum(cast(sign, x) * Δx)
 end
 
 function rrule(::typeof(BLAS.asum), x)

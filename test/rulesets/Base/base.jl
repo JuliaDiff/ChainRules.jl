@@ -51,13 +51,32 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
-        
-        @testset "sincos" begin
-            x, Δx, x̄ = randn(3)
-            Δz = (randn(), randn())
+        @testset "Multivariate" begin
+            @testset "atan2" begin
+                # https://en.wikipedia.org/wiki/Atan2
+                x, y = rand(2)
+                ratan = atan(x, y)
+                u = x^2 + y^2
+                datan = y/u - 2x/u
 
-            frule_test(sincos, (x, Δx))
-            rrule_test(sincos, Δz, (x, x̄))
+                r, ṙ = frule(atan, x, y, Zero(), 1, 2)
+                @test r === ratan
+                @test ṙ === datan
+
+                r, pullback = rrule(atan, x, y)
+                @test r === ratan
+                dself, df1, df2 = pullback(1)
+                @test dself == NO_FIELDS
+                @test df1 + 2df2 === datan
+            end
+
+            @testset "sincos" begin
+                x, Δx, x̄ = randn(3)
+                Δz = (randn(), randn())
+
+                frule_test(sincos, (x, Δx))
+                rrule_test(sincos, Δz, (x, x̄))
+            end
         end
     end  # Trig
 
@@ -128,8 +147,7 @@
             _, x̄ = pb(10.5)
             @test extern(x̄) == 0
 
-            _, pf = frule(sign, 0.0)
-            ẏ = pf(NamedTuple(), 10.5)
+            _, ẏ = frule(sign, 0.0, Zero(), 10.5)
             @test extern(ẏ) == 0
         end
     end

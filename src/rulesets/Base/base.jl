@@ -100,11 +100,8 @@
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
-function frule(::typeof(*), x::Number, y::Number)
-    function times_pushforward(_, Δx, Δy)
-        return Δx * y + x * Δy
-    end
-    return x * y, times_pushforward
+function frule(::typeof(*), x::Number, y::Number, _, Δx, Δy)
+    return x * y, Δx * y + x * Δy
 end
 
 function rrule(::typeof(*), x::Number, y::Number)
@@ -114,11 +111,8 @@ function rrule(::typeof(*), x::Number, y::Number)
     return x * y, times_pullback
 end
 
-function frule(::typeof(identity), x)
-    function identity_pushforward(_, ẏ)
-        return ẏ
-    end
-    return x, identity_pushforward
+function frule(::typeof(identity), x, _, ẏ)
+    return x, ẏ
 end
 
 function rrule(::typeof(identity), x)
