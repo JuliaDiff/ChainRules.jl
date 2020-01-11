@@ -91,6 +91,10 @@
             test_scalar(exp2, x)
             test_scalar(exp10, x)
 
+            test_scalar(conj, x)
+            test_scalar(adjoint, x)
+            test_scalar(abs2, x)
+
             x isa Real && test_scalar(cbrt, x)
         end
     end
