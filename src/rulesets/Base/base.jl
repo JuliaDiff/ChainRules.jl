@@ -50,8 +50,8 @@
 @scalar_rule(deg2rad(x), π / oftype(x, 180))
 @scalar_rule(rad2deg(x), oftype(x, 180) / π)
 
-@scalar_rule(conj(x), One())
-@scalar_rule(adjoint(x), One())
+@scalar_rule(conj(x::Real), One())
+@scalar_rule(adjoint(x::Real), One())
 @scalar_rule(transpose(x), One())
 
 @scalar_rule(abs(x::Real), sign(x))
