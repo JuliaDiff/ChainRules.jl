@@ -68,10 +68,7 @@ end
 #####
 
 function frule(::typeof(BLAS.asum), x, _, Δx)
-    return BLAS.asum(x), sum(zip(x, Δx)) do xs
-        x, Δx = xs
-        return sign(x) * Δx
-    end
+    return BLAS.asum(x), sum(sign.(x) .* Δx)
 end
 
 function rrule(::typeof(BLAS.asum), x)
