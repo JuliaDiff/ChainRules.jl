@@ -52,24 +52,6 @@
             test_scalar(acotd, 1/x)
         end
         @testset "Multivariate" begin
-            @testset "atan2" begin
-                # https://en.wikipedia.org/wiki/Atan2
-                x, y = rand(2)
-                ratan = atan(x, y)
-                u = x^2 + y^2
-                datan = y/u - 2x/u
-
-                r, ṙ = frule(atan, x, y, Zero(), 1, 2)
-                @test r === ratan
-                @test ṙ === datan
-
-                r, pullback = rrule(atan, x, y)
-                @test r === ratan
-                dself, df1, df2 = pullback(1)
-                @test dself == NO_FIELDS
-                @test df1 + 2df2 === datan
-            end
-
             @testset "sincos" begin
                 x, Δx, x̄ = randn(3)
                 Δz = (randn(), randn())
@@ -91,11 +73,30 @@
             test_scalar(exp2, x)
             test_scalar(exp10, x)
 
+            test_scalar(cbrt, x)
+
+            if x >= 0
+                test_scalar(sqrt, x)
+                test_scalar(log, x)
+                test_scalar(log2, x)
+                test_scalar(log10, x)
+                test_scalar(log1p, x)
+            end
+        end
+    end
+
+    @testset "Unary complex functions" begin
+        for x in (-4.1, 6.4)
+            test_scalar(real, x)
+            test_scalar(imag, x)
+
+            test_scalar(abs, x)
+            test_scalar(hypot, x)
+
+            test_scalar(angle, x)
+            test_scalar(abs2, x)
             test_scalar(conj, x)
             test_scalar(adjoint, x)
-            test_scalar(abs2, x)
-
-            x isa Real && test_scalar(cbrt, x)
         end
     end
 

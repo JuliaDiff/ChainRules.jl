@@ -25,15 +25,13 @@ end
 
 function frule(::typeof(inv), x::AbstractArray, _, Δx)
     Ω = inv(x)
-    m = @thunk(-Ω)
-    return Ω, m * Δx * Ω
+    return Ω, -Ω * Δx * Ω
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
-    m = @thunk(-Ω')
     function inv_pullback(ΔΩ)
-        return NO_FIELDS, m * ΔΩ * Ω'
+        return NO_FIELDS, -Ω' * ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end

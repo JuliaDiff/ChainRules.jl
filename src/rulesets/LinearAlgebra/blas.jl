@@ -37,7 +37,7 @@ end
 
 function frule(::typeof(BLAS.nrm2), x, _, Δ)
     Ω = BLAS.nrm2(x)
-    return Ω, sum(Δx * cast(@thunk(x * inv(Ω))))
+    return Ω, sum(Δx .* @thunk(x * inv(Ω)))
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
@@ -68,12 +68,15 @@ end
 #####
 
 function frule(::typeof(BLAS.asum), x, _, Δx)
-    return BLAS.asum(x), sum(cast(sign, x) * Δx)
+    return BLAS.asum(x), sum(zip(x, Δx)) do xs
+        x, Δx = xs
+        return sign(x) * Δx
+    end
 end
 
 function rrule(::typeof(BLAS.asum), x)
     function asum_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(ΔΩ * cast(sign, x)))
+        return (NO_FIELDS, @thunk(ΔΩ * sign.(x)))
     end
     return BLAS.asum(x), asum_pullback
 end

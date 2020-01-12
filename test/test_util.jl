@@ -26,15 +26,17 @@ function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     @test r_res !== f_res !== nothing  # Check the rule was defined
     r_fx, prop_rule = r_res
     f_fx, f_∂x = f_res
-    @testset "$f at $x, $(nameof(rule))" for (rule, fx, ∂x) in ((rrule, r_fx, prop_rule(1)), (frule, f_fx, f_∂x))
+    @testset "$f at $x, $(nameof(rule))" for (rule, fx, ∂x) in (
+        (rrule, r_fx, prop_rule(1)),
+        (frule, f_fx, f_∂x)
+    )
         @test fx == f(x)  # Check we still get the normal value, right
 
         if rule == rrule
             ∂self, ∂x = ∂x
             @test ∂self === NO_FIELDS
         end
-        @test isapprox(∂x, fdm(f, x);
-                       rtol=rtol, atol=atol, kwargs...)
+        @test isapprox(∂x, fdm(f, x); rtol=rtol, atol=atol, kwargs...)
     end
 end
 
