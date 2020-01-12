@@ -8,11 +8,8 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 ##### `dot`
 #####
 
-function frule(::typeof(dot), x, y)
-    function dot_pushforward(Δself, Δx, Δy)
-        return sum(Δx .* y) + sum(x .* Δy)
-    end
-    return dot(x, y), dot_pushforward
+function frule(::typeof(dot), x, y, _, Δx, Δy)
+    return dot(x, y), sum(Δx .* y) + sum(x .* Δy)
 end
 
 function rrule(::typeof(dot), x, y)
@@ -26,20 +23,15 @@ end
 ##### `inv`
 #####
 
-function frule(::typeof(inv), x::AbstractArray)
+function frule(::typeof(inv), x::AbstractArray, _, Δx)
     Ω = inv(x)
-    m = @thunk(-Ω)
-    function inv_pushforward(_, Δx)
-        return m * Δx * Ω
-    end
-    return Ω, inv_pushforward
+    return Ω, -Ω * Δx * Ω
 end
 
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
-    m = @thunk(-Ω')
     function inv_pullback(ΔΩ)
-        return NO_FIELDS, m * ΔΩ * Ω'
+        return NO_FIELDS, -Ω' * ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end
@@ -48,14 +40,11 @@ end
 ##### `det`
 #####
 
-function frule(::typeof(det), x)
+function frule(::typeof(det), x, _, ẋ)
     Ω = det(x)
-    function det_pushforward(_, ẋ)
-        # TODO Performance optimization: probably there is an efficent
-        # way to compute this trace without during the full compution within
-        return Ω * tr(inv(x) * ẋ)
-    end
-    return Ω, det_pushforward
+    # TODO Performance optimization: probably there is an efficent
+    # way to compute this trace without during the full compution within
+    return Ω, Ω * tr(inv(x) * ẋ)
 end
 
 function rrule(::typeof(det), x)
@@ -70,12 +59,9 @@ end
 ##### `logdet`
 #####
 
-function frule(::typeof(logdet), x)
+function frule(::typeof(logdet), x, _, Δx)
     Ω = logdet(x)
-    function logdet_pushforward(_, Δx)
-        return tr(inv(x) * Δx)
-    end
-    return Ω, logdet_pushforward
+    return Ω, tr(inv(x) * Δx)
 end
 
 function rrule(::typeof(logdet), x)
@@ -90,11 +76,8 @@ end
 ##### `trace`
 #####
 
-function frule(::typeof(tr), x)
-    function tr_pushforward(_, Δx)
-        return tr(Δx)
-    end
-    return tr(x), tr_pushforward
+function frule(::typeof(tr), x, _, Δx)
+    return tr(x), tr(Δx)
 end
 
 function rrule(::typeof(tr), x)

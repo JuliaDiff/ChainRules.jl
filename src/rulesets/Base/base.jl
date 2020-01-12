@@ -2,7 +2,7 @@
 @scalar_rule(zero(x), Zero())
 @scalar_rule(sign(x), Zero())
 
-@scalar_rule(abs2(x), Wirtinger(x', x))
+@scalar_rule(abs2(x), 2x)
 @scalar_rule(log(x), inv(x))
 @scalar_rule(log10(x), inv(x) / log(oftype(x, 10)))
 @scalar_rule(log2(x), inv(x) / log(oftype(x, 2)))
@@ -50,14 +50,12 @@
 @scalar_rule(deg2rad(x), π / oftype(x, 180))
 @scalar_rule(rad2deg(x), oftype(x, 180) / π)
 
-@scalar_rule(conj(x), Wirtinger(Zero(), One()))
-@scalar_rule(adjoint(x), Wirtinger(Zero(), One()))
+@scalar_rule(conj(x::Real), One())
+@scalar_rule(adjoint(x::Real), One())
 @scalar_rule(transpose(x), One())
 
 @scalar_rule(abs(x::Real), sign(x))
-@scalar_rule(abs(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(hypot(x::Real), sign(x))
-@scalar_rule(hypot(x::Complex), Wirtinger(x' / 2Ω, x / 2Ω))
 @scalar_rule(rem2pi(x, r::RoundingMode), (One(), DoesNotExist()))
 
 @scalar_rule(+(x), One())
@@ -98,20 +96,14 @@
              (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))))
 @scalar_rule(fma(x, y, z), (y, x, One()))
 @scalar_rule(muladd(x, y, z), (y, x, One()))
-@scalar_rule(angle(x::Complex), @setup(u = abs2(x)), Wirtinger(-im//2 * x' / u, im//2 * x / u))
 @scalar_rule(angle(x::Real), Zero())
-@scalar_rule(real(x::Complex), Wirtinger(1//2, 1//2))
 @scalar_rule(real(x::Real), One())
-@scalar_rule(imag(x::Complex), Wirtinger(-im//2, im//2))
 @scalar_rule(imag(x::Real), Zero())
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
-function frule(::typeof(*), x::Number, y::Number)
-    function times_pushforward(_, Δx, Δy)
-        return Δx * y + x * Δy
-    end
-    return x * y, times_pushforward
+function frule(::typeof(*), x::Number, y::Number, _, Δx, Δy)
+    return x * y, Δx * y + x * Δy
 end
 
 function rrule(::typeof(*), x::Number, y::Number)
@@ -121,11 +113,8 @@ function rrule(::typeof(*), x::Number, y::Number)
     return x * y, times_pullback
 end
 
-function frule(::typeof(identity), x)
-    function identity_pushforward(_, ẏ)
-        return ẏ
-    end
-    return x, identity_pushforward
+function frule(::typeof(identity), x, _, ẏ)
+    return x, ẏ
 end
 
 function rrule(::typeof(identity), x)

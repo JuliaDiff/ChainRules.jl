@@ -51,18 +51,19 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
-        
-        @testset "sincos" begin
-            x, Δx, x̄ = randn(3)
-            Δz = (randn(), randn())
+        @testset "Multivariate" begin
+            @testset "sincos" begin
+                x, Δx, x̄ = randn(3)
+                Δz = (randn(), randn())
 
-            frule_test(sincos, (x, Δx))
-            rrule_test(sincos, Δz, (x, x̄))
+                frule_test(sincos, (x, Δx))
+                rrule_test(sincos, Δz, (x, x̄))
+            end
         end
     end  # Trig
 
     @testset "math" begin
-        for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im)
+        for x in (-0.1, 6.4)
             test_scalar(deg2rad, x)
             test_scalar(rad2deg, x)
 
@@ -72,22 +73,20 @@
             test_scalar(exp2, x)
             test_scalar(exp10, x)
 
-            x isa Real && test_scalar(cbrt, x)
-            if (x isa Real && x >= 0) || x isa Complex
-                # this check is needed because these have discontinuities between
-                # `-10 + im*eps()` and `-10 - im*eps()`
-                should_test_wirtinger = imag(x) != 0 && real(x) < 0
-                test_scalar(sqrt, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log2, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log10, x; test_wirtinger=should_test_wirtinger)
-                test_scalar(log1p, x; test_wirtinger=should_test_wirtinger)
+            test_scalar(cbrt, x)
+
+            if x >= 0
+                test_scalar(sqrt, x)
+                test_scalar(log, x)
+                test_scalar(log2, x)
+                test_scalar(log10, x)
+                test_scalar(log1p, x)
             end
         end
     end
 
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4, 1.0+0.5im, -10.0+1.5im)
+        for x in (-4.1, 6.4)
             test_scalar(real, x)
             test_scalar(imag, x)
 
@@ -97,6 +96,7 @@
             test_scalar(angle, x)
             test_scalar(abs2, x)
             test_scalar(conj, x)
+            test_scalar(adjoint, x)
         end
     end
 
@@ -152,8 +152,7 @@
             _, x̄ = pb(10.5)
             @test extern(x̄) == 0
 
-            _, pf = frule(sign, 0.0)
-            ẏ = pf(NamedTuple(), 10.5)
+            _, ẏ = frule(sign, 0.0, Zero(), 10.5)
             @test extern(ẏ) == 0
         end
     end

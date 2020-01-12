@@ -6,19 +6,17 @@ https://github.com/JuliaLang/julia/issues/22129.
 =#
 function _cast_diff(f, x)
     function element_rule(u)
-        fu, du = frule(f, u)
-        fu, extern(du(NamedTuple(), One()))
+        dself = Zero()
+        fu, du = frule(f, u, dself, One())
+        fu, extern(du)
     end
     results = broadcast(element_rule, x)
     return first.(results), last.(results)
 end
 
-function frule(::typeof(broadcast), f, x)
+function frule(::typeof(broadcast), f, x, _, Δf, Δx)
     Ω, ∂x = _cast_diff(f, x)
-    function broadcast_pushforward(_, Δf, Δx)
-        return Δx .* ∂x
-    end
-    return Ω, broadcast_pushforward
+    return Ω, Δx .* ∂x
 end
 
 function rrule(::typeof(broadcast), f, x)

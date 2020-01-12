@@ -7,7 +7,7 @@ const _fdm = central_fdm(5, 1)
 
 
 """
-    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), test_wirtinger=x isa Complex, kwargs...)
+    test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)
 
 Given a function `f` with scalar input an scalar output, perform finite differencing checks,
 at input point `x` to confirm that there are correct ChainRules provided.
@@ -16,50 +16,27 @@ at input point `x` to confirm that there are correct ChainRules provided.
 - `f`: Function for which the `frule` and `rrule` should be tested.
 - `x`: input at which to evaluate `f` (should generally be set to an arbitary point in the domain).
 
-- `test_wirtinger`: test whether the wirtinger derivative is correct, too
-
-All keyword arguments except for `fdm` and `test_wirtinger` are passed to `isapprox`.
+All keyword arguments except for `fdm` is passed to `isapprox`.
 """
-function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, test_wirtinger=x isa Complex, kwargs...)
+function test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     ensure_not_running_on_functor(f, "test_scalar")
 
-    @testset "$f at $x, $(nameof(rule))" for rule in (rrule, frule)
-        res = rule(f, x)
-        @test res !== nothing  # Check the rule was defined
-        fx,  prop_rule = res
+    r_res = rrule(f, x)
+    f_res = frule(f, x, Zero(), 1)
+    @test r_res !== f_res !== nothing  # Check the rule was defined
+    r_fx, prop_rule = r_res
+    f_fx, f_∂x = f_res
+    @testset "$f at $x, $(nameof(rule))" for (rule, fx, ∂x) in (
+        (rrule, r_fx, prop_rule(1)),
+        (frule, f_fx, f_∂x)
+    )
         @test fx == f(x)  # Check we still get the normal value, right
 
         if rule == rrule
-            ∂self, ∂x = prop_rule(1)
+            ∂self, ∂x = ∂x
             @test ∂self === NO_FIELDS
-        else # rule == frule
-            # Got to input extra first aguement for internals
-            # But it is only a dummy since this is not a functor
-            ∂x = prop_rule(NamedTuple(), 1)
         end
-
-
-        # Check that we get the derivative right:
-        if !test_wirtinger
-            @test isapprox(
-                ∂x, fdm(f, x);
-                rtol=rtol, atol=atol, kwargs...
-            )
-        else
-            # For complex arguments, also check if the wirtinger derivative is correct
-            ∂Re = fdm(ϵ -> f(x + ϵ), 0)
-            ∂Im = fdm(ϵ -> f(x + im*ϵ), 0)
-            ∂ = 0.5(∂Re - im*∂Im)
-            ∂̅ = 0.5(∂Re + im*∂Im)
-            @test isapprox(
-                wirtinger_primal(∂x), ∂;
-                rtol=rtol, atol=atol, kwargs...
-            )
-            @test isapprox(
-                wirtinger_conjugate(∂x), ∂̅;
-                rtol=rtol, atol=atol, kwargs...
-            )
-        end
+        @test isapprox(∂x, fdm(f, x); rtol=rtol, atol=atol, kwargs...)
     end
 end
 
@@ -92,9 +69,9 @@ end
 function frule_test(f, xẋs::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm=_fdm, kwargs...)
     ensure_not_running_on_functor(f, "frule_test")
     xs, ẋs = collect(zip(xẋs...))
-    Ω, pushforward = ChainRules.frule(f, xs...)
+    dself = Zero()
+    Ω, dΩ_ad = ChainRules.frule(f, xs..., dself, ẋs...)
     @test f(xs...) == Ω
-    dΩ_ad = pushforward(NamedTuple(), ẋs...)
 
     # Correctness testing via finite differencing.
     dΩ_fd = jvp(fdm, xs->f(xs...), (xs, ẋs))
@@ -202,10 +179,6 @@ function rrule_test(f, ȳ, xx̄s::Tuple{Any, Any}...; rtol=1e-9, atol=1e-9, fdm
         test_accumulation(x̄, x̄_ad)
         test_accumulation(Zero(), x̄_ad)
     end
-end
-
-function Base.isapprox(ad::Wirtinger, fd; kwargs...)
-    error("Finite differencing with Wirtinger rules not implemented")
 end
 
 function Base.isapprox(d_ad::DoesNotExist, d_fd; kwargs...)

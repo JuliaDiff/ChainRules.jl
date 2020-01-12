@@ -22,10 +22,8 @@
         end
         @testset "frule" begin
             x = rand(3, 3)
-            y, pushforward = frule(broadcast, sin, x)
+            y, ẏ = frule(broadcast, sin, x, Zero(), Zero(), One())
             @test y == sin.(x)
-
-            ẏ = pushforward(NamedTuple(), NamedTuple(), One())
             @test extern(ẏ) == cos.(x)
         end
     end
