@@ -35,7 +35,7 @@ end
 ##### `BLAS.nrm2`
 #####
 
-function frule(::typeof(BLAS.nrm2), x, _, Δ)
+function frule(::typeof(BLAS.nrm2), x, _, Δx)
     Ω = BLAS.nrm2(x)
     return Ω, sum(Δx .* @thunk(x * inv(Ω)))
 end
