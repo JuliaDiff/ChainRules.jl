@@ -67,6 +67,20 @@ end
 ##### `BLAS.asum`
 #####
 
+function frule(::typeof(BLAS.asum), x, _, Δx)
+    return BLAS.asum(x), sum(zip(x, Δx)) do xs
+        x, Δx = xs
+        return sign(x) * Δx
+    end
+end
+
+function rrule(::typeof(BLAS.asum), x)
+    function asum_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(ΔΩ * sign.(x)))
+    end
+    return BLAS.asum(x), asum_pullback
+end
+
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
     function asum_pullback(ΔΩ)
