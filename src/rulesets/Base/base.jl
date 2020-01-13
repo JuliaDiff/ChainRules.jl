@@ -103,7 +103,7 @@
 # product rule requires special care for arguments where `mul` is non-commutative
 
 function frule(::typeof(*), x::Number, y::Number, _, Δx, Δy)
-    return x * y, Δx * y + x * Δy
+    return x * y, @. muladd(Δx, y, x * Δy)
 end
 
 function rrule(::typeof(*), x::Number, y::Number)
