@@ -25,7 +25,7 @@ Knowing rules for more complicated functions speeds up the autodiff process as i
     Internally ChainRules tries to be consistent.
     Help with that is always welcomed.
 
-!!! terminology Primal
+!!! terminology "Primal"
 Often we will talk about something as _primal_.
 That means it is related to the original problem, not its derivative.
 For example for `y = foo(x)`
@@ -44,22 +44,22 @@ computing `foo(x)` is doing the _primal_ computation.
 
 The rules are encoded as `rrule`s and `frule`s, for use in forward-mode and reverse-mode differentiation respectively.
 
-The `rrule` for some function `foo`, which takes the positional argument `args` and keyword argument `kwargs`, is written:
+The `rrule` for some function `foo`, which takes the positional arguments `args` and keyword arguments `kwargs`, is written:
 
 ```julia
-function rrule(::typeof(foo), args; kwargs...)
+function rrule(::typeof(foo), args...; kwargs...)
     ...
     return y, pullback
 end
 ```
-Where `y` (the primal result) must be equal to `foo(args; kwargs...)`
+Where `y` (the primal result) must be equal to `foo(args...; kwargs...)`.
 `pullback` is a function to propagate the derivative information backwards at that point.
-That pullback function is used:
+That pullback function is used like:
 `∂self, ∂args... = pullback(Δy)`
 function takes arguments;:  (more later).
 
 
-Almost always the _pullback_ will be declared locally within the `rrule`, and will be a _closure_ over some of the other arguments, and potential the (primal) result.
+Almost always the _pullback_ will be declared locally within the `rrule`, and will be a _closure_ over some of the other arguments, and potentially over the primal result too.
 
 The `frule` is written:
 ```julia
@@ -71,15 +71,15 @@ end
 where again `y = foo(args; kwargs...)`,
 and `∂Y` is the result of propagating the derivative information forwards at that point.
 This propagation is call the pushforward.
-One could think of writing `∂Y = pushforward(Δself, Δargs)`, and often we will think of the `frule` as having the primal computation (`y = foo(args; kwargs...)`), and the push-forward (`∂Y = pushforward(Δself, Δargs)`)
+One could think of writing `∂Y = pushforward(Δself, Δargs)`, and often we will think of the `frule` as having the primal computation `y = foo(args...; kwargs...)`, and the push-forward `∂Y = pushforward(Δself, Δargs...)`
 
 
-!!! note Why rrule returns a pullback but frule doesn't return a pushforward
+!!! note "Why `rrule` returns a pullback but `frule` doesn't return a pushforward"
     While `rrule` takes only the arguments to the original function (the primal arguments) and returns a function (the pullback) that operates with the derivative information, the `frule` does it all at once.
     This is because the `frule` fuses the primal computation and the pushforward.
     This is an optimization that allows `frule`s to contain single large operations that perform both the primal computation and the pushforward at the same time (for example solving an ODE).
     This operation is only possible in forward mode (where `frule` is used) because the derivative information the pushforward available with the `frule` is invoked -- it is about the primal function's input.
-    In contrast, in reverse mode the derivative information needed by the pullback is about the primal functions output.
+    In contrast, in reverse mode the derivative information needed by the pullback is about the primal function's output.
     Thus the reverse mode returns the pullback function which the caller (usually an AD system) keeps hold of until derivative information about the output is available.
 
 
@@ -144,7 +144,7 @@ pushforward to find ``\dfrac{∂f}{∂x}``:
 
 #### The anatomy of pullback and pushforward
 
-For our function `foo(args...; kwargs) = y`:
+For our function `foo(args...; kwargs...) = y`:
 
 
 ```julia
@@ -187,20 +187,20 @@ end
 
 
 The input to the pushforward is often called the _perturbation_.
-If the function is `y = f(x)` often the pushforward will be written `ẏ = last∘frule(f, x, ṡelf, ẋ))`.
-(`ẏ` is commonly used to represent the perturbation for `y`)
+If the function is `y = f(x)` often the pushforward will be written `ẏ = last(frule(f, x, ṡelf, ẋ))`.
+`ẏ` is commonly used to represent the perturbation for `y`.
 
 !!! note
     
-    In the `frule`/pushforward:
+    In the `frule`/pushforward,
     there is one `Δarg` per `arg` to the original function.
     The `Δargs` are similar in type/structure to the corresponding inputs `args` (`Δself` is explained below).
     The `∂y` are similar in type/structure to the original function's output `Y`.
-    In particular if that function returned a tuple then `∂y` will be a tuple of same size.
+    In particular if that function returned a tuple then `∂y` will be a tuple of the same size.
 
 ### Self derivative `Δself`, `∂self`, `s̄elf`, `ṡelf` etc.
 
-!!! terminology  `Δself`, `∂self`, `s̄elf`, `ṡelf`
+!!! terminology  "`Δself`, `∂self`, `s̄elf`, `ṡelf`"
     It is the derivatives with respect to the internal fields of the function.
     To the best of our knowledge there is no standard terminology for this.
     Other good names might be `Δinternal`/`∂internal`.
