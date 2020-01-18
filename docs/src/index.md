@@ -438,7 +438,7 @@ It is very easy to check gradients or derivatives with a computer algebra system
 
 #### `Δx`, `∂x`, `dx`
 ChainRules uses these perhaps atyptically.
-As a notation that is the same across propagators, regardless of direction. (Incontrast see `ẋ` and `x̄` below)
+As a notation that is the same across propagators, regardless of direction (incontrast see `ẋ` and `x̄` below).
 
  - `Δx` is the input to a propagator, (i.e a _seed_ for a _pullback_; or a _perturbation_ for a _pushforward_)
  - `∂x` is the output of a propagator
