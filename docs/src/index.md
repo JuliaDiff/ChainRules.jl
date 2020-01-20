@@ -42,7 +42,7 @@ computing `foo(x)` is doing the _primal_ computation.
     Their exact functioning is fairly ChainRules specific, though other tools have similar functions.
     The core notion is sometimes called _custom AD primitives_, _custom adjoints_, _custom_gradients_, _custom sensitivities_.
 
-The rules are encoded as `rrule`s and `frule`s, for use in forward-mode and reverse-mode differentiation respectively.
+The rules are encoded as `frule`s and `rrule`s, for use in forward-mode and reverse-mode differentiation respectively.
 
 The `rrule` for some function `foo`, which takes the positional arguments `args` and keyword arguments `kwargs`, is written:
 
@@ -52,7 +52,7 @@ function rrule(::typeof(foo), args...; kwargs...)
     return y, pullback
 end
 ```
-Where `y` (the primal result) must be equal to `foo(args...; kwargs...)`.
+where `y` (the primal result) must be equal to `foo(args...; kwargs...)`.
 `pullback` is a function to propagate the derivative information backwards at that point.
 That pullback function is used like:
 `∂self, ∂args... = pullback(Δy)`
@@ -238,7 +238,7 @@ Similarly every `pullback` returns an extra `∂self`, which for things without 
 
 The most trivial use of the `pushforward` from within `frule` is to calculate the directional derivative:
 
-If we would like to know the the directional derivative of `f` for an input chage of `(1.5, 0.4, -1)`
+If we would like to know the the directional derivative of `f` for an input change of `(1.5, 0.4, -1)`
 
 ```julia
 direction = (1.5, 0.4, -1) # (ȧ, ḃ, ċ)
@@ -279,7 +279,7 @@ The most important `AbstractDifferential`s when getting started are the ones abo
 
 #### Other `AbstractDifferential`s:
  - `Composite{P}`: this is the differential for tuples and  structs. Use it like a `Tuple` or `NamedTuple`. The type parameter `P` is for the primal type.
- - `DoesNotExist`: Zero-like, represents that the operation on this input is not differentiable. Its primal type is normally integer or boolean.
+ - `DoesNotExist`: Zero-like, represents that the operation on this input is not differentiable. Its primal type is normally `Integer` or `Bool`.
  - `InplaceableThunk`: it is like a Thunk but it can do `store!` and `accumulate!` in-place.
 
  -------------------------------
