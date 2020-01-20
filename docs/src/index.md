@@ -435,7 +435,7 @@ At some point in the future ChainRules may support these. Maybe.
 ### What is the difference between `Zero` and `DoesNotExist` ?
 `Zero` and `DoesNotExist` act almost exactly the same in practice: they result in no change whenever added to anything.
 Odds are if you write a rule that returns the wrong one everything will just work fine. 
-We provide both to allow for more clear writing of rules, and easier debuggability.
+We provide both to allow for clearer writing of rules, and easier debugging.
 
 `Zero()` represents the fact that if one perturbes (adds a small change to) the matching primal there will be no change in the behavour of the primal function.
 For example in `fst(x,y) = x`, then the derivative of `fst` with respect to `y` is `Zero()`.
