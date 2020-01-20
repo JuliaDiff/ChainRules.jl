@@ -441,6 +441,6 @@ We provide both to allow for clearer writing of rules, and easier debugging.
 For example in `fst(x,y) = x`, then the derivative of `fst` with respect to `y` is `Zero()`.
 `fst(10, 5) == 10` and if we add `0,1` to `5` we still get `fst(10, 5.1)=10`.
 
-`DoesNotExist()` represents the favt that if one perturbes the matching primal, the primal function will now error.
+`DoesNotExist()` represents the fact that if one perturbs the matching primal, the primal function will now error.
 For example in `access(xs, n) = xs[n]` then the derivative of `access` with respect to `n` is `DoesNotExist()`.
 `access([10, 20, 30], 2) = 20`, but if we add `0.1` to `2` we get `access([10, 20, 30], 2.1)` which errors as indexing can't be applied at fractional indexes.
