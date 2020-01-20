@@ -11,7 +11,6 @@ makedocs(
     authors="Jarrett Revels and other contributors",
     pages=[
         "Introduction" => "index.md",
-        "Getting Started" => "getting_started.md",
         "API" => "api.md",
     ],
 )

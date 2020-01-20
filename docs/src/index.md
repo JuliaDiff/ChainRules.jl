@@ -485,3 +485,18 @@ For example in `fst(x,y) = x`, then the derivative of `fst` with respect to `y` 
 `DoesNotExist()` represents the fact that if one perturbs the matching primal, the primal function will now error.
 For example in `access(xs, n) = xs[n]` then the derivative of `access` with respect to `n` is `DoesNotExist()`.
 `access([10, 20, 30], 2) = 20`, but if we add `0.1` to `2` we get `access([10, 20, 30], 2.1)` which errors as indexing can't be applied at fractional indexes.
+
+
+### When to use ChainRules vs ChainRulesCore?
+
+[ChainRulesCore.jl](https://github.com/JuliaDiff/ChainRulesCore.jl) is a light-weight dependency for defining rules for functions in your packages, without you needing to depend on ChainRules itself. It has no dependencies of its own.
+
+[ChainRules.jl](https://github.com/JuliaDiff/ChainRules.jl) provides the full functionality, in particular it has all the  rules for Base Julia and the standard libraries. Its thus a much heavier package to load.
+
+If you only want to define rules, not use them then you probably only want to load ChainRulesCore.
+AD systems making use of ChainRules should load ChainRules (rather than ChainRulesCore).
+
+### Where should I put my rules?
+In general, we recommend adding custom sensitivities to your own packages with ChainRulesCore, rather than adding them to ChainRules.jl.
+
+A few packages currently SpecialFunctions.jl and NaNMath.jl are in ChainRules.jl but this is a short-term measure.
