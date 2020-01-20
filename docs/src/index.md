@@ -161,7 +161,7 @@ If the function is `y = f(x)` often the pullback will be written `s̄elf, x̄ = 
 
     The pullback returns one `∂arg` per `arg` to the original function, plus one `∂self` for the fields of the function itself (explained below).
 
-!!! terminology
+!!! terminology "perturbation, seed, sensitivity"
     Sometimes _perturbation_, _seed_, and even _sensitivity_ will be used interchangeably.
     They are not generally synonymous, and ChainRules shouldn't mix them up.
     One must be careful when reading literature.
@@ -200,11 +200,10 @@ If the function is `y = f(x)` often the pushforward will be written `ẏ = last(
 
 ### Self derivative `Δself`, `∂self`, `s̄elf`, `ṡelf` etc.
 
-!!! terminology  "`Δself`, `∂self`, `s̄elf`, `ṡelf`"
+!!! terminology "Δself, ∂self, s̄elf, ṡelf"
     It is the derivatives with respect to the internal fields of the function.
     To the best of our knowledge there is no standard terminology for this.
     Other good names might be `Δinternal`/`∂internal`.
-
 
 From the mathematical perspective, one may have been wondering what all this `Δself`, `∂self` is.
 Given that a function with two inputs, say `f(a, b)`, only has two partial derivatives:
@@ -218,6 +217,7 @@ For example a closure has the fields it closes over; a callable object (i.e. a f
 So every `pushforward` takes in an extra argument, which is ignored unless the original function has fields.
 It is common to write `function foo_pushforward(_, Δargs...)` in the case when `foo` does not have fields.
 Similarly every `pullback` returns an extra `∂self`, which for things without fields is the constant `NO_FIELDS`, indicating there are no fields within the function itself.
+
 
 #### Pushforward / Pullback summary
 
@@ -241,15 +241,15 @@ The most trivial use of the `pushforward` from within `frule` is to calculate th
 If we would like to know the the directional derivative of `f` for an input chage of `(1.5, 0.4, -1)`
 
 ```julia
-direction = (1.5, 0.4, -1) # (ȧ, ḃ, ċ)
-y, ẏ = frule(f, a, b, c, Zero(), 1, 0, 0)
+direction = (1.5, 0.4, -1) # (ȧ, ḃ, ċ)
+y, ẏ = frule(f, a, b, c, Zero(), direction)
 ```
 
 On the basis directions one gets the partial derivatives of `y`:
 ```julia
-y, dy_da = frule(f, a, b, c, Zero(), 1, 0, 0)
-y, dy_db = frule(f, a, b, c, Zero(), 0, 1, 0)
-y, dy_dc = frule(f, a, b, c, Zero(), 0, 0, 1)
+y, ∂y_∂a = frule(f, a, b, c, Zero(), 1, 0, 0)
+y, ∂y_∂b = frule(f, a, b, c, Zero(), 0, 1, 0)
+y, ∂y_∂c = frule(f, a, b, c, Zero(), 0, 0, 1)
 ```
 
 Similarly, the most trivial use of `rrule` and returned `pullback` is to calculate the [Gradient](https://en.wikipedia.org/wiki/Gradient):
@@ -274,7 +274,7 @@ Most importantly: `+` and `*`, which let them act as mathematical objects.
 
 The most important `AbstractDifferential`s when getting started are the ones about avoiding work:
 
- - `Thunk`: this is a deferred computation. A thunk is a [word for a zero argument closure](https://en.wikipedia.org/wiki/Thunk). A computation wrapped in a `@thunk` doesn't get evaluated until `unthunk` is called on the `Thunk`. (`unthunk` is a no-op on nonthunked inputs.)
+ - `Thunk`: this is a deferred computation. A thunk is a [word for a zero argument closure](https://en.wikipedia.org/wiki/Thunk). A computation wrapped in a `@thunk` doesn't get evaluated until `unthunk` is called on the thunk. `unthunk` is a no-op on non-thunked inputs.
  - `One`, `Zero`: There are special representations of `1` and `0`. They do great things around avoiding expanding `Thunks` in multiplication and (for `Zero`) addition.
 
 #### Other `AbstractDifferential`s:
@@ -442,10 +442,10 @@ As a notation that is the same across propagators, regardless of direction (inco
 
  - `Δx` is the input to a propagator, (i.e a _seed_ for a _pullback_; or a _perturbation_ for a _pushforward_)
  - `∂x` is the output of a propagator
- - `dx` could be anything, including a pullback/pushforward. It really should not show up outside of tests.
+ - `dx` could be either
 
 
-#### ``\dot{y} = \dfrac{∂y}{∂x} = \overline{x}``
+#### dots and bars: ``\dot{y} = \dfrac{∂y}{∂x} = \overline{x}``
  - `v̇` is a derivative of the input moving forward: ``v̇ = \frac{∂v}{∂x}`` for input ``x``, intermediate value ``v``.
  - `v̄` is a derivative of the output moving backward: ``v̄ = \frac{∂y}{∂v}`` for output ``y``, intermediate value ``v``.
 
@@ -455,13 +455,14 @@ As a notation that is the same across propagators, regardless of direction (inco
      - `∂Ω` is thus the output of a pushforward.
 
 
-### Why does `frule` and `rrule` return the function evaluation?
-You might wonder why `frule(f, x)` returns `f(x)` and the pushforward for `f` at `x`, and similarly for `rrule` returning `f(x)` and the pullback for `f` at `x`.
+### Why does `rrule` return the primal function evaluation?
+You might wonder why `frule(f, x)` returns `f(x)` and the derivative of `f` at `x`, and similarly for `rrule` returning `f(x)` and the pullback for `f` at `x`.
 Why not just return the pushforward/pullback, and let the user call `f(x)` to get the answer separately?
 
-There are two reasons the rules also calculate the `f(x)`.
-1. For some rules the output value is used in the definition of its propagator. For example `tan`.
-2. For some rules an alternative way of calculating `f(x)` can give the same answer while also generating intermediate values that can be used in the calculations within the propagator.
+There are three reasons the rules also calculate the `f(x)`.
+1. For some rules an alternative way of calculating `f(x)` can give the same answer while also generating intermediate values that can be used in the calculations required to propagate the derivative.
+2. For many `rrule`s the output value is used in the definition of the pullback. For example `tan`, `sigmoid` etc. 
+3. For some `frule`s there exists a single, non-separable operation that will compute both derivative and primal result. For example many of the methods for [differential equation sensitivity analysis](https://docs.juliadiffeq.org/latest/analysis/sensitivity/#sensitivity-1).
 
 ### Where are the derivatives for keyword arguments?
 _pullbacks_ do not return a sensitivity for keyword arguments;
