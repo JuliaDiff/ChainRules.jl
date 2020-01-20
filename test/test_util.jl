@@ -5,6 +5,11 @@ using ChainRulesCore: AbstractDifferential
 
 const _fdm = central_fdm(5, 1)
 
+# Useful for LinearAlgebra tests
+function generate_well_conditioned_matrix(rng, N)
+    A = randn(rng, N, N)
+    return A * A' + I
+end
 
 """
     test_scalar(f, x; rtol=1e-9, atol=1e-9, fdm=central_fdm(5, 1), kwargs...)

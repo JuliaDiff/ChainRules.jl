@@ -7,34 +7,33 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    function svd_pullback(Ȳ::NamedTuple{(:U,:S,:V)})
+    function svd_pullback(Ȳ::Composite{<:SVD})
         ∂X = @thunk(svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V))
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
 end
 
-function rrule(::typeof(getproperty), F::SVD, x::Symbol)
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     function getproperty_svd_pullback(Ȳ)
-        if x === :U
-            ∂ = @thunk((; U=Ȳ, S=(zero(F.S)), V=(zero(F.V))))
+        C = Composite{T}
+        ∂F = if x === :U
+            C(U=Ȳ,)
         elseif x === :S
-            ∂ = @thunk((; U=(zero(F.U)), S=Ȳ, V=(zero(F.V))))
+            C(S=Ȳ,)
         elseif x === :V
-            ∂ = @thunk((; U=(zero(F.U)), S=(zero(F.S)), V=Ȳ))
+            C(V=Ȳ,)
         elseif x === :Vt
-            # TODO: This could be made to work, but it'd be a pain
+            # TODO: https://github.com/JuliaDiff/ChainRules.jl/issues/106
             throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
         end
-
-        update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
-        ∂F = InplaceableThunk(∂, update)
         return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_svd_pullback
 end
 
-function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix)
+# When not `Zero`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
+function svd_rev(USV::SVD, Ū, s̄, V̄)
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U
     s = USV.S
@@ -56,11 +55,12 @@ function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::Abstra
     ImVVᵀ = _eyesubx!(V*Vt)        # I - VVᵀ
 
     S = Diagonal(s)
-    S̄ = Diagonal(s̄)
+    S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
 
+    # TODO: consider using MuladdMacro here
     Ā = _add!(U * FUᵀŪ * S, ImUUᵀ * (Ū / S)) * Vt
-    _add!(Ā, U * S̄ * Vt)
-    _add!(Ā, U * _add!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
+    Ā = _add!(Ā, U * S̄ * Vt)
+    Ā = _add!(Ā, U * _add!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
 
     return Ā
 end

@@ -14,12 +14,12 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test dself1 === NO_FIELDS
                 @test dp === DoesNotExist()
 
-                ΔF = extern(dF)
+                ΔF = unthunk(dF)
                 dself2, dX = dX_pullback(ΔF)
                 @test dself2 === NO_FIELDS
-                X̄_ad = extern(dX)
+                X̄_ad = unthunk(dX)
                 X̄_fd = j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X)
-                @test X̄_ad ≈ X̄_fd rtol=1e-6 atol=1e-6
+                @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
             end
             @testset "Vt" begin
                 Y, dF_pullback = rrule(getproperty, F, :Vt)
@@ -28,17 +28,17 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             end
         end
 
-        @testset "accumulate!" begin
+        @testset "+" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX_pullback = rrule(svd, X)
-            X̄ = (U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
+            X̄ = Composite{typeof(F)}(U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
             for p in [:U, :S, :V]
                 Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = ones(size(Y)...)
-                (dself, dF, dp) = dF_pullback(Ȳ)
+                dself, dF, dp = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
                 @test dp === DoesNotExist()
-                ChainRules.accumulate!(X̄, dF)
+                X̄ += dF
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
             @test X̄.S ≈ ones(2) atol=1e-6
