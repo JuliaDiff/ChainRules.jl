@@ -433,7 +433,7 @@ At some point in the future ChainRules may support these. Maybe.
 
 
 ### What is the difference between `Zero` and `DoesNotExist` ?
-`Zero` and `DoesNotExist` act in practice -- they result in not change whenever added to anything.
+`Zero` and `DoesNotExist` act almost exactly the same in practice: they result in no change whenever added to anything.
 Odds are if you write a rule that returns the wrong one everything will just work fine. 
 We provide both to allow for more clear writing of rules, and easier debuggability.
 
