@@ -442,5 +442,5 @@ For example in `fst(x,y) = x`, then the derivative of `fst` with respect to `y` 
 `fst(10, 5) == 10` and if we add `0,1` to `5` we still get `fst(10, 5.1)=10`.
 
 `DoesNotExist()` represents the favt that if one perturbes the matching primal, the primal function will now error.
-For example in `nth(xs, n) = xs[n]` then the derivative of `nth` with respect to `n` is `DoesNotExist()`.
+For example in `access(xs, n) = xs[n]` then the derivative of `access` with respect to `n` is `DoesNotExist()`.
 `nth([10, 20, 30], 2) = 20`, but if we add `0.1` to `2` we get `nth([10, 20, 30], 2.1)` which errors as indexing can't be applied at fractional indexes.
