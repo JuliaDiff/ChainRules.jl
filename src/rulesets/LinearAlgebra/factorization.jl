@@ -7,27 +7,28 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    function svd_pullback(Ȳ::NamedTuple{(:U,:S,:V)})
+    function svd_pullback(Ȳ::Composite{<:SVD})
         ∂X = @thunk(svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V))
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
 end
 
-function rrule(::typeof(getproperty), F::SVD, x::Symbol)
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     function getproperty_svd_pullback(Ȳ)
+        C = Composite{T}
         if x === :U
-            ∂ = @thunk((; U=Ȳ, S=(zero(F.S)), V=(zero(F.V))))
+            ∂ = @thunk(C(; U=Ȳ, S=(zero(F.S)), V=(zero(F.V))))
         elseif x === :S
-            ∂ = @thunk((; U=(zero(F.U)), S=Ȳ, V=(zero(F.V))))
+            ∂ = @thunk(C(; U=(zero(F.U)), S=Ȳ, V=(zero(F.V))))
         elseif x === :V
-            ∂ = @thunk((; U=(zero(F.U)), S=(zero(F.S)), V=Ȳ))
+            ∂ = @thunk(C(; U=(zero(F.U)), S=(zero(F.S)), V=Ȳ))
         elseif x === :Vt
             # TODO: This could be made to work, but it'd be a pain
             throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
         end
 
-        update = (X̄::NamedTuple{(:U,:S,:V)}) -> _update!(X̄, ∂, x)
+        update = (X̄::Composite{<:SVD}) -> _update!(X̄, ∂, x)
         ∂F = InplaceableThunk(∂, update)
         return NO_FIELDS, ∂F, DoesNotExist()
     end

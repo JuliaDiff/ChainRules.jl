@@ -8,13 +8,13 @@ _update!(::Zero, y) = y
 _update!(::Zero, ::Zero) = Zero()
 
 
-function _update!(x::NamedTuple, y, p::Symbol)
-    y = extern(y)
+function _update!(x::C, y, p::Symbol) where C <: Composite
+    y = extern(y)  # can we remove this?
     yp = getproperty(y, p)
     xp = getproperty(x, p)
     new_xp = _update!(xp, yp)
     new = NamedTuple{(p,)}((new_xp,))
-    return merge(x, new)
+    return C(; merge(backing(x), new)...)
 end
 
 """
