@@ -56,7 +56,6 @@ where `y` (the primal result) must be equal to `foo(args...; kwargs...)`.
 `pullback` is a function to propagate the derivative information backwards at that point.
 That pullback function is used like:
 `∂self, ∂args... = pullback(Δy)`
-function takes arguments;:  (more later).
 
 
 Almost always the _pullback_ will be declared locally within the `rrule`, and will be a _closure_ over some of the other arguments, and potentially over the primal result too.
