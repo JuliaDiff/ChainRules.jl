@@ -77,7 +77,7 @@ One could think of writing `∂Y = pushforward(Δself, Δargs)`, and often we wi
     While `rrule` takes only the arguments to the original function (the primal arguments) and returns a function (the pullback) that operates with the derivative information, the `frule` does it all at once.
     This is because the `frule` fuses the primal computation and the pushforward.
     This is an optimization that allows `frule`s to contain single large operations that perform both the primal computation and the pushforward at the same time (for example solving an ODE).
-    This operation is only possible in forward mode (where `frule` is used) because the derivative information the pushforward available with the `frule` is invoked -- it is about the primal function's input.
+This operation is only possible in forward mode (where `frule` is used) because the derivative information needed by the pushforward available with the `frule` is invoked -- it is about the primal function's inputs.
     In contrast, in reverse mode the derivative information needed by the pullback is about the primal function's output.
     Thus the reverse mode returns the pullback function which the caller (usually an AD system) keeps hold of until derivative information about the output is available.
 
