@@ -31,11 +31,11 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         @testset "accumulate!" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX_pullback = rrule(svd, X)
-            X̄ = (U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
+            X̄ = Composite{typeof(F)}(U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
             for p in [:U, :S, :V]
                 Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = ones(size(Y)...)
-                (dself, dF, dp) = dF_pullback(Ȳ)
+                dself, dF, dp = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
                 @test dp === DoesNotExist()
                 ChainRules.accumulate!(X̄, dF)
