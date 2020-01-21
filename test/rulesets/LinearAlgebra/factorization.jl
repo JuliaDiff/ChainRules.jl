@@ -14,7 +14,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test dself1 === NO_FIELDS
                 @test dp === DoesNotExist()
 
-                ΔF = extern(dF)
+                ΔF = unthunk(dF)
                 dself2, dX = dX_pullback(ΔF)
                 @test dself2 === NO_FIELDS
                 X̄_ad = extern(dX)
