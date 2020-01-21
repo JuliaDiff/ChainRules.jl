@@ -38,7 +38,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 dself, dF, dp = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
                 @test dp === DoesNotExist()
-                ChainRules.accumulate!(X̄, dF)
+                X̄ = ChainRules.accumulate!(X̄, dF)
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
             @test X̄.S ≈ ones(2) atol=1e-6
