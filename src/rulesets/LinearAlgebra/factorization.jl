@@ -33,8 +33,7 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     return getproperty(F, x), getproperty_svd_pullback
 end
 
-# TODO: decide if we want to type constrain these inputs to `Union{Zero, T}`
-# function svd_rev(USV::SVD, Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix)
+# When not `Zero`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
 function svd_rev(USV::SVD, Ū, s̄, V̄)
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U

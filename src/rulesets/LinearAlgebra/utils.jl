@@ -1,10 +1,6 @@
 # Some utility functions for optimizing linear algebra operations that aren't specific
 # to any particular rule definition
 
-# TODO: decide if we want this; move it to ChainRulesCore.
-Base.adjoint(z::Zero) = z
-Base.:/(z::Zero, x) = z
-
 # F .* (X - X'), overwrites X if possible
 function _mulsubtrans!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
     k = size(X, 1)
