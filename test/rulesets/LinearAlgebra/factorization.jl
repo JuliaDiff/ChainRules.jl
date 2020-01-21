@@ -28,7 +28,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             end
         end
 
-        @testset "accumulate!" begin
+        @testset "+" begin
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX_pullback = rrule(svd, X)
             X̄ = Composite{typeof(F)}(U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
@@ -38,7 +38,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 dself, dF, dp = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
                 @test dp === DoesNotExist()
-                X̄ = ChainRules.accumulate!(X̄, dF)
+                X̄ += dF
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
             @test X̄.S ≈ ones(2) atol=1e-6
