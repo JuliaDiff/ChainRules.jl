@@ -18,11 +18,11 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     function getproperty_svd_pullback(Ȳ)
         C = Composite{T}
         ∂F = if x === :U
-            @thunk(C(U=Ȳ,))
+            C(U=Ȳ,)
         elseif x === :S
-            @thunk(C(S=Ȳ,))
+            C(S=Ȳ,)
         elseif x === :V
-            @thunk(C(V=Ȳ,))
+            C(V=Ȳ,)
         elseif x === :Vt
             # TODO: This could be made to work, but it'd be a pain
             # https://github.com/JuliaDiff/ChainRules.jl/issues/106
