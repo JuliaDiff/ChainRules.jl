@@ -7,7 +7,7 @@ The `Zero()` and `One()` differential objects exist as an alternative to directl
 They allow more optimal computation when chaining pullbacks/pushforwards, to avoid work.
 They should be used where possible.
 
-## Use `Thunk`s appropriately:
+## Use `Thunk`s appropriately
 
 If work is only required for one of the returned differentials, then it should be wrapped in a `@thunk` (potentially using a `begin`-`end` block).
 
