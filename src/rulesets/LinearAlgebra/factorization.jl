@@ -17,19 +17,17 @@ end
 function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     function getproperty_svd_pullback(Ȳ)
         C = Composite{T}
-        if x === :U
-            ∂ = @thunk(C(; U=Ȳ, S=(zero(F.S)), V=(zero(F.V))))
+        ∂F = if x === :U
+            @thunk(C(U=Ȳ,))
         elseif x === :S
-            ∂ = @thunk(C(; U=(zero(F.U)), S=Ȳ, V=(zero(F.V))))
+            @thunk(C(S=Ȳ,))
         elseif x === :V
-            ∂ = @thunk(C(; U=(zero(F.U)), S=(zero(F.S)), V=Ȳ))
+            @thunk(C(V=Ȳ,))
         elseif x === :Vt
             # TODO: This could be made to work, but it'd be a pain
+            # https://github.com/JuliaDiff/ChainRules.jl/issues/106
             throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
         end
-
-        update = (X̄::Composite{<:SVD}) -> _update!(X̄, ∂, x)
-        ∂F = InplaceableThunk(∂, update)
         return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_svd_pullback

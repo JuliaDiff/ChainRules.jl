@@ -4,7 +4,6 @@ using Reexport
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
-using ChainRulesCore: backing
 
 # Deal with name clashes, by defining in this module which one we mean.
 const accumulate = ChainRulesCore.accumulate
