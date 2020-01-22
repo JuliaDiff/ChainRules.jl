@@ -198,20 +198,19 @@ function test_accumulation(x̄, ∂x)
     @test all(extern(x̄ + ∂x) .≈ extern(x̄) .+ extern(∂x))
     test_accumulate(x̄, ∂x)
     test_accumulate!(x̄, ∂x)
-    test_store!(x̄, ∂x)
 end
 
 function test_accumulate(x̄::Zero, ∂x)
-    @test extern(accumulate(x̄, ∂x)) ≈ extern(∂x)
+    @test extern(x̄  + ∂x) ≈ extern(∂x)
 end
 
 function test_accumulate(x̄::Number, ∂x)
-    @test extern(accumulate(x̄, ∂x)) ≈ extern(x̄) + extern(∂x)
+    @test extern(x̄ + ∂x) ≈ extern(x̄) + extern(∂x)
 end
 
 function test_accumulate(x̄::AbstractArray, ∂x)
     x̄_old = copy(x̄)
-    @test all(extern(accumulate(x̄, ∂x)) .≈ (extern(x̄) .+ extern(∂x)))
+    @test all(extern(x̄ + ∂x) .≈ (extern(x̄) .+ extern(∂x)))
     @test x̄ == x̄_old  # make sure didn't mutate x̄
 end
 
@@ -219,26 +218,12 @@ test_accumulate!(x̄::Zero, ∂x) = nothing
 
 function test_accumulate!(x̄::Number, ∂x)
     # This case won't have been inplace as `Number` is immutable
-    @test accumulate!(x̄, ∂x) ≈ accumulate(x̄, ∂x)
+    @test (x̄ + ∂x) ≈ (x̄ += ∂x)
 end
 
 function test_accumulate!(x̄::AbstractArray, ∂x)
     x̄_copy = copy(x̄)
 
-    accumulate!(x̄_copy, ∂x)  # this should have actually been in-place
+    x̄_copy .+= ∂x  # this should have actually been in-place
     @test extern(x̄_copy) ≈ (extern(x̄) .+ extern(∂x))
-end
-
-test_store!(x̄::Zero, ∂x) = nothing
-test_store!(x̄::Number, ∂x) = nothing
-
-function test_store!(x̄::AbstractArray, ∂x)
-    x̄_store = copy(x̄)
-    store!(x̄_store, ∂x)
-    @test x̄_store ≈ extern(∂x)
-
-    # store! is the same as `accumulate!` to a zero array
-    x̄_acc = false.*x̄
-    accumulate!(x̄_acc, ∂x)
-    @test x̄_acc ≈ x̄_store
 end

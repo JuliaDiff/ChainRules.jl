@@ -10,7 +10,7 @@ using Statistics
 using Test
 
 # For testing purposes we use a lot of
-using ChainRulesCore: extern, accumulate, accumulate!, store!, @scalar_rule,
+using ChainRulesCore: extern, @scalar_rule,
     Zero, One, DoesNotExist, Thunk, AbstractDifferential
 
 Random.seed!(1) # Set seed that all testsets should reset to.

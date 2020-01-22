@@ -5,10 +5,6 @@ using Reexport
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
 
-# Deal with name clashes, by defining in this module which one we mean.
-const accumulate = ChainRulesCore.accumulate
-const accumulate! = ChainRulesCore.accumulate!
-
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Requires

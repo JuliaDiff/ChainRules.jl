@@ -42,7 +42,6 @@ end
 where `y = foo(args; kwargs...)`, and `pushforward` is a function to propagate the derivative information forwards at that point (more later).
 
 
-
 The `rrule` for some function `foo`, which takes the positional argument `args` and keyword argument `kwargs`, is written:
 
 ```julia
@@ -234,7 +233,7 @@ The most important `AbstractDifferential`s when getting started are the ones abo
 
 #### Other `AbstractDifferential`s: don't worry about them right now
  - `Casted`: it implements broadcasting mechanics. See [#10](https://github.com/JuliaDiff/ChainRulesCore.jl/issues/10)
- - `InplaceableThunk`: it is like a Thunk but it can do `store!` and `accumulate!` in-place.
+ - `InplaceableThunk`: it is like a `Thunk` but it can do in-place `add!`.
 
  -------------------------------
 
