@@ -278,7 +278,7 @@ The most important `AbstractDifferential`s when getting started are the ones abo
 ### Other `AbstractDifferential`s:
  - `Composite{P}`: this is the differential for tuples and  structs. Use it like a `Tuple` or `NamedTuple`. The type parameter `P` is for the primal type.
  - `DoesNotExist`: Zero-like, represents that the operation on this input is not differentiable. Its primal type is normally `Integer` or `Bool`.
- - `InplaceableThunk`: it is like a Thunk but it can do `store!` and `accumulate!` in-place.
+ - `InplaceableThunk`: it is like a `Thunk` but it can do in-place `add!`.
 
  -------------------------------
 

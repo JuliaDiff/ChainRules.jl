@@ -6,10 +6,6 @@ using Reexport
 import ChainRulesCore: rrule, frule
 using ChainRulesCore: AbstractZero
 
-# Deal with name clashes, by defining in this module which one we mean.
-const accumulate = ChainRulesCore.accumulate
-const accumulate! = ChainRulesCore.accumulate!
-
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Requires

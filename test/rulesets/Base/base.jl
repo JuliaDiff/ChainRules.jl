@@ -111,11 +111,8 @@
 
         @test ds === NO_FIELDS
 
-        @test extern(dx) == extern(accumulate(zeros(3, 2), dx))
-        @test extern(dy) == extern(accumulate(zeros(2, 5), dy))
-
-        test_accumulation(rand(3, 2), dx)
-        test_accumulation(rand(2, 5), dy)
+        @test extern(dx) == extern(zeros(3, 2) .+ dx)
+        @test extern(dy) == extern(zeros(2, 5) .+ dy)
     end
 
     @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
