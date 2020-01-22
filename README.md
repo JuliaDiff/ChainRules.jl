@@ -7,8 +7,8 @@
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/ChainRules.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 
 **Docs:**
-[![](https://img.shields.io/badge/docs-master-blue.svg)](https://JuliaDiff.github.io/ChainRules.jl/dev)
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDiff.github.io/ChainRules.jl/stable)
+[![](https://img.shields.io/badge/docs-master-blue.svg)](https://JuliaDiff.github.io/ChainRulesCore.jl/dev)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDiff.github.io/ChainRulesCore.jl/stable)
 
 The ChainRules package provides a variety of common utilities that can be used by downstream automatic differentiation (AD) tools to define and execute forward-, reverse-, and mixed-mode primitives.
 
