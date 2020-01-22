@@ -1,22 +1,3 @@
-# Internal helpers for defining the `add!` field of an `InplaceableThunk`
-
-_update!(x, y) = x + y
-_update!(x::Array{T,N}, y::AbstractArray{T,N}) where {T,N} = x .+= y
-
-_update!(x, ::Zero) = x
-_update!(::Zero, y) = y
-_update!(::Zero, ::Zero) = Zero()
-
-
-function _update!(x::NamedTuple, y, p::Symbol)
-    y = extern(y)
-    yp = getproperty(y, p)
-    xp = getproperty(x, p)
-    new_xp = _update!(xp, yp)
-    new = NamedTuple{(p,)}((new_xp,))
-    return merge(x, new)
-end
-
 """
     _checked_rrule
 

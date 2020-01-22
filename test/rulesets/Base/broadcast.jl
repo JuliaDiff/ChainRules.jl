@@ -11,14 +11,11 @@
 
             x̄, ȳ = rand(), rand()
             ∂x = pullback(ȳ)[3]
-            @test isequal(
-                extern(ChainRules.accumulate(x̄, ∂x)),
-                x̄ .+ ȳ .* cos.(x)
-            )
+            @test isequal(extern(x̄ .+ ∂x), x̄ .+ ȳ .* cos.(x))
 
             x̄, ȳ = Zero(), rand(3, 3)
             ∂x = pullback(ȳ)[3]
-            @test extern(extern(accumulate(x̄, ∂x))) == ȳ .* cos.(x)
+            @test extern(extern(x̄ .+ ∂x)) == ȳ .* cos.(x)
         end
         @testset "frule" begin
             x = rand(3, 3)
