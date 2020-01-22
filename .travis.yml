@@ -28,7 +28,7 @@ after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
 jobs:
   include:
-    - state: "Documentation"
+    - stage: "Documentation"
       julia: 1.0
       os: linux
       script:
