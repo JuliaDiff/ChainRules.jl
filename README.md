@@ -1,4 +1,4 @@
-<img src="docs/src/assets/logo.svg" width="256"/>
+<img src="https://rawcdn.githack.com/JuliaDiff/ChainRulesCore.jl/b0b8dbf26807f8f6bc1a3c073b6720b8d90a8cd4/docs/src/assets/logo.svg" width="256"/>
 
 # ChainRules
 
