@@ -72,25 +72,30 @@ end
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     function cholesky_pullback(Ȳ)
-        ∂X = @thunk(chol_blocked_rev(Matrix(Ȳ), Matrix(F.U), 25, true))
+        ∂X = if F.uplo === 'U'
+            @thunk(chol_blocked_rev(Matrix(Ȳ.U), Matrix(F.U), 25, true))
+        else
+            @thunk(chol_blocked_rev(Matrix(Ȳ.L), Matrix(F.L), 25, false))
+        end
         return (NO_FIELDS, ∂X)
     end
     return F, cholesky_pullback
 end
 
-function rrule(::typeof(getproperty), F::Cholesky, x::Symbol)
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Cholesky
     function getproperty_cholesky_pullback(Ȳ)
-        if x === :U
+        C = Composite{T}
+        ∂F = if x === :U
             if F.uplo === 'U'
-                ∂F = @thunk UpperTriangular(Ȳ)
+                C(U=(@thunk UpperTriangular(Ȳ)),)
             else
-                ∂F = @thunk LowerTriangular(Ȳ')
+                C(L=(@thunk LowerTriangular(Ȳ')),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                ∂F = @thunk LowerTriangular(Ȳ)
+                C(L=(@thunk LowerTriangular(Ȳ)),)
             else
-                ∂F = @thunk UpperTriangular(Ȳ')
+                C(U=(@thunk UpperTriangular(Ȳ')),)
             end
         end
         return NO_FIELDS, ∂F, DoesNotExist()
