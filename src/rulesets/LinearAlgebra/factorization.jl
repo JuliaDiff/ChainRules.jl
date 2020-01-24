@@ -72,6 +72,7 @@ end
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     function cholesky_pullback(Ȳ)
+        # Need to be `Matrix`s for calling `blas` functions in `chol_blocked_rev`.
         ∂X = if F.uplo === 'U'
             @thunk(chol_blocked_rev(Matrix(Ȳ.U), Matrix(F.U), 25, true))
         else
