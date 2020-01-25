@@ -71,12 +71,13 @@ end
 
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
-    function cholesky_pullback(Ȳ)
+    function cholesky_pullback(Ȳ::Composite{<:Cholesky})
         # Need to be `Matrix`s for calling `blas` functions in `chol_blocked_rev`.
+        # TODO: no `unthunk`ing - https://github.com/JuliaDiff/ChainRulesCore.jl/issues/100
         ∂X = if F.uplo === 'U'
-            @thunk(chol_blocked_rev(Matrix(Ȳ.U), Matrix(F.U), 25, true))
+            @thunk(chol_blocked_rev(Matrix(unthunk(Ȳ.U)), Matrix(F.U), 25, true))
         else
-            @thunk(chol_blocked_rev(Matrix(Ȳ.L), Matrix(F.L), 25, false))
+            @thunk(chol_blocked_rev(Matrix(unthunk(Ȳ.L)), Matrix(F.L), 25, false))
         end
         return (NO_FIELDS, ∂X)
     end
