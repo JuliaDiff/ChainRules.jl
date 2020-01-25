@@ -72,12 +72,11 @@ end
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     function cholesky_pullback(Ȳ::Composite{<:Cholesky})
-        # Need to be `Matrix`s for calling `blas` functions in `chol_blocked_rev`.
         # TODO: no `unthunk`ing - https://github.com/JuliaDiff/ChainRulesCore.jl/issues/100
         ∂X = if F.uplo === 'U'
-            @thunk(chol_blocked_rev(Matrix(unthunk(Ȳ.U)), Matrix(F.U), 25, true))
+            @thunk(chol_blocked_rev(unthunk(Ȳ.U), F.U, 25, true))
         else
-            @thunk(chol_blocked_rev(Matrix(unthunk(Ȳ.L)), Matrix(F.L), 25, false))
+            @thunk(chol_blocked_rev(unthunk(Ȳ.L), F.L, 25, false))
         end
         return (NO_FIELDS, ∂X)
     end
@@ -201,7 +200,7 @@ function chol_unblocked_rev(Σ̄::AbstractMatrix, L::AbstractMatrix, upper::Bool
 end
 
 """
-    chol_blocked_rev!(Σ̄::AbstractMatrix, L::AbstractMatrix, nb::Integer, upper::Bool)
+    chol_blocked_rev!(Σ̄::StridedMatrix, L::StridedMatrix, nb::Integer, upper::Bool)
 
 Compute the sensitivities of the Cholesky factorization using a blocked, cache-friendly
 procedure. `Σ̄` are the sensitivities of `L`, and will be transformed into the sensitivities
@@ -209,7 +208,7 @@ of `Σ`, where `Σ = LLᵀ`. `nb` is the block size to use. If the upper triangl
 to represent the factorization, that is `Σ = UᵀU` where `U := Lᵀ`, then this should be
 indicated by passing `upper = true`.
 """
-function chol_blocked_rev!(Σ̄::AbstractMatrix{T}, L::AbstractMatrix{T}, nb::Integer, upper::Bool) where T<:Real
+function chol_blocked_rev!(Σ̄::StridedMatrix{T}, L::StridedMatrix{T}, nb::Integer, upper::Bool) where T<:Real
     n = checksquare(Σ̄)
     tmp = Matrix{T}(undef, nb, nb)
     k = n
@@ -259,5 +258,6 @@ function chol_blocked_rev!(Σ̄::AbstractMatrix{T}, L::AbstractMatrix{T}, nb::In
 end
 
 function chol_blocked_rev(Σ̄::AbstractMatrix, L::AbstractMatrix, nb::Integer, upper::Bool)
-    return chol_blocked_rev!(copy(Σ̄), L, nb, upper)
+    # Convert to `Matrix`s because blas functions require StridedMatrix input.
+    return chol_blocked_rev!(Matrix(Σ̄), Matrix(L), nb, upper)
 end
