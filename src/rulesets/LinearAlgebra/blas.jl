@@ -85,12 +85,7 @@ function rrule(::typeof(BLAS.asum), n, X, incx)
             ∂X = Zero()
         else
             ΔΩ = extern(ΔΩ)
-            ∂X = @thunk scal!(
-                n,
-                ΔΩ,
-                blascopy!(n, sign.(X), incx, _zeros(X), incx),
-                incx
-            )
+            ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
         end
         return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
@@ -129,8 +124,9 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
     return y, gemv_pullback
 end
 
-function rrule(::typeof(gemv), tA::Char, A::AbstractMatrix{T},
-               x::AbstractVector{T}) where T<:BlasFloat
+function rrule(
+    ::typeof(gemv), tA::Char, A::AbstractMatrix{T}, x::AbstractVector{T}
+) where T<:BlasFloat
     y, inner_pullback = rrule(gemv, tA, one(T), A, x)
     function gemv_pullback(Ȳ)
         (_, dtA, _, dA, dx) = inner_pullback(Ȳ)
@@ -143,8 +139,9 @@ end
 ##### `BLAS.gemm`
 #####
 
-function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
-               A::AbstractMatrix{T}, B::AbstractMatrix{T}) where T<:BlasFloat
+function rrule(
+    ::typeof(gemm), tA::Char, tB::Char, α::T, A::AbstractMatrix{T}, B::AbstractMatrix{T}
+) where T<:BlasFloat
     C = gemm(tA, tB, α, A, B)
     function gemv_pullback(C̄)
         β = one(T)
@@ -194,8 +191,9 @@ function rrule(::typeof(gemm), tA::Char, tB::Char, α::T,
     return C, gemv_pullback
 end
 
-function rrule(::typeof(gemm), tA::Char, tB::Char,
-               A::AbstractMatrix{T}, B::AbstractMatrix{T}) where T<:BlasFloat
+function rrule(
+    ::typeof(gemm), tA::Char, tB::Char, A::AbstractMatrix{T}, B::AbstractMatrix{T}
+) where T<:BlasFloat
     C, inner_pullback = rrule(gemm, tA, tB, one(T), A, B)
     function gemv_pullback(Ȳ)
         (_, dtA, dtB, _, dA, dB) = inner_pullback(Ȳ)

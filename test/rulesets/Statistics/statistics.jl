@@ -3,22 +3,11 @@
     n = 9
 
     @testset "Basic" begin
-        rrule_test(
-            mean,
-            randn(rng),
-            (randn(rng, n),
-            randn(rng, n))
-        )
+        rrule_test(mean, randn(rng), (randn(rng, n), randn(rng, n)))
     end
 
     @testset "with function arg" begin
-        rrule_test(
-            mean,
-            randn(rng),
-            (abs2, nothing),
-            (randn(rng, n),
-            randn(rng, n))
-        )
+        rrule_test(mean, randn(rng), (abs2, nothing), (randn(rng, n), randn(rng, n)))
     end
 
     @testset "with dims kwargs" begin
