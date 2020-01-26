@@ -95,14 +95,14 @@
 @scalar_rule(
     mod(x, y),
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
-    ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u)),
+    (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))),
 )
 @scalar_rule(real(x::Real), One())
 @scalar_rule(rem2pi(x, r::RoundingMode), (One(), DoesNotExist()))
 @scalar_rule(
     rem(x, y),
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
-    ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u)),
+    (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))),
 )
 
 # product rule requires special care for arguments where `mul` is non-commutative
