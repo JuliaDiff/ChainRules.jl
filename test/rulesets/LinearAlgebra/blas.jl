@@ -8,8 +8,15 @@
             B = randn(rng, tB === 'N' ? (n, p) : (p, n))
             C = gemm(tA, tB, α, A, B)
             ȳ = randn(rng, size(C)...)
-            rrule_test(gemm, ȳ, (tA, nothing), (tB, nothing), (α, randn(rng)),
-                       (A, randn(rng, size(A))), (B, randn(rng, size(B))))
+            rrule_test(
+                gemm,
+                ȳ,
+                (tA, nothing),
+                (tB, nothing),
+                (α, randn(rng)),
+                (A, randn(rng, size(A))),
+                (B, randn(rng, size(B))),
+            )
         end
     end
     @testset "gemv" begin
@@ -20,8 +27,14 @@
             x = randn(rng, t === 'N' ? n : m)
             y = α * (t === 'N' ? A : A') * x
             ȳ = randn(rng, size(y)...)
-            rrule_test(gemv, ȳ, (t, nothing), (α, randn(rng)), (A, randn(rng, size(A))),
-                       (x, randn(rng, size(x))))
+            rrule_test(
+                gemv,
+                ȳ,
+                (t, nothing),
+                (α, randn(rng)),
+                (A, randn(rng, size(A))),
+                (x, randn(rng, size(x))),
+            )
         end
     end
 end
