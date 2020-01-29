@@ -72,11 +72,10 @@ end
 function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     function cholesky_pullback(Ȳ::Composite{<:Cholesky})
-        # TODO: no `unthunk`ing - https://github.com/JuliaDiff/ChainRulesCore.jl/issues/100
         ∂X = if F.uplo === 'U'
-            @thunk(chol_blocked_rev(unthunk(Ȳ.U), F.U, 25, true))
+            @thunk(chol_blocked_rev(Ȳ.U, F.U, 25, true))
         else
-            @thunk(chol_blocked_rev(unthunk(Ȳ.L), F.L, 25, false))
+            @thunk(chol_blocked_rev(Ȳ.L, F.L, 25, false))
         end
         return (NO_FIELDS, ∂X)
     end
@@ -86,17 +85,17 @@ end
 function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Cholesky
     function getproperty_cholesky_pullback(Ȳ)
         C = Composite{T}
-        ∂F = if x === :U
+        ∂F = @thunk if x === :U
             if F.uplo === 'U'
-                C(U=(@thunk UpperTriangular(Ȳ)),)
+                C(U=UpperTriangular(Ȳ),)
             else
-                C(L=(@thunk LowerTriangular(Ȳ')),)
+                C(L=LowerTriangular(Ȳ'),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                C(L=(@thunk LowerTriangular(Ȳ)),)
+                C(L=LowerTriangular(Ȳ),)
             else
-                C(U=(@thunk UpperTriangular(Ȳ')),)
+                C(U=UpperTriangular(Ȳ'),)
             end
         end
         return NO_FIELDS, ∂F, DoesNotExist()
