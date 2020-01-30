@@ -70,9 +70,9 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 # machinery from FiniteDifferences because that isn't set up to respect
                 # necessary special properties of the input. In the case of the Cholesky
                 # factorization, we need the input to be Hermitian.
-                ΔF = extern(dF)
+                ΔF = unthunk(dF)
                 _, dX = dX_pullback(ΔF)
-                X̄_ad = dot(extern(dX), V)
+                X̄_ad = dot(unthunk(dX), V)
                 X̄_fd = _fdm() do ε
                     dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
                 end
