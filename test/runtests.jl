@@ -1,6 +1,8 @@
 using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
+using ChainRulesTestUtils
+using ChainRulesTestUtils: _fdm
 using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -10,8 +12,6 @@ using Statistics
 using Test
 
 Random.seed!(1) # Set seed that all testsets should reset to.
-
-include("test_util.jl")
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
