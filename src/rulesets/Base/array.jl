@@ -74,3 +74,35 @@ function rrule(::typeof(fill), value::Any, dims::Int...)
     end
     return fill(value, dims), fill_pullback
 end
+
+# This is unfortunate
+@inline @generated function split_args(args...)
+    n = (length(args)-1) ÷ 2 # one extra for the function!
+    primals  = ntuple(i->:(args[$i]), n)
+    partials = ntuple(i->:(args[$(n+i+1)]), n)
+    :(($(primals...),), args[$(n+1)], ($(partials...),))
+end
+
+Base.@propagate_inbounds function frule(f::Union{typeof(getindex), typeof(view)},
+                                                   x::AbstractArray, args...)
+    primals, _, partials = split_args(x, args...)
+    f(primals...), f(partials[1], Base.tail(primals)..., :)
+end
+
+Base.@propagate_inbounds function frule(::typeof(setindex!), x::AbstractArray, args...)
+    primals, _, partials = split_args(x, args...)
+    Δx, Δval = partials[1], partials[2]
+    idxs = Base.tail(Base.tail(primals))
+
+    primalres = setindex!(primals...)
+    if !(Δval isa Zero)
+        if size(Δx, ndims(Δx)) != length(Δval)
+            throw(DimensionMismatch("Partials in setindex! don't have the required length"))
+        end
+        for i in axes(Δx, ndims(Δx))
+            setindex!(Δx, Δval[i], idxs..., i)
+        end
+    end
+
+    primalres, Δval
+end

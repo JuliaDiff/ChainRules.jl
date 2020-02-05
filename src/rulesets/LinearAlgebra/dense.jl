@@ -9,7 +9,7 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 #####
 
 function frule(::typeof(dot), x, y, _, Δx, Δy)
-    return dot(x, y), sum(Δx .* y) + sum(x .* Δy)
+    return dot(x, y), Δx .* y + x .* Δy
 end
 
 function rrule(::typeof(dot), x, y)
