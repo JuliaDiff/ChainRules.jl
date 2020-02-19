@@ -149,7 +149,7 @@
             _, x̄ = pb(10.5)
             @test extern(x̄) == 0
 
-            _, ẏ = frule(sign, 0.0, Zero(), 10.5)
+            _, ẏ = frule((Zero(), 10.5), sign, 0.0)
             @test extern(ẏ) == 0
         end
     end

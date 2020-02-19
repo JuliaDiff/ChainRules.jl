@@ -50,7 +50,7 @@ end
 ##### `sum`
 #####
 
-function frule(::typeof(sum), x, _, ẋ)
+function frule((_, ẋ), ::typeof(sum), x)
     return sum(x), sum(ẋ)
 end
 

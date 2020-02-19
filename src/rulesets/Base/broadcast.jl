@@ -7,14 +7,14 @@ https://github.com/JuliaLang/julia/issues/22129.
 function _cast_diff(f, x)
     function element_rule(u)
         dself = Zero()
-        fu, du = frule(f, u, dself, One())
+        fu, du = frule((dself, One()), f, u)
         fu, extern(du)
     end
     results = broadcast(element_rule, x)
     return first.(results), last.(results)
 end
 
-function frule(::typeof(broadcast), f, x, _, Δf, Δx)
+function frule((_, Δf, Δx), ::typeof(broadcast), f, x)
     Ω, ∂x = _cast_diff(f, x)
     return Ω, Δx .* ∂x
 end

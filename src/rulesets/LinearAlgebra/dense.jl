@@ -8,7 +8,7 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 ##### `dot`
 #####
 
-function frule(::typeof(dot), x, y, _, Δx, Δy)
+function frule((_, Δx, Δy), ::typeof(dot), x, y)
     return dot(x, y), sum(Δx .* y) + sum(x .* Δy)
 end
 
@@ -23,7 +23,7 @@ end
 ##### `inv`
 #####
 
-function frule(::typeof(inv), x::AbstractArray, _, Δx)
+function frule((_, Δx), ::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     return Ω, -Ω * Δx * Ω
 end
@@ -40,7 +40,7 @@ end
 ##### `det`
 #####
 
-function frule(::typeof(det), x, _, ẋ)
+function frule((_, ẋ), ::typeof(det), x)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
@@ -59,7 +59,7 @@ end
 ##### `logdet`
 #####
 
-function frule(::typeof(logdet), x, _, Δx)
+function frule((_, Δx), ::typeof(logdet), x)
     Ω = logdet(x)
     return Ω, tr(inv(x) * Δx)
 end
@@ -76,7 +76,7 @@ end
 ##### `trace`
 #####
 
-function frule(::typeof(tr), x, _, Δx)
+function frule((_, Δx), ::typeof(tr), x)
     return tr(x), tr(Δx)
 end
 
