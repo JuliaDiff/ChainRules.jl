@@ -107,7 +107,7 @@
 
 # product rule requires special care for arguments where `mul` is non-commutative
 
-function frule(::typeof(*), x::Number, y::Number, _, Δx, Δy)
+function frule((_, Δx, Δy), ::typeof(*), x::Number, y::Number)
     # Optimized version of `Δx .* y .+ x .* Δy`. Also, it is potentially more
     # accurate on machines with FMA instructions, since there are only two
     # rounding operations, one in `muladd/fma` and the other in `*`.
@@ -122,7 +122,7 @@ function rrule(::typeof(*), x::Number, y::Number)
     return x * y, times_pullback
 end
 
-function frule(::typeof(identity), x, _, ẏ)
+function frule((_, ẏ), ::typeof(identity), x)
     return x, ẏ
 end
 

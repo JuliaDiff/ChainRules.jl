@@ -19,7 +19,7 @@
         end
         @testset "frule" begin
             x = rand(3, 3)
-            y, ẏ = frule(broadcast, sin, x, Zero(), Zero(), One())
+            y, ẏ = frule((Zero(), Zero(), One()), broadcast, sin, x)
             @test y == sin.(x)
             @test extern(ẏ) == cos.(x)
         end
