@@ -3,6 +3,7 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: _fdm
+using Compat: only
 using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
