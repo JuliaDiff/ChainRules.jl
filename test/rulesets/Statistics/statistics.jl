@@ -16,7 +16,7 @@
         ȳ = randn(rng, size(y))
         _, dX = mean_pullback(ȳ)
         X̄_ad = extern(dX)
-        X̄_fd = j′vp(_fdm, x->mean(x, dims=1), ȳ, X)
+        X̄_fd = only(j′vp(_fdm, x->mean(x, dims=1), ȳ, X))
         @test X̄_ad ≈ X̄_fd rtol=1e-9 atol=1e-9
     end
 end

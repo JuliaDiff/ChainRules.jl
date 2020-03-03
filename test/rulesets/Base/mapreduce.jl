@@ -21,7 +21,7 @@
         y, pullback = rrule(mapreduce, abs2, +, X; dims=2)
         ȳ = randn(rng, size(y))
         (_, _, _, x̄_ad) = pullback(ȳ)
-        x̄_fd = j′vp(central_fdm(5, 1), x->mapreduce(abs2, +, x; dims=2), ȳ, X)
+        x̄_fd = only(j′vp(central_fdm(5, 1), x->mapreduce(abs2, +, x; dims=2), ȳ, X))
         @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
     end
     @testset "$f" for f in (mapfoldl, mapfoldr)
@@ -61,7 +61,7 @@
             y, pullback = rrule(sum, X; dims=2)
             ȳ = randn(rng, size(y))
             _, x̄_ad = pullback(ȳ)
-            x̄_fd = j′vp(central_fdm(5, 1), x->sum(x, dims=2), ȳ, X)
+            x̄_fd = only(j′vp(central_fdm(5, 1), x->sum(x, dims=2), ȳ, X))
             @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
         end
     end  # sum
