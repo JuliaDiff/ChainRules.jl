@@ -127,7 +127,7 @@ say ``(x_1,...,x_m) = (a_1,...,1_m)``
 
 A _function_ ``f:M -> K`` on ``M`` is (for simplicity) a polynomial ``K[x_1, ... x_m]``
 
-The tangent space ``T_pM`` of ``T`` is the ``K``-vector space spanned by derivations ``d/dx``. 
+The tangent space ``T_pM`` of ``T`` at point ``p`` is the ``K``-vector space spanned by derivations ``d/dx``. 
 The tangent space acts linearly on the space of functions. They act as usual on functions. Our starting point is 
 that we know how to write down ``d/dx(f) = df/dx``.
 
