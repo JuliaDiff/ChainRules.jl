@@ -146,7 +146,7 @@ Let ``N`` be another type, defined by numbers ``y_1,...,y_n``, and let ``g:M -> 
 an ``n``-dimensional vector ``(g_1, ..., g_m)`` of functions on ``M``.
 
 We define the _push-forward_ ``g_*:TM -> TN`` between tangent bundles by ``g_*(X)(h) = X(g\circ h)`` for any tangent vector ``X`` and function ``f``.
-We have ``g_*(d/dx_i)(y_j) = dg_j/dx_i, so the push-forward is equal to the Jacobian when written in coordinates.
+We have ``g_*(d/dx_i)(y_j) = dg_j/dx_i, so the push-forward corresponds to the Jacobian, given a chosen basis.
 
 Similarly, the pullback of the differential ``df`` is defined by
 ``g^*(df) = d(g\circ f)``. So for a coordinate differential ``dy_j``, we have
