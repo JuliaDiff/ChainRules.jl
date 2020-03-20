@@ -159,7 +159,7 @@ Notice that the pullback of a differential and the pushforward of a vector have 
 be reflected on how they are used in code.
 
 The information contained in the push-forward map is exactly _what does my function do to tangent vectors_.
-Pullbacks, acting on differentials of functions, act by taking the first order information of a function.
+Pullbacks, acting on differentials of functions, act by taking the total derivative of a function.
 This works in a coordinate invariant way, and works without the notion of a metric.
 _Gradients_ recall are vectors, yet they should contain the same information of the differential ``df``.
 Assuming we use the standard euclidean metric, we can identify ``df`` and ``\nabla f`` as vectors.
