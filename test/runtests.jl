@@ -16,14 +16,11 @@ Random.seed!(1) # Set seed that all testsets should reset to.
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
-    include("helper_functions.jl")
     @testset "rulesets" begin
-
         @testset "Base" begin
             include(joinpath("rulesets", "Base", "base.jl"))
             include(joinpath("rulesets", "Base", "array.jl"))
             include(joinpath("rulesets", "Base", "mapreduce.jl"))
-            include(joinpath("rulesets", "Base", "broadcast.jl"))
         end
 
         print(" ")

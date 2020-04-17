@@ -6,10 +6,6 @@
         rrule_test(mean, randn(rng), (randn(rng, n), randn(rng, n)))
     end
 
-    @testset "with function arg" begin
-        rrule_test(mean, randn(rng), (abs2, nothing), (randn(rng, n), randn(rng, n)))
-    end
-
     @testset "with dims kwargs" begin
         X = randn(rng, n, n+1)
         y, mean_pullback = rrule(mean, X; dims=1)
