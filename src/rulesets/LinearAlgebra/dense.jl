@@ -121,14 +121,11 @@ function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     C, dC_pb = rrule(adjoint, Cᵀ)
     function slash_pullback(Ȳ)
         # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        # this is not a problem if you want the 2nd or 3rd, but if you want the first, it
-        # is fairly wasteful
-        _, dC = dC_pb(Ȳ)
-        _, dBᵀ, dAᵀ = dS_pb(extern(dC))
+                _, dC = dC_pb(Ȳ)
+        _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
 
-        # need to extern as  dAᵀ, dBᵀ  are generally `Thunk`s, which don't support adjoint
-        ∂A = @thunk last(dA_pb(extern(dAᵀ)))
-        ∂B = @thunk last(dA_pb(extern(dBᵀ)))
+        ∂A = last(dA_pb(unthunk(dAᵀ)))
+        ∂B = last(dA_pb(unthunk(dBᵀ)))
 
         (NO_FIELDS, ∂A, ∂B)
     end
