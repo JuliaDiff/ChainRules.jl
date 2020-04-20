@@ -4,7 +4,7 @@
 
 @scalar_rule(abs(x::Real), sign(x))
 @scalar_rule(abs2(x), 2x)
-@scalar_rule(exp(x), Ω)
+@scalar_rule(exp(x::Real), Ω)
 @scalar_rule(exp10(x), Ω * log(oftype(x, 10)))
 @scalar_rule(exp2(x), Ω * log(oftype(x, 2)))
 @scalar_rule(expm1(x), exp(x))
