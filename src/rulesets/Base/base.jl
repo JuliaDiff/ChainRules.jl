@@ -117,7 +117,7 @@ end
 
 function rrule(::typeof(*), x::Number, y::Number)
     function times_pullback(ΔΩ)
-        return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
+        return (NO_FIELDS,  @thunk(ΔΩ * y), @thunk(x * ΔΩ))
     end
     return x * y, times_pullback
 end
