@@ -137,6 +137,7 @@ function rrule(::typeof(identity), x::Tuple)
     # `identity(::Tuple)` returns multiple outputs;because that is how we think of
     # returning a tuple, so its pullback needs to accept multiple inputs.
     # `identity(::Tuple)` has one input, so its pullback should return 1 matching output
+    # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/152
     function identity_pullback(ȳs...)
         return (NO_FIELDS, Composite{typeof(x)}(ȳs...))
     end
