@@ -81,6 +81,8 @@ function frule((_, Δx), ::typeof(tr), x)
 end
 
 function rrule(::typeof(tr), x)
+    # This should really be a FillArray
+    # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
     function tr_pullback(ΔΩ)
         return (NO_FIELDS, @thunk Diagonal(fill(ΔΩ, size(x, 1))))
     end
