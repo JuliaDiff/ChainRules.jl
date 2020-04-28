@@ -126,6 +126,18 @@
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
+
+    @testset "x^n for x<0" begin
+        rng = MersenneTwister(123456)
+        x = -15*rand(rng)
+        Δx, x̄ = 10rand(rng, 2)
+        y, Δy, ȳ = rand(rng, 3)
+        Δz = rand(rng)
+
+        frule_test(^, (-x, Δx), (y, Δy))
+        rrule_test(^, Δz, (-x, x̄), (y, ȳ))
+    end
+
     @testset "identity" begin
         rng = MersenneTwister(1)
         rrule_test(identity, randn(rng), (randn(rng), randn(rng)))

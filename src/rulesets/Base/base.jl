@@ -67,7 +67,9 @@
 @scalar_rule(-(x, y), (One(), -1))
 @scalar_rule(/(x, y), (inv(y), -(x / y / y)))
 @scalar_rule(\(x, y), (-(y / x / x), inv(x)))
-@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(x)))
+
+#log(complex(x)) is require so it give correct complex answer for x<0 
+@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(complex(x))))
 
 @scalar_rule(cbrt(x), inv(3 * Ω^2))
 @scalar_rule(inv(x), -Ω^2)
