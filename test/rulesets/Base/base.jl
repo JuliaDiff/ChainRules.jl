@@ -130,7 +130,6 @@
         rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
 
-        # Broken til we overload `FiniteDifferences.to_vec` for Composite, in ChainRulesTestUtils
         rrule_test(
             identity, Tuple(randn(rng, 3)),
             (Composite{Tuple}(randn(rng, 3)...), Composite{Tuple}(randn(rng, 3)...))
