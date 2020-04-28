@@ -6,7 +6,15 @@
         rrule_test(Diagonal, D, (randn(rng, N), randn(rng, N)))
         # Concrete type instead of UnionAll
         rrule_test(typeof(D), D, (randn(rng, N), randn(rng, N)))
+
+        # TODO: replace this with a `rrule_test` once we have that working
+        # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
+        res, pb = rrule(Diagonal, [1, 4])
+        @test pb(10*res) == (NO_FIELDS, [10, 40])
+        comp = Composite{typeof(res)}(;diag=10*res.diag)  # this is the structure of Diagonal
+        @test pb(comp) == (NO_FIELDS, [10, 40])
     end
+    
     @testset "::Diagonal * ::AbstractVector" begin
         rng, N = MersenneTwister(123456), 3
         rrule_test(
