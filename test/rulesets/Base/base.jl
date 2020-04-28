@@ -35,14 +35,15 @@
             test_scalar(acsc, 1/x)
             test_scalar(acot, 1/x)
         end
-        @testset "Inverse hyperbolic" for x = (0.5, Complex(0.5, 0.25))
+        @testset "Inverse hyperbolic" for x = (0.5, Complex(0.5, 0.25),  Complex(-2.1 -3.1im))
             test_scalar(asinh, x)
-            test_scalar(acosh, x + 1)  # +1 accounts for domain
+            test_scalar(acosh, x + 1)  # +1 accounts for domain for real
             test_scalar(atanh, x)
             test_scalar(asech, x)
             test_scalar(acsch, x)
             test_scalar(acoth, x + 1)
         end
+
         @testset "Inverse degrees" for x = (0.5, Complex(0.5, 0.25))
             test_scalar(asind, x)
             test_scalar(acosd, x)

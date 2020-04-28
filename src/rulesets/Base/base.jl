@@ -45,7 +45,8 @@
 @scalar_rule(sinh(x), cosh(x))
 @scalar_rule(tanh(x), 1-Ω^2)
 
-@scalar_rule(acosh(x), inv(sqrt(x^2 - 1)))
+# Can't multiply though sqrt in acosh because of negative complex case for x
+@scalar_rule(acosh(x), inv(sqrt(x - 1) * sqrt(x + 1)))
 @scalar_rule(acoth(x), inv(1 - x^2))
 @scalar_rule(acsch(x), -inv(x^2 * sqrt(1 + x^-2)))
 @scalar_rule(acsch(x::Real), -inv(abs(x) * sqrt(1 + x^2)))
