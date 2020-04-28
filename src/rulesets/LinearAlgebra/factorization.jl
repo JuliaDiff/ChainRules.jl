@@ -260,3 +260,50 @@ function chol_blocked_rev(Σ̄::AbstractMatrix, L::AbstractMatrix, nb::Integer, 
     # Convert to `Matrix`s because blas functions require StridedMatrix input.
     return chol_blocked_rev!(Matrix(Σ̄), Matrix(L), nb, upper)
 end
+
+#####
+##### `eigen`
+#####
+
+function rrule(::typeof(eigen), X::AbstractMatrix{<:Real})
+    F = eigen(X) # Should this change to SVD for symmetric psd case? Check if Eigen defaults to svd for symmetric PSD
+    function eigen_pullback(Ȳ::Composite{<:Eigen})
+        ∂X = @thunk(eigen_rev(F, Ȳ.values, Ȳ.vectors))
+        return (NO_FIELDS, ∂X)
+    end
+    return F, eigen_pullback
+end
+
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Eigen
+    function getproperty_eigen_pullback(Ȳ)
+        C = Composite{T}
+        ∂F = if x === :values
+            C(values=Ȳ,)
+        elseif x === :vectors
+            C(vectors=Ȳ,)
+        end
+        return NO_FIELDS, ∂F, DoesNotExist()
+    end
+    return getproperty(F, x), getproperty_eigen_pullback
+end
+
+function eigen_rev(ΛV::Eigen,Λ̄,V̄,k)
+
+    Λ = ΛV.values
+    V = ΛV.vectors
+    A = V*diagm(Λ)*V'
+
+    Ā = zeros(size(A))
+    tempĀ = zeros(size(A))
+    # eigen(A).values are in descending order
+    for j = length(Λ):-1:1
+        tempĀ = (I-V[:,j]*V[:,j]') ./ norm(A*V[:,j])
+        for i = 1:k-1
+            tempĀ += A^i * (I-V[:,j]*V[:,j]') ./ (norm(A*V[:,j])^(i+1))
+        end
+        tempĀ *= V̄[:,j]*V[:,j]'
+        Ā += tempĀ
+        A = A - A*V[:,j]*V[:,j]'
+    end
+    return Ā
+end
