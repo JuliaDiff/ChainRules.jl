@@ -269,7 +269,7 @@ end
 # this determines how many iterations are differentiated.
 # I am also iffy about the implementation of rrule for eigen in general, the paper
 # ignores the adjoints of the eigenvalues and also relies on the primal input being
-# symmetric positive semidefinte
+# symmetric positive semidefinite
 function rrule(::typeof(eigen), X::AbstractMatrix{<:Real};k=1)
     # The paper only computes the adjoint using the adjoint of the eigenvectors,
     # not the eigenvalues, and uses svd in the forward pass
@@ -295,14 +295,15 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Eigen
 end
 
 function eigen_rev(ΛV::Eigen,Λ̄,V̄,k)
-    
+
     Λ = ΛV.values
     V = ΛV.vectors
     A = V*diagm(Λ)*V'
 
     Ā = zeros(size(A))
     tempĀ = zeros(size(A))
-    # eigen(A).values are in descending order
+    # eigen(A).values are in descending order, this current implementation
+    # assumes that the input matrix positive definite
     for j = length(Λ):-1:1
         tempĀ = (I-V[:,j]*V[:,j]') ./ norm(A*V[:,j])
         for i = 1:k-1
