@@ -101,7 +101,7 @@
         end
     end
 
-    @testset "*(x, y)" begin
+    @testset "matmul *(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
         z, pullback = rrule(*, x, y)
 
@@ -116,6 +116,8 @@
         @test extern(dy) == extern(zeros(2, 5) .+ dy)
     end
 
+
+
     @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
         rng = MersenneTwister(123456)
         x, Δx, x̄ = 10rand(rng, 3)
@@ -126,7 +128,22 @@
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
+    @testset "*(x, y) (scalar)" begin
+        # This is pretty important so testing it fairly heavily
+        test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
+        @testset "$x * $y; (perturbed by: $perturb)" for
+            x in test_points, y in test_points, perturb in test_points
 
+            # give small off-set so as can't slip in symmetry
+            x̄ = ẋ = 0.5 + perturb
+            ȳ = ẏ = 0.6 + perturb
+            Δz = perturb
+
+            frule_test(*, (x, ẋ), (y, ẏ))
+            rrule_test(*, Δz, (x, x̄), (y, ȳ))
+        end
+    end
+    
     @testset "x^n for x<0" begin
         rng = MersenneTwister(123456)
         x = -15*rand(rng)
