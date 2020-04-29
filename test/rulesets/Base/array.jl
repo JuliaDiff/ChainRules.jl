@@ -1,9 +1,8 @@
 @testset "reshape" begin
-    rng = MersenneTwister(1)
-    A = randn(rng, 4, 5)
+    A = rand(4, 5)
     B, pullback = rrule(reshape, A, (5, 4))
     @test B == reshape(A, (5, 4))
-    Ȳ = randn(rng, 4, 5)
+    Ȳ = randn(4, 5)
 
     (s̄, Ā, d̄) = pullback(Ȳ)
     @test s̄ == NO_FIELDS
@@ -13,7 +12,7 @@
     B, pullback = rrule(reshape, A, 5, 4)
     @test B == reshape(A, 5, 4)
 
-    Ȳ = randn(rng, 4, 5)
+    Ȳ = randn(4, 5)
     (s̄, Ā, d̄1, d̄2) = pullback(Ȳ)
     @test s̄ == NO_FIELDS
     @test d̄1 isa DoesNotExist
@@ -22,13 +21,12 @@
 end
 
 @testset "hcat" begin
-    rng = MersenneTwister(2)
-    A = randn(rng, 3, 2)
-    B = randn(rng, 3)
-    C = randn(rng, 3, 3)
+    A = randn(3, 2)
+    B = randn(3)
+    C = randn(3, 3)
     H, pullback = rrule(hcat, A, B, C)
     @test H == hcat(A, B, C)
-    H̄ = randn(rng, 3, 6)
+    H̄ = randn(3, 6)
     (ds, dA, dB, dC) = pullback(H̄)
     @test ds == NO_FIELDS
     @test dA ≈ view(H̄, :, 1:2)
@@ -37,13 +35,12 @@ end
 end
 
 @testset "vcat" begin
-    rng = MersenneTwister(3)
-    A = randn(rng, 2, 4)
-    B = randn(rng, 1, 4)
-    C = randn(rng, 3, 4)
+    A = randn(2, 4)
+    B = randn(1, 4)
+    C = randn(3, 4)
     V, pullback = rrule(vcat, A, B, C)
     @test V == vcat(A, B, C)
-    V̄ = randn(rng, 6, 4)
+    V̄ = randn(6, 4)
     (ds, dA, dB, dC) = pullback(V̄)
     @test ds == NO_FIELDS
     @test dA ≈ view(V̄, 1:2, :)
