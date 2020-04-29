@@ -101,33 +101,6 @@
         end
     end
 
-    @testset "matmul *(x, y)" begin
-        x, y = rand(3, 2), rand(2, 5)
-        z, pullback = rrule(*, x, y)
-
-        @test z == x * y
-
-        z̄ = rand(3, 5)
-        (ds, dx, dy) = pullback(z̄)
-
-        @test ds === NO_FIELDS
-
-        @test extern(dx) == extern(zeros(3, 2) .+ dx)
-        @test extern(dy) == extern(zeros(2, 5) .+ dy)
-    end
-
-
-
-    @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
-        rng = MersenneTwister(123456)
-        x, Δx, x̄ = 10rand(rng, 3)
-        y, Δy, ȳ = rand(rng, 3)
-        Δz = rand(rng)
-
-        frule_test(f, (x, Δx), (y, Δy))
-        rrule_test(f, Δz, (x, x̄), (y, ȳ))
-    end
-
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
@@ -143,7 +116,32 @@
             rrule_test(*, Δz, (x, x̄), (y, ȳ))
         end
     end
-    
+
+    @testset "matmul *(x, y)" begin
+        x, y = rand(3, 2), rand(2, 5)
+        z, pullback = rrule(*, x, y)
+
+        @test z == x * y
+
+        z̄ = rand(3, 5)
+        (ds, dx, dy) = pullback(z̄)
+
+        @test ds === NO_FIELDS
+
+        @test extern(dx) == extern(zeros(3, 2) .+ dx)
+        @test extern(dy) == extern(zeros(2, 5) .+ dy)
+    end
+
+    @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
+        rng = MersenneTwister(123456)
+        x, Δx, x̄ = 10rand(rng, 3)
+        y, Δy, ȳ = rand(rng, 3)
+        Δz = rand(rng)
+
+        frule_test(f, (x, Δx), (y, Δy))
+        rrule_test(f, Δz, (x, x̄), (y, ȳ))
+    end
+
     @testset "x^n for x<0" begin
         rng = MersenneTwister(123456)
         x = -15*rand(rng)
