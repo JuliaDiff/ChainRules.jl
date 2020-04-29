@@ -11,7 +11,7 @@
         # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
         res, pb = rrule(Diagonal, [1, 4])
         @test pb(10*res) == (NO_FIELDS, [10, 40])
-        comp = Composite{typeof(res)}(;diag=10*res.diag)  # this is the structure of Diagonal
+        comp = Composite{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
         @test pb(comp) == (NO_FIELDS, [10, 40])
     end
     
