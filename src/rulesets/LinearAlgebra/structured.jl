@@ -6,8 +6,15 @@
 #####
 
 function rrule(::Type{<:Diagonal}, d::AbstractVector)
-    function Diagonal_pullback(ȳ)
-        return (NO_FIELDS, @thunk(diag(ȳ)))
+    function Diagonal_pullback(ȳ::AbstractMatrix)
+        return (NO_FIELDS, diag(ȳ))
+    end
+    function Diagonal_pullback(ȳ::Composite)
+        # TODO: Assert about the primal type in the Composite, It should be Diagonal
+        # infact it should be exactly the type of `Diagonal(d)`
+        # but right now Zygote loses primal type information so we can't use it.
+        # See https://github.com/FluxML/Zygote.jl/issues/603
+        return (NO_FIELDS, ȳ.diag)
     end
     return Diagonal(d), Diagonal_pullback
 end

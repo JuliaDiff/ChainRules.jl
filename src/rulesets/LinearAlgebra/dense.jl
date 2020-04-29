@@ -40,17 +40,17 @@ end
 ##### `det`
 #####
 
-function frule((_, ẋ), ::typeof(det), x)
+function frule((_, ẋ), ::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
     return Ω, Ω * tr(inv(x) * ẋ)
 end
 
-function rrule(::typeof(det), x)
+function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        return NO_FIELDS, @thunk(Ω * ΔΩ * inv(x)')
+        return NO_FIELDS, Ω * ΔΩ * transpose(inv(x))
     end
     return Ω, det_pullback
 end
@@ -59,15 +59,15 @@ end
 ##### `logdet`
 #####
 
-function frule((_, Δx), ::typeof(logdet), x)
+function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     return Ω, tr(inv(x) * Δx)
 end
 
-function rrule(::typeof(logdet), x)
+function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(ΔΩ * inv(x)'))
+        return (NO_FIELDS, ΔΩ * transpose(inv(x)))
     end
     return Ω, logdet_pullback
 end
@@ -81,6 +81,8 @@ function frule((_, Δx), ::typeof(tr), x)
 end
 
 function rrule(::typeof(tr), x)
+    # This should really be a FillArray
+    # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
     function tr_pullback(ΔΩ)
         return (NO_FIELDS, @thunk Diagonal(fill(ΔΩ, size(x, 1))))
     end
@@ -121,14 +123,11 @@ function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     C, dC_pb = rrule(adjoint, Cᵀ)
     function slash_pullback(Ȳ)
         # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        # this is not a problem if you want the 2nd or 3rd, but if you want the first, it
-        # is fairly wasteful
         _, dC = dC_pb(Ȳ)
-        _, dBᵀ, dAᵀ = dS_pb(extern(dC))
+        _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
 
-        # need to extern as  dAᵀ, dBᵀ  are generally `Thunk`s, which don't support adjoint
-        ∂A = @thunk last(dA_pb(extern(dAᵀ)))
-        ∂B = @thunk last(dA_pb(extern(dBᵀ)))
+        ∂A = last(dA_pb(unthunk(dAᵀ)))
+        ∂B = last(dA_pb(unthunk(dBᵀ)))
 
         (NO_FIELDS, ∂A, ∂B)
     end

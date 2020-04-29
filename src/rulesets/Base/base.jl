@@ -4,7 +4,7 @@
 
 @scalar_rule(abs(x::Real), sign(x))
 @scalar_rule(abs2(x), 2x)
-@scalar_rule(exp(x), Ω)
+@scalar_rule(exp(x::Real), Ω)
 @scalar_rule(exp10(x), Ω * log(oftype(x, 10)))
 @scalar_rule(exp2(x), Ω * log(oftype(x, 2)))
 @scalar_rule(expm1(x), exp(x))
@@ -45,7 +45,8 @@
 @scalar_rule(sinh(x), cosh(x))
 @scalar_rule(tanh(x), 1-Ω^2)
 
-@scalar_rule(acosh(x), inv(sqrt(x^2 - 1)))
+# Can't multiply though sqrt in acosh because of negative complex case for x
+@scalar_rule(acosh(x), inv(sqrt(x - 1) * sqrt(x + 1)))
 @scalar_rule(acoth(x), inv(1 - x^2))
 @scalar_rule(acsch(x), -inv(x^2 * sqrt(1 + x^-2)))
 @scalar_rule(acsch(x::Real), -inv(abs(x) * sqrt(1 + x^2)))
@@ -66,7 +67,9 @@
 @scalar_rule(-(x, y), (One(), -1))
 @scalar_rule(/(x, y), (inv(y), -(x / y / y)))
 @scalar_rule(\(x, y), (-(y / x / x), inv(x)))
-@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(x)))
+
+#log(complex(x)) is require so it give correct complex answer for x<0 
+@scalar_rule(^(x, y), (ifelse(iszero(y), zero(Ω), y * x^(y - 1)), Ω * log(complex(x))))
 
 @scalar_rule(cbrt(x), inv(3 * Ω^2))
 @scalar_rule(inv(x), -Ω^2)
@@ -117,7 +120,7 @@ end
 
 function rrule(::typeof(*), x::Number, y::Number)
     function times_pullback(ΔΩ)
-        return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
+        return (NO_FIELDS,  @thunk(ΔΩ * y), @thunk(x * ΔΩ))
     end
     return x * y, times_pullback
 end
@@ -129,6 +132,17 @@ end
 function rrule(::typeof(identity), x)
     function identity_pullback(ȳ)
         return (NO_FIELDS, ȳ)
+    end
+    return x, identity_pullback
+end
+
+function rrule(::typeof(identity), x::Tuple)
+    # `identity(::Tuple)` returns multiple outputs;because that is how we think of
+    # returning a tuple, so its pullback needs to accept multiple inputs.
+    # `identity(::Tuple)` has one input, so its pullback should return 1 matching output
+    # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/152
+    function identity_pullback(ȳs...)
+        return (NO_FIELDS, Composite{typeof(x)}(ȳs...))
     end
     return x, identity_pullback
 end

@@ -35,14 +35,15 @@
             test_scalar(acsc, 1/x)
             test_scalar(acot, 1/x)
         end
-        @testset "Inverse hyperbolic" for x = (0.5, Complex(0.5, 0.25))
+        @testset "Inverse hyperbolic" for x = (0.5, Complex(0.5, 0.25),  Complex(-2.1 -3.1im))
             test_scalar(asinh, x)
-            test_scalar(acosh, x + 1)  # +1 accounts for domain
+            test_scalar(acosh, x + 1)  # +1 accounts for domain for real
             test_scalar(atanh, x)
             test_scalar(asech, x)
             test_scalar(acsch, x)
             test_scalar(acoth, x + 1)
         end
+
         @testset "Inverse degrees" for x = (0.5, Complex(0.5, 0.25))
             test_scalar(asind, x)
             test_scalar(acosd, x)
@@ -100,7 +101,23 @@
         end
     end
 
-    @testset "*(x, y)" begin
+    @testset "*(x, y) (scalar)" begin
+        # This is pretty important so testing it fairly heavily
+        test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
+        @testset "$x * $y; (perturbed by: $perturb)" for
+            x in test_points, y in test_points, perturb in test_points
+
+            # give small off-set so as can't slip in symmetry
+            x̄ = ẋ = 0.5 + perturb
+            ȳ = ẏ = 0.6 + perturb
+            Δz = perturb
+
+            frule_test(*, (x, ẋ), (y, ẏ))
+            rrule_test(*, Δz, (x, x̄), (y, ȳ))
+        end
+    end
+
+    @testset "matmul *(x, y)" begin
         x, y = rand(3, 2), rand(2, 5)
         z, pullback = rrule(*, x, y)
 
@@ -125,10 +142,26 @@
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
+    @testset "x^n for x<0" begin
+        rng = MersenneTwister(123456)
+        x = -15*rand(rng)
+        Δx, x̄ = 10rand(rng, 2)
+        y, Δy, ȳ = rand(rng, 3)
+        Δz = rand(rng)
+
+        frule_test(^, (-x, Δx), (y, Δy))
+        rrule_test(^, Δz, (-x, x̄), (y, ȳ))
+    end
+
     @testset "identity" begin
         rng = MersenneTwister(1)
         rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
         rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
+
+        rrule_test(
+            identity, Tuple(randn(rng, 3)),
+            (Composite{Tuple}(randn(rng, 3)...), Composite{Tuple}(randn(rng, 3)...))
+        )
     end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
