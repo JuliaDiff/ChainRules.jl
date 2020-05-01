@@ -37,15 +37,21 @@ end
 ##### `Symmetric`
 #####
 
-function rrule(::Type{<:Symmetric}, A::AbstractMatrix)
-    function Symmetric_pullback(ȳ)
-        return (NO_FIELDS, @thunk(_symmetric_back(ȳ)))
+function rrule(::Type{<:Symmetric}, A::AbstractMatrix, uplo)
+    Ω = Symmetric(A, uplo)
+    function Symmetric_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(_symmetric_back(ΔΩ, Ω.uplo)), DoesNotExist())
     end
-    return Symmetric(A), Symmetric_pullback
+    return Ω, Symmetric_pullback
 end
 
-_symmetric_back(ΔΩ) = UpperTriangular(ΔΩ) + LowerTriangular(ΔΩ)' - Diagonal(ΔΩ)
-_symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
+function _symmetric_back(ΔΩ, uplo)
+    L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
+    return uplo == 'U' ? U .+ transpose(L) - D : L .+ transpose(U) - D
+end
+_symmetric_back(ΔΩ::Diagonal, uplo) = ΔΩ
+_symmetric_back(ΔΩ::UpperTriangular, uplo) = collect(uplo == 'U' ? ΔΩ : transpose(ΔΩ))
+_symmetric_back(ΔΩ::LowerTriangular, uplo) = collect(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
 
 #####
 ##### `Adjoint`
