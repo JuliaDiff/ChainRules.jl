@@ -133,34 +133,31 @@
     end
 
     @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
-        rng = MersenneTwister(123456)
-        x, Δx, x̄ = 10rand(rng, 3)
-        y, Δy, ȳ = rand(rng, 3)
-        Δz = rand(rng)
+        x, Δx, x̄ = 10rand(3)
+        y, Δy, ȳ = rand(3)
+        Δz = rand()
 
         frule_test(f, (x, Δx), (y, Δy))
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
     @testset "x^n for x<0" begin
-        rng = MersenneTwister(123456)
-        x = -15*rand(rng)
-        Δx, x̄ = 10rand(rng, 2)
-        y, Δy, ȳ = rand(rng, 3)
-        Δz = rand(rng)
+        x = -15*rand()
+        Δx, x̄ = 10rand(2)
+        y, Δy, ȳ = rand(3)
+        Δz = rand()
 
         frule_test(^, (-x, Δx), (y, Δy))
         rrule_test(^, Δz, (-x, x̄), (y, ȳ))
     end
 
     @testset "identity" begin
-        rng = MersenneTwister(1)
-        rrule_test(identity, randn(rng), (randn(rng), randn(rng)))
-        rrule_test(identity, randn(rng, 4), (randn(rng, 4), randn(rng, 4)))
+        rrule_test(identity, randn(), (randn(), randn()))
+        rrule_test(identity, randn(4), (randn(4), randn(4)))
 
         rrule_test(
-            identity, Tuple(randn(rng, 3)),
-            (Composite{Tuple}(randn(rng, 3)...), Composite{Tuple}(randn(rng, 3)...))
+            identity, Tuple(randn(3)),
+            (Composite{Tuple}(randn(3)...), Composite{Tuple}(randn(3)...))
         )
     end
 
@@ -188,11 +185,10 @@
     end
 
     @testset "trinary ($f)" for f in (muladd, fma)
-        rng = MersenneTwister(123456)
-        x, Δx, x̄ = 10randn(rng, 3)
-        y, Δy, ȳ = randn(rng, 3)
-        z, Δz, z̄ = randn(rng, 3)
-        Δk = randn(rng)
+        x, Δx, x̄ = 10randn(3)
+        y, Δy, ȳ = randn(3)
+        z, Δz, z̄ = randn(3)
+        Δk = randn()
 
         frule_test(f, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))

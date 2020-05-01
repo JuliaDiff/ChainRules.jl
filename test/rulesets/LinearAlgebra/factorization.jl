@@ -2,13 +2,12 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
 @testset "Factorizations" begin
     @testset "svd" begin
-        rng = MersenneTwister(3)
         for n in [4, 6, 10], m in [3, 5, 10]
-            X = randn(rng, n, m)
+            X = randn(n, m)
             F, dX_pullback = rrule(svd, X)
             for p in [:U, :S, :V]
                 Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(rng, size(Y)...)
+                Ȳ = randn(size(Y)...)
 
                 dself1, dF, dp = dF_pullback(Ȳ)
                 @test dself1 === NO_FIELDS
@@ -23,7 +22,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             end
             @testset "Vt" begin
                 Y, dF_pullback = rrule(getproperty, F, :Vt)
-                Ȳ = randn(rng, size(Y)...)
+                Ȳ = randn(size(Y)...)
                 @test_throws ArgumentError dF_pullback(Ȳ)
             end
         end
@@ -46,22 +45,21 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         end
 
         @testset "Helper functions" begin
-            X = randn(rng, 10, 10)
-            Y = randn(rng, 10, 10)
+            X = randn(10, 10)
+            Y = randn(10, 10)
             @test ChainRules._mulsubtrans!(copy(X), Y) ≈ Y .* (X - X')
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
             @test ChainRules._add!(copy(X), Y) ≈ X + Y
         end
     end
     @testset "cholesky" begin
-        rng = MersenneTwister(4)
         @testset "the thing" begin
-            X = generate_well_conditioned_matrix(rng, 10)
-            V = generate_well_conditioned_matrix(rng, 10)
+            X = generate_well_conditioned_matrix(10)
+            V = generate_well_conditioned_matrix(10)
             F, dX_pullback = rrule(cholesky, X)
             for p in [:U, :L]
                 Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(rng, size(Y)))
+                Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
                 (dself, dF, dp) = dF_pullback(Ȳ)
                 @test dself === NO_FIELDS
                 @test dp === DoesNotExist()
@@ -80,7 +78,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             end
         end
         @testset "helper functions" begin
-            A = randn(rng, 5, 5)
+            A = randn(5, 5)
             r, d, B2, c = level2partition(A, 4, false)
             R, D, B3, C = level3partition(A, 4, 4, false)
             @test all(r .== R')
@@ -103,8 +101,8 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             @test transpose(B3) == B3ᵀ
             @test transpose(C) == Cᵀ
 
-            A = Matrix(LowerTriangular(randn(rng, 10, 10)))
-            Ā = Matrix(LowerTriangular(randn(rng, 10, 10)))
+            A = Matrix(LowerTriangular(randn(10, 10)))
+            Ā = Matrix(LowerTriangular(randn(10, 10)))
             # NOTE: BLAS gets angry if we don't materialize the Transpose objects first
             B = Matrix(transpose(A))
             B̄ = Matrix(transpose(Ā))
