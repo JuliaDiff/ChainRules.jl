@@ -33,7 +33,15 @@
     end
     @testset "Symmetric" begin
         N = 3
-        rrule_test(Symmetric, randn(N, N), (randn(N, N), randn(N, N)))
+        @testset "$T" for T in (Float64, ComplexF64)
+            @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
+                rrule_test(Symmetric, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:U, nothing))
+                rrule_test(Symmetric, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:L, nothing))
+            end
+            rrule_test(Symmetric, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:U, nothing))
+            rrule_test(Symmetric, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:L, nothing))
+        end
+    end
     end
     @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
         n = 5
