@@ -42,6 +42,16 @@
             rrule_test(Symmetric, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:L, nothing))
         end
     end
+    @testset "Hermitian" begin
+        N = 3
+        @testset "$T" for T in (Float64, ComplexF64)
+            @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
+                rrule_test(Hermitian, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:U, nothing))
+                rrule_test(Hermitian, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:L, nothing))
+            end
+            rrule_test(Hermitian, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:U, nothing))
+            rrule_test(Hermitian, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:L, nothing))
+        end
     end
     @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
         n = 5

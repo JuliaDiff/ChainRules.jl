@@ -54,6 +54,34 @@ _symmetric_back(ΔΩ::UpperTriangular, uplo) = collect(uplo == 'U' ? ΔΩ : tran
 _symmetric_back(ΔΩ::LowerTriangular, uplo) = collect(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
 
 #####
+##### `Hermitian`
+#####
+
+function rrule(::Type{<:Hermitian}, A::AbstractMatrix, uplo)
+    Ω = Hermitian(A, uplo)
+    function Hermitian_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(_hermitian_back(ΔΩ, Ω.uplo)), DoesNotExist())
+    end
+    return Ω, Hermitian_pullback
+end
+
+function _hermitian_back(ΔΩ, uplo)
+    isreal(ΔΩ) && return _symmetric_back(ΔΩ, uplo)
+    L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
+    return uplo == 'U' ? U .+ L' - rD : L .+ U' - rD
+end
+_hermitian_back(ΔΩ::Diagonal, uplo) = real.(ΔΩ)
+function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
+    isreal(ΔΩ) && return _symmetric_back(ΔΩ, uplo)
+    ∂UL = ΔΩ .- Diagonal(_extract_imag(diag(ΔΩ)))
+    return if istriu(ΔΩ)
+        return collect(uplo == 'U' ? ∂UL : ∂UL')
+    else
+        return collect(uplo == 'U' ? ∂UL' : ∂UL)
+    end
+end
+
+#####
 ##### `Adjoint`
 #####
 
