@@ -61,7 +61,6 @@
         end
     end
 
-
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)

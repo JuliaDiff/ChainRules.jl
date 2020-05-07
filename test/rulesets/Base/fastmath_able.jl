@@ -25,7 +25,7 @@ const FASTABLE_AST = quote
                 rrule_test(sincos, Δz, (x, x̄))
             end
         end
-    end  # Trig
+    end
 
     @testset "exponents" begin
         for x in (-0.1, 6.4)
@@ -51,11 +51,9 @@ const FASTABLE_AST = quote
     @testset "Unary complex functions" begin
         for x in (-4.1, 6.4)
             test_scalar(abs, x)
-
             test_scalar(angle, x)
             test_scalar(abs2, x)
             test_scalar(conj, x)
-
         end
     end
 
