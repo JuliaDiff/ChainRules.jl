@@ -1,5 +1,5 @@
-@scalar_rule(one(x), Zero())
-@scalar_rule(zero(x), Zero())
+@scalar_rule(one(x), zero(x))
+@scalar_rule(zero(x), zero(x))
 @scalar_rule(sign(x), Zero())
 
 @scalar_rule(abs(x::Real), sign(x))
@@ -125,13 +125,13 @@ function rrule(::typeof(*), x::Number, y::Number)
     return x * y, times_pullback
 end
 
-function frule((_, ẏ), ::typeof(identity), x)
-    return x, ẏ
+function frule((_, ẏ), ::typeof(identity), x)
+    return x, ẏ
 end
 
 function rrule(::typeof(identity), x)
-    function identity_pullback(ȳ)
-        return (NO_FIELDS, ȳ)
+    function identity_pullback(ȳ)
+        return (NO_FIELDS, ȳ)
     end
     return x, identity_pullback
 end
@@ -141,8 +141,8 @@ function rrule(::typeof(identity), x::Tuple)
     # returning a tuple, so its pullback needs to accept multiple inputs.
     # `identity(::Tuple)` has one input, so its pullback should return 1 matching output
     # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/152
-    function identity_pullback(ȳs...)
-        return (NO_FIELDS, Composite{typeof(x)}(ȳs...))
+    function identity_pullback(ȳs...)
+        return (NO_FIELDS, Composite{typeof(x)}(ȳs...))
     end
     return x, identity_pullback
 end
