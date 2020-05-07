@@ -6,6 +6,9 @@
 @scalar_rule adjoint(x::Real) One()
 @scalar_rule transpose(x) One()
 @scalar_rule imag(x::Real) Zero()
+@scalar_rule hypot(x::Real) sign(x)
+
+
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
 @scalar_rule real(x::Real) One()
