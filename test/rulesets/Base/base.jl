@@ -123,20 +123,47 @@
 
     VERSION ≥ v"1.4" && @testset "evalpoly" begin
         @testset "frule" begin
-            frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
-            frule_test(evalpoly, (randn(), randn()), (Tuple(randn(5)), Tuple(randn(5))))
+            @testset "scalar" begin
+                frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
+                frule_test(evalpoly, (randn(), randn()), (Tuple(randn(5)), Tuple(randn(5))))
+            end
+
+            @testset "matrix" begin
+                frule_test(
+                    evalpoly, (randn(3, 3), randn(3, 3)),
+                    ([randn(3, 3) for _ in 1:5], [randn(3, 3) for _ in 1:5]),
+                )
+                frule_test(
+                    evalpoly, (randn(3, 3), randn(3, 3)),
+                    (Tuple([randn(3, 3) for _ in 1:5]), Tuple([randn(3, 3) for _ in 1:5])),
+                )
+            end
         end
 
         @testset "rrule" begin
             @testset "$T" for T in (Float64, ComplexF64)
-                rrule_test(
-                    evalpoly, randn(T), (randn(T), randn(T)),
-                    (randn(T, 5), randn(T, 5)),
-                )
-                rrule_test(
-                    evalpoly, randn(T), (randn(T), randn(T)),
-                    (Tuple(randn(T, 5)), Tuple(randn(T, 5))),
-                )
+                @testset "scalar" begin
+                    rrule_test(
+                        evalpoly, randn(T), (randn(T), randn(T)),
+                        (randn(T, 5), randn(T, 5)),
+                    )
+                    rrule_test(
+                        evalpoly, randn(T), (randn(T), randn(T)),
+                        (Tuple(randn(T, 5)), Tuple(randn(T, 5))),
+                    )
+                end
+
+                @testset "matrix" begin
+                    rrule_test(
+                        evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
+                        ([randn(T, 3, 3) for i in 1:5], [randn(T, 3, 3) for i in 1:5]),
+                    )
+                    rrule_test(
+                        evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
+                        (Tuple([randn(T, 3, 3) for i in 1:5]),
+                         Tuple([randn(T, 3, 3) for i in 1:5])),
+                    )
+                end
             end
         end
     end
