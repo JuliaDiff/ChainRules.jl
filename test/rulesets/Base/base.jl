@@ -121,6 +121,28 @@
         )
     end
 
+if VERSION ≥ v"1.4"
+    @testset "evalpoly" begin
+        @testset "frule" begin
+            frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
+            frule_test(evalpoly, (randn(), randn()), (Tuple(randn(5)), Tuple(randn(5))))
+        end
+
+        @testset "rrule" begin
+            @testset "$T" for T in (Float64, ComplexF64)
+                rrule_test(
+                    evalpoly, randn(T), (randn(T), randn(T)),
+                    (randn(T, 5), randn(T, 5)),
+                )
+                rrule_test(
+                    evalpoly, randn(T), (randn(T), randn(T)),
+                    (Tuple(randn(T, 5)), Tuple(randn(T, 5))),
+                )
+            end
+        end
+    end
+end
+
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)

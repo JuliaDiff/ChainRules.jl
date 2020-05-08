@@ -88,3 +88,56 @@ function rrule(::typeof(identity), x::Tuple)
     end
     return x, identity_pullback
 end
+
+#####
+##### `evalpoly`
+#####
+
+if VERSION ≥ v"1.4"
+    function frule((_, Δx, Δp), ::typeof(evalpoly), x, p)
+        q = _evalpoly_dxcoef(p)
+        return evalpoly(x, p), evalpoly(x, Δp) + evalpoly(x, q) * Δx
+    end
+
+    function rrule(::typeof(evalpoly), x, p)
+        y = evalpoly(x, p)
+        function evalpoly_back(Δy)
+            ∂x = Thunk() do
+                q = _evalpoly_dxcoef(p)
+                return evalpoly(x, q)' * Δy
+            end
+            ∂p = @thunk _evalpoly_backp(Δy, x, p)
+            return NO_FIELDS, ∂x, ∂p
+        end
+        return y, evalpoly_back
+    end
+
+    _evalpoly_dxcoef(p) = ntuple(i -> i * p[i + 1], length(p) - 1)
+    function _evalpoly_dxcoef(p::AbstractVector)
+        N = length(p)
+        @inbounds q = (1:(N - 1)) .* view(p, 1:(N - 1))
+        return q
+    end
+
+    # This is a geometric progression, that is ∂p = Δy * (I, x, x², …, xⁿ)'
+    # TODO: Handle case where x is a matrix and p is UniformScaling
+    function _evalpoly_backp(Δy, x, p::Tuple)
+        N = length(p)
+        ∂p = ntuple(_ -> Δy, N)
+        x′ = x'
+        for i in 2:N
+            ∂p = Base.setindex(∂p, ∂p[i - 1] * x′, i)
+        end
+        return ∂p
+    end
+    function _evalpoly_backp(Δy, x, p::AbstractVector)
+        ∂p = similar(p, typeof(Δy * x))
+        N = length(∂p)
+        ∂p[1] = Δy
+        x′ = x'
+        for i in 2:N
+            @inbounds ∂p[i] = ∂p[i - 1] * x′
+        end
+        return ∂p
+    end
+end
