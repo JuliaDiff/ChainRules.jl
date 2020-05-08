@@ -100,8 +100,7 @@ if VERSION ≥ v"1.4"
     end
 
     function rrule(::typeof(evalpoly), x, p)
-        y = evalpoly(x, p)
-        function evalpoly_back(Δy)
+        function evalpoly_pullback(Δy)
             ∂x = Thunk() do
                 q = _evalpoly_dxcoef(p)
                 return evalpoly(x, q)' * Δy
@@ -109,7 +108,7 @@ if VERSION ≥ v"1.4"
             ∂p = @thunk _evalpoly_backp(Δy, x, p)
             return NO_FIELDS, ∂x, ∂p
         end
-        return y, evalpoly_back
+        return evalpoly(x, p), evalpoly_pullback
     end
 
     _evalpoly_dxcoef(p) = ntuple(i -> i * p[i + 1], length(p) - 1)
