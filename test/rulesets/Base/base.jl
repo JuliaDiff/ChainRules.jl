@@ -121,8 +121,7 @@
         )
     end
 
-if VERSION ≥ v"1.4"
-    @testset "evalpoly" begin
+    VERSION ≥ v"1.4" && @testset "evalpoly" begin
         @testset "frule" begin
             frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
             frule_test(evalpoly, (randn(), randn()), (Tuple(randn(5)), Tuple(randn(5))))
@@ -141,7 +140,6 @@ if VERSION ≥ v"1.4"
             end
         end
     end
-end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
         test_scalar(one, x)

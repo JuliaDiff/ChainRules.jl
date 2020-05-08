@@ -127,7 +127,7 @@ if VERSION ≥ v"1.4"
         for i in 2:N
             ∂p = Base.setindex(∂p, ∂p[i - 1] * x′, i)
         end
-        return ∂p
+        return Composite{typeof(p)}(∂p...)
     end
     function _evalpoly_backp(Δy, x, p::AbstractVector)
         ∂p = similar(p, typeof(Δy * x))
