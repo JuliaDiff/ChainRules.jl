@@ -115,13 +115,14 @@ if VERSION ≥ v"1.4"
         return q
     end
 
+    # TODO: Handle when x is a UniformScaling, p is a matrix
     function _evalpoly_backx(Δy, x, p)
         q = _evalpoly_dxcoef(p)
         return evalpoly(x, q)' * Δy
     end
 
     # This is a geometric progression, that is ∂p = Δy * (I, x, x², …, xⁿ)'
-    # TODO: Handle case where x is a matrix and p is UniformScaling
+    # TODO: Handle when x is a matrix, p is a UniformScaling
     function _evalpoly_backp(Δy, x, p::Tuple)
         N = length(p)
         ∂p = ntuple(_ -> Δy, N)
