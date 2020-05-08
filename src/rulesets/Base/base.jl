@@ -101,10 +101,7 @@ if VERSION ≥ v"1.4"
 
     function rrule(::typeof(evalpoly), x, p)
         function evalpoly_pullback(Δy)
-            ∂x = Thunk() do
-                q = _evalpoly_dxcoef(p)
-                return evalpoly(x, q)' * Δy
-            end
+            ∂x = @thunk _evalpoly_backx(Δy, x, p)
             ∂p = @thunk _evalpoly_backp(Δy, x, p)
             return NO_FIELDS, ∂x, ∂p
         end
@@ -116,6 +113,11 @@ if VERSION ≥ v"1.4"
         N = length(p)
         @inbounds q = (1:(N - 1)) .* view(p, 1:(N - 1))
         return q
+    end
+
+    function _evalpoly_backx(Δy, x, p)
+        q = _evalpoly_dxcoef(p)
+        return evalpoly(x, q)' * Δy
     end
 
     # This is a geometric progression, that is ∂p = Δy * (I, x, x², …, xⁿ)'
