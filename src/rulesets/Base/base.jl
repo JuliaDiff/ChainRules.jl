@@ -135,8 +135,8 @@ if VERSION ≥ v"1.4"
     function _evalpoly_backp(Δy, x, p::AbstractVector)
         ∂p = similar(p, typeof(Δy * x))
         N = length(∂p)
-        ∂p[1] = Δy
         x′ = x'
+        ∂p[1] = Δy
         for i in 2:N
             @inbounds ∂p[i] = ∂p[i - 1] * x′
         end
