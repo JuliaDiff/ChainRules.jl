@@ -108,7 +108,15 @@ if VERSION ≥ v"1.4"
         return evalpoly(x, p), evalpoly_pullback
     end
 
-    _evalpoly_dxcoef(p) = ntuple(i -> i * p[i + 1], length(p) - 1)
+    function _evalpoly_dxcoef(p::Tuple)
+        return if @generated
+            N = length(p.parameters)
+            exs = ntuple(i -> :($i * p[$(i + 1)]), N - 1)
+            :($(exs...),)
+        else # fallback in case code generation not possible
+            ntuple(i -> i * p[i + 1], length(p) - 1)
+        end
+    end
     function _evalpoly_dxcoef(p::AbstractVector)
         N = length(p)
         @inbounds q = (1:(N - 1)) .* view(p, 2:N)
@@ -124,11 +132,29 @@ if VERSION ≥ v"1.4"
     # This is a geometric progression, that is ∂p = Δy * (I, x, x², …, xⁿ)'
     # TODO: Handle when x is a matrix, p is a UniformScaling
     function _evalpoly_backp(Δy, x, p::Tuple)
-        N = length(p)
-        ∂p = ntuple(_ -> Δy, N)
         x′ = x'
-        for i in 2:N
-            ∂p = Base.setindex(∂p, ∂p[i - 1] * x′, i)
+        ∂p = if @generated
+            N = length(p.parameters)
+            exs = []
+            ∂pis = []
+            a = :(Δy)
+            for i in 1:(N - 1)
+                ∂pi = Symbol("∂p", i)
+                push!(∂pis, ∂pi)
+                push!(exs, :($∂pi = $a))
+                a = :($∂pi * x′)
+            end
+            ∂pN = Symbol("∂p", N)
+            push!(exs, :($∂pN = $a))
+            push!(∂pis, ∂pN)
+            Expr(:block, exs..., :($(∂pis...),))
+        else # fallback in case code generation not possible
+            N = length(p)
+            ∂pi = Δy
+            ntuple(N) do i
+                i == 1 && return Δy
+                return ∂pi *= x′
+            end
         end
         return Composite{typeof(p)}(∂p...)
     end
