@@ -95,77 +95,72 @@ end
 
 if VERSION ≥ v"1.4"
     function frule((_, Δx, Δp), ::typeof(evalpoly), x, p)
-        q = _evalpoly_dxcoef(p)
-        return evalpoly(x, p), evalpoly(x, Δp) + evalpoly(x, q) * Δx
+        N = length(p)
+        @inbounds y = p[N]
+        Δy = Δp[N]
+        @inbounds for i in (N - 1):-1:1
+            Δy = muladd(Δx, y, muladd(x, Δy, Δp[i]))
+            y = muladd(x, y, p[i])
+        end
+        return y, Δy
     end
 
     function rrule(::typeof(evalpoly), x, p)
+        y, ys = _evalpoly_intermediates(x, p)
         function evalpoly_pullback(Δy)
-            ∂x = @thunk _evalpoly_backx(Δy, x, p)
-            ∂p = @thunk _evalpoly_backp(Δy, x, p)
+            ∂x, ∂p = _evalpoly_back(x, p, ys, Δy)
             return NO_FIELDS, ∂x, ∂p
         end
-        return evalpoly(x, p), evalpoly_pullback
+        return y, evalpoly_pullback
     end
 
-    function _evalpoly_dxcoef(p::Tuple)
-        return if @generated
-            N = length(p.parameters)
-            exs = ntuple(i -> :($i * p[$(i + 1)]), N - 1)
-            :($(exs...),)
-        else # fallback in case code generation not possible
-            ntuple(i -> i * p[i + 1], length(p) - 1)
-        end
-    end
-    function _evalpoly_dxcoef(p::AbstractVector)
+    function _evalpoly_intermediates(x, p::Tuple)
         N = length(p)
-        @inbounds q = (1:(N - 1)) .* view(p, 2:N)
-        return q
+        y = one(x) * p[N]
+        ys = ntuple(N) do i
+            i == 1 && return y
+            y = muladd(x, y, p[N - i + 1])
+        end
+        return y, ys
+    end
+    function _evalpoly_intermediates(x, p)
+        N = length(p)
+        @inbounds yn = one(x) * p[N]
+        ys = similar(p, typeof(yn))
+        @inbounds ys[1] = yn
+        @inbounds for i in 2:N
+            ys[i] = muladd(x, ys[i - 1], p[N - i + 1])
+        end
+        @inbounds y = ys[N]
+        return y, ys
     end
 
-    # TODO: Handle when x is a UniformScaling, p is a matrix
-    function _evalpoly_backx(Δy, x, p)
-        q = _evalpoly_dxcoef(p)
-        return evalpoly(x, q)' * Δy
-    end
-
-    # This is a geometric progression, that is ∂p = Δy * (I, x, x², …, xⁿ)'
-    # TODO: Handle when x is a matrix, p is a UniformScaling
-    function _evalpoly_backp(Δy, x, p::Tuple)
+    # TODO: Handle following cases
+    #     1) x is a UniformScaling, pᵢ is a matrix
+    #     2) x is a matrix, pᵢ is a UniformScaling
+    function _evalpoly_back(x, p::Tuple, ys, Δy)
         x′ = x'
-        ∂p = if @generated
-            N = length(p.parameters)
-            exs = []
-            ∂pis = []
-            a = :(Δy)
-            for i in 1:(N - 1)
-                ∂pi = Symbol("∂p", i)
-                push!(∂pis, ∂pi)
-                push!(exs, :($∂pi = $a))
-                a = :($∂pi * x′)
-            end
-            ∂pN = Symbol("∂p", N)
-            push!(exs, :($∂pN = $a))
-            push!(∂pis, ∂pN)
-            Expr(:block, exs..., :($(∂pis...),))
-        else # fallback in case code generation not possible
-            N = length(p)
-            ∂pi = Δy
-            ntuple(N) do i
-                i == 1 && return Δy
-                return ∂pi *= x′
-            end
+        ∂yi = Δy
+        ∂x = zero(Δy)
+        N = length(ys)
+        ∂p = ntuple(N) do i
+            i == 1 && return ∂yi
+            ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
+            return ∂yi = x′ * ∂yi
         end
-        return Composite{typeof(p)}(∂p...)
+        return ∂x, Composite{typeof(p)}(∂p...)
     end
-    function _evalpoly_backp(Δy, x, p::AbstractVector)
-        ∂p = similar(p, typeof(Δy * x))
-        N = length(∂p)
+    function _evalpoly_back(x, p, ys, Δy)
         x′ = x'
-        ∂p[1] = Δy
-        for i in 2:N
-            @inbounds ∂p[i] = ∂p[i - 1] * x′
+        ∂p1 = one(x′) * Δy
+        ∂p = similar(p, typeof(∂p1))
+        @inbounds ∂p[1] = ∂p1
+        ∂x = zero(Δy)
+        N = length(p)
+        @inbounds for i in 1:(N - 1)
+            ∂x = muladd(∂p[i], ys[N - i]', ∂x)
+            ∂p[i + 1] = x′ * ∂p[i]
         end
-        return ∂p
+        return ∂x, ∂p
     end
 end
