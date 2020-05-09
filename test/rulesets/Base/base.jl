@@ -141,7 +141,7 @@
         end
 
         @testset "rrule" begin
-            @testset "$T" for T in (Float64, ComplexF64)
+            @testset "$T" for T in (Float64,) # TODO: test ComplexF64
                 @testset "scalar" begin
                     rrule_test(
                         evalpoly, randn(T), (randn(T), randn(T)),
