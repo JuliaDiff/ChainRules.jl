@@ -111,7 +111,7 @@ if VERSION ≥ v"1.4"
     _evalpoly_dxcoef(p) = ntuple(i -> i * p[i + 1], length(p) - 1)
     function _evalpoly_dxcoef(p::AbstractVector)
         N = length(p)
-        @inbounds q = (1:(N - 1)) .* view(p, 1:(N - 1))
+        @inbounds q = (1:(N - 1)) .* view(p, 2:N)
         return q
     end
 
