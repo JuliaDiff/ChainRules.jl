@@ -114,6 +114,7 @@ if VERSION ≥ v"1.4"
         return y, evalpoly_pullback
     end
 
+    # evalpoly but storing intermediates
     function _evalpoly_intermediates(x, p::Tuple)
         return if @generated
             N = length(p.parameters)
