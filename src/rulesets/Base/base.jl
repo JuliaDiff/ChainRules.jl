@@ -121,14 +121,14 @@ if VERSION ≥ v"1.4"
             exs = []
             vars = []
             ex = :(p[$N])
-            for i in (N - 1):-1:1
-                yi = Symbol("y", i + 1)
+            for i in 1:(N - 1)
+                yi = Symbol("y", i)
                 push!(vars, yi)
                 push!(exs, :($yi = $ex))
-                ex = :(muladd(x, $yi, p[$i]))
+                ex = :(muladd(x, $yi, p[$(N - i)]))
             end
-            push!(exs, :(y1 = $ex))
-            Expr(:block, exs..., :(y1, ($(vars...), y1)))
+            push!(exs, :(y = $ex))
+            Expr(:block, exs..., :(y, ($(vars...), y)))
         else
             _evalpoly_intermediates_fallback(x, p)
         end
@@ -136,10 +136,9 @@ if VERSION ≥ v"1.4"
     function _evalpoly_intermediates_fallback(x, p::Tuple)
         N = length(p)
         y = one(x) * p[N]
-        ys = ntuple(N) do i
-            i == 1 && return y
-            return y = muladd(x, y, p[N - i + 1])
-        end
+        ys = (y, ntuple(N - 1) do i
+            return y = muladd(x, y, p[N - i])
+        end...)
         return y, ys
     end
     function _evalpoly_intermediates(x, p)
@@ -187,11 +186,10 @@ if VERSION ≥ v"1.4"
         ∂x = zero(Δy)
         ∂yi = Δy
         N = length(p)
-        ∂p = ntuple(N) do i
-            i == 1 && return ∂yi
-            ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
+        ∂p = (∂yi, ntuple(N - 1) do i
+            ∂x = muladd(∂yi, ys[N - i]', ∂x)
             return ∂yi = x′ * ∂yi
-        end
+        end...)
         return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
     end
     function _evalpoly_back(x, p, ys, Δy)
