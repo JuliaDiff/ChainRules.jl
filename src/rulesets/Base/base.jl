@@ -118,17 +118,17 @@ if VERSION ≥ v"1.4"
     function _evalpoly_intermediates(x, p::Tuple)
         return if @generated
             N = length(p.parameters)
-            defs = []
+            exs = []
             vars = []
             ex = :(p[$N])
             for i in (N - 1):-1:1
                 yi = Symbol("y", i + 1)
                 push!(vars, yi)
-                push!(defs, :($yi = $ex))
+                push!(exs, :($yi = $ex))
                 ex = :(muladd(x, $yi, p[$i]))
             end
-            push!(defs, :(y1 = $ex))
-            Expr(:block, defs..., :(y1, ($(vars...), y1)))
+            push!(exs, :(y1 = $ex))
+            Expr(:block, exs..., :(y1, ($(vars...), y1)))
         else # fallback when can't generate code
             N = length(p)
             y = one(x) * p[N]
@@ -158,18 +158,18 @@ if VERSION ≥ v"1.4"
         x′ = x'
         ∂x = zero(Δy)
         ∂p = if @generated
-            defs = []
+            exs = []
             vars = []
             ex = :(Δy)
             N = length(p.parameters)
             for i in 1:(N - 1)
                 ∂yi = Symbol("∂y", i)
                 push!(vars, ∂yi)
-                push!(defs, :($∂yi = $ex))
-                push!(defs, :(∂x = muladd($∂yi, ys[$(N - i)]', ∂x)))
+                push!(exs, :($∂yi = $ex))
+                push!(exs, :(∂x = muladd($∂yi, ys[$(N - i)]', ∂x)))
                 ex = :(x′ * $∂yi)
             end
-            Expr(:block, defs..., :($(vars...), $ex))
+            Expr(:block, exs..., :($(vars...), $ex))
         else # fallback when can't generate code
             ∂yi = Δy
             N = length(p)
