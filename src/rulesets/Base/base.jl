@@ -157,10 +157,6 @@ if VERSION ≥ v"1.4"
     # TODO: Handle following cases
     #     1) x is a UniformScaling, pᵢ is a matrix
     #     2) x is a matrix, pᵢ is a UniformScaling
-
-    @inline _evalpoly_backx_init(x, ∂yi) = zero(∂yi)
-    @inline _evalpoly_backx_init(x::Number, ∂yi) = zero(eltype(∂yi))
-
     @inline _evalpoly_backx(x, yi, ∂yi) = ∂yi * yi'
     @inline _evalpoly_backx(x, yi, ∂x, ∂yi) = muladd(∂yi, yi', ∂x)
     @inline _evalpoly_backx(x::Number, yi, ∂yi) = conj(dot(∂yi, yi))
@@ -173,20 +169,20 @@ if VERSION ≥ v"1.4"
             exs = []
             vars = []
             N = length(p.parameters)
-            push!(exs, :(∂x = _evalpoly_backx(x, ys[$(N - 1)], Δy)))
-            push!(vars, :(_evalpoly_backp(p[1], Δy)))
+            push!(vars, :(_evalpoly_backp(p[1], Δy))) # ∂p1
             for i in 2:(N - 1)
                 ∂pi = Symbol("∂p", i)
                 push!(vars, ∂pi)
-                push!(exs, :($∂pi = _evalpoly_backp(p[$i], ∂yi)))
-                push!(exs, :(∂x = _evalpoly_backx(x, ys[$(N - i)], ∂x, ∂yi)))
                 push!(exs, :(∂yi = x′ * ∂yi))
+                push!(exs, :(∂x = _evalpoly_backx(x, ys[$(N - i)], ∂x, ∂yi)))
+                push!(exs, :($∂pi = _evalpoly_backp(p[$i], ∂yi)))
             end
-            push!(vars, :(_evalpoly_backp(p[$N], ∂yi)))
+            push!(vars, :(_evalpoly_backp(p[$N], x′ * ∂yi))) # ∂pN
             Expr(
                 :block,
                 :(x′ = x'),
-                :(∂yi = x′ * Δy),
+                :(∂yi = Δy),
+                :(∂x = _evalpoly_backx(x, ys[$(N - 1)], ∂yi)),
                 exs...,
                 :(∂p = ($(vars...),)),
                 :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
@@ -198,27 +194,35 @@ if VERSION ≥ v"1.4"
     function _evalpoly_back_fallback(x, p::Tuple, ys, Δy)
         x′ = x'
         ∂yi = Δy
-        ∂x = _evalpoly_backx_init(x, ∂yi)
         N = length(p)
-        ∂p = (_evalpoly_backp(p[1], ∂yi), ntuple(N - 1) do i
-            ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
-            ∂yi = x′ * ∂yi
-            return _evalpoly_backp(p[i + 1], ∂yi)
-        end...)
+        ∂x = _evalpoly_backx(x, ys[N - 1], ∂yi)
+        ∂p = (
+            _evalpoly_backp(p[1], ∂yi), # ∂p1
+            ntuple(N - 2) do i
+                ∂yi = x′ * ∂yi
+                ∂x = _evalpoly_backx(x, ys[N-i-1], ∂x, ∂yi)
+                ∂pi = _evalpoly_backp(p[i+1], ∂yi)
+                return ∂pi
+            end...,
+            _evalpoly_backp(p[N], x′ * ∂yi), # ∂pN
+        )
         return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
     end
     function _evalpoly_back(x, p, ys, Δy)
         x′ = x'
-        N = length(p)
         ∂yi = one(x′) * Δy
+        N = length(p)
         @inbounds ∂p1 = _evalpoly_backp(p[1], ∂yi)
         ∂p = similar(p, typeof(∂p1))
-        @inbounds ∂p[1] = ∂p1
-        ∂x = _evalpoly_backx_init(x, Δy)
-        @inbounds for i in 1:(N - 1)
-            ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
-            ∂yi = x′ * ∂yi
-            ∂p[i + 1] = _evalpoly_backp(p[i + 1], ∂yi)
+        @inbounds begin
+            ∂x = _evalpoly_backx(x, ys[N - 1], ∂yi)
+            ∂p[1] = ∂p1
+            for i in 2:(N - 1)
+                ∂yi = x′ * ∂yi
+                ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
+                ∂p[i] = _evalpoly_backp(p[i], ∂yi)
+            end
+            ∂p[N] = _evalpoly_backp(p[N], x′ * ∂yi)
         end
         return ∂x, ∂p
     end
