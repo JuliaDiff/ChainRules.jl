@@ -129,15 +129,18 @@ if VERSION ≥ v"1.4"
             end
             push!(exs, :(y1 = $ex))
             Expr(:block, exs..., :(y1, ($(vars...), y1)))
-        else # fallback when can't generate code
-            N = length(p)
-            y = one(x) * p[N]
-            ntuple(N) do i
-                i == 1 && return y
-                return y = muladd(x, y, p[N - i + 1])
-            end
-            y, ys
+        else
+            _evalpoly_intermediates_fallback(x, p)
         end
+    end
+    function _evalpoly_intermediates_fallback(x, p::Tuple)
+        N = length(p)
+        y = one(x) * p[N]
+        ys = ntuple(N) do i
+            i == 1 && return y
+            return y = muladd(x, y, p[N - i + 1])
+        end
+        return y, ys
     end
     function _evalpoly_intermediates(x, p)
         N = length(p)
@@ -155,9 +158,7 @@ if VERSION ≥ v"1.4"
     #     1) x is a UniformScaling, pᵢ is a matrix
     #     2) x is a matrix, pᵢ is a UniformScaling
     function _evalpoly_back(x, p::Tuple, ys, Δy)
-        x′ = x'
-        ∂x = zero(Δy)
-        ∂p = if @generated
+        return if @generated
             exs = []
             vars = []
             ex = :(Δy)
@@ -169,15 +170,27 @@ if VERSION ≥ v"1.4"
                 push!(exs, :(∂x = muladd($∂yi, ys[$(N - i)]', ∂x)))
                 ex = :(x′ * $∂yi)
             end
-            Expr(:block, exs..., :($(vars...), $ex))
-        else # fallback when can't generate code
-            ∂yi = Δy
-            N = length(p)
-            ntuple(N) do i
-                i == 1 && return ∂yi
-                ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
-                return ∂yi = x′ * ∂yi
-            end
+            Expr(
+                :block,
+                :(x′ = x'),
+                :(∂x = zero(Δy)),
+                exs...,
+                :(∂p = ($(vars...), $ex)),
+                :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
+            )
+        else
+            _evalpoly_back_fallback(x, p, ys, Δy)
+        end
+    end
+    function _evalpoly_back_fallback(x, p::Tuple, ys, Δy)
+        x′ = x'
+        ∂x = zero(Δy)
+        ∂yi = Δy
+        N = length(p)
+        ∂p = ntuple(N) do i
+            i == 1 && return ∂yi
+            ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
+            return ∂yi = x′ * ∂yi
         end
         return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
     end

@@ -122,6 +122,13 @@
     end
 
     VERSION ≥ v"1.4" && @testset "evalpoly" begin
+        # test fallbacks for when code generation fails
+        @testset "fallbacks" begin
+            x, p = randn(), Tuple(randn(10))
+            @test ChainRules._evalpoly_intermediates_fallback(x, p) == ChainRules._evalpoly_intermediates(x, p)
+            Δy, ys = randn(), Tuple(randn(10))
+            @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) == ChainRules._evalpoly_back(x, p, ys, Δy)
+        end
         @testset "frule" begin
             @testset "scalar" begin
                 frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
