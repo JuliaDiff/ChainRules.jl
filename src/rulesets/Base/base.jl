@@ -115,13 +115,28 @@ if VERSION ≥ v"1.4"
     end
 
     function _evalpoly_intermediates(x, p::Tuple)
-        N = length(p)
-        y = one(x) * p[N]
-        ys = ntuple(N) do i
-            i == 1 && return y
-            y = muladd(x, y, p[N - i + 1])
+        return if @generated
+            N = length(p.parameters)
+            defs = []
+            vars = []
+            ex = :(p[$N])
+            for i in (N - 1):-1:1
+                yi = Symbol("y", i + 1)
+                push!(vars, yi)
+                push!(defs, :($yi = $ex))
+                ex = :(muladd(x, $yi, p[$i]))
+            end
+            push!(defs, :(y1 = $ex))
+            Expr(:block, defs..., :(y1, ($(vars...), y1)))
+        else # fallback when can't generate code
+            N = length(p)
+            y = one(x) * p[N]
+            ntuple(N) do i
+                i == 1 && return y
+                return y = muladd(x, y, p[N - i + 1])
+            end
+            y, ys
         end
-        return y, ys
     end
     function _evalpoly_intermediates(x, p)
         N = length(p)
@@ -140,15 +155,30 @@ if VERSION ≥ v"1.4"
     #     2) x is a matrix, pᵢ is a UniformScaling
     function _evalpoly_back(x, p::Tuple, ys, Δy)
         x′ = x'
-        ∂yi = Δy
         ∂x = zero(Δy)
-        N = length(ys)
-        ∂p = ntuple(N) do i
-            i == 1 && return ∂yi
-            ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
-            return ∂yi = x′ * ∂yi
+        ∂p = if @generated
+            defs = []
+            vars = []
+            ex = :(Δy)
+            N = length(p.parameters)
+            for i in 1:(N - 1)
+                ∂yi = Symbol("∂y", i)
+                push!(vars, ∂yi)
+                push!(defs, :($∂yi = $ex))
+                push!(defs, :(∂x = muladd($∂yi, ys[$(N - i)]', ∂x)))
+                ex = :(x′ * $∂yi)
+            end
+            Expr(:block, defs..., :($(vars...), $ex))
+        else # fallback when can't generate code
+            ∂yi = Δy
+            N = length(p)
+            ntuple(N) do i
+                i == 1 && return ∂yi
+                ∂x = muladd(∂yi, ys[N - i + 1]', ∂x)
+                return ∂yi = x′ * ∂yi
+            end
         end
-        return ∂x, Composite{typeof(p)}(∂p...)
+        return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
     end
     function _evalpoly_back(x, p, ys, Δy)
         x′ = x'
