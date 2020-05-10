@@ -161,8 +161,10 @@ if VERSION ≥ v"1.4"
     @inline _evalpoly_backx_init(x, ∂yi) = zero(∂yi)
     @inline _evalpoly_backx_init(x::Number, ∂yi) = zero(eltype(∂yi))
 
-    @inline _evalpoly_backx(∂x, ∂yi, yi) = muladd(∂yi, yi', ∂x)
-    @inline _evalpoly_backx(∂x::Number, ∂yi, yi) = conj(dot(∂yi, yi)) + ∂x
+    @inline _evalpoly_backx(x, yi, ∂yi) = ∂yi * yi'
+    @inline _evalpoly_backx(x, yi, ∂x, ∂yi) = muladd(∂yi, yi', ∂x)
+    @inline _evalpoly_backx(x::Number, yi, ∂yi) = conj(dot(∂yi, yi))
+    @inline _evalpoly_backx(x::Number, yi, ∂x, ∂yi) = _evalpoly_backx(x, yi, ∂yi) + ∂x
 
     @inline _evalpoly_backp(pi, ∂yi) = ∂yi
 
@@ -171,20 +173,22 @@ if VERSION ≥ v"1.4"
             exs = []
             vars = []
             N = length(p.parameters)
-            for i in 1:(N - 1)
+            push!(exs, :(∂x = _evalpoly_backx(x, ys[$(N - 1)], Δy)))
+            push!(vars, :(_evalpoly_backp(p[1], Δy)))
+            for i in 2:(N - 1)
                 ∂pi = Symbol("∂p", i)
                 push!(vars, ∂pi)
                 push!(exs, :($∂pi = _evalpoly_backp(p[$i], ∂yi)))
-                push!(exs, :(∂x = _evalpoly_backx(∂x, ∂yi, ys[$(N - i)])))
+                push!(exs, :(∂x = _evalpoly_backx(x, ys[$(N - i)], ∂x, ∂yi)))
                 push!(exs, :(∂yi = x′ * ∂yi))
             end
+            push!(vars, :(_evalpoly_backp(p[$N], ∂yi)))
             Expr(
                 :block,
                 :(x′ = x'),
-                :(∂yi = Δy),
-                :(∂x = _evalpoly_backx_init(x, ∂yi)),
+                :(∂yi = x′ * Δy),
                 exs...,
-                :(∂p = ($(vars...), _evalpoly_backp(p[$N], ∂yi))),
+                :(∂p = ($(vars...),)),
                 :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
             )
         else
@@ -197,7 +201,7 @@ if VERSION ≥ v"1.4"
         ∂x = _evalpoly_backx_init(x, ∂yi)
         N = length(p)
         ∂p = (_evalpoly_backp(p[1], ∂yi), ntuple(N - 1) do i
-            ∂x = _evalpoly_backx(∂x, ∂yi, ys[N - i])
+            ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
             ∂yi = x′ * ∂yi
             return _evalpoly_backp(p[i + 1], ∂yi)
         end...)
@@ -212,7 +216,7 @@ if VERSION ≥ v"1.4"
         @inbounds ∂p[1] = ∂p1
         ∂x = _evalpoly_backx_init(x, Δy)
         @inbounds for i in 1:(N - 1)
-            ∂x = _evalpoly_backx(∂x, ∂p[i], ys[N - i])
+            ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
             ∂yi = x′ * ∂yi
             ∂p[i + 1] = _evalpoly_backp(p[i + 1], ∂yi)
         end
