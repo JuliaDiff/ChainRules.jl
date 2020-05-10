@@ -154,34 +154,37 @@ if VERSION ≥ v"1.4"
         return y, ys
     end
 
-    @inline _evalpoly_backx_init(x, Δy) = zero(Δy)
-    @inline _evalpoly_backx_init(x::Number, Δy) = zero(eltype(Δy))
-
-    @inline _evalpoly_backx(∂x, ∂pi, yi) = muladd(∂pi, yi', ∂x)
-    @inline _evalpoly_backx(∂x::Number, ∂pi, yi) = conj(dot(∂pi, yi)) + ∂x
-
     # TODO: Handle following cases
     #     1) x is a UniformScaling, pᵢ is a matrix
     #     2) x is a matrix, pᵢ is a UniformScaling
+
+    @inline _evalpoly_backx_init(x, ∂yi) = zero(∂yi)
+    @inline _evalpoly_backx_init(x::Number, ∂yi) = zero(eltype(∂yi))
+
+    @inline _evalpoly_backx(∂x, ∂yi, yi) = muladd(∂yi, yi', ∂x)
+    @inline _evalpoly_backx(∂x::Number, ∂yi, yi) = conj(dot(∂yi, yi)) + ∂x
+
+    @inline _evalpoly_backp(pi, ∂yi) = ∂yi
+
     function _evalpoly_back(x, p::Tuple, ys, Δy)
         return if @generated
             exs = []
             vars = []
-            ex = :(Δy)
             N = length(p.parameters)
             for i in 1:(N - 1)
-                ∂yi = Symbol("∂y", i)
-                push!(vars, ∂yi)
-                push!(exs, :($∂yi = $ex))
-                push!(exs, :(∂x = _evalpoly_backx(∂x, $∂yi, ys[$(N - i)])))
-                ex = :(x′ * $∂yi)
+                ∂pi = Symbol("∂p", i)
+                push!(vars, ∂pi)
+                push!(exs, :($∂pi = _evalpoly_backp(p[$i], ∂yi)))
+                push!(exs, :(∂x = _evalpoly_backx(∂x, ∂yi, ys[$(N - i)])))
+                push!(exs, :(∂yi = x′ * ∂yi))
             end
             Expr(
                 :block,
                 :(x′ = x'),
-                :(∂x = _evalpoly_backx_init(x, Δy)),
+                :(∂yi = Δy),
+                :(∂x = _evalpoly_backx_init(x, ∂yi)),
                 exs...,
-                :(∂p = ($(vars...), $ex)),
+                :(∂p = ($(vars...), _evalpoly_backp(p[$N], ∂yi))),
                 :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
             )
         else
@@ -190,25 +193,28 @@ if VERSION ≥ v"1.4"
     end
     function _evalpoly_back_fallback(x, p::Tuple, ys, Δy)
         x′ = x'
-        ∂x = _evalpoly_backx_init(x, Δy)
         ∂yi = Δy
+        ∂x = _evalpoly_backx_init(x, ∂yi)
         N = length(p)
-        ∂p = (∂yi, ntuple(N - 1) do i
+        ∂p = (_evalpoly_backp(p[1], ∂yi), ntuple(N - 1) do i
             ∂x = _evalpoly_backx(∂x, ∂yi, ys[N - i])
-            return ∂yi = x′ * ∂yi
+            ∂yi = x′ * ∂yi
+            return _evalpoly_backp(p[i + 1], ∂yi)
         end...)
         return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
     end
     function _evalpoly_back(x, p, ys, Δy)
         x′ = x'
-        ∂p1 = one(x′) * Δy
+        N = length(p)
+        ∂yi = one(x′) * Δy
+        @inbounds ∂p1 = _evalpoly_backp(p[1], ∂yi)
         ∂p = similar(p, typeof(∂p1))
         @inbounds ∂p[1] = ∂p1
         ∂x = _evalpoly_backx_init(x, Δy)
-        N = length(p)
         @inbounds for i in 1:(N - 1)
             ∂x = _evalpoly_backx(∂x, ∂p[i], ys[N - i])
-            ∂p[i + 1] = x′ * ∂p[i]
+            ∂yi = x′ * ∂yi
+            ∂p[i + 1] = _evalpoly_backp(p[i + 1], ∂yi)
         end
         return ∂x, ∂p
     end
