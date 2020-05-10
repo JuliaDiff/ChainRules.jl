@@ -128,7 +128,7 @@ if VERSION ≥ v"1.4"
                 ex = :(muladd(x, $yi, p[$(N - i)]))
             end
             push!(exs, :(y = $ex))
-            Expr(:block, exs..., :(y, ($(vars...), y)))
+            Expr(:block, exs..., :(y, ($(vars...),)))
         else
             _evalpoly_intermediates_fallback(x, p)
         end
@@ -136,20 +136,21 @@ if VERSION ≥ v"1.4"
     function _evalpoly_intermediates_fallback(x, p::Tuple)
         N = length(p)
         y = one(x) * p[N]
-        ys = (y, ntuple(N - 1) do i
+        ys = (y, ntuple(N - 2) do i
             return y = muladd(x, y, p[N - i])
         end...)
+        y = muladd(x, y, p[1])
         return y, ys
     end
     function _evalpoly_intermediates(x, p)
         N = length(p)
         @inbounds yn = one(x) * p[N]
-        ys = similar(p, typeof(yn))
+        ys = similar(p, typeof(yn), N - 1)
         @inbounds ys[1] = yn
-        @inbounds for i in 2:N
+        @inbounds for i in 2:(N - 1)
             ys[i] = muladd(x, ys[i - 1], p[N - i + 1])
         end
-        @inbounds y = ys[N]
+        @inbounds y = muladd(x, ys[N - 1], p[1])
         return y, ys
     end
 
