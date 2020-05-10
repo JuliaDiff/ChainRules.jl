@@ -145,9 +145,11 @@
                 # test fallbacks for when code generation fails
                 @testset "fallbacks" begin
                     x, p = randn(T), Tuple(randn(T, 10))
-                    @test ChainRules._evalpoly_intermediates_fallback(x, p) == ChainRules._evalpoly_intermediates(x, p)
-                    Δy, ys = randn(T), Tuple(randn(T, 10))
-                    @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) == ChainRules._evalpoly_back(x, p, ys, Δy)
+                    @test ChainRules._evalpoly_intermediates_fallback(x, p) ==
+                          ChainRules._evalpoly_intermediates(x, p)
+                    Δy, ys = randn(T), Tuple(randn(T, 9))
+                    @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) ==
+                          ChainRules._evalpoly_back(x, p, ys, Δy)
                 end
 
                 @testset "(x::Number, pi::Number)" begin
