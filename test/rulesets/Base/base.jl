@@ -122,13 +122,6 @@
     end
 
     VERSION ≥ v"1.4" && @testset "evalpoly" begin
-        # test fallbacks for when code generation fails
-        @testset "fallbacks" begin
-            x, p = randn(), Tuple(randn(10))
-            @test ChainRules._evalpoly_intermediates_fallback(x, p) == ChainRules._evalpoly_intermediates(x, p)
-            Δy, ys = randn(), Tuple(randn(10))
-            @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) == ChainRules._evalpoly_back(x, p, ys, Δy)
-        end
         @testset "frule" begin
             @testset "scalar" begin
                 frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
@@ -149,6 +142,14 @@
 
         @testset "rrule" begin
             @testset "$T" for T in (Float64,) # TODO: test ComplexF64
+                # test fallbacks for when code generation fails
+                @testset "fallbacks" begin
+                    x, p = randn(T), Tuple(randn(T, 10))
+                    @test ChainRules._evalpoly_intermediates_fallback(x, p) == ChainRules._evalpoly_intermediates(x, p)
+                    Δy, ys = randn(T), Tuple(randn(T, 10))
+                    @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) == ChainRules._evalpoly_back(x, p, ys, Δy)
+                end
+
                 @testset "(x::Number, pi::Number)" begin
                     rrule_test(
                         evalpoly, randn(T), (randn(T), randn(T)),
