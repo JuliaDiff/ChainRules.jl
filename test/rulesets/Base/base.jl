@@ -149,7 +149,7 @@
 
         @testset "rrule" begin
             @testset "$T" for T in (Float64,) # TODO: test ComplexF64
-                @testset "scalar" begin
+                @testset "(x::Number, pi::Number)" begin
                     rrule_test(
                         evalpoly, randn(T), (randn(T), randn(T)),
                         (randn(T, 5), randn(T, 5)),
@@ -160,13 +160,25 @@
                     )
                 end
 
-                @testset "matrix" begin
+                @testset "(x::Matrix, pi::Matrix)" begin
                     rrule_test(
                         evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
                         ([randn(T, 3, 3) for i in 1:5], [randn(T, 3, 3) for i in 1:5]),
                     )
                     rrule_test(
                         evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
+                        (Tuple([randn(T, 3, 3) for i in 1:5]),
+                         Tuple([randn(T, 3, 3) for i in 1:5])),
+                    )
+                end
+
+                @testset "(x::Number, pi::Matrix)" begin
+                    rrule_test(
+                        evalpoly, randn(T, 3, 3), (randn(T), randn(T)),
+                        ([randn(T, 3, 3) for i in 1:5], [randn(T, 3, 3) for i in 1:5]),
+                    )
+                    rrule_test(
+                        evalpoly, randn(T, 3, 3), (randn(T), randn(T)),
                         (Tuple([randn(T, 3, 3) for i in 1:5]),
                          Tuple([randn(T, 3, 3) for i in 1:5])),
                     )

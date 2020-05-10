@@ -154,6 +154,12 @@ if VERSION ≥ v"1.4"
         return y, ys
     end
 
+    @inline _evalpoly_backx_init(x, Δy) = zero(Δy)
+    @inline _evalpoly_backx_init(x::Number, Δy) = zero(eltype(Δy))
+
+    @inline _evalpoly_backx(∂x, ∂pi, yi) = muladd(∂pi, yi', ∂x)
+    @inline _evalpoly_backx(∂x::Number, ∂pi, yi) = conj(dot(∂pi, yi)) + ∂x
+
     # TODO: Handle following cases
     #     1) x is a UniformScaling, pᵢ is a matrix
     #     2) x is a matrix, pᵢ is a UniformScaling
@@ -167,13 +173,13 @@ if VERSION ≥ v"1.4"
                 ∂yi = Symbol("∂y", i)
                 push!(vars, ∂yi)
                 push!(exs, :($∂yi = $ex))
-                push!(exs, :(∂x = muladd($∂yi, ys[$(N - i)]', ∂x)))
+                push!(exs, :(∂x = _evalpoly_backx(∂x, $∂yi, ys[$(N - i)])))
                 ex = :(x′ * $∂yi)
             end
             Expr(
                 :block,
                 :(x′ = x'),
-                :(∂x = zero(Δy)),
+                :(∂x = _evalpoly_backx_init(x, Δy)),
                 exs...,
                 :(∂p = ($(vars...), $ex)),
                 :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
@@ -184,11 +190,11 @@ if VERSION ≥ v"1.4"
     end
     function _evalpoly_back_fallback(x, p::Tuple, ys, Δy)
         x′ = x'
-        ∂x = zero(Δy)
+        ∂x = _evalpoly_backx_init(x, Δy)
         ∂yi = Δy
         N = length(p)
         ∂p = (∂yi, ntuple(N - 1) do i
-            ∂x = muladd(∂yi, ys[N - i]', ∂x)
+            ∂x = _evalpoly_backx(∂x, ∂yi, ys[N - i])
             return ∂yi = x′ * ∂yi
         end...)
         return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
@@ -198,10 +204,10 @@ if VERSION ≥ v"1.4"
         ∂p1 = one(x′) * Δy
         ∂p = similar(p, typeof(∂p1))
         @inbounds ∂p[1] = ∂p1
-        ∂x = zero(Δy)
+        ∂x = _evalpoly_backx_init(x, Δy)
         N = length(p)
         @inbounds for i in 1:(N - 1)
-            ∂x = muladd(∂p[i], ys[N - i]', ∂x)
+            ∂x = _evalpoly_backx(∂x, ∂p[i], ys[N - i])
             ∂p[i + 1] = x′ * ∂p[i]
         end
         return ∂x, ∂p
