@@ -135,7 +135,7 @@ if VERSION ≥ v"1.4"
     end
     function _evalpoly_intermediates_fallback(x, p::Tuple)
         N = length(p)
-        y = one(x) * p[N]
+        y = p[N]
         ys = (y, ntuple(N - 2) do i
             return y = muladd(x, y, p[N - i])
         end...)
