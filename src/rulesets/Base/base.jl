@@ -216,13 +216,14 @@ if VERSION ≥ v"1.4"
         ∂p = similar(p, typeof(∂p1))
         @inbounds begin
             ∂x = _evalpoly_backx(x, ys[N - 1], ∂yi)
+            ∂yi = x′ * ∂yi
             ∂p[1] = ∂p1
             for i in 2:(N - 1)
-                ∂yi = x′ * ∂yi
                 ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
                 ∂p[i] = _evalpoly_backp(p[i], ∂yi)
+                ∂yi = x′ * ∂yi
             end
-            ∂p[N] = _evalpoly_backp(p[N], x′ * ∂yi)
+            ∂p[N] = _evalpoly_backp(p[N], ∂yi)
         end
         return ∂x, ∂p
     end
