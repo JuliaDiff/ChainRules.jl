@@ -77,7 +77,7 @@ function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
             # unstable for degenerate matrices
             U′∂AU = K ./ (_nonzero.(λ' .- λ))
             setdiag!(U'∂AU, ∂λ)
-            return _symherm(A, U * U′∂AU * U')
+            return _symhermlike(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A
     end
@@ -122,14 +122,15 @@ _realifydiag!(A::LinearAlgebra.RealHermSym) = A
 _realifydiag(A) = A - _pureimag(Diagonal(A))
 _realifydiag(A::LinearAlgebra.RealHermSym) = A
 
-# constrain B to have same Symmetric/Hermitian type as A
-_symherm(A::Symmetric, B) = Symmetric(B, Symbol(A.uplo))
-_symherm(A::Hermitian, B) = Hermitian(B, Symbol(A.uplo))
-_symherm(f, B::AbstractMatrix{<:Real}, uplo) = Symmetric(B, uplo)
-_symherm(f, B::AbstractMatrix{<:Complex}, uplo) = Hermitian(B, uplo)
+_symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
+_symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
 
-# call _symherm but enforce diagonal constraint
-function _symherm!(args...)
+# constrain B to have same Symmetric/Hermitian type as A
+_symhermlike(A, S::Symmetric, uplo = Symbol(S.uplo)) = Symmetric(A, uplo)
+_symhermlike(A, S::Hermitian, uplo = Symbol(S.uplo)) = Hermitian(A, uplo)
+
+# call _symherm but enforce the real diagonal constraint on the `data` field.
+function _symhermdata!(args...)
     S = _symherm(args...)
     _realifydiag!(S)
     return S
@@ -146,12 +147,12 @@ end
 function frule((_, ΔA, _), ::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
     λ, U = eigen(A)
     λᵖ = λ .^ p
-    Y = _symherm!(^, U * Diagonal(λᵖ) * U', :U)
+    Y = _symhermdata!(U * Diagonal(λᵖ) * U')
     ∂Y = Thunk() do
         dλᵖ_dλ = p .* λ .^ (p - 1)
         ∂Λ = U' * ΔA * U
         U′∂YU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λ)
-        return _symherm!(Y, U * U′∂YU * U')
+        return _symhermdata!(U * U′∂YU * U', Y)
     end
     return Y, ∂Y
 end
@@ -159,14 +160,14 @@ end
 function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
     λ, U = eigen(A)
     λᵖ = λ .^ p
-    Y = _symherm!(^, U * Diagonal(λᵖ) * U', :U)
+    Y = _symhermdata!(U * Diagonal(λᵖ) * U')
     function pow_pullback(ΔY)
         ∂A = Thunk() do
             dλᵖ_dλ = p .* λ .^ (p - 1)
             ∂Λᵖ = U' * _realifydiag(ΔY) * U
             # TODO: make sure that the `conj` is needed
             U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
-            return _symherm(A, U * U′∂AU * U')
+            return _symhermlike(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A, DoesNotExist()
     end
@@ -181,12 +182,12 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             λ, U = eigen(A)
             fλ_df_dλ = (df).(λ)
             fλ = first.(fλ_df_dλ)
-            Y = _symherm!($func, U * Diagonal(fλ) * U', :U)
+            Y = _symhermdata!(U * Diagonal(fλ) * U')
             ∂Y = Thunk() do
                 df_dλ = last.(unthunk.(fλ_df_dλ))
                 ∂Λ = U' * ΔA * U
                 U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
-                return _symherm!(Y, U * U′∂YU * U')
+                return _symhermdata!(U * U′∂YU * U', Y)
             end
             return Y, ∂Y
         end
@@ -196,13 +197,13 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             λ, U = eigen(A)
             fλ_df_dλ = (df).(λ)
             fλ = first.(fλ_df_dλ)
-            Y = _symherm!($func, U * Diagonal(fλ) * U', :U)
+            Y = _symhermdata!(U * Diagonal(fλ) * U')
             function $(Symbol("$(func)_pullback"))(ΔY)
                 ∂A = Thunk() do
                     df_dλ = unthunk.(last.(fλ_df_dλ))
                     ∂fΛ = U' * _realifydiag(ΔY) * U
                     U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
-                    return _symherm(A, U * U′∂AU * U')
+                    return _symhermlike(U * U′∂AU * U', A)
                 end
                 return NO_FIELDS, ∂A
             end
@@ -214,15 +215,15 @@ end
 function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     sinλ, cosλ = sin.(λ), cos.(λ)
-    sinA = _symherm!(A, U * Diagonal(sinλ) * U', :U)
-    cosA = _symherm!(A, U * Diagonal(cosλ) * U', :U)
+    sinA = _symhermdata!(U * Diagonal(sinλ) * U')
+    cosA = _symhermdata!(U * Diagonal(cosλ) * U')
     sincosA = (sinA, cosA)
     ∂sincosA = Thunk() do
         ∂Λ = U' * ΔA * U
         U′∂sinAU = _muldiffquotmat(λ, sinλ, cosλ, ∂Λ)
-        ∂sinA = _symherm!(sinA, U * U′∂sinAU * U')
+        ∂sinA = _symhermdata!(U * U′∂sinAU * U', sinA)
         U′∂cosAU = _muldiffquotmat(λ, cosλ, -sinλ, ∂Λ)
-        ∂cosA = _symherm!(cosA, U * U′∂cosAU * U')
+        ∂cosA = _symhermdata!(U * U′∂cosAU * U', cosA)
         return Composite{typeof(sincosA)}(∂sinA, ∂cosA)
     end
     return sincosA, ∂sincosA
@@ -231,8 +232,8 @@ end
 function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     sinλ, cosλ = sin.(λ), cos.(λ)
-    sinA = _symherm!(A, U * Diagonal(sinλ) * U', :U)
-    cosA = _symherm!(A, U * Diagonal(cosλ) * U', :U)
+    sinA = _symhermdata!(U * Diagonal(sinλ) * U')
+    cosA = _symhermdata!(U * Diagonal(cosλ) * U')
     sincosA = (sinA, cosA)
     function sincos_pullback(ΔsincosA)
         ∂A = Thunk() do
@@ -243,7 +244,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
                 _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
                 _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
             end
-            return _symherm(A, U * U′∂AU * U')
+            return _symhermlike(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A
     end
