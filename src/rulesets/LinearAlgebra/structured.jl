@@ -75,7 +75,6 @@ function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
             if ∂U isa AbstractZero
                 U′∂AU = Diagonal(∂λ)
             else
-                # K is skew-hermitian
                 K = U' * ∂U
                 # unstable for degenerate matrices
                 U′∂AU = K ./ _nonzero.(λ' .- λ)
