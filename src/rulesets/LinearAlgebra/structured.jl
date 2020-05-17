@@ -149,7 +149,7 @@ function frule((_, ΔA, _), ::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm
     ∂Y = Thunk() do
         dλᵖ_dλ = p .* λ .^ (p - 1)
         ∂Λ = U' * ΔA * U
-        U′∂YU = _muldiffquotmat(^, λ, λᵖ, dλᵖ_dλ, ∂Λ)
+        U′∂YU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λ)
         return _symherm!(Y, U * U′∂YU * U')
     end
     return Y, ∂Y
@@ -164,7 +164,7 @@ function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
             dλᵖ_dλ = p .* λ .^ (p - 1)
             ∂Λᵖ = U' * _realifydiag(ΔY) * U
             # TODO: make sure that the `conj` is needed
-            U′∂AU = _muldiffquotmat(^, λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
+            U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
             return _symherm(A, U * U′∂AU * U')
         end
         return NO_FIELDS, ∂A, DoesNotExist()
@@ -184,7 +184,7 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             ∂Y = Thunk() do
                 df_dλ = last.(unthunk.(fλ_df_dλ))
                 ∂Λ = U' * ΔA * U
-                U′∂YU = _muldiffquotmat($func, λ, fλ, df_dλ, ∂Λ)
+                U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
                 return _symherm!(Y, U * U′∂YU * U')
             end
             return Y, ∂Y
@@ -200,7 +200,7 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
                 ∂A = Thunk() do
                     df_dλ = unthunk.(last.(fλ_df_dλ))
                     ∂fΛ = U' * _realifydiag(ΔY) * U
-                    U′∂AU = _muldiffquotmat($func, λ, fλ, df_dλ, ∂fΛ)
+                    U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
                     return _symherm(A, U * U′∂AU * U')
                 end
                 return NO_FIELDS, ∂A
@@ -218,9 +218,9 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     sincosA = (sinA, cosA)
     ∂sincosA = Thunk() do
         ∂Λ = U' * ΔA * U
-        U′∂sinAU = _muldiffquotmat(sin, λ, sinλ, cosλ, ∂Λ)
+        U′∂sinAU = _muldiffquotmat(λ, sinλ, cosλ, ∂Λ)
         ∂sinA = _symherm!(sinA, U * U′∂sinAU * U')
-        U′∂cosAU = _muldiffquotmat(cos, λ, cosλ, -sinλ, ∂Λ)
+        U′∂cosAU = _muldiffquotmat(λ, cosλ, -sinλ, ∂Λ)
         ∂cosA = _symherm!(cosA, U * U′∂cosAU * U')
         return Composite{typeof(sincosA)}(∂sinA, ∂cosA)
     end
@@ -239,8 +239,8 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             ∂sinΛ, ∂cosΛ = U' * _realifydiag(ΔsinA) * U, U' * _realifydiag(ΔcosA) * U
             inds = eachindex(λ)
             U′∂AU = @inbounds begin
-                _diffquot.(sin, inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
-                _diffquot.(cos, inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
+                _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
+                _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
             end
             return _symherm(A, U * U′∂AU * U')
         end
@@ -250,7 +250,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
 end
 
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
-Base.@propagate_inbounds function _diffquot(f, i, j, λ, fλ, df_dλ)
+Base.@propagate_inbounds function _diffquot(i, j, λ, fλ, df_dλ)
     i == j && return df_dλ[i]
     Δλ = λ[i] - λ[j]
     T = real(eltype(λ))
@@ -261,9 +261,9 @@ Base.@propagate_inbounds function _diffquot(f, i, j, λ, fλ, df_dλ)
 end
 
 # multiply Δ by the matrix of difference quotients P
-function _muldiffquotmat(f, λ, fλ, df_dλ, Δ)
+function _muldiffquotmat(λ, fλ, df_dλ, Δ)
     inds = eachindex(λ)
-    return @inbounds _diffquot.(f, inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
+    return @inbounds _diffquot.(inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
 end
 
 #####
