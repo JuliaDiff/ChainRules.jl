@@ -99,7 +99,8 @@ function rrule(::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
     function eigvals_pullback(Δλ)
         ∂A = Thunk() do
             ∂F = Composite{typeof(F)}(values = Δλ)
-            return unthunk(back(∂F)[2])
+            _, ∂A = back(∂F)
+            return unthunk(∂A)
         end
         return NO_FIELDS, ∂A
     end
