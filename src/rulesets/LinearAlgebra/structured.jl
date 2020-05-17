@@ -124,7 +124,7 @@ end
 _realifydiag!(A::LinearAlgebra.RealHermSym) = A
 
 _realifydiag(A) = A - _pureimag(Diagonal(A))
-_realifydiag(A::LinearAlgebra.RealHermSym) = A
+_realifydiag(A::Union{Hermitian{<:Real},Symmetric{<:Real}}) = A
 
 _symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
 _symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
