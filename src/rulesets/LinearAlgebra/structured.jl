@@ -72,11 +72,15 @@ function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
         ∂A = Thunk() do
             λ, U = F
             ∂λ, ∂U = ΔF.values, ΔF.vectors
-            # K is skew-hermitian
-            K = U' * ∂U
-            # unstable for degenerate matrices
-            U′∂AU = K ./ (_nonzero.(λ' .- λ))
-            setdiag!(U'∂AU, ∂λ)
+            if ∂U isa AbstractZero
+                U′∂AU = Diagonal(∂λ)
+            else
+                # K is skew-hermitian
+                K = U' * ∂U
+                # unstable for degenerate matrices
+                U′∂AU = K ./ _nonzero.(λ' .- λ)
+                setdiag!(U'∂AU, ∂λ)
+            end
             return _symhermlike(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A
@@ -107,7 +111,6 @@ _nonzero(x) = ifelse(signbit(x), min(x, -eps(eltype(x))), max(x, eps(eltype(x)))
 
 _setdiag!(A, d) = (A[diagind(A)] = d)
 _setdiag!(A, d::AbstractZero) = (A[diagind(A)] .= 0)
-_setdiag!(A::AbstractZero, d) = Diagonal(d)
 
 _pureimag(x) = x - real(x)
 
