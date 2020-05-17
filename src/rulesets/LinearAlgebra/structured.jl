@@ -210,6 +210,45 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     end
 end
 
+function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    λ, U = eigen(A)
+    sinλ, cosλ = sin.(λ), cos.(λ)
+    sinA = _symherm!(A, U * Diagonal(sinλ) * U', :U)
+    cosA = _symherm!(A, U * Diagonal(cosλ) * U', :U)
+    sincosA = (sinA, cosA)
+    ∂sincosA = Thunk() do
+        ∂Λ = U' * ΔA * U
+        U′∂sinAU = _muldiffquotmat(sin, λ, sinλ, cosλ, ∂Λ)
+        ∂sinA = _symherm!(sinA, U * U′∂sinAU * U')
+        U′∂cosAU = _muldiffquotmat(cos, λ, cosλ, -sinλ, ∂Λ)
+        ∂cosA = _symherm!(cosA, U * U′∂cosAU * U')
+        return Composite{typeof(sincosA)}(∂sinA, ∂cosA)
+    end
+    return sincosA, ∂sincosA
+end
+
+function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    λ, U = eigen(A)
+    sinλ, cosλ = sin.(λ), cos.(λ)
+    sinA = _symherm!(A, U * Diagonal(sinλ) * U', :U)
+    cosA = _symherm!(A, U * Diagonal(cosλ) * U', :U)
+    sincosA = (sinA, cosA)
+    function sincos_pullback(ΔsincosA)
+        ∂A = Thunk() do
+            ΔsinA, ΔcosA = ΔsincosA
+            ∂sinΛ, ∂cosΛ = U' * _realifydiag(ΔsinA) * U, U' * _realifydiag(ΔcosA) * U
+            inds = eachindex(λ)
+            U′∂AU = @inbounds begin
+                _diffquot.(sin, inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
+                _diffquot.(cos, inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
+            end
+            return _symherm(A, U * U′∂AU * U')
+        end
+        return NO_FIELDS, ∂A
+    end
+    return sincosA, sincos_pullback
+end
+
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
 Base.@propagate_inbounds function _diffquot(f, i, j, λ, fλ, df_dλ)
     i == j && return df_dλ[i]
