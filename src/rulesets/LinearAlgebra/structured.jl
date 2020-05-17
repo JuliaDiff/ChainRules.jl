@@ -55,10 +55,10 @@ function frule((_, ΔA), ::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHer
     F = eigen(A)
     ∂F = Thunk() do
         λ, U = F
-        M = U' * ΔA * U
-        ∂λ = real(diag(M)) # if ΔA is Hermitian, so is U′ΔAU, so its diagonal is real
+        ∂Λ = U' * ΔA * U
+        ∂λ = real(diag(∂Λ)) # if ΔA is Hermitian, so is ∂Λ, so its diagonal is real
         # K is skew-hermitian with zero diag
-        K = M ./ _nonzero.(λ' .- λ)
+        K = ∂Λ ./ _nonzero.(λ' .- λ)
         _setdiag!(K, Zero())
         ∂U = U * K
         return Composite{typeof(F)}(values = ∂λ, vectors = ∂U)
