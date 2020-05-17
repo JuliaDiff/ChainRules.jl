@@ -102,7 +102,8 @@ function rrule(::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
     return λ, eigvals_pullback
 end
 
-_nonzero(x) = abs(x) > eps(eltype(x)) ? x : eps(eltype(x)) * sign(x)
+# if |x| < eps(), return a small number with its sign, where zero has a positive sign.
+_nonzero(x) = ifelse(signbit(x), min(x, -eps(eltype(x))), max(x, eps(eltype(x))))
 
 _setdiag!(A, d) = (A[diagind(A)] = d)
 _setdiag!(A, d::AbstractZero) = (A[diagind(A)] .= 0)
