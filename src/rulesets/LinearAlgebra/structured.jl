@@ -79,7 +79,7 @@ function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
                 K = U' * ∂U
                 # unstable for degenerate matrices
                 U′∂AU = K ./ _nonzero.(λ' .- λ)
-                setdiag!(U'∂AU, ∂λ)
+                _setdiag!(U′∂AU, ∂λ)
             end
             return _symhermlike(U * U′∂AU * U', A)
         end
