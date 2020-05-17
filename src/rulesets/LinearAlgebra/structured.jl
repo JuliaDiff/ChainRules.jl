@@ -108,12 +108,31 @@ _setdiag!(A, d) = (A[diagind(A)] = d)
 _setdiag!(A, d::AbstractZero) = (A[diagind(A)] .= 0)
 _setdiag!(A::AbstractZero, d) = Diagonal(d)
 
+_pureimag(x) = x - real(x)
+
+function _realifydiag!(A)
+    for i in diagind(A)
+        @inbounds A[i] = real(A[i])
+    end
+    return A
+end
+_realifydiag!(A::LinearAlgebra.RealHermSym) = A
+
+_realifydiag(A) = A - _pureimag(Diagonal(A))
+_realifydiag(A::LinearAlgebra.RealHermSym) = A
+
 # constrain B to have same Symmetric/Hermitian type as A
 _symherm(A::Symmetric, B) = Symmetric(B, Symbol(A.uplo))
 _symherm(A::Hermitian, B) = Hermitian(B, Symbol(A.uplo))
 _symherm(f, B::AbstractMatrix{<:Real}, uplo) = Symmetric(B, uplo)
 _symherm(f, B::AbstractMatrix{<:Complex}, uplo) = Hermitian(B, uplo)
 
+# call _symherm but enforce diagonal constraint
+function _symherm!(args...)
+    S = _symherm(args...)
+    _realifydiag!(S)
+    return S
+end
 #####
 ##### `Adjoint`
 #####
