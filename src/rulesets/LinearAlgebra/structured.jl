@@ -133,6 +133,69 @@ function _symherm!(args...)
     _realifydiag!(S)
     return S
 end
+
+#####
+##### `Symmetric{<:Real}`/`Hermitian` power series functions
+#####
+
+# Currently only defined for series functions whose codomain is ℝ
+# These are type-stable and closed under `func`
+
+# TODO: support log, sqrt, acos, asin, and non-int pow, which are type-unstable
+for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
+    @eval begin
+        function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+            df = λi -> frule((Zero(), One()), $func, λi)
+            λ, U = eigen(A)
+            fλ_df_dλ = (df).(λ)
+            fλ = first.(fλ_df_dλ)
+            Y = _symherm!($func, U * Diagonal(fλ) * U', :U)
+            ∂Y = Thunk() do
+                df_dλ = last.(unthunk.(fλ_df_dλ))
+                ∂Λ = U' * ΔA * U
+                U′∂YU = _muldiffquotmat($func, λ, fλ, df_dλ, ∂Λ)
+                return _symherm!(Y, U * U′∂YU * U')
+            end
+            return Y, ∂Y
+        end
+
+        function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+            df = λi -> frule((Zero(), One()), $func, λi)
+            λ, U = eigen(A)
+            fλ_df_dλ = (df).(λ)
+            fλ = first.(fλ_df_dλ)
+            Y = _symherm!($func, U * Diagonal(fλ) * U', :U)
+            function $(Symbol("$(func)_pullback"))(ΔY)
+                ∂A = Thunk() do
+                    df_dλ = unthunk.(last.(fλ_df_dλ))
+                    ∂fΛ = U' * _realifydiag(ΔY) * U
+                    U′∂AU = _muldiffquotmat($func, λ, fλ, df_dλ, ∂fΛ)
+                    return _symherm(A, U * U′∂AU * U')
+                end
+                return NO_FIELDS, ∂A
+            end
+            return Y, $(Symbol("$(func)_pullback"))
+        end
+    end
+end
+
+# difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
+Base.@propagate_inbounds function _diffquot(f, i, j, λ, fλ, df_dλ)
+    i == j && return df_dλ[i]
+    Δλ = λ[i] - λ[j]
+    T = real(eltype(λ))
+    # Handle degenerate eigenvalues by taylor expanding Δfλ / Δλ as Δλ → 0
+    abs2(Δλ) < eps(T) && return (df_dλ[i] + df_dλ[j]) / 2
+    Δfλ = fλ[i] - fλ[j]
+    return Δfλ / Δλ
+end
+
+# multiply Δ by the matrix of difference quotients P
+function _muldiffquotmat(f, λ, fλ, df_dλ, Δ)
+    inds = eachindex(λ)
+    return @inbounds _diffquot.(f, inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
+end
+
 #####
 ##### `Adjoint`
 #####
