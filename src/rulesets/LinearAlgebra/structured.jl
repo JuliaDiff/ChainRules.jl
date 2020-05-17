@@ -126,12 +126,25 @@ _realifydiag!(A::LinearAlgebra.RealHermSym) = A
 _realifydiag(A) = A - _pureimag(Diagonal(A))
 _realifydiag(A::Union{Hermitian{<:Real},Symmetric{<:Real}}) = A
 
+function _symhermback(A, uplo)
+    return if uplo === :U
+        UpperTriangular(A) .+ LowerTriangular(A)' - Diagonal(A)
+    else
+        LowerTriangular(A) .+ UpperTriangular(A)' - Diagonal(A)
+    end
+end
+
 _symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
 _symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
 
 # constrain B to have same Symmetric/Hermitian type as A
-_symhermlike(A, S::Symmetric, uplo = Symbol(S.uplo)) = Symmetric(A, uplo)
-_symhermlike(A, S::Hermitian, uplo = Symbol(S.uplo)) = Hermitian(A, uplo)
+# this also hermitrizes the underlying data
+function _symhermlike(A, S::Symmetric, uplo = Symbol(S.uplo))
+    return Symmetric(_symhermback(A, uplo), uplo)
+end
+function _symhermlike(A, S::Hermitian, uplo = Symbol(S.uplo))
+    return Hermitian(_symhermback(A, uplo), uplo)
+end
 
 # call _symherm but enforce the real diagonal constraint on the `data` field.
 function _symhermdata!(args...)
