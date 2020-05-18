@@ -132,6 +132,9 @@ _realifydiag(A::AbstractMatrix{<:Real}) = A
 _symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
 _symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
 
+_symhermtype(A::Symmetric) = Symmetric
+_symhermtype(A::Hermitian) = Hermitian
+
 function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
     _realifydiag!(A)
     return typeof(S)(A, S.uplo)
@@ -172,7 +175,9 @@ end
 function frule((_, ΔA, _), ::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
     λ, U = eigen(A)
     λᵖ = λ .^ p
-    Y = _symhermfwd!(U * Diagonal(λᵖ) * U')
+    Y = U * Diagonal(λᵖ) * U'
+    _realifydiag!(Y)
+    Y = _symhermtype(A)(Y, :U)
     ∂Y = Thunk() do
         dλᵖ_dλ = p .* λ .^ (p - 1)
         ∂Λ = U' * ΔA * U
@@ -185,7 +190,9 @@ end
 function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
     λ, U = eigen(A)
     λᵖ = λ .^ p
-    Y = _symhermfwd!(U * Diagonal(λᵖ) * U')
+    Y = U * Diagonal(λᵖ) * U'
+    _realifydiag!(Y)
+    Y = _symhermtype(A)(Y, :U)
     function pow_pullback(ΔY)
         ∂A = Thunk() do
             dλᵖ_dλ = p .* λ .^ (p - 1)
