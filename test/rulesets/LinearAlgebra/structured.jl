@@ -104,7 +104,7 @@
                 A, Δλ = T(randn(n, n), uplo), randn(n)
                 λ = eigvals(A)
                 λ_ad, back = rrule(eigvals, A)
-                @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
+                @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
                 ∂self, ∂A = back(Δλ)
                 @test ∂self === NO_FIELDS
                 ∂A = unthunk(∂A)
