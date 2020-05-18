@@ -181,7 +181,6 @@ function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
         ∂A = Thunk() do
             dλᵖ_dλ = p .* λ .^ (p - 1)
             ∂Λᵖ = U' * _realifydiag(ΔY) * U
-            # TODO: make sure that the `conj` is needed
             U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
             return _symhermlike(U * U′∂AU * U', A)
         end
