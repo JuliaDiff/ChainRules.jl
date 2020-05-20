@@ -37,7 +37,7 @@ let
 
         # Unary complex functions
         @scalar_rule abs(x::Real) sign(x)
-        @scalar_rule abs2(x) 2x
+        @scalar_rule abs2(x::Real) 2x
         @scalar_rule angle(x::Real) Zero()
         @scalar_rule conj(x::Real) One()
 
