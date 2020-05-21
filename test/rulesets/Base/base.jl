@@ -92,6 +92,18 @@
         @test extern(dy) == extern(zeros(2, 5) .+ dy)
     end
 
+     @testset "ldexp" begin
+            x, Δx, x̄ = 10rand(3)
+            Δz = rand()
+
+            for n in (0,1,20)
+                # TODO: Forward test does not work when parameter is Integer
+                # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
+                #frule_test(ldexp, (x, Δx), (n, nothing))
+                rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+            end
+     end
+
     @testset "binary function ($f)" for f in (mod, \)
         x, Δx, x̄ = 10rand(3)
         y, Δy, ȳ = rand(3)
@@ -134,5 +146,22 @@
 
         frule_test(f, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    end
+    @testset "clamp"  begin
+        x̄, ȳ, z̄    = randn(3)
+        Δx, Δy, Δz = randn(3)
+        Δk = randn()
+
+        x, y, z = 1., 2., 3.  # to left
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+
+        x, y, z = 2.5, 2., 3.  # in the middle
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+
+        x, y, z = 4., 2., 3.  # to right
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
 end

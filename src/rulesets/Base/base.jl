@@ -23,6 +23,7 @@
 @scalar_rule deg2rad(x) π / oftype(x, 180)
 @scalar_rule rad2deg(x) oftype(x, 180) / π
 
+@scalar_rule(ldexp(x, y), (2^y, DoesNotExist()))
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
 @scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))
@@ -65,6 +66,14 @@
 @scalar_rule sinpi(x) π * cospi(x)
 @scalar_rule tand(x) (π / oftype(x, 180)) * (1 + Ω ^ 2)
 
+@scalar_rule(
+    clamp(x, low, high),
+    @setup(
+        islow = x < low,
+        ishigh = high < x,
+    ),
+    (!(islow | ishigh), islow, ishigh),
+)
 @scalar_rule x \ y (-((y / x) / x), inv(x))
 
 function frule((_, ẏ), ::typeof(identity), x)
