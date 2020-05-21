@@ -53,16 +53,14 @@ _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
 
 function frule((_, ΔA), ::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
     F = eigen(A)
-    ∂F = Thunk() do
-        λ, U = F
-        ∂Λ = U' * ΔA * U
-        ∂λ = real(diag(∂Λ)) # if ΔA is Hermitian, so is ∂Λ, so its diagonal is real
-        # K is skew-hermitian with zero diag
-        K = ∂Λ ./ _nonzero.(λ' .- λ)
-        _setdiag!(K, Zero())
-        ∂U = U * K
-        return Composite{typeof(F)}(values = ∂λ, vectors = ∂U)
-    end
+    λ, U = F
+    ∂Λ = U' * ΔA * U
+    ∂λ = real(diag(∂Λ)) # if ΔA is Hermitian, so is ∂Λ, so its diagonal is real
+    # K is skew-hermitian with zero diag
+    K = ∂Λ ./ _nonzero.(λ' .- λ)
+    _setdiag!(K, Zero())
+    ∂U = U * K
+    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂U)
     return F, ∂F
 end
 
@@ -89,7 +87,9 @@ end
 
 function frule((_, ΔA), ::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
-    return λ, @thunk real(diag(U' * ΔA * U))
+    ∂Λ = U' * ΔA * U
+    ∂λ = real(diag(∂Λ)) # if ΔA is Hermitian, so is ∂Λ, so its diagonal is real
+    return λ, ∂λ
 end
 
 function rrule(::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
@@ -178,12 +178,10 @@ function frule((_, ΔA, _), ::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm
     Y = U * Diagonal(λᵖ) * U'
     _realifydiag!(Y)
     Y = _symhermtype(A)(Y, :U)
-    ∂Y = Thunk() do
-        dλᵖ_dλ = p .* λ .^ (p - 1)
-        ∂Λ = U' * ΔA * U
-        U′∂YU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λ)
-        return _symhermlike!(U * U′∂YU * U', Y)
-    end
+    dλᵖ_dλ = p .* λ .^ (p - 1)
+    ∂Λ = U' * ΔA * U
+    U′∂YU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λ)
+    ∂Y = _symhermlike!(U * U′∂YU * U', Y)
     return Y, ∂Y
 end
 
@@ -214,12 +212,10 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             fλ_df_dλ = df.(λ)
             fλ = first.(fλ_df_dλ)
             Y = _symhermfwd!(U * Diagonal(fλ) * U')
-            ∂Y = Thunk() do
-                df_dλ = last.(unthunk.(fλ_df_dλ))
-                ∂Λ = U' * ΔA * U
-                U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
-                return _symhermlike!(U * U′∂YU * U', Y)
-            end
+            df_dλ = last.(unthunk.(fλ_df_dλ))
+            ∂Λ = U' * ΔA * U
+            U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
+            ∂Y = _symhermlike!(U * U′∂YU * U', Y)
             return Y, ∂Y
         end
 
@@ -249,14 +245,12 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     sinA = _symhermfwd!(U * Diagonal(sinλ) * U')
     cosA = _symhermfwd!(U * Diagonal(cosλ) * U')
     sincosA = (sinA, cosA)
-    ∂sincosA = Thunk() do
-        ∂Λ = U' * ΔA * U
-        U′∂sinAU = _muldiffquotmat(λ, sinλ, cosλ, ∂Λ)
-        ∂sinA = _symhermlike!(U * U′∂sinAU * U', sinA)
-        U′∂cosAU = _muldiffquotmat(λ, cosλ, -sinλ, ∂Λ)
-        ∂cosA = _symhermlike!(U * U′∂cosAU * U', cosA)
-        return Composite{typeof(sincosA)}(∂sinA, ∂cosA)
-    end
+    ∂Λ = U' * ΔA * U
+    U′∂sinAU = _muldiffquotmat(λ, sinλ, cosλ, ∂Λ)
+    ∂sinA = _symhermlike!(U * U′∂sinAU * U', sinA)
+    U′∂cosAU = _muldiffquotmat(λ, cosλ, -sinλ, ∂Λ)
+    ∂cosA = _symhermlike!(U * U′∂cosAU * U', cosA)
+    ∂sincosA = Composite{typeof(sincosA)}(∂sinA, ∂cosA)
     return sincosA, ∂sincosA
 end
 
