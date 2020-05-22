@@ -64,7 +64,7 @@
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
-        @testset "$x * $y; (perturbed by: $perturb)" for
+        @testset "($x) * ($y); (perturbed by: $perturb)" for
             x in test_points, y in test_points, perturb in test_points
 
             # ensure all complex if any complex for FiniteDifferences
