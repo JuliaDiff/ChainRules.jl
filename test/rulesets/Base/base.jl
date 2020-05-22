@@ -67,6 +67,9 @@
         @testset "$x * $y; (perturbed by: $perturb)" for
             x in test_points, y in test_points, perturb in test_points
 
+            # ensure all complex if any complex for FiniteDifferences
+            x, y, perturb = Base.promote(x, y, perturb)
+
             # give small off-set so as can't slip in symmetry
             x̄ = ẋ = 0.5 + perturb
             ȳ = ẏ = 0.6 + perturb
