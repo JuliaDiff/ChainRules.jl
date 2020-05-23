@@ -40,6 +40,13 @@ let
         @scalar_rule abs2(x::Real) 2x
         @scalar_rule angle(x::Real) Zero()
         @scalar_rule conj(x::Real) One()
+        function frule((Δx,), abs, x::ComplexF64)
+            Ω = abs(x)
+            return Ω, (real(x) * real(Δx) + imag(x) * imag(Δx)) / Ω
+        end
+        function frule((Δx,), abs2, x::ComplexF64)
+            return abs2(x), 2 * (real(x) * real(Δx) + imag(x) * imag(Δx))
+        end        
 
         # Binary functions
         @scalar_rule hypot(x::Real, y::Real) (x / Ω, y / Ω)
