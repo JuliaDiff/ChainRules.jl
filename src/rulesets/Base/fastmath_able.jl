@@ -44,7 +44,7 @@ let
             Ω = abs(x)
             return Ω, (real(x) * real(Δx) + imag(x) * imag(Δx)) / Ω
         end
-        function frule((Δx,), abs2, x::ComplexF64)
+        function frule((Δx,), abs2, x::Complex)
             return abs2(x), 2 * (real(x) * real(Δx) + imag(x) * imag(Δx))
         end        
 
