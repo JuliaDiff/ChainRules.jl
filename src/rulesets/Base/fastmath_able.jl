@@ -40,7 +40,7 @@ let
         @scalar_rule abs2(x::Real) 2x
         @scalar_rule angle(x::Real) Zero()
         @scalar_rule conj(x::Real) One()
-        function frule((Δx,), abs, x::ComplexF64)
+        function frule((Δx,), abs, x::Complex)
             Ω = abs(x)
             return Ω, (real(x) * real(Δx) + imag(x) * imag(Δx)) / Ω
         end
