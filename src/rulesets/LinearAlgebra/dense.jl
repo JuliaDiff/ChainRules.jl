@@ -20,6 +20,32 @@ function rrule(::typeof(dot), x, y)
 end
 
 #####
+##### `cross`
+#####
+
+function frule((_, Δa, Δb), ::typeof(cross), a::AbstractVector, b::AbstractVector)
+    return cross(a, b), cross(Δa, b) .+ cross(a, Δb)
+end
+# chunked mode
+function frule((_, Δa, Δb)::Tuple{<:Any,<:AbstractMatrix,<:AbstractMatrix},
+               ::typeof(cross), a::AbstractVector, b::AbstractVector)
+    aₓ, bₓ = _crossmat(a), _crossmat(b)
+    return aₓ * b, Δa * bₓ .- Δb * aₓ
+end
+
+# TODO: support complex vectors
+function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+    Ω = cross(a, b)
+    function cross_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
+    end
+    return Ω, cross_pullback
+end
+
+# cross product matrix, i.e. matrix vₓ such that vₓ * a = v × a
+_crossmat(v) = [0 -v[3] v[2]; v[3] 0 -v[1]; -v[2] v[1] 0]
+
+#####
 ##### `inv`
 #####
 
