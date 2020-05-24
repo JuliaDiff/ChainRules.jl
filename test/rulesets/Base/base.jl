@@ -1,9 +1,6 @@
 @testset "base" begin
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
-            test_scalar(sin, x)
-            test_scalar(cos, x)
-            test_scalar(tan, x)
             test_scalar(sec, x)
             test_scalar(csc, x)
             test_scalar(cot, x)
@@ -11,9 +8,6 @@
             test_scalar(cospi, x)
         end
         @testset "Hyperbolic" for x = (Float64(π)-0.01, Complex(π-0.01, π/2))
-            test_scalar(sinh, x)
-            test_scalar(cosh, x)
-            test_scalar(tanh, x)
             test_scalar(sech, x)
             test_scalar(csch, x)
             test_scalar(coth, x)
@@ -28,9 +22,6 @@
             test_scalar(cotd, x)
         end
         @testset "Inverses" for x = (0.5, Complex(0.5, 0.25))
-            test_scalar(asin, x)
-            test_scalar(acos, x)
-            test_scalar(atan, x)
             test_scalar(asec, 1/x)
             test_scalar(acsc, 1/x)
             test_scalar(acot, 1/x)
@@ -52,37 +43,12 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
-        @testset "Multivariate" begin
-            @testset "sincos" begin
-                x, Δx, x̄ = randn(3)
-                Δz = (randn(), randn())
-
-                frule_test(sincos, (x, Δx))
-                rrule_test(sincos, Δz, (x, x̄))
-            end
-        end
     end  # Trig
 
-    @testset "math" begin
+    @testset "Angles" begin
         for x in (-0.1, 6.4)
             test_scalar(deg2rad, x)
             test_scalar(rad2deg, x)
-
-            test_scalar(inv, x)
-
-            test_scalar(exp, x)
-            test_scalar(exp2, x)
-            test_scalar(exp10, x)
-
-            test_scalar(cbrt, x)
-
-            if x >= 0
-                test_scalar(sqrt, x)
-                test_scalar(log, x)
-                test_scalar(log2, x)
-                test_scalar(log10, x)
-                test_scalar(log1p, x)
-            end
         end
     end
 
@@ -90,13 +56,7 @@
         for x in (-4.1, 6.4)
             test_scalar(real, x)
             test_scalar(imag, x)
-
-            test_scalar(abs, x)
             test_scalar(hypot, x)
-
-            test_scalar(angle, x)
-            test_scalar(abs2, x)
-            test_scalar(conj, x)
             test_scalar(adjoint, x)
         end
     end
@@ -132,7 +92,19 @@
         @test extern(dy) == extern(zeros(2, 5) .+ dy)
     end
 
-    @testset "binary function ($f)" for f in (hypot, atan, mod, rem, ^)
+     @testset "ldexp" begin
+            x, Δx, x̄ = 10rand(3)
+            Δz = rand()
+
+            for n in (0,1,20)
+                # TODO: Forward test does not work when parameter is Integer
+                # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
+                #frule_test(ldexp, (x, Δx), (n, nothing))
+                rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+            end
+     end
+
+    @testset "binary function ($f)" for f in (mod, \)
         x, Δx, x̄ = 10rand(3)
         y, Δy, ȳ = rand(3)
         Δz = rand()
@@ -166,24 +138,6 @@
         test_scalar(zero, x)
     end
 
-    @testset "sign" begin
-        @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
-            test_scalar(sign, x)
-        end
-
-        @testset "Zero over the point discontinuity" begin
-            # Can't do finite differencing because we are lying
-            # following the subgradient convention.
-
-            _, pb = rrule(sign, 0.0)
-            _, x̄ = pb(10.5)
-            @test extern(x̄) == 0
-
-            _, ẏ = frule((Zero(), 10.5), sign, 0.0)
-            @test extern(ẏ) == 0
-        end
-    end
-
     @testset "trinary ($f)" for f in (muladd, fma)
         x, Δx, x̄ = 10randn(3)
         y, Δy, ȳ = randn(3)
@@ -192,5 +146,22 @@
 
         frule_test(f, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    end
+    @testset "clamp"  begin
+        x̄, ȳ, z̄    = randn(3)
+        Δx, Δy, Δz = randn(3)
+        Δk = randn()
+
+        x, y, z = 1., 2., 3.  # to left
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+
+        x, y, z = 2.5, 2., 3.  # in the middle
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+
+        x, y, z = 4., 2., 3.  # to right
+        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
 end
