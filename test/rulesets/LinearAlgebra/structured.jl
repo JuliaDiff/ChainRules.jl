@@ -45,4 +45,11 @@
         n = 5
         rrule_test(T, T(randn(n, n)), (randn(n, n), randn(n, n)))
     end
+    @testset "$Op" for Op in (triu, tril)
+        n = 7
+        rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)))
+        @testset "k=$k" for k in -2:2
+            rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)), (k, nothing))
+        end
+    end
 end

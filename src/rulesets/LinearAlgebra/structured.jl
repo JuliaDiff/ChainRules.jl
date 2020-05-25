@@ -129,3 +129,29 @@ function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
     end
     return LowerTriangular(A), LowerTriangular_pullback
 end
+
+function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
+    function triu_pullback(ȳ)
+        return (NO_FIELDS, @thunk(triu(ȳ, k)), DoesNotExist())
+    end
+    return triu(A, k), triu_pullback
+end
+function rrule(::typeof(triu), A::AbstractMatrix)
+    function triu_pullback(ȳ)
+        return (NO_FIELDS, @thunk triu(ȳ))
+    end
+    return triu(A), triu_pullback
+end
+
+function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
+    function tril_pullback(ȳ)
+        return (NO_FIELDS, @thunk(tril(ȳ, k)), DoesNotExist())
+    end
+    return tril(A, k), tril_pullback
+end
+function rrule(::typeof(tril), A::AbstractMatrix)
+    function tril_pullback(ȳ)
+        return (NO_FIELDS, @thunk tril(ȳ))
+    end
+    return tril(A), tril_pullback
+end
