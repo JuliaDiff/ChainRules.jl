@@ -25,6 +25,12 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     end
     return diag(A), diag_pullback
 end
+function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
+    function diag_pullback(ȳ)
+        return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+    end
+    return diag(A, k), diag_pullback
+end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
     function times_pullback(Ȳ)

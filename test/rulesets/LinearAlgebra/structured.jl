@@ -30,6 +30,10 @@
         rrule_test(diag, randn(N), (Diagonal(randn(N)), randn(N, N)))
         rrule_test(diag, randn(N), (randn(N, N), Diagonal(randn(N))))
         rrule_test(diag, randn(N), (Diagonal(randn(N)), Diagonal(randn(N))))
+        @testset "k=$k" for k in (-1, 0, 2)
+            M = N - abs(k)
+            rrule_test(diag, randn(M), (randn(N, N), randn(N, N)), (k, nothing))
+        end
     end
     @testset "Symmetric" begin
         N = 3
