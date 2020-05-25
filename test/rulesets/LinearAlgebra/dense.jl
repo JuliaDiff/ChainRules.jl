@@ -38,7 +38,7 @@
                 x, y = randn(T, n), randn(T, n)
                 ẋ, ẏ = randn(T, m, n), randn(T, m, n)
                 Ω, ΔΩ = frule((Zero(), ẋ, ẏ), cross, x, y)
-                @test Ω == cross(x, y)
+                @test Ω ≈ cross(x, y)
                 @test size(ΔΩ) == (m, n)
                 for i in 1:m # check chunks
                     @test ΔΩ[i, :] ≈ frule((Zero(), ẋ[i, :], ẏ[i, :]), cross, x, y)[2]
