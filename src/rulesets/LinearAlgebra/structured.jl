@@ -25,18 +25,20 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     end
     return diag(A), diag_pullback
 end
-function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
-    function diag_pullback(ȳ)
-        return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+if VERSION ≥ v"1.3"
+    function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
+        function diag_pullback(ȳ)
+            return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+        end
+        return diag(A, k), diag_pullback
     end
-    return diag(A, k), diag_pullback
-end
-
-function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
-    function diagm_pullback(ȳ)
-        return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+    
+    function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+        function diagm_pullback(ȳ)
+            return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+        end
+        return diagm(m, n, kv...), diagm_pullback
     end
-    return diagm(m, n, kv...), diagm_pullback
 end
 function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
     function diagm_pullback(ȳ)
