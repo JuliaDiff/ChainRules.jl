@@ -32,6 +32,27 @@ function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
     return diag(A, k), diag_pullback
 end
 
+function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(ȳ)
+        return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return diagm(m, n, kv...), diagm_pullback
+end
+function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(ȳ)
+        return (NO_FIELDS, _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return diagm(kv...), diagm_pullback
+end
+
+function _diagm_back(p, ȳ)
+    return Thunk() do 
+        k, v = p
+        d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
+        return Composite{typeof(p)}(second = d)
+    end
+end
+
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
     function times_pullback(Ȳ)
         return (NO_FIELDS, @thunk(Diagonal(Ȳ .* V)), @thunk(D * Ȳ))

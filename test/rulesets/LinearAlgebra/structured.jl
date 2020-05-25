@@ -35,6 +35,49 @@
             rrule_test(diag, randn(M), (randn(N, N), randn(N, N)), (k, nothing))
         end
     end
+    @testset "diagm" begin
+        @testset "without size" begin
+            M, N = 7, 9
+            s = (8, 8)
+            a, ā = randn(M), randn(M)
+            b, b̄ = randn(M), randn(M)
+            c, c̄ = randn(M - 1), randn(M - 1)
+            ȳ = randn(s)
+            ps = (0 => a, 1 => b, 0 => c)
+            y, back = rrule(diagm, ps...)
+            @test y == diagm(ps...)
+            ∂self, ∂pa, ∂pb, ∂pc = back(ȳ)
+            @test ∂self === NO_FIELDS
+            ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(0 => a, 1 => b, 0 => c), ȳ, a, b, c)
+            for (p, ∂px, ∂x_fd) in zip(ps, (∂pa, ∂pb, ∂pc), (∂a_fd, ∂b_fd, ∂c_fd))
+                ∂px = unthunk(∂px)
+                @test ∂px isa Composite{typeof(p)}
+                @test ∂px.first isa AbstractZero
+                @test ∂px.second ≈ ∂x_fd
+            end
+        end
+        @testset "with size" begin
+            M, N = 7, 9
+            a, ā = randn(M), randn(M)
+            b, b̄ = randn(M), randn(M)
+            c, c̄ = randn(M - 1), randn(M - 1)
+            ȳ = randn(M, N)
+            ps = (0 => a, 1 => b, 0 => c)
+            y, back = rrule(diagm, M, N, ps...)
+            @test y == diagm(M, N, ps...)
+            ∂self, ∂M, ∂N, ∂pa, ∂pb, ∂pc = back(ȳ)
+            @test ∂self === NO_FIELDS
+            @test ∂M === DoesNotExist()
+            @test ∂N === DoesNotExist()
+            ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(M, N, 0 => a, 1 => b, 0 => c), ȳ, a, b, c)
+            for (p, ∂px, ∂x_fd) in zip(ps, (∂pa, ∂pb, ∂pc), (∂a_fd, ∂b_fd, ∂c_fd))
+                ∂px = unthunk(∂px)
+                @test ∂px isa Composite{typeof(p)}
+                @test ∂px.first isa AbstractZero
+                @test ∂px.second ≈ ∂x_fd
+            end
+        end
+    end
     @testset "Symmetric" begin
         N = 3
         rrule_test(Symmetric, randn(N, N), (randn(N, N), randn(N, N)))
