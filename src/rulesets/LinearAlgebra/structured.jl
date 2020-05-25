@@ -25,6 +25,35 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     end
     return diag(A), diag_pullback
 end
+if VERSION ≥ v"1.3"
+    function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
+        function diag_pullback(ȳ)
+            return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+        end
+        return diag(A, k), diag_pullback
+    end
+    
+    function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+        function diagm_pullback(ȳ)
+            return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+        end
+        return diagm(m, n, kv...), diagm_pullback
+    end
+end
+function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(ȳ)
+        return (NO_FIELDS, _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return diagm(kv...), diagm_pullback
+end
+
+function _diagm_back(p, ȳ)
+    return Thunk() do 
+        k, v = p
+        d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
+        return Composite{typeof(p)}(second = d)
+    end
+end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
     function times_pullback(Ȳ)
@@ -374,4 +403,30 @@ function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
         return (NO_FIELDS, @thunk Matrix(ȳ))
     end
     return LowerTriangular(A), LowerTriangular_pullback
+end
+
+function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
+    function triu_pullback(ȳ)
+        return (NO_FIELDS, @thunk(triu(ȳ, k)), DoesNotExist())
+    end
+    return triu(A, k), triu_pullback
+end
+function rrule(::typeof(triu), A::AbstractMatrix)
+    function triu_pullback(ȳ)
+        return (NO_FIELDS, @thunk triu(ȳ))
+    end
+    return triu(A), triu_pullback
+end
+
+function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
+    function tril_pullback(ȳ)
+        return (NO_FIELDS, @thunk(tril(ȳ, k)), DoesNotExist())
+    end
+    return tril(A, k), tril_pullback
+end
+function rrule(::typeof(tril), A::AbstractMatrix)
+    function tril_pullback(ȳ)
+        return (NO_FIELDS, @thunk tril(ȳ))
+    end
+    return tril(A), tril_pullback
 end
