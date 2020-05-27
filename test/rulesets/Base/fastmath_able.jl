@@ -49,7 +49,7 @@ const FASTABLE_AST = quote
     end
 
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4)
+        for x in (-4.1, 6.4, 3 + im)
             test_scalar(abs, x)
             test_scalar(angle, x)
             test_scalar(abs2, x)
