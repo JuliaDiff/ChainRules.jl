@@ -7,7 +7,7 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    function svd_pullback(Ȳ::Composite})
+    function svd_pullback(Ȳ::Composite)
         ∂X = @thunk(svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V))
         return (NO_FIELDS, ∂X)
     end
