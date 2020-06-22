@@ -36,9 +36,6 @@ function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:R
     return Ω, cross_pullback
 end
 
-# cross product matrix, i.e. matrix vₓ such that vₓ * a = v × a
-_crossmat(v) = [0 -v[3] v[2]; v[3] 0 -v[1]; -v[2] v[1] 0]
-
 #####
 ##### `inv`
 #####
