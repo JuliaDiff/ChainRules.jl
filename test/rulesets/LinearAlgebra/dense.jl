@@ -27,10 +27,12 @@
     end
     @testset "cross" begin
         @testset "frule" begin
-            n = 3
-            x, y = randn(T, n), randn(T, n)
-            ẋ, ẏ = randn(T, n), randn(T, n)
-            frule_test(cross, (x, ẋ), (y, ẏ))
+            @testset "$T" for T in (Float64, ComplexF64)
+                n = 3
+                x, y = randn(T, n), randn(T, n)
+                ẋ, ẏ = randn(T, n), randn(T, n)
+                frule_test(cross, (x, ẋ), (y, ẏ))
+            end
         end
         @testset "rrule" begin
             n = 3
