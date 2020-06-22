@@ -26,12 +26,6 @@ end
 function frule((_, Δa, Δb), ::typeof(cross), a::AbstractVector, b::AbstractVector)
     return cross(a, b), cross(Δa, b) .+ cross(a, Δb)
 end
-# chunked mode
-function frule((_, Δa, Δb)::Tuple{<:Any,<:AbstractMatrix,<:AbstractMatrix},
-               ::typeof(cross), a::AbstractVector, b::AbstractVector)
-    aₓ, bₓ = _crossmat(a), _crossmat(b)
-    return aₓ * b, Δa * bₓ .- Δb * aₓ
-end
 
 # TODO: support complex vectors
 function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})

@@ -27,23 +27,10 @@
     end
     @testset "cross" begin
         @testset "frule" begin
-            @testset "Vector{$T} tangent" for T in (Float64, ComplexF64)
-                n = 3
-                x, y = randn(T, n), randn(T, n)
-                ẋ, ẏ = randn(T, n), randn(T, n)
-                frule_test(cross, (x, ẋ), (y, ẏ))
-            end
-            @testset "Matrix{$T} tangent" for T in (Float64, ComplexF64)
-                m, n = 10, 3
-                x, y = randn(T, n), randn(T, n)
-                ẋ, ẏ = randn(T, m, n), randn(T, m, n)
-                Ω, ΔΩ = frule((Zero(), ẋ, ẏ), cross, x, y)
-                @test Ω ≈ cross(x, y)
-                @test size(ΔΩ) == (m, n)
-                for i in 1:m # check chunks
-                    @test ΔΩ[i, :] ≈ frule((Zero(), ẋ[i, :], ẏ[i, :]), cross, x, y)[2]
-                end
-            end
+            n = 3
+            x, y = randn(T, n), randn(T, n)
+            ẋ, ẏ = randn(T, n), randn(T, n)
+            frule_test(cross, (x, ẋ), (y, ẏ))
         end
         @testset "rrule" begin
             n = 3
