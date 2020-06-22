@@ -20,6 +20,23 @@ function rrule(::typeof(dot), x, y)
 end
 
 #####
+##### `cross`
+#####
+
+function frule((_, Δa, Δb), ::typeof(cross), a::AbstractVector, b::AbstractVector)
+    return cross(a, b), cross(Δa, b) .+ cross(a, Δb)
+end
+
+# TODO: support complex vectors
+function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+    Ω = cross(a, b)
+    function cross_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
+    end
+    return Ω, cross_pullback
+end
+
+#####
 ##### `inv`
 #####
 

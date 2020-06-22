@@ -25,6 +25,23 @@
             rrule_test(dot, randn(), (x, x̄), (y, ȳ))
         end
     end
+    @testset "cross" begin
+        @testset "frule" begin
+            @testset "$T" for T in (Float64, ComplexF64)
+                n = 3
+                x, y = randn(T, n), randn(T, n)
+                ẋ, ẏ = randn(T, n), randn(T, n)
+                frule_test(cross, (x, ẋ), (y, ẏ))
+            end
+        end
+        @testset "rrule" begin
+            n = 3
+            x, y = randn(n), randn(n)
+            x̄, ȳ = randn(n), randn(n)
+            ΔΩ = randn(n)
+            rrule_test(cross, ΔΩ, (x, x̄), (y, ȳ))
+        end
+    end
     @testset "inv" begin
         N = 3
         B = generate_well_conditioned_matrix(N)
