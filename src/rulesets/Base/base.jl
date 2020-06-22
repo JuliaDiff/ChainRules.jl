@@ -1,8 +1,8 @@
 # See also fastmath_able.jl for where rules are defined simple base functions
 # that also have FastMath versions.
 
-@scalar_rule one(x) Zero()
-@scalar_rule zero(x) Zero()
+@scalar_rule one(x) zero(x)
+@scalar_rule zero(x) zero(x)
 @scalar_rule adjoint(x::Real) One()
 @scalar_rule transpose(x) One()
 @scalar_rule imag(x::Real) Zero()
@@ -18,7 +18,6 @@
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
     (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))),
 )
-
 
 @scalar_rule deg2rad(x) π / oftype(x, 180)
 @scalar_rule rad2deg(x) oftype(x, 180) / π
