@@ -36,18 +36,20 @@ let
 
 
         # Unary complex functions
+        ## abs
         function frule((_, Δx), ::typeof(abs), x::Real)
             return abs(x), sign(x) * real(Δx)
         end
+        function frule((_, Δz), ::typeof(abs), z::Complex)
+            Ω = abs(z)
+            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / Ω
+        end
+        
         function rrule(::typeof(abs), x::Real)
             function abs_pullback(Δx)
                 return (NO_FIELDS, real(Δx)*sign(x))
             end
             return abs(x), abs_pullback
-        end
-        function frule((_, Δz), ::typeof(abs), z::Complex)
-            Ω = abs(z)
-            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / Ω
         end
         function rrule(::typeof(abs), z::Complex)
             Ω = abs(z)
@@ -57,18 +59,19 @@ let
             return Ω, abs_pullback
         end
 
-
+        ## abs2
         function frule((_, Δx), ::typeof(abs2), x::Real)
             return abs2(x), 2x * real(Δx)
         end
+        function frule((_, Δz), ::typeof(abs2), z::Complex)
+            return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
+        end
+        
         function rrule(::typeof(abs2), x::Real)
             function abs2_pullback(Δx)
                 return (NO_FIELDS, 2real(Δx)*x)
             end
             return abs2(x), abs2_pullback
-        end
-        function frule((_, Δz), ::typeof(abs2), z::Complex)
-            return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
         end
         function rrule(::typeof(abs2), z::Complex)
             function abs2_pullback(Δz)
@@ -76,9 +79,43 @@ let
             end
             return abs2(z), abs2_pullback
         end
-        
-        @scalar_rule angle(x::Real) Zero()
-        @scalar_rule conj(x::Real) One()
+
+        ## conj
+        function frule((_, Δz), ::typeof(conj), z::Union{Real, Complex})
+            return conj(z), conj(Δz) 
+        end
+        function rrule(::typeof(conj), z::Union{Real, Complex})
+            function conj_pullback(Δz)
+                return (NO_FIELDS, conj(Δz))
+            end
+            return conj(z), conj_pullback
+        end
+
+        ## angle
+        function frule((_, Δz), ::typeof(angle), x::Real)
+            Δx, Δy = reim(Δz)
+            return angle(x), Δy/x  
+        end
+        function frule((_, Δz), ::typeof(angle), x::Complex)
+            x,  y  = reim(z)
+            Δx, Δy = reim(Δz)
+            return angle(z), (-y*Δx + x*Δy)/abs2(z)  
+        end
+        function rrule(::typeof(angle), x::Real)
+            function angle_pullback(Δz)
+                Δx, Δy = reim(Δz)
+                return (NO_FIELDS, -(im*x*Δx - im*x*Δy)/abs2(z))
+            end
+            return angle(z), angle_pullback 
+        end
+        function rrule(::typeof(angle), z::Complex)
+            function angle_pullback(Δz)
+                x,  y  = reim(z)
+                Δx, Δy = reim(Δz)
+                return (NO_FIELDS, -((y + im*x)*Δx + (y - im*x)*Δy)/abs2(z))
+            end
+            return angle(z), angle_pullback 
+        end
 
         # Binary functions
         @scalar_rule hypot(x::Real, y::Real) (x / Ω, y / Ω)

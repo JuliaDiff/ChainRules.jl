@@ -83,16 +83,16 @@ const FASTABLE_AST = quote
     end
     
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4, 3 + im)
-            test_complex_scalar(abs, x)
-            test_complex_scalar(abs2, x)
+        for z in (-4.1, 6.4, 3 + im)
+            test_complex_scalar(abs, z)
+            test_complex_scalar(abs2, z)
+            test_complex_scalar(angle, z)
+            test_complex_scalar(conj, z)
         end
     end
 
     @testset "Unary functions" begin
         for x in (-4.1, 6.4)
-            test_scalar(angle, x)
-            test_scalar(conj, x)
             test_scalar(+, x)
             test_scalar(-, x)
         end
