@@ -47,7 +47,7 @@ let
         function rrule(::typeof(abs), z::Complex)
             Ω = abs(z)
             function ∂abs(Δz)
-                return (NO_FIELDS, real(Δz)*conj(z)/Ω)
+                return (NO_FIELDS, real(Δz)*z/Ω)
             end
             return Ω, ∂abs
         end
@@ -57,7 +57,7 @@ let
         end
         function rrule(::typeof(abs2), z::Complex)
             function ∂abs2(Δz)
-                return (NO_FIELDS, 2real(Δz)*conj(z))
+                return (NO_FIELDS, 2real(Δz)*z)
             end
             return abs2(z), ∂abs2
         end
