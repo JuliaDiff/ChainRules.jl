@@ -79,6 +79,7 @@ const FASTABLE_AST = quote
     end
     function test_complex_scalar(f, z)
         @test jacobian_via_fdm(abs, z) ≈ jacobian_via_frule(abs, z) ≈ jacobian_via_rrule(abs, z)
+        @test @fastmath jacobian_via_fdm(abs, z) ≈ jacobian_via_frule(abs, z) ≈ jacobian_via_rrule(abs, z)
     end
     
     @testset "Unary complex functions" begin
