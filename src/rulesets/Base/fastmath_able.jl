@@ -49,7 +49,7 @@ let
             function abs_pullback(Δz)
                 return (NO_FIELDS, real(Δz)*z/Ω)
             end
-            return Ω, ∂abs
+            return Ω, abs_pullback
         end
 
         function frule((_, Δz), ::typeof(abs2), z::Complex)
