@@ -59,7 +59,7 @@ let
             function abs2_pullback(Δz)
                 return (NO_FIELDS, 2real(Δz)*z)
             end
-            return abs2(z), ∂abs2
+            return abs2(z), abs2_pullback
         end
 
         # Binary functions
