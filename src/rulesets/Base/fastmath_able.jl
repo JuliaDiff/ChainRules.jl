@@ -36,10 +36,15 @@ let
 
 
         # Unary complex functions
-        @scalar_rule abs(x::Real) sign(x)
-        @scalar_rule abs2(x::Real) 2x
-        @scalar_rule angle(x::Real) Zero()
-        @scalar_rule conj(x::Real) One()
+        function frule((_, Δx), ::typeof(abs), x::Real)
+            return abs(x), sign(x) * real(Δx)
+        end
+        function rrule(::typeof(abs), x::Real)
+            function abs_pullback(Δx)
+                return (NO_FIELDS, real(Δx)*sign(x))
+            end
+            return abs(x), abs_pullback
+        end
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
             return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / Ω
@@ -52,6 +57,16 @@ let
             return Ω, abs_pullback
         end
 
+
+        function frule((_, Δx), ::typeof(abs2), x::Real)
+            return abs2(x), 2x * real(Δx)
+        end
+        function rrule(::typeof(abs2), x::Real)
+            function abs2_pullback(Δx)
+                return (NO_FIELDS, 2real(Δx)*x)
+            end
+            return abs2(x), abs2_pullback
+        end
         function frule((_, Δz), ::typeof(abs2), z::Complex)
             return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
         end
@@ -61,6 +76,9 @@ let
             end
             return abs2(z), abs2_pullback
         end
+        
+        @scalar_rule angle(x::Real) Zero()
+        @scalar_rule conj(x::Real) One()
 
         # Binary functions
         @scalar_rule hypot(x::Real, y::Real) (x / Ω, y / Ω)

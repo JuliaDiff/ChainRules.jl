@@ -48,10 +48,43 @@ const FASTABLE_AST = quote
         end
     end
 
+    function jacobian_via_frule(f,z)
+        fz,df_dx = frule((Zero(), 1),f,z)
+        fz,df_dy = frule((Zero(),im),f,z)
+        return [
+            real(df_dx)  real(df_dy)
+            imag(df_dx)  imag(df_dy)
+        ]
+    end
+    function jacobian_via_rrule(f,z)
+        fz, pullback = rrule(f,z)
+        _,du_dz = pullback( 1)
+        _,dv_dz = pullback(im)
+        return [
+            real(du_dz)  imag(du_dz)
+            real(dv_dz)  imag(dv_dz)
+        ]
+    end
+    function jacobian_via_fdm(f, z::Union{Real, Complex})
+        j = jacobian(central_fdm(5,1), ((x, y),) -> f(x + im*y), [(real ∘ float)(z)
+                                                                  (imag ∘ float)(z)])[1]
+        if size(j) == (2,2)
+            j
+        elseif size(j) == (1, 2)
+            [j 
+             false false]
+        else
+            error("Invalid Jacobian size $(size(j))")
+        end
+    end
+    function test_complex_scalar(f, z)
+        @test jacobian_via_fdm(abs, z) ≈ jacobian_via_frule(abs, z) ≈ jacobian_via_rrule(abs, z)
+    end
+    
     @testset "Unary complex functions" begin
         for x in (-4.1, 6.4, 3 + im)
-            test_scalar(abs, x)
-            test_scalar(abs2, x)
+            test_complex_scalar(abs, x)
+            test_complex_scalar(abs2, x)
         end
     end
 
