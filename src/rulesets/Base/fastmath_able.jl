@@ -56,7 +56,7 @@ let
             return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
         end
         function rrule(::typeof(abs2), z::Complex)
-            function ∂abs2(Δz)
+            function abs2_pullback(Δz)
                 return (NO_FIELDS, 2real(Δz)*z)
             end
             return abs2(z), ∂abs2
