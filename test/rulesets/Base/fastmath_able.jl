@@ -73,23 +73,47 @@ const FASTABLE_AST = quote
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
 
-
-
     @testset "sign" begin
-        @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
-            test_scalar(sign, x)
+        @testset "real" begin
+            @testset "at $x" for x in (-1.1, -1.1, 0.5, 100)
+                test_scalar(sign, x)
+            end
+
+            @testset "Zero over the point discontinuity" begin
+                # Can't do finite differencing because we are lying
+                # following the subgradient convention.
+
+                _, pb = rrule(sign, 0.0)
+                _, x̄ = pb(10.5)
+                @test extern(x̄) == 0
+
+                _, ẏ = frule((Zero(), 10.5), sign, 0.0)
+                @test extern(ẏ) == 0
+            end
         end
+        @testset "complex" begin
+            @testset "at $z" for z in (-1.1 + randn() * im, 0.5 + randn() * im)
+                ż, z̄, ΔΩ = randn(ComplexF64, 3)
+                frule_test(sign, (z, ż))
+                rrule_test(sign, ΔΩ, (z, z̄))
 
-        @testset "Zero over the point discontinuity" begin
-            # Can't do finite differencing because we are lying
-            # following the subgradient convention.
+                Ω, ∂Ω = frule((Zero(), ż), sign, real(z))
+                @test Ω == sign(real(z))
+                @test ∂Ω ≈ frule((Zero(), ż), sign, real(z) + 0im)[2]
 
-            _, pb = rrule(sign, 0.0)
-            _, x̄ = pb(10.5)
-            @test extern(x̄) == 0
+                Ω, pb = rrule(sign, real(z))
+                @test Ω == sign(real(z))
+                @test extern(pb(ΔΩ)[2]) ≈ extern(rrule(sign, real(z) + 0im)[2](ΔΩ)[2])
+            end
 
-            _, ẏ = frule((Zero(), 10.5), sign, 0.0)
-            @test extern(ẏ) == 0
+            @testset "zero over the point discontinuity" begin
+                _, pb = rrule(sign, 0.0 + 0.0im)
+                _, z̄ = pb(randn(ComplexF64))
+                @test extern(z̄) == 0.0 + 0.0im
+
+                _, Ω̇ = frule((Zero(), randn(ComplexF64)), sign, 0.0 + 0.0im)
+                @test extern(Ω̇) == 0.0 + 0.0im
+            end
         end
     end
 end
