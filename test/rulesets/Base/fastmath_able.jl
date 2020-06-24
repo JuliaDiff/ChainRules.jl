@@ -18,7 +18,7 @@ function jacobian_via_rrule(f,z)
 end
 
 function jacobian_via_fdm(f, z::Union{Real, Complex})
-    fR2(x, y) = (collect ∘ reim ∘ f)(x + im*y)
+    fR2((x, y)) = (collect ∘ reim ∘ f)(x + im*y)
     v = float([real(z)
                imag(z)])
     j = jacobian(central_fdm(5,1), fR2, v)[1]
@@ -33,8 +33,8 @@ function jacobian_via_fdm(f, z::Union{Real, Complex})
 end
 
 function complex_jacobian_test(f, z)
-    @test           jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z) 
-    @test           jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
+    @test jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z) 
+    @test jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
 end
 
 const FASTABLE_AST = quote
