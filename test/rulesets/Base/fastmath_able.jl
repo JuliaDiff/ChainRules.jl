@@ -97,6 +97,9 @@ const FASTABLE_AST = quote
                 frule_test(sign, (z, ż))
                 rrule_test(sign, ΔΩ, (z, z̄))
 
+                # test that complex (co)tangents with real primal gives same result as
+                # complex primal with zero imaginary part
+
                 Ω, ∂Ω = frule((Zero(), ż), sign, real(z))
                 @test Ω == sign(real(z))
                 @test ∂Ω ≈ frule((Zero(), ż), sign, real(z) + 0im)[2]
@@ -107,6 +110,9 @@ const FASTABLE_AST = quote
             end
 
             @testset "zero over the point discontinuity" begin
+                # Can't do finite differencing because we are lying
+                # following the subgradient convention.
+
                 _, pb = rrule(sign, 0.0 + 0.0im)
                 _, z̄ = pb(randn(ComplexF64))
                 @test extern(z̄) == 0.0 + 0.0im

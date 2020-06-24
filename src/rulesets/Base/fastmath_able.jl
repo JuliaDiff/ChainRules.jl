@@ -113,6 +113,8 @@ let
     # we do this second so it overwrites anything we included by mistake in the fastable
 end
 
+# the jacobian for `sign` is symmetric; `_sign_jvp` gives both J * Δz and Jᵀ * ΔΩ for
+# output Ω, (co)tangent Δ, and real input x or the absolute value of complex input z
 _sign_jvp(Ω, absz, Δ) = Ω * ((imag(Δ) * real(Ω) - real(Δ) * imag(Ω)) / absz)im
 _sign_jvp(Ω::Real, x::Real, Δ) = (imag(Δ) * Ω / ifelse(iszero(x), one(x), x)) * im
 _sign_jvp(Ω::Real, x::Real, Δ::Real) = Zero()
