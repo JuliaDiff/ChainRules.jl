@@ -46,15 +46,16 @@ let
         end
         
         function rrule(::typeof(abs), x::Real)
-            function abs_pullback(Δx)
-                return (NO_FIELDS, real(Δx)*sign(x))
+            function abs_pullback(Δf)
+                return (NO_FIELDS, real(Δf)*sign(x))
             end
             return abs(x), abs_pullback
         end
         function rrule(::typeof(abs), z::Complex)
             Ω = abs(z)
-            function abs_pullback(Δz)
-                return (NO_FIELDS, real(Δz)*z/Ω)
+            function abs_pullback(Δf)
+                Δu = real(Δf) 
+                return (NO_FIELDS, Δu*z/Ω)
             end
             return Ω, abs_pullback
         end
@@ -74,8 +75,9 @@ let
             return abs2(x), abs2_pullback
         end
         function rrule(::typeof(abs2), z::Complex)
-            function abs2_pullback(Δz)
-                return (NO_FIELDS, 2real(Δz)*z)
+            function abs2_pullback(Δf)
+                Δu = real(Δf)
+                return (NO_FIELDS, 2real(Δu)*z)
             end
             return abs2(z), abs2_pullback
         end
@@ -85,8 +87,8 @@ let
             return conj(z), conj(Δz) 
         end
         function rrule(::typeof(conj), z::Union{Real, Complex})
-            function conj_pullback(Δz)
-                return (NO_FIELDS, conj(Δz))
+            function conj_pullback(Δf)
+                return (NO_FIELDS, conj(Δf))
             end
             return conj(z), conj_pullback
         end
@@ -96,23 +98,23 @@ let
             Δx, Δy = reim(Δz)
             return angle(x), Δy/x  
         end
-        function frule((_, Δz), ::typeof(angle), x::Complex)
+        function frule((_, Δz), ::typeof(angle), z::Complex)
             x,  y  = reim(z)
             Δx, Δy = reim(Δz)
             return angle(z), (-y*Δx + x*Δy)/abs2(z)  
         end
         function rrule(::typeof(angle), x::Real)
-            function angle_pullback(Δz)
-                Δx, Δy = reim(Δz)
-                return (NO_FIELDS, -(im*x*Δx - im*x*Δy)/abs2(z))
+            function angle_pullback(Δf)
+                Δu, Δv = reim(Δf)
+                return (NO_FIELDS, im*Δu/x)
             end
-            return angle(z), angle_pullback 
+            return angle(x), angle_pullback 
         end
         function rrule(::typeof(angle), z::Complex)
-            function angle_pullback(Δz)
+            function angle_pullback(Δf)
                 x,  y  = reim(z)
-                Δx, Δy = reim(Δz)
-                return (NO_FIELDS, -((y + im*x)*Δx + (y - im*x)*Δy)/abs2(z))
+                Δu, Δv = reim(Δf)
+                return (NO_FIELDS, (-y + im*x)*Δu/abs2(z))
             end
             return angle(z), angle_pullback 
         end

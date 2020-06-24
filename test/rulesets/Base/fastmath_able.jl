@@ -1,4 +1,39 @@
 # Add tests to the quote for functions with  FastMath varients.
+function jacobian_via_frule(f,z)
+    du_dx, dv_dx = reim(frule((Zero(), 1),f,z)[2])
+    du_dy, dv_dy = reim(frule((Zero(),im),f,z)[2])
+    [du_dx  du_dy
+     dv_dx  dv_dy]
+end
+function jacobian_via_rrule(f,z)
+    _, pullback = rrule(f,z)
+    du_dx, du_dy = reim(pullback( 1)[2])
+    dv_dx, dv_dy = reim(pullback(im)[2])
+    [du_dx  du_dy
+     dv_dx  dv_dy]
+end
+
+function jacobian_via_fdm(f, z::Union{Real, Complex})
+    j = jacobian(central_fdm(5,1), ((x, y),) -> f(x + im*y), [(real ∘ float)(z)
+                                                              (imag ∘ float)(z)])[1]
+    if size(j) == (2,2)
+        j
+    elseif size(j) == (1, 2)
+        [j 
+         false false]
+    else
+        error("Invalid Jacobian size $(size(j))")
+    end
+end
+
+function complex_jacobian_test(f, z)
+    @test           jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z) 
+    @test           jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
+    
+    @test @fastmath jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z) 
+    @test @fastmath jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
+end
+
 const FASTABLE_AST = quote
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
@@ -47,47 +82,10 @@ const FASTABLE_AST = quote
             end
         end
     end
-
-    function jacobian_via_frule(f,z)
-        fz,df_dx = frule((Zero(), 1),f,z)
-        fz,df_dy = frule((Zero(),im),f,z)
-        return [
-            real(df_dx)  real(df_dy)
-            imag(df_dx)  imag(df_dy)
-        ]
-    end
-    function jacobian_via_rrule(f,z)
-        fz, pullback = rrule(f,z)
-        _,du_dz = pullback( 1)
-        _,dv_dz = pullback(im)
-        return [
-            real(du_dz)  imag(du_dz)
-            real(dv_dz)  imag(dv_dz)
-        ]
-    end
-    function jacobian_via_fdm(f, z::Union{Real, Complex})
-        j = jacobian(central_fdm(5,1), ((x, y),) -> f(x + im*y), [(real ∘ float)(z)
-                                                                  (imag ∘ float)(z)])[1]
-        if size(j) == (2,2)
-            j
-        elseif size(j) == (1, 2)
-            [j 
-             false false]
-        else
-            error("Invalid Jacobian size $(size(j))")
-        end
-    end
-    function test_complex_scalar(f, z)
-        @test jacobian_via_fdm(abs, z) ≈ jacobian_via_frule(abs, z) ≈ jacobian_via_rrule(abs, z)
-        @test @fastmath jacobian_via_fdm(abs, z) ≈ jacobian_via_frule(abs, z) ≈ jacobian_via_rrule(abs, z)
-    end
     
     @testset "Unary complex functions" begin
-        for z in (-4.1, 6.4, 3 + im)
-            test_complex_scalar(abs, z)
-            test_complex_scalar(abs2, z)
-            test_complex_scalar(angle, z)
-            test_complex_scalar(conj, z)
+        for f ∈ (abs, abs2, angle, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
+            complex_jacobian_test(f, z)
         end
     end
 
@@ -106,8 +104,6 @@ const FASTABLE_AST = quote
         frule_test(f, (x, Δx), (y, Δy))
         rrule_test(f, Δz, (x, x̄), (y, ȳ))
     end
-
-
 
     @testset "sign" begin
         @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
