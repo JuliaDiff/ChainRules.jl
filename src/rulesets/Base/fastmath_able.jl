@@ -53,8 +53,8 @@ let
         end
         function rrule(::typeof(abs), z::Complex)
             Ω = abs(z)
-            function abs_pullback(Δf)
-                Δu = real(Δf) 
+            function abs_pullback(ΔΩ)
+                Δu = real(ΔΩ) 
                 return (NO_FIELDS, Δu*z/Ω)
             end
             return Ω, abs_pullback
