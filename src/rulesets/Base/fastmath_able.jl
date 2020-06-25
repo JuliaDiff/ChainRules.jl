@@ -46,8 +46,8 @@ let
         end
         
         function rrule(::typeof(abs), x::Real)
-            function abs_pullback(Δf)
-                return (NO_FIELDS, real(Δf)*sign(x))
+            function abs_pullback(ΔΩ)
+                return (NO_FIELDS, real(ΔΩ)*sign(x))
             end
             return abs(x), abs_pullback
         end
