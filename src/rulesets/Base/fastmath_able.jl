@@ -77,7 +77,7 @@ let
         function rrule(::typeof(sign), x::Real)
             Ω = sign(x)
             function sign_pullback(ΔΩ)
-                return (NO_FIELDS, @thunk(_sign_jvp(Ω, x, ΔΩ)))
+                return (NO_FIELDS, _sign_jvp(Ω, x, ΔΩ))
             end
             return Ω, sign_pullback
         end
@@ -85,7 +85,7 @@ let
             absz = abs(ifelse(iszero(z), one(z), z))
             Ω = z / absz
             function sign_pullback(ΔΩ)
-                return (NO_FIELDS, @thunk(_sign_jvp(Ω, absz, ΔΩ)))
+                return (NO_FIELDS, _sign_jvp(Ω, absz, ΔΩ))
             end
             return Ω, sign_pullback
         end
