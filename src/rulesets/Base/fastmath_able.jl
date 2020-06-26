@@ -43,6 +43,7 @@ let
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
             return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         
         function rrule(::typeof(abs), x::Real)
