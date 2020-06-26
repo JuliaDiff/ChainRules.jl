@@ -118,6 +118,7 @@ let
                 x,  y  = reim(z)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return angle(z), angle_pullback 
         end
