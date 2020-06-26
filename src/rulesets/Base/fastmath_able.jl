@@ -92,6 +92,7 @@ let
         function frule((_, Δz), ::typeof(angle), x::Real)
             Δx, Δy = reim(Δz)
             return angle(x), Δy/ifelse(iszero(x), one(x), x) 
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
             return angle(x), Zero()
