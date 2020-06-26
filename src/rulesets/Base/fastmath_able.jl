@@ -1,3 +1,9 @@
+Base.real(::Zero) = Zero()
+Base.imag(::Zero) = Zero()
+
+Base.real(::One) = One()
+Base.imag(::One) = Zero()
+
 let
     # Include inside this quote any rules that should have FastMath versions
     fastable_ast = quote
@@ -42,7 +48,7 @@ let
         end
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
-            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / Ω
+            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
         end
         
         function rrule(::typeof(abs), x::Real)
@@ -54,8 +60,8 @@ let
         function rrule(::typeof(abs), z::Complex)
             Ω = abs(z)
             function abs_pullback(ΔΩ)
-                Δu = real(ΔΩ) 
-                return (NO_FIELDS, Δu*z/Ω)
+                Δu = real(ΔΩ)
+                return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
             end
             return Ω, abs_pullback
         end
@@ -69,15 +75,15 @@ let
         end
         
         function rrule(::typeof(abs2), x::Real)
-            function abs2_pullback(Δx)
-                return (NO_FIELDS, 2real(Δx)*x)
+            function abs2_pullback(ΔΩ)
+                return (NO_FIELDS, 2real(ΔΩ)*x)
             end
             return abs2(x), abs2_pullback
         end
         function rrule(::typeof(abs2), z::Complex)
-            function abs2_pullback(Δf)
-                Δu = real(Δf)
-                return (NO_FIELDS, 2real(Δu)*z)
+            function abs2_pullback(ΔΩ)
+                Δu = real(ΔΩ)
+                return (NO_FIELDS, 2real(ΔΩ)*z)
             end
             return abs2(z), abs2_pullback
         end
@@ -87,8 +93,8 @@ let
             return conj(z), conj(Δz) 
         end
         function rrule(::typeof(conj), z::Union{Real, Complex})
-            function conj_pullback(Δf)
-                return (NO_FIELDS, conj(Δf))
+            function conj_pullback(ΔΩ)
+                return (NO_FIELDS, conj(ΔΩ))
             end
             return conj(z), conj_pullback
         end
@@ -96,25 +102,31 @@ let
         ## angle
         function frule((_, Δz), ::typeof(angle), x::Real)
             Δx, Δy = reim(Δz)
-            return angle(x), Δy/x  
+            return angle(x), Δy/ifelse(iszero(x), one(x), x) 
+        end
+        function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
+            return angle(x), Zero()
         end
         function frule((_, Δz), ::typeof(angle), z::Complex)
             x,  y  = reim(z)
             Δx, Δy = reim(Δz)
-            return angle(z), (-y*Δx + x*Δy)/abs2(z)  
+            return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))  
         end
         function rrule(::typeof(angle), x::Real)
-            function angle_pullback(Δf)
-                Δu, Δv = reim(Δf)
-                return (NO_FIELDS, im*Δu/x)
+            function angle_pullback(ΔΩ::Real)
+                return (NO_FIELDS, Zero())
+            end
+            function angle_pullback(ΔΩ)
+                Δu, Δv = reim(ΔΩ)
+                return (NO_FIELDS, im*Δu/ifelse(iszero(x), one(x), x))
             end
             return angle(x), angle_pullback 
         end
         function rrule(::typeof(angle), z::Complex)
-            function angle_pullback(Δf)
+            function angle_pullback(ΔΩ)
                 x,  y  = reim(z)
-                Δu, Δv = reim(Δf)
-                return (NO_FIELDS, (-y + im*x)*Δu/abs2(z))
+                Δu, Δv = reim(ΔΩ)
+                return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
             end
             return angle(z), angle_pullback 
         end

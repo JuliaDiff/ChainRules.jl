@@ -87,11 +87,19 @@ const FASTABLE_AST = quote
     end
     
     @testset "Unary complex functions" begin
-        for f ∈ (abs, abs2, angle, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
+        for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
             @testset "Unary complex functions f = $f, z = $z" begin
                 complex_jacobian_test(f, z)
             end
         end
+        # As per PR #196, angle gives a Zero() pullback for Real z and ΔΩ, rather than
+        # the one you'd get from considering the reals as embedded in the complex plane
+        # so we need to special case it's tests  
+        for z ∈ (-4.1-0.02im, 6.4 + 0im, 3 + im)
+            complex_jacobian_test(angle, z)
+        end
+        @test frule((Zero(), randn()), angle, randn())[2] === Zero()
+        @test rrule(angle, randn())[2](randn())[2]        === Zero()
     end
 
     @testset "Unary functions" begin
