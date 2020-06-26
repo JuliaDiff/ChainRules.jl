@@ -110,6 +110,7 @@ let
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, im*Δu/ifelse(iszero(x), one(x), x))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return angle(x), angle_pullback 
         end
