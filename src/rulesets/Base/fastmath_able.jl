@@ -101,6 +101,7 @@ let
             x,  y  = reim(z)
             Δx, Δy = reim(Δz)
             return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))  
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
