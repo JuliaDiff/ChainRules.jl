@@ -1,9 +1,3 @@
-Base.real(::Zero) = Zero()
-Base.imag(::Zero) = Zero()
-
-Base.real(::One) = One()
-Base.imag(::One) = Zero()
-
 let
     # Include inside this quote any rules that should have FastMath versions
     fastable_ast = quote
