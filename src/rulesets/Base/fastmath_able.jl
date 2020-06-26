@@ -68,13 +68,7 @@ let
             return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
         end
         
-        function rrule(::typeof(abs2), x::Real)
-            function abs2_pullback(ΔΩ)
-                return (NO_FIELDS, 2real(ΔΩ)*x)
-            end
-            return abs2(x), abs2_pullback
-        end
-        function rrule(::typeof(abs2), z::Complex)
+        function rrule(::typeof(abs2), z::Union{Real, Complex})
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
                 return (NO_FIELDS, 2real(ΔΩ)*z)
