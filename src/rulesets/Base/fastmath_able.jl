@@ -57,6 +57,7 @@ let
             function abs_pullback(ΔΩ)
                 Δu = real(ΔΩ)
                 return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return Ω, abs_pullback
         end
