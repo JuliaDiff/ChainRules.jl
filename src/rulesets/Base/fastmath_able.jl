@@ -43,6 +43,7 @@ let
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
             return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         
         function rrule(::typeof(abs), x::Real)
@@ -56,6 +57,7 @@ let
             function abs_pullback(ΔΩ)
                 Δu = real(ΔΩ)
                 return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return Ω, abs_pullback
         end
@@ -91,6 +93,7 @@ let
         function frule((_, Δz), ::typeof(angle), x::Real)
             Δx, Δy = reim(Δz)
             return angle(x), Δy/ifelse(iszero(x), one(x), x) 
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
             return angle(x), Zero()
@@ -99,6 +102,7 @@ let
             x,  y  = reim(z)
             Δx, Δy = reim(Δz)
             return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))  
+            # `ifelse` is applied only to denominator to ensure type-stability. 
         end
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
@@ -107,6 +111,7 @@ let
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, im*Δu/ifelse(iszero(x), one(x), x))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return angle(x), angle_pullback 
         end
@@ -115,6 +120,7 @@ let
                 x,  y  = reim(z)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
+                # `ifelse` is applied only to denominator to ensure type-stability. 
             end
             return angle(z), angle_pullback 
         end
