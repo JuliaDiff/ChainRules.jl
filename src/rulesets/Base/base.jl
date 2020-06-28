@@ -14,13 +14,26 @@ function rrule(::typeof(adjoint), z::Number)
     return (z', adjoint_pullback)
 end
 
+# `real`
+
+@scalar_rule real(x::Real) One()
+
+frule((_, Δz), ::typeof(real), z::Number) = (real(z), real(Δz))
+
+function rrule(::typeof(real), z::Number)
+    # add zero(z) to embed the real number in the same number type as z
+    real_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) + zero(z))
+    return (real(z), real_pullback)
+end
+
+# `imag`
+
 @scalar_rule imag(x::Real) Zero()
 @scalar_rule hypot(x::Real) sign(x)
 
 
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
-@scalar_rule real(x::Real) One()
 @scalar_rule rem2pi(x, r::RoundingMode) (One(), DoesNotExist())
 @scalar_rule(
     mod(x, y),
