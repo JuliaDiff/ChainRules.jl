@@ -133,13 +133,13 @@
         rrule_test(^, Δz, (x, x̄), (y, ȳ))
     end
 
-    @testset "identity" begin
-        rrule_test(identity, randn(), (randn(), randn()))
-        rrule_test(identity, randn(4), (randn(4), randn(4)))
+    @testset "identity" for T in (Float64, ComplexF64)
+        rrule_test(identity, randn(T), (randn(T), randn(T)))
+        rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
 
         rrule_test(
-            identity, Tuple(randn(3)),
-            (Composite{Tuple}(randn(3)...), Composite{Tuple}(randn(3)...))
+            identity, Tuple(randn(T, 3)),
+            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
         )
     end
 
