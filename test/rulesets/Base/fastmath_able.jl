@@ -25,7 +25,7 @@ function jacobian_via_fdm(f, z::Union{Real, Complex})
     if size(j) == (2,2)
         j
     elseif size(j) == (1, 2)
-        [j 
+        [j
          false false]
     else
         error("Invalid Jacobian size $(size(j))")
@@ -33,7 +33,7 @@ function jacobian_via_fdm(f, z::Union{Real, Complex})
 end
 
 function complex_jacobian_test(f, z)
-    @test jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z) 
+    @test jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z)
     @test jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
 end
 
@@ -85,7 +85,7 @@ const FASTABLE_AST = quote
             end
         end
     end
-    
+
     @testset "Unary complex functions" begin
         for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
             @testset "Unary complex functions f = $f, z = $z" begin
@@ -94,7 +94,7 @@ const FASTABLE_AST = quote
         end
         # As per PR #196, angle gives a Zero() pullback for Real z and ΔΩ, rather than
         # the one you'd get from considering the reals as embedded in the complex plane
-        # so we need to special case it's tests  
+        # so we need to special case it's tests
         for z ∈ (-4.1-0.02im, 6.4 + 0im, 3 + im)
             complex_jacobian_test(angle, z)
         end
@@ -119,7 +119,7 @@ const FASTABLE_AST = quote
     end
 
     @testset "sign" begin
-        @testset "at points" for x in (-1.1, -1.1, 0.5, 100)
+        @testset "at points" for x in (-1.1, -1.1, 0.5, 100.0)
             test_scalar(sign, x)
         end
 
