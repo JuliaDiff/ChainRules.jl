@@ -107,14 +107,19 @@
         end
     end
 
+    @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
+        x, ẋ, x̄, y, ẏ, ȳ, Δz = randn(T, 7)
+        frule_test(*, (x, ẋ), (y, ẏ))
+        rrule_test(*, Δz, (x, x̄), (y, ȳ))
+    end
 
-    @testset "binary function ($f)" for f in (mod, \)
+    @testset "mod" begin
         x, Δx, x̄ = 10rand(3)
         y, Δy, ȳ = rand(3)
         Δz = rand()
 
-        frule_test(f, (x, Δx), (y, Δy))
-        rrule_test(f, Δz, (x, x̄), (y, ȳ))
+        frule_test(mod, (x, Δx), (y, Δy))
+        rrule_test(mod, Δz, (x, x̄), (y, ȳ))
     end
 
     @testset "x^n for x<0" begin
