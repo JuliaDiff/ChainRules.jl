@@ -55,9 +55,9 @@ const FASTABLE_AST = quote
             test_scalar(atan, x)
         end
         @testset "Multivariate" begin
-            @testset "sincos" begin
-                x, Δx, x̄ = randn(3)
-                Δz = (randn(), randn())
+            @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
+                x, Δx, x̄ = randn(T, 3)
+                Δz = (randn(T), randn(T))
 
                 frule_test(sincos, (x, Δx))
                 rrule_test(sincos, Δz, (x, x̄))
@@ -66,7 +66,7 @@ const FASTABLE_AST = quote
     end
 
     @testset "exponents" begin
-        for x in (-0.1, 6.4)
+        for x in (-0.1, 6.4, 0.5 + 0.25im)
             test_scalar(inv, x)
 
             test_scalar(exp, x)
@@ -74,9 +74,11 @@ const FASTABLE_AST = quote
             test_scalar(exp10, x)
             test_scalar(expm1, x)
 
-            test_scalar(cbrt, x)
+            if x isa Real
+                test_scalar(cbrt, x)
+            end
 
-            if x >= 0
+            if x isa Complex || x >= 0
                 test_scalar(sqrt, x)
                 test_scalar(log, x)
                 test_scalar(log2, x)
@@ -103,9 +105,10 @@ const FASTABLE_AST = quote
     end
 
     @testset "Unary functions" begin
-        for x in (-4.1, 6.4)
+        for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(+, x)
             test_scalar(-, x)
+            test_scalar(atan, x)
         end
     end
 

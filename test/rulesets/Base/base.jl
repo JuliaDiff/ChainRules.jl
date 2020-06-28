@@ -46,14 +46,14 @@
     end  # Trig
 
     @testset "Angles" begin
-        for x in (-0.1, 6.4)
+        for x in (-0.1, 6.4, 0.5 + 0.25im)
             test_scalar(deg2rad, x)
             test_scalar(rad2deg, x)
         end
     end
 
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4)
+        for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(real, x)
             test_scalar(imag, x)
             test_scalar(hypot, x)
