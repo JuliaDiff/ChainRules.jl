@@ -64,8 +64,11 @@
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
-        @testset "$x * $y; (perturbed by: $perturb)" for
+        @testset "($x) * ($y); (perturbed by: $perturb)" for
             x in test_points, y in test_points, perturb in test_points
+
+            # ensure all complex if any complex for FiniteDifferences
+            x, y, perturb = Base.promote(x, y, perturb)
 
             # give small off-set so as can't slip in symmetry
             x̄ = ẋ = 0.5 + perturb
@@ -133,7 +136,7 @@
         )
     end
 
-    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
+    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
     end
