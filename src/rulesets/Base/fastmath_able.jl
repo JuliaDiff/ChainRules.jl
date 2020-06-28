@@ -146,9 +146,33 @@ let
         @scalar_rule +x One()
         @scalar_rule -x -1
 
+        function frule((_, Δx), ::typeof(sign), x::Real)
+            Ω = sign(x)
+            ∂Ω = _sign_jvp(Ω, x, Δx)
+            return Ω, ∂Ω
+        end
+        function frule((_, Δz), ::typeof(sign), z::Complex)
+            absz = abs(ifelse(iszero(z), one(z), z))
+            Ω = z / absz
+            ∂Ω = _sign_jvp(Ω, absz, Δz)
+            return Ω, ∂Ω
+        end
 
-        @scalar_rule sign(x) Zero()
-
+        function rrule(::typeof(sign), x::Real)
+            Ω = sign(x)
+            function sign_pullback(ΔΩ)
+                return (NO_FIELDS, _sign_jvp(Ω, x, ΔΩ))
+            end
+            return Ω, sign_pullback
+        end
+        function rrule(::typeof(sign), z::Complex)
+            absz = abs(ifelse(iszero(z), one(z), z))
+            Ω = z / absz
+            function sign_pullback(ΔΩ)
+                return (NO_FIELDS, _sign_jvp(Ω, absz, ΔΩ))
+            end
+            return Ω, sign_pullback
+        end
 
         # product rule requires special care for arguments where `mul` is non-commutative
         function frule((_, Δx, Δy), ::typeof(*), x::Number, y::Number)
@@ -172,3 +196,9 @@ let
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
 end
+
+# the jacobian for `sign` is symmetric; `_sign_jvp` gives both J * Δz and Jᵀ * ΔΩ for
+# output Ω, (co)tangent Δ, and real input x or the absolute value of complex input z
+_sign_jvp(Ω, absz, Δ) = Ω * ((imag(Δ) * real(Ω) - real(Δ) * imag(Ω)) / absz)im
+_sign_jvp(Ω::Real, x::Real, Δ) = (imag(Δ) * Ω / ifelse(iszero(x), one(x), x)) * im
+_sign_jvp(Ω::Real, x::Real, Δ::Real) = Zero()
