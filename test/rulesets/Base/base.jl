@@ -144,9 +144,15 @@
     end
 
     @testset "identity" for T in (Float64, ComplexF64)
+        frule_test(identity, (randn(T), randn(T)))
+        frule_test(identity, (randn(T, 4), randn(T, 4)))
+        frule_test(
+            identity,
+            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+        )
+
         rrule_test(identity, randn(T), (randn(T), randn(T)))
         rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
-
         rrule_test(
             identity, Tuple(randn(T, 3)),
             (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
