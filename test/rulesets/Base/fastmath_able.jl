@@ -1,4 +1,42 @@
 # Add tests to the quote for functions with  FastMath varients.
+function jacobian_via_frule(f,z)
+    du_dx, dv_dx = reim(frule((Zero(), 1),f,z)[2])
+    du_dy, dv_dy = reim(frule((Zero(),im),f,z)[2])
+    return [
+        du_dx  du_dy
+        dv_dx  dv_dy
+    ]
+end
+function jacobian_via_rrule(f,z)
+    _, pullback = rrule(f,z)
+    du_dx, du_dy = reim(pullback( 1)[2])
+    dv_dx, dv_dy = reim(pullback(im)[2])
+    return [
+        du_dx  du_dy
+        dv_dx  dv_dy
+    ]
+end
+
+function jacobian_via_fdm(f, z::Union{Real, Complex})
+    fR2((x, y)) = (collect ∘ reim ∘ f)(x + im*y)
+    v = float([real(z)
+               imag(z)])
+    j = jacobian(central_fdm(5,1), fR2, v)[1]
+    if size(j) == (2,2)
+        j
+    elseif size(j) == (1, 2)
+        [j
+         false false]
+    else
+        error("Invalid Jacobian size $(size(j))")
+    end
+end
+
+function complex_jacobian_test(f, z)
+    @test jacobian_via_fdm(f, z) ≈ jacobian_via_frule(f, z)
+    @test jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
+end
+
 const FASTABLE_AST = quote
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
@@ -49,12 +87,19 @@ const FASTABLE_AST = quote
     end
 
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4)
-            test_scalar(abs, x)
-            test_scalar(angle, x)
-            test_scalar(abs2, x)
-            test_scalar(conj, x)
+        for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
+            @testset "Unary complex functions f = $f, z = $z" begin
+                complex_jacobian_test(f, z)
+            end
         end
+        # As per PR #196, angle gives a Zero() pullback for Real z and ΔΩ, rather than
+        # the one you'd get from considering the reals as embedded in the complex plane
+        # so we need to special case it's tests
+        for z ∈ (-4.1-0.02im, 6.4 + 0im, 3 + im)
+            complex_jacobian_test(angle, z)
+        end
+        @test frule((Zero(), randn()), angle, randn())[2] === Zero()
+        @test rrule(angle, randn())[2](randn())[2]        === Zero()
     end
 
     @testset "Unary functions" begin
