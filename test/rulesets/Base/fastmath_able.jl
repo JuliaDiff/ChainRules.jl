@@ -120,7 +120,7 @@ const FASTABLE_AST = quote
 
     @testset "sign" begin
         @testset "real" begin
-            @testset "at $x" for x in (-1.1, -1.1, 0.5, 100)
+            @testset "at $x" for x in (-1.1, -1.1, 0.5, 100.0)
                 test_scalar(sign, x)
             end
 
