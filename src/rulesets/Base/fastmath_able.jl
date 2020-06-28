@@ -123,7 +123,30 @@ let
         end
 
         # Binary functions
-        @scalar_rule hypot(x::Real, y::Real) (x / Ω, y / Ω)
+
+        # `hypot`
+
+        function frule(
+                (_, Δx, Δy),
+                ::typeof(hypot),
+                x::T,
+                y::T,
+            ) where {T<:Union{Real,Complex}}
+            Ω = hypot(x, y)
+            n = ifelse(iszero(Ω), one(Ω), Ω)
+            ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
+            return Ω, ∂Ω
+        end
+
+        function rrule(::typeof(hypot), x::T, y::T) where {T<:Union{Real,Complex}}
+            Ω = hypot(x, y)
+            function hypot_pullback(ΔΩ)
+                c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
+                return (NO_FIELDS, @thunk(c * x), @thunk(c * y))
+            end
+            return (Ω, hypot_pullback)
+        end
+
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
         @scalar_rule x / y (inv(y), -((x / y) / y))
