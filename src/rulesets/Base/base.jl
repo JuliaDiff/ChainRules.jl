@@ -37,6 +37,26 @@ function rrule(::typeof(imag), z::Complex)
     return (imag(z), imag_pullback)
 end
 
+# `Complex`
+
+frule((_, Δz), ::Type{T}, z::Number) where {T<:Complex} = (T(z), Complex(Δz))
+function frule((_, Δx, Δy), ::Type{T}, x::Number, y::Number) where {T<:Complex}
+    return (T(x, y), Complex(Δx, Δy))
+end
+
+function rrule(::Type{T}, z::Complex) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, Complex(ΔΩ))
+    return (T(z), Complex_pullback)
+end
+function rrule(::Type{T}, x::Real) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ))
+    return (T(x), Complex_pullback)
+end
+function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ), imag(ΔΩ))
+    return (T(x, y), Complex_pullback)
+end
+
 # `hypot`
 
 @scalar_rule hypot(x::Real) sign(x)

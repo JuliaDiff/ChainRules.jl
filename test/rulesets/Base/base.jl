@@ -61,6 +61,16 @@
         end
     end
 
+    @testset "Complex" begin
+        test_scalar(Complex, randn())
+        test_scalar(Complex, randn(ComplexF64))
+        x, ẋ, x̄ = randn(3)
+        y, ẏ, ȳ = randn(3)
+        Δz = randn(ComplexF64)
+        frule_test(Complex, (x, ẋ), (y, ẏ))
+        rrule_test(Complex, Δz, (x, x̄), (y, ȳ))
+    end
+
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
