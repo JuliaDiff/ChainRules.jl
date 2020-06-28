@@ -148,15 +148,26 @@
         test_scalar(zero, x)
     end
 
-    @testset "trinary ($f)" for f in (muladd, fma)
+    @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
+        x, Δx, x̄ = 10randn(T, 3)
+        y, Δy, ȳ = randn(T, 3)
+        z, Δz, z̄ = randn(T, 3)
+        Δk = randn(T)
+
+        frule_test(muladd, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(muladd, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    end
+
+    @testset "fma" begin
         x, Δx, x̄ = 10randn(3)
         y, Δy, ȳ = randn(3)
         z, Δz, z̄ = randn(3)
         Δk = randn()
 
-        frule_test(f, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        frule_test(fma, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(fma, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
+
     @testset "clamp"  begin
         x̄, ȳ, z̄    = randn(3)
         Δx, Δy, Δz = randn(3)
