@@ -37,8 +37,23 @@ function rrule(::typeof(imag), z::Complex)
     return (imag(z), imag_pullback)
 end
 
+# `hypot`
+
 @scalar_rule hypot(x::Real) sign(x)
 
+function frule((_, Δz), ::typeof(hypot), z::Complex)
+    Ω = hypot(z)
+    ∂Ω = _realconjtimes(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
+    return Ω, ∂Ω
+end
+
+function rrule(::typeof(hypot), z::Complex)
+    Ω = hypot(z)
+    function hypot_pullback(ΔΩ)
+        return (NO_FIELDS, (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)
+    end
+    return (Ω, hypot_pullback)
+end
 
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
