@@ -3,8 +3,17 @@
 
 @scalar_rule one(x) zero(x)
 @scalar_rule zero(x) zero(x)
-@scalar_rule adjoint(x::Real) One()
 @scalar_rule transpose(x) One()
+
+# `adjoint`
+
+frule((_, Δz), ::typeof(adjoint), z::Number) = (z', Δz')
+
+function rrule(::typeof(adjoint), z::Number)
+    adjoint_pullback(ΔΩ) = (NO_FIELDS, ΔΩ')
+    return (z', adjoint_pullback)
+end
+
 @scalar_rule imag(x::Real) Zero()
 @scalar_rule hypot(x::Real) sign(x)
 
