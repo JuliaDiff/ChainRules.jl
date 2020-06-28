@@ -109,13 +109,24 @@ const FASTABLE_AST = quote
         end
     end
 
-    @testset "binary function ($f)" for f in (/, +, -, hypot, atan, rem, ^, max, min)
-        x, Δx, x̄ = 10rand(3)
-        y, Δy, ȳ = rand(3)
-        Δz = rand()
+    @testset "binary functions" begin
+        @testset "$f(x, y)" for f in (atan, rem, max, min)
+            x, Δx, x̄ = 10rand(3)
+            y, Δy, ȳ = rand(3)
+            Δz = rand()
 
-        frule_test(f, (x, Δx), (y, Δy))
-        rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            frule_test(f, (x, Δx), (y, Δy))
+            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+        end
+
+        @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
+            x, Δx, x̄ = 10rand(T, 3)
+            y, Δy, ȳ = rand(T, 3)
+            Δz = randn(typeof(f(x, y)))
+
+            frule_test(f, (x, Δx), (y, Δy))
+            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+        end
     end
 
     @testset "sign" begin
