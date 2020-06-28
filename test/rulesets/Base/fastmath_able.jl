@@ -102,6 +102,15 @@ const FASTABLE_AST = quote
         end
         @test frule((Zero(), randn()), angle, randn())[2] === Zero()
         @test rrule(angle, randn())[2](randn())[2]        === Zero()
+
+        # test that real primal with complex tangent gives complex tangent
+        ΔΩ = randn(ComplexF64)
+        for x in (-0.5, 2.0)
+            @test isapprox(
+                frule((Zero(), ΔΩ), angle, x)[2],
+                frule((Zero(), ΔΩ), angle, complex(x))[2],
+            )
+        end
     end
 
     @testset "Unary functions" begin
