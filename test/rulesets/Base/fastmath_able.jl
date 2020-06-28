@@ -138,13 +138,12 @@ const FASTABLE_AST = quote
         end
         @testset "complex" begin
             @testset "at $z" for z in (-1.1 + randn() * im, 0.5 + randn() * im)
-                ż, z̄, ΔΩ = randn(ComplexF64, 3)
-                frule_test(sign, (z, ż))
-                rrule_test(sign, ΔΩ, (z, z̄))
+                test_scalar(sign, z)
 
                 # test that complex (co)tangents with real primal gives same result as
                 # complex primal with zero imaginary part
 
+                ż, ΔΩ = randn(ComplexF64, 2)
                 Ω, ∂Ω = frule((Zero(), ż), sign, real(z))
                 @test Ω == sign(real(z))
                 @test ∂Ω ≈ frule((Zero(), ż), sign, real(z) + 0im)[2]
