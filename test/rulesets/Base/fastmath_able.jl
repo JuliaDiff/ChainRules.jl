@@ -150,7 +150,7 @@ const FASTABLE_AST = quote
 
                 Ω, pb = rrule(sign, real(z))
                 @test Ω == sign(real(z))
-                @test extern(pb(ΔΩ)[2]) ≈ extern(rrule(sign, real(z) + 0im)[2](ΔΩ)[2])
+                @test pb(ΔΩ)[2] ≈ rrule(sign, real(z) + 0im)[2](ΔΩ)[2]
             end
 
             @testset "zero over the point discontinuity" begin
