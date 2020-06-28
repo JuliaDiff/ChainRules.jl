@@ -42,7 +42,7 @@ let
         end
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
-            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
+            return Ω, _realconjtimes(z, Δz) / ifelse(iszero(z), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
         end
 
@@ -63,11 +63,8 @@ let
         end
 
         ## abs2
-        function frule((_, Δx), ::typeof(abs2), x::Real)
-            return abs2(x), 2x * real(Δx)
-        end
-        function frule((_, Δz), ::typeof(abs2), z::Complex)
-            return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
+        function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
+            return abs2(z), 2 * _realconjtimes(z, Δz)
         end
 
         function rrule(::typeof(abs2), z::Union{Real, Complex})
