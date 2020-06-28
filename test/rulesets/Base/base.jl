@@ -95,17 +95,18 @@
         @test extern(dy) == extern(zeros(2, 5) .+ dy)
     end
 
-     @testset "ldexp" begin
-            x, Δx, x̄ = 10rand(3)
-            Δz = rand()
+    @testset "ldexp" begin
+        x, Δx, x̄ = 10rand(3)
+        Δz = rand()
 
-            for n in (0,1,20)
-                # TODO: Forward test does not work when parameter is Integer
-                # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
-                #frule_test(ldexp, (x, Δx), (n, nothing))
-                rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
-            end
-     end
+        for n in (0,1,20)
+            # TODO: Forward test does not work when parameter is Integer
+            # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
+            #frule_test(ldexp, (x, Δx), (n, nothing))
+            rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+        end
+    end
+
 
     @testset "binary function ($f)" for f in (mod, \)
         x, Δx, x̄ = 10rand(3)
