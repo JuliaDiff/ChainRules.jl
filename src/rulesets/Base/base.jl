@@ -29,6 +29,14 @@ end
 # `imag`
 
 @scalar_rule imag(x::Real) Zero()
+
+frule((_, Δz), ::typeof(imag), z::Number) = (imag(z), imag(Δz))
+
+function rrule(::typeof(imag), z::Complex)
+    imag_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) * im)
+    return (imag(z), imag_pullback)
+end
+
 @scalar_rule hypot(x::Real) sign(x)
 
 
