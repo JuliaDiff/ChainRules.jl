@@ -25,7 +25,7 @@ let
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
         @scalar_rule inv(x) -(Ω ^ 2)
         @scalar_rule sqrt(x) inv(2Ω)
-        @scalar_rule exp(x::Real) Ω
+        @scalar_rule exp(x) Ω
         @scalar_rule exp10(x) Ω * log(oftype(x, 10))
         @scalar_rule exp2(x) Ω * log(oftype(x, 2))
         @scalar_rule expm1(x) exp(x)
