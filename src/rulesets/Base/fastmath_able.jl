@@ -43,9 +43,9 @@ let
         function frule((_, Δz), ::typeof(abs), z::Complex)
             Ω = abs(z)
             return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
-            # `ifelse` is applied only to denominator to ensure type-stability. 
+            # `ifelse` is applied only to denominator to ensure type-stability.
         end
-        
+
         function rrule(::typeof(abs), x::Real)
             function abs_pullback(ΔΩ)
                 return (NO_FIELDS, real(ΔΩ)*sign(x))
@@ -57,7 +57,7 @@ let
             function abs_pullback(ΔΩ)
                 Δu = real(ΔΩ)
                 return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
-                # `ifelse` is applied only to denominator to ensure type-stability. 
+                # `ifelse` is applied only to denominator to ensure type-stability.
             end
             return Ω, abs_pullback
         end
@@ -69,7 +69,7 @@ let
         function frule((_, Δz), ::typeof(abs2), z::Complex)
             return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
         end
-        
+
         function rrule(::typeof(abs2), z::Union{Real, Complex})
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
@@ -80,7 +80,7 @@ let
 
         ## conj
         function frule((_, Δz), ::typeof(conj), z::Union{Real, Complex})
-            return conj(z), conj(Δz) 
+            return conj(z), conj(Δz)
         end
         function rrule(::typeof(conj), z::Union{Real, Complex})
             function conj_pullback(ΔΩ)
@@ -92,8 +92,8 @@ let
         ## angle
         function frule((_, Δz), ::typeof(angle), x::Real)
             Δx, Δy = reim(Δz)
-            return angle(x), Δy/ifelse(iszero(x), one(x), x) 
-            # `ifelse` is applied only to denominator to ensure type-stability. 
+            return angle(x), Δy/ifelse(iszero(x), one(x), x)
+            # `ifelse` is applied only to denominator to ensure type-stability.
         end
         function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
             return angle(x), Zero()
@@ -101,8 +101,8 @@ let
         function frule((_, Δz), ::typeof(angle), z::Complex)
             x,  y  = reim(z)
             Δx, Δy = reim(Δz)
-            return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))  
-            # `ifelse` is applied only to denominator to ensure type-stability. 
+            return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))
+            # `ifelse` is applied only to denominator to ensure type-stability.
         end
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
@@ -111,18 +111,18 @@ let
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, im*Δu/ifelse(iszero(x), one(x), x))
-                # `ifelse` is applied only to denominator to ensure type-stability. 
+                # `ifelse` is applied only to denominator to ensure type-stability.
             end
-            return angle(x), angle_pullback 
+            return angle(x), angle_pullback
         end
         function rrule(::typeof(angle), z::Complex)
             function angle_pullback(ΔΩ)
                 x,  y  = reim(z)
                 Δu, Δv = reim(ΔΩ)
                 return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
-                # `ifelse` is applied only to denominator to ensure type-stability. 
+                # `ifelse` is applied only to denominator to ensure type-stability.
             end
-            return angle(z), angle_pullback 
+            return angle(z), angle_pullback
         end
 
         # Binary functions
@@ -161,7 +161,7 @@ let
 
         function rrule(::typeof(*), x::Number, y::Number)
             function times_pullback(ΔΩ)
-                return (NO_FIELDS,  @thunk(ΔΩ * y), @thunk(x * ΔΩ))
+                return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
             end
             return x * y, times_pullback
         end
