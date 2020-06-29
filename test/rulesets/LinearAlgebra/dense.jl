@@ -42,23 +42,23 @@
             rrule_test(cross, ΔΩ, (x, x̄), (y, ȳ))
         end
     end
-    @testset "inv" begin
+    @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(inv, (B, randn(N, N)))
-        rrule_test(inv, randn(N, N), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(inv, (B, randn(T, N, N)))
+        rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
-    @testset "det" begin
+    @testset "det(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(det, (B, randn(N, N)))
-        rrule_test(det, randn(), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(det, (B, randn(T, N, N)))
+        rrule_test(det, randn(T), (B, randn(T, N, N)))
     end
-    @testset "logdet" begin
+    @testset "logdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(logdet, (B, randn(N, N)))
-        rrule_test(logdet, randn(), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(logdet, (B, randn(T, N, N)))
+        rrule_test(logdet, randn(T), (B, randn(T, N, N)))
     end
     @testset "tr" begin
         N = 4
