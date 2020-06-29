@@ -80,21 +80,6 @@
         end
     end
 
-    @testset "matmul *(x, y)" begin
-        x, y = rand(3, 2), rand(2, 5)
-        z, pullback = rrule(*, x, y)
-
-        @test z == x * y
-
-        z̄ = rand(3, 5)
-        (ds, dx, dy) = pullback(z̄)
-
-        @test ds === NO_FIELDS
-
-        @test extern(dx) == extern(zeros(3, 2) .+ dx)
-        @test extern(dy) == extern(zeros(2, 5) .+ dy)
-    end
-
      @testset "ldexp" begin
             x, Δx, x̄ = 10rand(3)
             Δz = rand()
