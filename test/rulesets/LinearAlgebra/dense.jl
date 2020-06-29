@@ -1,28 +1,28 @@
 @testset "linalg" begin
     @testset "dot" begin
-        @testset "Vector" begin
+        @testset "Vector{$T}" for T in (Float64, ComplexF64)
             M = 3
-            x, y = randn(M), randn(M)
-            ẋ, ẏ = randn(M), randn(M)
-            x̄, ȳ = randn(M), randn(M)
+            x, y = randn(T, M), randn(T, M)
+            ẋ, ẏ = randn(T, M), randn(T, M)
+            x̄, ȳ = randn(T, M), randn(T, M)
             frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(), (x, x̄), (y, ȳ))
+            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
         end
-        @testset "Matrix" begin
+        @testset "Matrix{$T}" for T in (Float64, ComplexF64)
             M, N = 3, 4
-            x, y = randn(M, N), randn(M, N)
-            ẋ, ẏ = randn(M, N), randn(M, N)
-            x̄, ȳ = randn(M, N), randn(M, N)
+            x, y = randn(T, M, N), randn(T, M, N)
+            ẋ, ẏ = randn(T, M, N), randn(T, M, N)
+            x̄, ȳ = randn(T, M, N), randn(T, M, N)
             frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(), (x, x̄), (y, ȳ))
+            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
         end
-        @testset "Array{T, 3}" begin
+        @testset "Array{$T, 3}" for T in (Float64, ComplexF64)
             M, N, P = 3, 4, 5
-            x, y = randn(M, N, P), randn(M, N, P)
-            ẋ, ẏ = randn(M, N, P), randn(M, N, P)
-            x̄, ȳ = randn(M, N, P), randn(M, N, P)
+            x, y = randn(T, M, N, P), randn(T, M, N, P)
+            ẋ, ẏ = randn(T, M, N, P), randn(T, M, N, P)
+            x̄, ȳ = randn(T, M, N, P), randn(T, M, N, P)
             frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(), (x, x̄), (y, ȳ))
+            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
         end
     end
     @testset "cross" begin
@@ -42,23 +42,23 @@
             rrule_test(cross, ΔΩ, (x, x̄), (y, ȳ))
         end
     end
-    @testset "inv" begin
+    @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(inv, (B, randn(N, N)))
-        rrule_test(inv, randn(N, N), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(inv, (B, randn(T, N, N)))
+        rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
-    @testset "det" begin
+    @testset "det(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(det, (B, randn(N, N)))
-        rrule_test(det, randn(), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(det, (B, randn(T, N, N)))
+        rrule_test(det, randn(T), (B, randn(T, N, N)))
     end
-    @testset "logdet" begin
+    @testset "logdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(N)
-        frule_test(logdet, (B, randn(N, N)))
-        rrule_test(logdet, randn(), (B, randn(N, N)))
+        B = generate_well_conditioned_matrix(T, N)
+        frule_test(logdet, (B, randn(T, N, N)))
+        rrule_test(logdet, randn(T), (B, randn(T, N, N)))
     end
     @testset "tr" begin
         N = 4

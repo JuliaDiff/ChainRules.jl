@@ -9,12 +9,12 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 #####
 
 function frule((_, Δx, Δy), ::typeof(dot), x, y)
-    return dot(x, y), sum(Δx .* y) + sum(x .* Δy)
+    return dot(x, y), dot(Δx, y) + dot(x, Δy)
 end
 
 function rrule(::typeof(dot), x, y)
     function dot_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(ΔΩ .* y), @thunk(x .* ΔΩ))
+        return (NO_FIELDS, @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
     end
     return dot(x, y), dot_pullback
 end
@@ -67,7 +67,7 @@ end
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        return NO_FIELDS, Ω * ΔΩ * transpose(inv(x))
+        return NO_FIELDS, Ω * ΔΩ * inv(x)'
     end
     return Ω, det_pullback
 end
@@ -84,7 +84,7 @@ end
 function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
-        return (NO_FIELDS, ΔΩ * transpose(inv(x)))
+        return (NO_FIELDS, ΔΩ * inv(x)')
     end
     return Ω, logdet_pullback
 end
