@@ -9,12 +9,12 @@ const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
 #####
 
 function frule((_, Δx, Δy), ::typeof(dot), x, y)
-    return dot(x, y), sum(Δx .* y) + sum(x .* Δy)
+    return dot(x, y), dot(Δx, y) + dot(x, Δy)
 end
 
 function rrule(::typeof(dot), x, y)
     function dot_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(ΔΩ .* y), @thunk(x .* ΔΩ))
+        return (NO_FIELDS, @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
     end
     return dot(x, y), dot_pullback
 end
