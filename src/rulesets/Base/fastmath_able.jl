@@ -81,7 +81,7 @@ let
         function frule((_, Δx), ::typeof(angle), x)
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
-            ∂Ω = _imagconjtimes(Δx, x) / ifelse(iszero(x), one(x), abs2(x))
+            ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
             return Ω, ∂Ω
         end
 
