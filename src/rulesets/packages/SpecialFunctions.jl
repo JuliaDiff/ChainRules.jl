@@ -1,5 +1,3 @@
-using ChainRulesCore
-
 @scalar_rule(SpecialFunctions.airyai(x), SpecialFunctions.airyaiprime(x))
 @scalar_rule(SpecialFunctions.airyaiprime(x), x * SpecialFunctions.airyai(x))
 @scalar_rule(SpecialFunctions.airybi(x), SpecialFunctions.airybiprime(x))
