@@ -78,20 +78,13 @@ let
         end
 
         ## angle
-        function frule((_, Δz), ::typeof(angle), x::Real)
-            Δx, Δy = reim(Δz)
-            return angle(x), Δy/ifelse(iszero(x), one(x), x)
+        function frule((_, Δx), ::typeof(angle), x)
+            Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            ∂Ω = _imagconjtimes(Δx, x) / ifelse(iszero(x), one(x), abs2(x))
+            return Ω, ∂Ω
         end
-        function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
-            return angle(x), Zero()
-        end
-        function frule((_, Δz), ::typeof(angle), z::Complex)
-            x,  y  = reim(z)
-            Δx, Δy = reim(Δz)
-            return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))
-            # `ifelse` is applied only to denominator to ensure type-stability.
-        end
+
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
                 return (NO_FIELDS, Zero())
