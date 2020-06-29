@@ -26,7 +26,7 @@ function rrule(
 ) where {T<:Union{Real,Complex}}
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
-        return (NO_FIELDS, DoesNotExist(), @thunk(2ȳ .* x))
+        return (NO_FIELDS, DoesNotExist(), @thunk(2 .* real.(ȳ) .* x))
     end
     return y, sum_abs2_pullback
 end
