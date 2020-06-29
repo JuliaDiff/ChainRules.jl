@@ -39,7 +39,7 @@ let
         ## abs
         function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
             Ω = abs(x)
-            signx = x isa Real ? sign(x) : Ω / ifelse(iszero(x), one(Ω), Ω)
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
             return Ω, _realconjtimes(signx, Δx)
         end
@@ -47,7 +47,7 @@ let
         function rrule(::typeof(abs), x::Union{Real, Complex})
             Ω = abs(x)
             function abs_pullback(ΔΩ)
-                signx = x isa Real ? sign(x) : Ω / ifelse(iszero(x), one(Ω), Ω)
+                signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
                 return (NO_FIELDS, signx * real(ΔΩ))
             end
             return Ω, abs_pullback
