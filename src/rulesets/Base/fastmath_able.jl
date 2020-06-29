@@ -37,27 +37,18 @@ let
 
         # Unary complex functions
         ## abs
-        function frule((_, Δx), ::typeof(abs), x::Real)
-            return abs(x), sign(x) * real(Δx)
-        end
-        function frule((_, Δz), ::typeof(abs), z::Complex)
-            Ω = abs(z)
-            return Ω, _realconjtimes(z, Δz) / ifelse(iszero(z), one(Ω), Ω)
+        function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
+            Ω = abs(x)
+            signx = x isa Real ? sign(x) : Ω / ifelse(iszero(x), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            return Ω, _realconjtimes(signx, Δx)
         end
 
-        function rrule(::typeof(abs), x::Real)
+        function rrule(::typeof(abs), x::Union{Real, Complex})
+            Ω = abs(x)
             function abs_pullback(ΔΩ)
-                return (NO_FIELDS, real(ΔΩ)*sign(x))
-            end
-            return abs(x), abs_pullback
-        end
-        function rrule(::typeof(abs), z::Complex)
-            Ω = abs(z)
-            function abs_pullback(ΔΩ)
-                Δu = real(ΔΩ)
-                return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
-                # `ifelse` is applied only to denominator to ensure type-stability.
+                signx = x isa Real ? sign(x) : Ω / ifelse(iszero(x), one(Ω), Ω)
+                return (NO_FIELDS, signx * real(ΔΩ))
             end
             return Ω, abs_pullback
         end
