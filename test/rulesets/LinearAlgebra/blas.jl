@@ -88,23 +88,24 @@
 
     @testset "gemm" begin
         dims = 3:5
-        for m in dims, n in dims, p in dims, tA in ('N', 'T'), tB in ('N', 'T')
-            α = randn()
-            A = randn(tA === 'N' ? (m, n) : (n, m))
-            B = randn(tB === 'N' ? (n, p) : (p, n))
+        for m in dims, n in dims, p in dims, tA in ('N', 'C', 'T'), tB in ('N', 'C', 'T'), T in (Float64, ComplexF64)
+            α = randn(T)
+            A = randn(T, tA === 'N' ? (m, n) : (n, m))
+            B = randn(T, tB === 'N' ? (n, p) : (p, n))
             C = gemm(tA, tB, α, A, B)
-            ȳ = randn(size(C)...)
+            ȳ = randn(T, size(C)...)
             rrule_test(
                 gemm,
                 ȳ,
                 (tA, nothing),
                 (tB, nothing),
-                (α, randn()),
-                (A, randn(size(A))),
-                (B, randn(size(B))),
+                (α, randn(T)),
+                (A, randn(T, size(A))),
+                (B, randn(T, size(B))),
             )
         end
     end
+
     @testset "gemv" begin
         for n in 3:5, m in 3:5, t in ('N', 'C', 'T'), T in (Float64, ComplexF64)
             α = randn(T)
