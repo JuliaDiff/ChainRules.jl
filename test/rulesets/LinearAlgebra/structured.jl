@@ -78,26 +78,18 @@
             end
         end
     end
-    @testset "Symmetric(::AbstractMatrix{$T})" for T in (Float64, ComplexF64)
+    @testset "$(TA)(::AbstractMatrix{$T}, '$(uplo)')" for TA in (Symmetric, Hermitian), T in (Float64, ComplexF64), uplo in (:U, :L)
         N = 3
-        @testset "$T" for T in (Float64, ComplexF64)
+        @testset "rrule" begin
+            x = randn(T, N, N)
+            ∂x = randn(T, N, N)
+            ΔΩ = randn(T, N, N)
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
-                rrule_test(Symmetric, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:U, nothing))
-                rrule_test(Symmetric, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:L, nothing))
+                rrule_test(TA, MT(ΔΩ), (x, ∂x), (uplo, nothing))
             end
-            rrule_test(Symmetric, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:U, nothing))
-            rrule_test(Symmetric, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:L, nothing))
-        end
-    end
-    @testset "Hermitian" begin
-        N = 3
-        @testset "$T" for T in (Float64, ComplexF64)
-            @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
-                rrule_test(Hermitian, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:U, nothing))
-                rrule_test(Hermitian, MT(randn(T, N, N)), (randn(T, N, N), randn(T, N, N)), (:L, nothing))
+            @testset "back(::Diagonal)" begin
+                rrule_test(TA, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing))
             end
-            rrule_test(Hermitian, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:U, nothing))
-            rrule_test(Hermitian, Diagonal(randn(T, N, N)), (randn(T, N, N), Diagonal(randn(T, N, N))), (:L, nothing))
         end
     end
     @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
