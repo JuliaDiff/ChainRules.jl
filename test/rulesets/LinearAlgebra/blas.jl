@@ -106,19 +106,19 @@
         end
     end
     @testset "gemv" begin
-        for n in 3:5, m in 3:5, t in ('N', 'T')
-            α = randn()
-            A = randn(m, n)
-            x = randn(t === 'N' ? n : m)
-            y = α * (t === 'N' ? A : A') * x
-            ȳ = randn(size(y)...)
+        for n in 3:5, m in 3:5, t in ('N', 'C', 'T'), T in (Float64, ComplexF64)
+            α = randn(T)
+            A = randn(T, m, n)
+            x = randn(T, t === 'N' ? n : m)
+            y = gemv(t, α, A, x)
+            ȳ = randn(T, size(y)...)
             rrule_test(
                 gemv,
                 ȳ,
                 (t, nothing),
-                (α, randn()),
-                (A, randn(size(A))),
-                (x, randn(size(x))),
+                (α, randn(T)),
+                (A, randn(T, size(A))),
+                (x, randn(T, size(x))),
             )
         end
     end

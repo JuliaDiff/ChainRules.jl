@@ -112,24 +112,33 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
     function gemv_pullback(ȳ)
         if uppercase(tA) === 'N'
             ∂A = InplaceableThunk(
-                @thunk(α * ȳ * x'),
-                Ā -> ger!(α, ȳ, x, Ā)
+                @thunk(α' * ȳ * x'),
+                Ā -> ger!(α', ȳ, x, Ā)
             )
             ∂x = InplaceableThunk(
-                @thunk(gemv('T', α, A, ȳ)),
-                x̄ -> gemv!('T', α, A, ȳ, one(T), x̄)
+                @thunk(gemv('C', α', A, ȳ)),
+                x̄ -> gemv!('C', α', A, ȳ, one(T), x̄)
             )
-        else
+        elseif uppercase(tA) === 'C'
             ∂A = InplaceableThunk(
                 @thunk(α * x * ȳ'),
                 Ā -> ger!(α, x, ȳ, Ā)
             )
             ∂x = InplaceableThunk(
-                @thunk(gemv('N', α, A, ȳ)),
-                x̄ -> gemv!('N', α, A, ȳ, one(T), x̄)
+                @thunk(gemv('N', α', A, ȳ)),
+                x̄ -> gemv!('N', α', A, ȳ, one(T), x̄)
+            )
+        else  # uppercase(tA) === 'T'
+            ∂A = InplaceableThunk(
+                @thunk(conj(α * x * ȳ')),
+                Ā -> conj!(ger!(α, x, ȳ, Ā))
+            )
+            ∂x = InplaceableThunk(
+                @thunk(gemv('N', α', conj(A), ȳ)),
+                x̄ -> gemv!('N', α', conj(A), ȳ, one(T), x̄)
             )
         end
-        return (NO_FIELDS, DoesNotExist(), @thunk(dot(ȳ, y) / α), ∂A, ∂x)
+        return (NO_FIELDS, DoesNotExist(), @thunk(dot(y, ȳ) / α'), ∂A, ∂x)
     end
     return y, gemv_pullback
 end
