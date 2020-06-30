@@ -21,7 +21,9 @@ if VERSION < v"1.3.0-DEV.142"
     import LinearAlgebra: dot
 end
 
+include("rulesets/Base/utils.jl")
 include("rulesets/Base/base.jl")
+include("rulesets/Base/fastmath_able.jl")
 include("rulesets/Base/array.jl")
 include("rulesets/Base/mapreduce.jl")
 

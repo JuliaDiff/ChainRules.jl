@@ -1,5 +1,3 @@
-using ChainRulesCore
-
 @scalar_rule(NaNMath.sin(x), NaNMath.cos(x))
 @scalar_rule(NaNMath.cos(x), -NaNMath.sin(x))
 @scalar_rule(NaNMath.asin(x), inv(NaNMath.sqrt(1 - NaNMath.pow(x, 2))))
