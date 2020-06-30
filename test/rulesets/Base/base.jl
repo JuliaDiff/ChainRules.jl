@@ -145,71 +145,32 @@
     end
 
     VERSION ≥ v"1.4" && @testset "evalpoly" begin
-        @testset "frule" begin
-            @testset "scalar" begin
-                frule_test(evalpoly, (randn(), randn()), (randn(5), randn(5)))
-                frule_test(evalpoly, (randn(), randn()), (Tuple(randn(5)), Tuple(randn(5))))
-            end
-
-            @testset "matrix" begin
-                frule_test(
-                    evalpoly, (randn(3, 3), randn(3, 3)),
-                    ([randn(3, 3) for _ in 1:5], [randn(3, 3) for _ in 1:5]),
-                )
-                frule_test(
-                    evalpoly, (randn(3, 3), randn(3, 3)),
-                    (Tuple([randn(3, 3) for _ in 1:5]), Tuple([randn(3, 3) for _ in 1:5])),
-                )
-            end
+        # test fallbacks for when code generation fails
+        @testset "fallbacks for $T" for T in (Float64, ComplexF64)
+            x, p = randn(T), Tuple(randn(T, 10))
+            @test ChainRules._evalpoly_intermediates_fallback(x, p) ==
+                    ChainRules._evalpoly_intermediates(x, p)
+            Δy, ys = randn(T), Tuple(randn(T, 9))
+            @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) ==
+                    ChainRules._evalpoly_back(x, p, ys, Δy)
         end
 
-        @testset "rrule" begin
-            @testset "$T" for T in (Float64,) # TODO: test ComplexF64
-                # test fallbacks for when code generation fails
-                @testset "fallbacks" begin
-                    x, p = randn(T), Tuple(randn(T, 10))
-                    @test ChainRules._evalpoly_intermediates_fallback(x, p) ==
-                          ChainRules._evalpoly_intermediates(x, p)
-                    Δy, ys = randn(T), Tuple(randn(T, 9))
-                    @test ChainRules._evalpoly_back_fallback(x, p, ys, Δy) ==
-                          ChainRules._evalpoly_back(x, p, ys, Δy)
-                end
-
-                @testset "(x::Number, pi::Number)" begin
-                    rrule_test(
-                        evalpoly, randn(T), (randn(T), randn(T)),
-                        (randn(T, 5), randn(T, 5)),
-                    )
-                    rrule_test(
-                        evalpoly, randn(T), (randn(T), randn(T)),
-                        (Tuple(randn(T, 5)), Tuple(randn(T, 5))),
-                    )
-                end
-
-                @testset "(x::Matrix, pi::Matrix)" begin
-                    rrule_test(
-                        evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
-                        ([randn(T, 3, 3) for i in 1:5], [randn(T, 3, 3) for i in 1:5]),
-                    )
-                    rrule_test(
-                        evalpoly, randn(T, 3, 3), (randn(T, 3, 3), randn(T, 3, 3)),
-                        (Tuple([randn(T, 3, 3) for i in 1:5]),
-                         Tuple([randn(T, 3, 3) for i in 1:5])),
-                    )
-                end
-
-                @testset "(x::Number, pi::Matrix)" begin
-                    rrule_test(
-                        evalpoly, randn(T, 3, 3), (randn(T), randn(T)),
-                        ([randn(T, 3, 3) for i in 1:5], [randn(T, 3, 3) for i in 1:5]),
-                    )
-                    rrule_test(
-                        evalpoly, randn(T, 3, 3), (randn(T), randn(T)),
-                        (Tuple([randn(T, 3, 3) for i in 1:5]),
-                         Tuple([randn(T, 3, 3) for i in 1:5])),
-                    )
-                end
-            end
+        @testset "x dim: $(nx), pi dim: $(np), type: $T" for T in (Float64, ComplexF64), nx in (tuple(), 3), np in (tuple(), 3)
+            # skip x::Matrix, pi::Number case, which is not supported by evalpoly
+            isempty(np) && !isempty(nx) && continue
+            m = 5
+            sx = (nx..., nx...)
+            sp = (np..., np...)
+            x, ẋ, x̄ = randn(T, sx...), randn(T, sx...), randn(T, sx...)
+            p = [randn(T, sp...) for _ in 1:m]
+            ṗ = [randn(T, sp...) for _ in 1:m]
+            p̄ = [randn(T, sp...) for _ in 1:m]
+            Ω = evalpoly(x, p)
+            Ω̄ = randn(T, size(Ω)...)
+            frule_test(evalpoly, (x, ẋ), (p, ṗ))
+            frule_test(evalpoly, (x, ẋ), (Tuple(p), Tuple(ṗ)))
+            rrule_test(evalpoly, Ω̄, (x, x̄), (p, p̄))
+            rrule_test(evalpoly, Ω̄, (x, x̄), (Tuple(p), Tuple(p̄)))
         end
     end
 
