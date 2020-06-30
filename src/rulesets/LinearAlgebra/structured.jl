@@ -78,6 +78,19 @@ function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     return Ω, HermOrSym_pullback
 end
 
+function rrule(TM::Type{<:Matrix}, A::TA) where {TA<:LinearAlgebra.HermOrSym}
+    function Matrix_pullback(ΔΩ)
+        T∂A = _symhermtype(TA){eltype(ΔΩ),typeof(ΔΩ)}
+        uplo = A.uplo
+        ∂A = T∂A(_symherm_back(TA, ΔΩ, uplo), uplo)
+        return NO_FIELDS, ∂A
+    end
+    return TM(A), Matrix_pullback
+end
+
+_symhermtype(::Type{<:Symmetric}) = Symmetric
+_symhermtype(::Type{<:Hermitian}) = Hermitian
+
 _symherm_back(::Type{<:Symmetric}, ΔΩ, uplo) = _symmetric_back(ΔΩ, uplo)
 function _symherm_back(::Type{<:Hermitian}, ΔΩ::AbstractMatrix{<:Real}, uplo)
     return _symmetric_back(ΔΩ, uplo)
