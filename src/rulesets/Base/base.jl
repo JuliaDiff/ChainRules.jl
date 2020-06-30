@@ -30,7 +30,7 @@ end
 
 @scalar_rule imag(x::Real) Zero()
 
-frule((_, Δz), ::typeof(imag), z::Number) = (imag(z), imag(Δz))
+frule((_, Δz), ::typeof(imag), z::Complex) = (imag(z), imag(Δz))
 
 function rrule(::typeof(imag), z::Complex)
     imag_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) * im)
