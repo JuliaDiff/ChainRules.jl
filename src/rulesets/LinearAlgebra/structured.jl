@@ -63,16 +63,22 @@ function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
 end
 
 #####
-##### `Symmetric`
+##### `Symmetric`/`Hermitian`
 #####
 
-function rrule(::Type{<:Symmetric}, A::AbstractMatrix, uplo)
-    Ω = Symmetric(A, uplo)
-    function Symmetric_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(_symmetric_back(ΔΩ, Ω.uplo)), DoesNotExist())
+function rrule(::Type{T}, A::AbstractMatrix, uplo) where {T<:LinearAlgebra.HermOrSym}
+    Ω = T(A, uplo)
+    function HermOrSym_pullback(ΔΩ)
+        return (NO_FIELDS, @thunk(_symherm_back(T, ΔΩ, Ω.uplo)), DoesNotExist())
     end
-    return Ω, Symmetric_pullback
+    return Ω, HermOrSym_pullback
 end
+
+_symherm_back(::Type{<:Symmetric}, ΔΩ, uplo) = _symmetric_back(ΔΩ, uplo)
+function _symherm_back(::Type{<:Hermitian}, ΔΩ::AbstractMatrix{<:Real}, uplo)
+    return _symmetric_back(ΔΩ, uplo)
+end
+_symherm_back(::Type{<:Hermitian}, ΔΩ, uplo) = _hermitian_back(ΔΩ, uplo)
 
 function _symmetric_back(ΔΩ, uplo)
     L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
@@ -81,18 +87,6 @@ end
 _symmetric_back(ΔΩ::Diagonal, uplo) = ΔΩ
 _symmetric_back(ΔΩ::UpperTriangular, uplo) = collect(uplo == 'U' ? ΔΩ : transpose(ΔΩ))
 _symmetric_back(ΔΩ::LowerTriangular, uplo) = collect(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
-
-#####
-##### `Hermitian`
-#####
-
-function rrule(::Type{<:Hermitian}, A::AbstractMatrix, uplo)
-    Ω = Hermitian(A, uplo)
-    function Hermitian_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(_hermitian_back(ΔΩ, Ω.uplo)), DoesNotExist())
-    end
-    return Ω, Hermitian_pullback
-end
 
 function _hermitian_back(ΔΩ, uplo)
     isreal(ΔΩ) && return _symmetric_back(ΔΩ, uplo)
