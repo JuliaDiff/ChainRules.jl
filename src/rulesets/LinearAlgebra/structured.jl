@@ -66,16 +66,11 @@ end
 ##### `Symmetric`/`Hermitian`
 #####
 
-function frule(
-    (_, ΔA, _),
-    ::Type{T},
-    A::AbstractMatrix,
-    uplo,
-) where {T<:LinearAlgebra.HermOrSym}
+function frule((_, ΔA, _), T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     return T(A, uplo), T(ΔA, uplo)
 end
 
-function rrule(::Type{T}, A::AbstractMatrix, uplo) where {T<:LinearAlgebra.HermOrSym}
+function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     function HermOrSym_pullback(ΔΩ)
         return (NO_FIELDS, @thunk(_symherm_back(T, ΔΩ, Ω.uplo)), DoesNotExist())
