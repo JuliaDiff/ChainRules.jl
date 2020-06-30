@@ -18,6 +18,22 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
     return y, sum_pullback
 end
 
+function frule(
+    (_, _, ẋ),
+    ::typeof(sum),
+    ::typeof(abs2),
+    x::AbstractArray{T};
+    dims=:,
+) where {T<:Union{Real,Complex}}
+    y = sum(abs2, x; dims=dims)
+    ∂y = if dims isa Colon
+        2 * real(dot(x, ẋ))
+    else
+        2 * mapreduce(_realconjtimes, +, x, ẋ; dims=dims);
+    end
+    return y, ∂y
+end
+
 function rrule(
     ::typeof(sum),
     ::typeof(abs2),
