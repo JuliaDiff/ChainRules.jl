@@ -11,18 +11,18 @@
 
         @testset "over strides" begin
             n = 10
-            stride1 = 2
-            stride2 = 3
-            x, y = randn(n * stride1), randn(n * stride2)
-            x̄, ȳ = randn(n * stride1), randn(n * stride2)
+            incx = 2
+            incy = 3
+            x, y = randn(n * incx), randn(n * incy)
+            x̄, ȳ = randn(n * incx), randn(n * incy)
             rrule_test(
                 BLAS.dot,
                 randn(),
                 (n, nothing),
                 (x, x̄),
-                (stride1, nothing),
+                (incx, nothing),
                 (y, ȳ),
-                (stride2, nothing),
+                (incy, nothing),
             )
         end
     end
@@ -38,20 +38,20 @@
         end
 
         @testset "over strides" begin
-            dims = (5, 2, 3)
-            stride = 2
-            @testset "Array{$T,$N}" for N in 1:length(dims), T in (Float64,)
-                s = (dims[1] * stride, dims[2:N]...)
-                n = prod(s)
-                x, x̄ = randn(T, s), randn(T, s)
+            dims = (3, 2, 1)
+            incx = 2
+            @testset "Array{$T,$N}" for N in 1:length(dims), T in (Float64,ComplexF64)
+                s = (dims[1] * incx, dims[2:N]...)
+                n = div(prod(s), incx)
+                x, x̄ = randn(T, s...), randn(T, s...)
                 rrule_test(
                     BLAS.nrm2,
                     randn(),
                     (n, nothing),
                     (x, x̄),
-                    (stride, nothing);
+                    (incx, nothing);
                     atol=0,
-                    rtol=sqrt(eps(T)),
+                    rtol=1e-5,
                 )
             end
         end
