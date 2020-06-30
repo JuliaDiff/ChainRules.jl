@@ -37,8 +37,12 @@ end
 
 function frule((_, Δx), ::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    # use dot here because BLAS.dot can't take complex arrays
-    return Ω, real(dot(x, Δx)) / ifelse(iszero(Ω), one(Ω), Ω)
+    ∂Ω = ifelse(
+        eltype(x) <: Real,
+        BLAS.dot(x, Δx),
+        real(BLAS.dotc(x, Δx)),
+    ) / ifelse(iszero(Ω), one(Ω), Ω)
+    return Ω, ∂Ω
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
