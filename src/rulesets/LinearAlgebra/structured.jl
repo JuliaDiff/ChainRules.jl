@@ -87,6 +87,7 @@ function rrule(TM::Type{<:Matrix}, A::TA) where {TA<:LinearAlgebra.HermOrSym}
     end
     return TM(A), Matrix_pullback
 end
+rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
 _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
