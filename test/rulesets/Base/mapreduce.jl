@@ -1,28 +1,41 @@
 @testset "Maps and Reductions" begin
     @testset "sum" begin
-        @testset "Vector" begin
-            M = 3
-            frule_test(sum, (randn(M), randn(M)))
-            rrule_test(sum, randn(), (randn(M), randn(M)))
-        end
-        @testset "Matrix" begin
-            M, N = 3, 4
-            frule_test(sum, (randn(M, N), randn(M, N)))
-            rrule_test(sum, randn(), (randn(M, N), randn(M, N)))
-        end
-        @testset "Array{T, 3}" begin
-            M, N, P = 3, 7, 11
-            frule_test(sum, (randn(M, N, P), randn(M, N, P)))
-            rrule_test(sum, randn(), (randn(M, N, P), randn(M, N, P)))
-        end
-        @testset "keyword arguments" begin
-            n = 4
-            X = randn(n, n+1)
-            y, pullback = rrule(sum, X; dims=2)
-            ȳ = randn(size(y))
-            _, x̄_ad = pullback(ȳ)
-            x̄_fd = only(j′vp(central_fdm(5, 1), x->sum(x, dims=2), ȳ, X))
-            @test x̄_ad ≈ x̄_fd atol=1e-9 rtol=1e-9
+        sizes = (3, 4, 7)
+        @testset "dims = $dims" for dims in (:, 1)
+            fkwargs = (dims=dims,)
+            @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
+                s = sizes[1:N]
+                x = randn(T, s...)
+                ẋ = randn(T, s...)
+                x̄ = randn(T, s...)
+                y = sum(x; dims=dims)
+                Δy = randn(eltype(y), size(y)...)
+                frule_test(sum, (x, ẋ); fkwargs=fkwargs)
+                rrule_test(sum, Δy, (x, x̄); fkwargs=fkwargs)
+            end
         end
     end  # sum
+
+    @testset "sum abs2" begin
+        sizes = (3, 4, 7)
+        @testset "dims = $dims" for dims in (:, 1)
+            fkwargs = (dims=dims,)
+            @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
+                s = sizes[1:N]
+                x, ẋ, x̄ = randn(T, s...), randn(T, s...), randn(T, s...)
+                y = sum(abs2, x; dims=dims)
+                Δy = randn(eltype(y), size(y)...)
+                @testset "frule" begin
+                    # can't use frule_test here because it doesn't yet ignore nothing tangents
+                    y_ad, ẏ_ad = frule((Zero(), Zero(), ẋ), sum, abs2, x; dims=dims)
+                    @test y_ad == y
+                    ẏ_fd = jvp(_fdm, z -> sum(abs2, z; dims=dims), (x, ẋ))
+                    @test ẏ_ad ≈ ẏ_fd
+                end
+                @testset "rrule" begin
+                    rrule_test(sum, Δy, (abs2, nothing), (x, x̄); fkwargs=fkwargs)
+                end
+            end
+        end
+    end  # sum abs2
 end
