@@ -28,8 +28,10 @@ function frule(
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * real(dot(x, ẋ))
-    else
+    elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
         2 * mapreduce(_realconjtimes, +, x, ẋ; dims=dims);
+    else
+        2 * sum(_realconjtimes.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end
