@@ -1,24 +1,15 @@
 @testset "Maps and Reductions" begin
     @testset "sum" begin
-        @testset for T in (Float64, ComplexF64)
-            @testset "Vector" begin
-                M = 3
-                frule_test(sum, (randn(T, M), randn(T, M)))
-                rrule_test(sum, randn(T), (randn(T, M), randn(T, M)))
-            end
-            @testset "Matrix" begin
-                M, N = 3, 4
-                frule_test(sum, (randn(T, M, N), randn(T, M, N)))
-                rrule_test(sum, randn(T), (randn(T, M, N), randn(T, M, N)))
-            end
-            @testset "Array{T, 3}" begin
-                M, N, P = 3, 7, 11
-                frule_test(sum, (randn(T, M, N, P), randn(T, M, N, P)))
-                rrule_test(sum, randn(T), (randn(T, M, N, P), randn(T, M, N, P)))
-            end
-            @testset "keyword arguments" begin
-                n = 4
-                rrule_test(sum, randn(T, n, 1), (randn(T, n, n+1), randn(T, n, n+1)); fkwargs=(dims=2,))
+        sizes = (3, 4, 7)
+        @testset "dims = $dims" for dims in (:, 1)
+            fkwargs = (dims=dims,)
+            @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
+                s = sizes[1:N]
+                x, ẋ, x̄ = randn(T, s...), randn(T, s...), randn(T, s...)
+                y = sum(x; dims=dims)
+                Δy = randn(eltype(y), size(y)...)
+                frule_test(sum, (x, ẋ); fkwargs=fkwargs)
+                rrule_test(sum, Δy, (x, x̄); fkwargs=fkwargs)
             end
         end
     end  # sum

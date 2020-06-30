@@ -2,8 +2,8 @@
 ##### `sum`
 #####
 
-function frule((_, ẋ), ::typeof(sum), x)
-    return sum(x), sum(ẋ)
+function frule((_, ẋ), ::typeof(sum), x; dims=:)
+    return sum(x, dims=dims), sum(ẋ, dims=dims)
 end
 
 function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
