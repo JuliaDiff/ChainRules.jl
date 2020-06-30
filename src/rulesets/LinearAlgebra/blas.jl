@@ -37,11 +37,12 @@ end
 
 function frule((_, Δx), ::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    ∂Ω = ifelse(
-        eltype(x) <: Real,
-        BLAS.dot(x, Δx),
-        real(BLAS.dotc(x, Δx)),
-    ) / ifelse(iszero(Ω), one(Ω), Ω)
+    s = ifelse(iszero(Ω), one(Ω), Ω)
+    ∂Ω = if eltype(x) <: Real
+        BLAS.dot(x, Δx) / s
+    else
+        real(BLAS.dotc(x, Δx)) / s
+    end
     return Ω, ∂Ω
 end
 
