@@ -27,6 +27,36 @@
         end
     end
 
+    @testset "nrm2" begin
+        @testset "all entires" begin
+            @testset "$T" for T in (Float64,ComplexF64)
+                n = 10
+                x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
+                frule_test(BLAS.nrm2, (x, ẋ))
+                rrule_test(BLAS.nrm2, randn(), (x, x̄))
+            end
+        end
+
+        @testset "over strides" begin
+            dims = (5, 2, 3)
+            stride = 2
+            @testset "Array{$T,$N}" for N in 1:length(dims), T in (Float64,)
+                s = (dims[1] * stride, dims[2:N]...)
+                n = prod(s)
+                x, x̄ = randn(T, s), randn(T, s)
+                rrule_test(
+                    BLAS.nrm2,
+                    randn(),
+                    (n, nothing),
+                    (x, x̄),
+                    (stride, nothing);
+                    atol=0,
+                    rtol=sqrt(eps(T)),
+                )
+            end
+        end
+    end
+
     @testset "gemm" begin
         dims = 3:5
         for m in dims, n in dims, p in dims, tA in ('N', 'T'), tB in ('N', 'T')
