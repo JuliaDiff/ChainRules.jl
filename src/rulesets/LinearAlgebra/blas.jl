@@ -37,25 +37,27 @@ end
 
 function frule((_, Δx), ::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
-    return Ω, sum(Δx .* @thunk(x * inv(Ω)))
+    # use dot here because BLAS.dot can't take complex arrays
+    return Ω, real(dot(x, Δx)) / ifelse(iszero(Ω), one(Ω), Ω)
 end
 
 function rrule(::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
     function nrm2_pullback(ΔΩ)
-        return NO_FIELDS, @thunk(ΔΩ * x * inv(Ω))
+        return NO_FIELDS, x .* (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω))
     end
     return Ω, nrm2_pullback
 end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
+    nrm2_pullback(::Zero) = (NO_FIELDS, DoesNotExist(), Zero(), DoesNotExist())
     function nrm2_pullback(ΔΩ)
-        if ΔΩ isa Zero
-            ∂X = Zero()
-        else
-            ΔΩ = extern(ΔΩ)
-            ∂X = scal!(n, ΔΩ / Ω, blascopy!(n, X, incx, _zeros(X), incx), incx)
+        ∂X = Thunk() do
+            s = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
+            ∂X = _zeros(X)
+            ∂X[1:incx:n] .= X[1:incx:n] .* s
+            return ∂X
         end
         return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
