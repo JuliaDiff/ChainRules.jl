@@ -1,17 +1,82 @@
 # See also fastmath_able.jl for where rules are defined simple base functions
 # that also have FastMath versions.
 
-@scalar_rule one(x) Zero()
-@scalar_rule zero(x) Zero()
-@scalar_rule adjoint(x::Real) One()
+@scalar_rule one(x) zero(x)
+@scalar_rule zero(x) zero(x)
 @scalar_rule transpose(x) One()
+
+# `adjoint`
+
+frule((_, Δz), ::typeof(adjoint), z::Number) = (z', Δz')
+
+function rrule(::typeof(adjoint), z::Number)
+    adjoint_pullback(ΔΩ) = (NO_FIELDS, ΔΩ')
+    return (z', adjoint_pullback)
+end
+
+# `real`
+
+@scalar_rule real(x::Real) One()
+
+frule((_, Δz), ::typeof(real), z::Number) = (real(z), real(Δz))
+
+function rrule(::typeof(real), z::Number)
+    # add zero(z) to embed the real number in the same number type as z
+    real_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) + zero(z))
+    return (real(z), real_pullback)
+end
+
+# `imag`
+
 @scalar_rule imag(x::Real) Zero()
+
+frule((_, Δz), ::typeof(imag), z::Complex) = (imag(z), imag(Δz))
+
+function rrule(::typeof(imag), z::Complex)
+    imag_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) * im)
+    return (imag(z), imag_pullback)
+end
+
+# `Complex`
+
+frule((_, Δz), ::Type{T}, z::Number) where {T<:Complex} = (T(z), Complex(Δz))
+function frule((_, Δx, Δy), ::Type{T}, x::Number, y::Number) where {T<:Complex}
+    return (T(x, y), Complex(Δx, Δy))
+end
+
+function rrule(::Type{T}, z::Complex) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, Complex(ΔΩ))
+    return (T(z), Complex_pullback)
+end
+function rrule(::Type{T}, x::Real) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ))
+    return (T(x), Complex_pullback)
+end
+function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
+    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ), imag(ΔΩ))
+    return (T(x, y), Complex_pullback)
+end
+
+# `hypot`
+
 @scalar_rule hypot(x::Real) sign(x)
 
+function frule((_, Δz), ::typeof(hypot), z::Complex)
+    Ω = hypot(z)
+    ∂Ω = _realconjtimes(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
+    return Ω, ∂Ω
+end
+
+function rrule(::typeof(hypot), z::Complex)
+    Ω = hypot(z)
+    function hypot_pullback(ΔΩ)
+        return (NO_FIELDS, (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)
+    end
+    return (Ω, hypot_pullback)
+end
 
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
-@scalar_rule real(x::Real) One()
 @scalar_rule rem2pi(x, r::RoundingMode) (One(), DoesNotExist())
 @scalar_rule(
     mod(x, y),
@@ -19,10 +84,10 @@
     (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))),
 )
 
-
 @scalar_rule deg2rad(x) π / oftype(x, 180)
 @scalar_rule rad2deg(x) oftype(x, 180) / π
 
+@scalar_rule(ldexp(x, y), (2^y, DoesNotExist()))
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
 @scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))
@@ -65,6 +130,14 @@
 @scalar_rule sinpi(x) π * cospi(x)
 @scalar_rule tand(x) (π / oftype(x, 180)) * (1 + Ω ^ 2)
 
+@scalar_rule(
+    clamp(x, low, high),
+    @setup(
+        islow = x < low,
+        ishigh = high < x,
+    ),
+    (!(islow | ishigh), islow, ishigh),
+)
 @scalar_rule x \ y (-((y / x) / x), inv(x))
 
 function frule((_, ẏ), ::typeof(identity), x)
@@ -76,17 +149,6 @@ function rrule(::typeof(identity), x)
         return (NO_FIELDS, ȳ)
     end
     return (x, identity_pullback)
-end
-
-function rrule(::typeof(identity), x::Tuple)
-    # `identity(::Tuple)` returns multiple outputs;because that is how we think of
-    # returning a tuple, so its pullback needs to accept multiple inputs.
-    # `identity(::Tuple)` has one input, so its pullback should return 1 matching output
-    # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/152
-    function identity_pullback(ȳs...)
-        return (NO_FIELDS, Composite{typeof(x)}(ȳs...))
-    end
-    return x, identity_pullback
 end
 
 #####
