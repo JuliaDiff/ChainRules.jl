@@ -5,7 +5,9 @@
             fkwargs = (dims=dims,)
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
                 s = sizes[1:N]
-                x, ẋ, x̄ = randn(T, s...), randn(T, s...), randn(T, s...)
+                x = randn(T, s...)
+                ẋ = randn(T, s...)
+                x̄ = randn(T, s...)
                 y = sum(x; dims=dims)
                 Δy = randn(eltype(y), size(y)...)
                 frule_test(sum, (x, ẋ); fkwargs=fkwargs)
