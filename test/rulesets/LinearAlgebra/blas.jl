@@ -28,7 +28,7 @@
     end
 
     @testset "nrm2" begin
-        @testset "all entires" begin
+        @testset "all entries" begin
             @testset "$T" for T in (Float64,ComplexF64)
                 n = 10
                 x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
