@@ -86,7 +86,7 @@ function rrule(::typeof(BLAS.asum), x)
     return BLAS.asum(x), asum_pullback
 end
 
-function ChainRules.rrule(::typeof(BLAS.asum), n, X, incx)
+function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
     asum_pullback(::Zero) = (NO_FIELDS, DoesNotExist(), Zero(), DoesNotExist())
     function asum_pullback(ΔΩ)
