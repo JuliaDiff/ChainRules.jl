@@ -105,8 +105,11 @@
     @testset "$(TM)(::$(TA){$T}) with uplo='$uplo'" for TM in (Matrix, Array), TA in (Symmetric, Hermitian), T in (Float64, ComplexF64), uplo in (:U, :L)
         N = 3
         x = TA(randn(T, N, N), uplo)
+        Δx = randn(T, N, N)
         ∂x = TA(randn(T, N, N), uplo)
         ΔΩ = TM(TA(randn(T, N, N), uplo))
+        frule_test(TM, (x, Δx))
+        frule_test(TM, (x, TA(Δx, uplo)))
         rrule_test(TM, ΔΩ, (x, ∂x))
     end
     @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
