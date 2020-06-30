@@ -43,7 +43,7 @@
             @testset "Array{$T,$N}" for N in 1:length(dims), T in (Float64,ComplexF64)
                 s = (dims[1] * incx, dims[2:N]...)
                 n = div(prod(s), incx)
-                x, x̄ = randn(T, s...), randn(T, s...)
+                x, x̄ = randn(T, s), randn(T, s)
                 rrule_test(
                     BLAS.nrm2,
                     randn(),
@@ -52,6 +52,35 @@
                     (incx, nothing);
                     atol=0,
                     rtol=1e-5,
+                )
+            end
+        end
+    end
+
+    @testset "asum" begin
+        @testset "all entries" begin
+            @testset "$T" for T in (Float64,ComplexF64)
+                n = 10
+                x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
+                frule_test(BLAS.asum, (x, ẋ))
+                rrule_test(BLAS.asum, randn(), (x, x̄))
+            end
+        end
+
+        @testset "over strides" begin
+            dims = (3, 2, 1)
+            incx = 2
+            @testset "Array{$T,$N}" for N in 1:length(dims), T in (Float64,ComplexF64)
+                s = (dims[1] * incx, dims[2:N]...)
+                n = div(prod(s), incx)
+                x, x̄ = randn(T, s), randn(T, s)
+                rrule_test(
+                    BLAS.asum,
+                    randn(),
+                    (n, nothing),
+                    (x, x̄),
+                    (incx, nothing);
+                    fdm = central_fdm(5, 1; adapt=4),
                 )
             end
         end
