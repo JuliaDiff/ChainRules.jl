@@ -25,7 +25,7 @@ let
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
         @scalar_rule inv(x) -(Ω ^ 2)
         @scalar_rule sqrt(x) inv(2Ω)
-        @scalar_rule exp(x::Real) Ω
+        @scalar_rule exp(x) Ω
         @scalar_rule exp10(x) Ω * log(oftype(x, 10))
         @scalar_rule exp2(x) Ω * log(oftype(x, 2))
         @scalar_rule expm1(x) exp(x)
@@ -37,37 +37,25 @@ let
 
         # Unary complex functions
         ## abs
-        function frule((_, Δx), ::typeof(abs), x::Real)
-            return abs(x), sign(x) * real(Δx)
-        end
-        function frule((_, Δz), ::typeof(abs), z::Complex)
-            Ω = abs(z)
-            return Ω, (real(z) * real(Δz) + imag(z) * imag(Δz)) / ifelse(iszero(z), one(Ω), Ω)
+        function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
+            Ω = abs(x)
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            return Ω, _realconjtimes(signx, Δx)
         end
 
-        function rrule(::typeof(abs), x::Real)
+        function rrule(::typeof(abs), x::Union{Real, Complex})
+            Ω = abs(x)
             function abs_pullback(ΔΩ)
-                return (NO_FIELDS, real(ΔΩ)*sign(x))
-            end
-            return abs(x), abs_pullback
-        end
-        function rrule(::typeof(abs), z::Complex)
-            Ω = abs(z)
-            function abs_pullback(ΔΩ)
-                Δu = real(ΔΩ)
-                return (NO_FIELDS, Δu*z/ifelse(iszero(z), one(Ω), Ω))
-                # `ifelse` is applied only to denominator to ensure type-stability.
+                signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
+                return (NO_FIELDS, signx * real(ΔΩ))
             end
             return Ω, abs_pullback
         end
 
         ## abs2
-        function frule((_, Δx), ::typeof(abs2), x::Real)
-            return abs2(x), 2x * real(Δx)
-        end
-        function frule((_, Δz), ::typeof(abs2), z::Complex)
-            return abs2(z), 2 * (real(z) * real(Δz) + imag(z) * imag(Δz))
+        function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
+            return abs2(z), 2 * _realconjtimes(z, Δz)
         end
 
         function rrule(::typeof(abs2), z::Union{Real, Complex})
@@ -90,20 +78,13 @@ let
         end
 
         ## angle
-        function frule((_, Δz), ::typeof(angle), x::Real)
-            Δx, Δy = reim(Δz)
-            return angle(x), Δy/ifelse(iszero(x), one(x), x)
+        function frule((_, Δx), ::typeof(angle), x)
+            Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
+            return Ω, ∂Ω
         end
-        function frule((_, Δz)::Tuple{<:Any, <:Real}, ::typeof(angle), x::Real)
-            return angle(x), Zero()
-        end
-        function frule((_, Δz), ::typeof(angle), z::Complex)
-            x,  y  = reim(z)
-            Δx, Δy = reim(Δz)
-            return angle(z), (-y*Δx + x*Δy)/ifelse(iszero(z), one(z), abs2(z))
-            # `ifelse` is applied only to denominator to ensure type-stability.
-        end
+
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
                 return (NO_FIELDS, Zero())
@@ -126,7 +107,30 @@ let
         end
 
         # Binary functions
-        @scalar_rule hypot(x::Real, y::Real) (x / Ω, y / Ω)
+
+        # `hypot`
+
+        function frule(
+            (_, Δx, Δy),
+            ::typeof(hypot),
+            x::T,
+            y::T,
+        ) where {T<:Union{Real,Complex}}
+            Ω = hypot(x, y)
+            n = ifelse(iszero(Ω), one(Ω), Ω)
+            ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
+            return Ω, ∂Ω
+        end
+
+        function rrule(::typeof(hypot), x::T, y::T) where {T<:Union{Real,Complex}}
+            Ω = hypot(x, y)
+            function hypot_pullback(ΔΩ)
+                c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
+                return (NO_FIELDS, @thunk(c * x), @thunk(c * y))
+            end
+            return (Ω, hypot_pullback)
+        end
+
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
         @scalar_rule x / y (inv(y), -((x / y) / y))
@@ -146,30 +150,21 @@ let
         @scalar_rule +x One()
         @scalar_rule -x -1
 
-        function frule((_, Δx), ::typeof(sign), x::Real)
-            Ω = sign(x)
-            ∂Ω = _sign_jvp(Ω, x, Δx)
-            return Ω, ∂Ω
-        end
-        function frule((_, Δz), ::typeof(sign), z::Complex)
-            absz = abs(ifelse(iszero(z), one(z), z))
-            Ω = z / absz
-            ∂Ω = _sign_jvp(Ω, absz, Δz)
+        # `sign`
+
+        function frule((_, Δx), ::typeof(sign), x)
+            n = ifelse(iszero(x), one(x), abs(x))
+            Ω = x isa Real ? sign(x) : x / n
+            ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(sign), x::Real)
-            Ω = sign(x)
+        function rrule(::typeof(sign), x)
+            n = ifelse(iszero(x), one(x), abs(x))
+            Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
-                return (NO_FIELDS, _sign_jvp(Ω, x, ΔΩ))
-            end
-            return Ω, sign_pullback
-        end
-        function rrule(::typeof(sign), z::Complex)
-            absz = abs(ifelse(iszero(z), one(z), z))
-            Ω = z / absz
-            function sign_pullback(ΔΩ)
-                return (NO_FIELDS, _sign_jvp(Ω, absz, ΔΩ))
+                ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im
+                return (NO_FIELDS, ∂x)
             end
             return Ω, sign_pullback
         end
@@ -196,9 +191,3 @@ let
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
 end
-
-# the jacobian for `sign` is symmetric; `_sign_jvp` gives both J * Δz and Jᵀ * ΔΩ for
-# output Ω, (co)tangent Δ, and real input x or the absolute value of complex input z
-_sign_jvp(Ω, absz, Δ) = Ω * ((imag(Δ) * real(Ω) - real(Δ) * imag(Ω)) / absz)im
-_sign_jvp(Ω::Real, x::Real, Δ) = (imag(Δ) * Ω / ifelse(iszero(x), one(x), x)) * im
-_sign_jvp(Ω::Real, x::Real, Δ::Real) = Zero()
