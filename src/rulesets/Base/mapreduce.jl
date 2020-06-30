@@ -3,7 +3,7 @@
 #####
 
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
-    return sum(x, dims=dims), sum(ẋ, dims=dims)
+    return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
 
 function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
@@ -29,7 +29,7 @@ function frule(
     ∂y = if dims isa Colon
         2 * real(dot(x, ẋ))
     elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
-        2 * mapreduce(_realconjtimes, +, x, ẋ; dims=dims);
+        2 * mapreduce(_realconjtimes, +, x, ẋ; dims=dims)
     else
         2 * sum(_realconjtimes.(x, ẋ); dims=dims)
     end
