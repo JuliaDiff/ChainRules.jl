@@ -80,6 +80,16 @@
     end
     @testset "$(TA)(::AbstractMatrix{$T}, '$(uplo)')" for TA in (Symmetric, Hermitian), T in (Float64, ComplexF64), uplo in (:U, :L)
         N = 3
+        @testset "frule" begin
+            x = randn(T, N, N)
+            Δx = randn(T, N, N)
+            # can't use frule_test here because it doesn't yet ignore nothing tangents
+            Ω = TA(x, uplo)
+            Ω_ad, ∂Ω_ad = frule((Zero(), Δx, Zero()), TA, x, uplo)
+            @test Ω_ad == Ω
+            ∂Ω_fd = jvp(_fdm, z -> TA(z, uplo), (x, Δx))
+            @test ∂Ω_ad ≈ ∂Ω_fd
+        end
         @testset "rrule" begin
             x = randn(T, N, N)
             ∂x = randn(T, N, N)

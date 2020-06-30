@@ -66,6 +66,15 @@ end
 ##### `Symmetric`/`Hermitian`
 #####
 
+function frule(
+    (_, ΔA, _),
+    ::Type{T},
+    A::AbstractMatrix,
+    uplo,
+) where {T<:LinearAlgebra.HermOrSym}
+    return T(A, uplo), T(ΔA, uplo)
+end
+
 function rrule(::Type{T}, A::AbstractMatrix, uplo) where {T<:LinearAlgebra.HermOrSym}
     Ω = T(A, uplo)
     function HermOrSym_pullback(ΔΩ)
