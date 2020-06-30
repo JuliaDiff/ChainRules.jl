@@ -38,12 +38,10 @@ end
 function frule((_, Δx), ::typeof(BLAS.nrm2), x)
     Ω = BLAS.nrm2(x)
     s = ifelse(iszero(Ω), one(Ω), Ω)
-    ∂Ω = if eltype(x) <: Real
+    ∂Ω = if x isa Real
         BLAS.dot(x, Δx) / s
     else
-        sum(zip(x, Δx)) do (xi, Δxi)
-            return _realconjtimes(xi, Δxi)
-        end / s
+        sum(y -> _realconjtimes(y...), zip(x, Δx)) / s
     end
     return Ω, ∂Ω
 end
