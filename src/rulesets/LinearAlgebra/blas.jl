@@ -71,29 +71,34 @@ end
 #####
 
 function frule((_, Δx), ::typeof(BLAS.asum), x)
-    return BLAS.asum(x), sum(sign.(x) .* Δx)
+    ∂Ω = sum(zip(x, Δx)) do (xi, Δxi)
+        return _realconjtimes(_signcomp(xi), Δxi)
+    end
+    return BLAS.asum(x), ∂Ω
 end
 
 function rrule(::typeof(BLAS.asum), x)
     function asum_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(ΔΩ * sign.(x)))
+        return (NO_FIELDS, _signcomp.(x) .* real(ΔΩ))
     end
     return BLAS.asum(x), asum_pullback
 end
 
-function rrule(::typeof(BLAS.asum), n, X, incx)
+function ChainRules.rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
+    asum_pullback(::Zero) = (NO_FIELDS, DoesNotExist(), Zero(), DoesNotExist())
     function asum_pullback(ΔΩ)
-        if ΔΩ isa Zero
-            ∂X = Zero()
-        else
-            ΔΩ = extern(ΔΩ)
-            ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, sign.(X), incx, _zeros(X), incx), incx)
-        end
+        # BLAS.scal! requires s has the same eltype as X
+        s = eltype(X)(real(ΔΩ))
+        ∂X = @thunk scal!(n, s, blascopy!(n, _signcomp.(X), incx, _zeros(X), incx), incx)
         return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
     return Ω, asum_pullback
 end
+
+# component-wise sign, e.g. sign(x) + i sign(y)
+@inline _signcomp(x::Real) = sign(x)
+@inline _signcomp(x::Complex) = Complex(sign(real(x)), sign(imag(x)))
 
 #####
 ##### `BLAS.gemv`
