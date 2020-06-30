@@ -57,15 +57,11 @@ function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
     nrm2_pullback(::Zero) = (NO_FIELDS, DoesNotExist(), Zero(), DoesNotExist())
     function nrm2_pullback(ΔΩ)
-        ∂X = Thunk() do
-            s = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
-            ∂X = _zeros(X)
-            ∂X[1:incx:n] .= X[1:incx:n] .* s
-            return ∂X
-        end
+        # BLAS.scal! requires s has the same eltype as X
+        s = eltype(X)(real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω))
+        ∂X = scal!(n, s, blascopy!(n, X, incx, _zeros(X), incx), incx)
         return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
-
     return Ω, nrm2_pullback
 end
 
