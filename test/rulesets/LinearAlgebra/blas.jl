@@ -1,4 +1,32 @@
 @testset "BLAS" begin
+    @testset "dot" begin
+        @testset "all entries" begin
+            n = 10
+            x, y = randn(n), randn(n)
+            ẋ, ẏ = randn(n), randn(n)
+            x̄, ȳ = randn(n), randn(n)
+            frule_test(BLAS.dot, (x, ẋ), (y, ẏ))
+            rrule_test(BLAS.dot, randn(), (x, x̄), (y, ȳ))
+        end
+
+        @testset "over strides" begin
+            n = 10
+            stride1 = 2
+            stride2 = 3
+            x, y = randn(n * stride1), randn(n * stride2)
+            x̄, ȳ = randn(n * stride1), randn(n * stride2)
+            rrule_test(
+                BLAS.dot,
+                randn(),
+                (n, nothing),
+                (x, x̄),
+                (stride1, nothing),
+                (y, ȳ),
+                (stride2, nothing),
+            )
+        end
+    end
+
     @testset "gemm" begin
         dims = 3:5
         for m in dims, n in dims, p in dims, tA in ('N', 'T'), tB in ('N', 'T')
