@@ -151,13 +151,13 @@
             y_fb, ys_fb = ChainRules._evalpoly_intermediates_fallback(x, p)
             y, ys = ChainRules._evalpoly_intermediates(x, p)
             @test y_fb == y
-            @test collect(ys_fb) == collect(ys)
+            @test collect(ys_fb) ≈ collect(ys)
 
             Δy, ys = randn(T), Tuple(randn(T, 9))
             ∂x_fb, ∂p_fb = ChainRules._evalpoly_back_fallback(x, p, ys, Δy)
             ∂x, ∂p = ChainRules._evalpoly_back(x, p, ys, Δy)
             @test ∂x_fb == ∂x
-            @test collect(∂p_fb) == collect(∂p)
+            @test collect(∂p_fb) ≈ collect(∂p)
         end
 
         @testset "x dim: $(nx), pi dim: $(np), type: $T" for T in (Float64, ComplexF64), nx in (tuple(), 3), np in (tuple(), 3)
