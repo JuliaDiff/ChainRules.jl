@@ -78,9 +78,9 @@
             end
         end
     end
-    @testset "Symmetric" begin
+    @testset "Symmetric(::AbstractMatrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        rrule_test(Symmetric, randn(N, N), (randn(N, N), randn(N, N)))
+        rrule_test(Symmetric, randn(T, N, N), (randn(T, N, N), randn(T, N, N)))
     end
     @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
         n = 5

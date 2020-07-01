@@ -46,14 +46,14 @@
     end  # Trig
 
     @testset "Angles" begin
-        for x in (-0.1, 6.4)
+        for x in (-0.1, 6.4, 0.5 + 0.25im)
             test_scalar(deg2rad, x)
             test_scalar(rad2deg, x)
         end
     end
 
     @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4)
+        for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(real, x)
             test_scalar(imag, x)
             test_scalar(hypot, x)
@@ -61,11 +61,24 @@
         end
     end
 
+    @testset "Complex" begin
+        test_scalar(Complex, randn())
+        test_scalar(Complex, randn(ComplexF64))
+        x, ẋ, x̄ = randn(3)
+        y, ẏ, ȳ = randn(3)
+        Δz = randn(ComplexF64)
+        frule_test(Complex, (x, ẋ), (y, ẏ))
+        rrule_test(Complex, Δz, (x, x̄), (y, ȳ))
+    end
+
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
-        @testset "$x * $y; (perturbed by: $perturb)" for
+        @testset "($x) * ($y); (perturbed by: $perturb)" for
             x in test_points, y in test_points, perturb in test_points
+
+            # ensure all complex if any complex for FiniteDifferences
+            x, y, perturb = Base.promote(x, y, perturb)
 
             # give small off-set so as can't slip in symmetry
             x̄ = ẋ = 0.5 + perturb
@@ -77,76 +90,120 @@
         end
     end
 
-    @testset "matmul *(x, y)" begin
-        x, y = rand(3, 2), rand(2, 5)
-        z, pullback = rrule(*, x, y)
+    @testset "ldexp" begin
+        x, Δx, x̄ = 10rand(3)
+        Δz = rand()
 
-        @test z == x * y
-
-        z̄ = rand(3, 5)
-        (ds, dx, dy) = pullback(z̄)
-
-        @test ds === NO_FIELDS
-
-        @test extern(dx) == extern(zeros(3, 2) .+ dx)
-        @test extern(dy) == extern(zeros(2, 5) .+ dy)
+        for n in (0,1,20)
+            # TODO: Forward test does not work when parameter is Integer
+            # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
+            #frule_test(ldexp, (x, Δx), (n, nothing))
+            rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+        end
     end
 
-     @testset "ldexp" begin
-            x, Δx, x̄ = 10rand(3)
-            Δz = rand()
+    @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
+        x, ẋ, x̄, y, ẏ, ȳ, Δz = randn(T, 7)
+        frule_test(*, (x, ẋ), (y, ẏ))
+        rrule_test(*, Δz, (x, x̄), (y, ȳ))
+    end
 
-            for n in (0,1,20)
-                # TODO: Forward test does not work when parameter is Integer
-                # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
-                #frule_test(ldexp, (x, Δx), (n, nothing))
-                rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
-            end
-     end
-
-    @testset "binary function ($f)" for f in (mod, \)
+    @testset "mod" begin
         x, Δx, x̄ = 10rand(3)
         y, Δy, ȳ = rand(3)
         Δz = rand()
 
-        frule_test(f, (x, Δx), (y, Δy))
-        rrule_test(f, Δz, (x, x̄), (y, ȳ))
+        frule_test(mod, (x, Δx), (y, Δy))
+        rrule_test(mod, Δz, (x, x̄), (y, ȳ))
     end
 
-    @testset "x^n for x<0" begin
-        x = -15*rand()
-        Δx, x̄ = 10rand(2)
-        y, Δy, ȳ = rand(3)
-        Δz = rand()
+    @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
+        # for real x and n, x must be >0
+        x = T <: Real ? 15rand() : 15randn(ComplexF64)
+        Δx, x̄ = 10rand(T, 2)
+        y, Δy, ȳ = rand(T, 3)
+        Δz = rand(T)
 
-        frule_test(^, (-x, Δx), (y, Δy))
-        rrule_test(^, Δz, (-x, x̄), (y, ȳ))
+        frule_test(^, (x, Δx), (y, Δy))
+        rrule_test(^, Δz, (x, x̄), (y, ȳ))
     end
 
-    @testset "identity" begin
-        rrule_test(identity, randn(), (randn(), randn()))
-        rrule_test(identity, randn(4), (randn(4), randn(4)))
+    @testset "identity" for T in (Float64, ComplexF64)
+        frule_test(identity, (randn(T), randn(T)))
+        frule_test(identity, (randn(T, 4), randn(T, 4)))
+        frule_test(
+            identity,
+            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+        )
 
+        rrule_test(identity, randn(T), (randn(T), randn(T)))
+        rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
         rrule_test(
-            identity, Tuple(randn(3)),
-            (Composite{Tuple}(randn(3)...), Composite{Tuple}(randn(3)...))
+            identity, Tuple(randn(T, 3)),
+            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
         )
     end
 
-    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0+200im)
+    VERSION ≥ v"1.4" && @testset "evalpoly" begin
+        # test fallbacks for when code generation fails
+        @testset "fallbacks for $T" for T in (Float64, ComplexF64)
+            x, p = randn(T), Tuple(randn(T, 10))
+            y_fb, ys_fb = ChainRules._evalpoly_intermediates_fallback(x, p)
+            y, ys = ChainRules._evalpoly_intermediates(x, p)
+            @test y_fb ≈ y
+            @test collect(ys_fb) ≈ collect(ys)
+
+            Δy, ys = randn(T), Tuple(randn(T, 9))
+            ∂x_fb, ∂p_fb = ChainRules._evalpoly_back_fallback(x, p, ys, Δy)
+            ∂x, ∂p = ChainRules._evalpoly_back(x, p, ys, Δy)
+            @test ∂x_fb ≈ ∂x
+            @test collect(∂p_fb) ≈ collect(∂p)
+        end
+
+        @testset "x dim: $(nx), pi dim: $(np), type: $T" for T in (Float64, ComplexF64), nx in (tuple(), 3), np in (tuple(), 3)
+            # skip x::Matrix, pi::Number case, which is not supported by evalpoly
+            isempty(np) && !isempty(nx) && continue
+            m = 5
+            sx = (nx..., nx...)
+            sp = (np..., np...)
+            x, ẋ, x̄ = randn(T, sx...), randn(T, sx...), randn(T, sx...)
+            p = [randn(T, sp...) for _ in 1:m]
+            ṗ = [randn(T, sp...) for _ in 1:m]
+            p̄ = [randn(T, sp...) for _ in 1:m]
+            Ω = evalpoly(x, p)
+            Ω̄ = randn(T, size(Ω)...)
+            frule_test(evalpoly, (x, ẋ), (p, ṗ))
+            frule_test(evalpoly, (x, ẋ), (Tuple(p), Tuple(ṗ)))
+            rrule_test(evalpoly, Ω̄, (x, x̄), (p, p̄))
+            rrule_test(evalpoly, Ω̄, (x, x̄), (Tuple(p), Tuple(p̄)))
+        end
+    end
+
+    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
     end
 
-    @testset "trinary ($f)" for f in (muladd, fma)
+    @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
+        x, Δx, x̄ = 10randn(T, 3)
+        y, Δy, ȳ = randn(T, 3)
+        z, Δz, z̄ = randn(T, 3)
+        Δk = randn(T)
+
+        frule_test(muladd, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(muladd, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    end
+
+    @testset "fma" begin
         x, Δx, x̄ = 10randn(3)
         y, Δy, ȳ = randn(3)
         z, Δz, z̄ = randn(3)
         Δk = randn()
 
-        frule_test(f, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(f, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        frule_test(fma, (x, Δx), (y, Δy), (z, Δz))
+        rrule_test(fma, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
+
     @testset "clamp"  begin
         x̄, ȳ, z̄    = randn(3)
         Δx, Δy, Δz = randn(3)

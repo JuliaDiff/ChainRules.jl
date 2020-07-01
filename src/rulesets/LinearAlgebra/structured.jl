@@ -32,7 +32,7 @@ if VERSION ≥ v"1.3"
         end
         return diag(A, k), diag_pullback
     end
-    
+
     function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
         function diagm_pullback(ȳ)
             return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
@@ -48,7 +48,7 @@ function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
 end
 
 function _diagm_back(p, ȳ)
-    return Thunk() do 
+    return Thunk() do
         k, v = p
         d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
         return Composite{typeof(p)}(second = d)
@@ -73,7 +73,7 @@ function rrule(::Type{<:Symmetric}, A::AbstractMatrix)
     return Symmetric(A), Symmetric_pullback
 end
 
-_symmetric_back(ΔΩ) = UpperTriangular(ΔΩ) + LowerTriangular(ΔΩ)' - Diagonal(ΔΩ)
+_symmetric_back(ΔΩ) = UpperTriangular(ΔΩ) + transpose(LowerTriangular(ΔΩ)) - Diagonal(ΔΩ)
 _symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
 
 #####
