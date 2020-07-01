@@ -85,11 +85,12 @@ function frule((_, ΔA), ::Type{Array}, A::LinearAlgebra.HermOrSym)
     return Array(A), Array(_symherm_forward(A, ΔA))
 end
 
-function rrule(TM::Type{<:Matrix}, A::TA) where {TA<:LinearAlgebra.HermOrSym}
+function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
     function Matrix_pullback(ΔΩ)
-        T∂A = _symhermtype(TA){eltype(ΔΩ),typeof(ΔΩ)}
+        TA = _symhermtype(A)
+        T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
         uplo = A.uplo
-        ∂A = T∂A(_symherm_back(TA, ΔΩ, uplo), uplo)
+        ∂A = T∂A(_symherm_back(A, ΔΩ, uplo), uplo)
         return NO_FIELDS, ∂A
     end
     return TM(A), Matrix_pullback
@@ -98,9 +99,10 @@ rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
 _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
+_symhermtype(A) = _symhermtype(typeof(A))
 
 function _symherm_forward(A, ΔA)
-    TA = _symhermtype(typeof(A))
+    TA = _symhermtype(A)
     return if ΔA isa TA
         ΔA
     else
@@ -113,6 +115,7 @@ function _symherm_back(::Type{<:Hermitian}, ΔΩ::AbstractMatrix{<:Real}, uplo)
     return _symmetric_back(ΔΩ, uplo)
 end
 _symherm_back(::Type{<:Hermitian}, ΔΩ, uplo) = _hermitian_back(ΔΩ, uplo)
+_symherm_back(Ω, ΔΩ, uplo) = _symherm_back(typeof(Ω), ΔΩ, uplo)
 
 function _symmetric_back(ΔΩ, uplo)
     L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
