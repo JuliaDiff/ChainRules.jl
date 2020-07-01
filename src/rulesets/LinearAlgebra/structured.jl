@@ -128,13 +128,12 @@ _symmetric_back(ΔΩ::Diagonal, uplo) = ΔΩ
 _symmetric_back(ΔΩ::UpperTriangular, uplo) = Matrix(uplo == 'U' ? ΔΩ : transpose(ΔΩ))
 _symmetric_back(ΔΩ::LowerTriangular, uplo) = Matrix(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
 
-_hermitian_back(ΔΩ::AbstractMatrix{<:Real}, uplo) = _symmetric_back(ΔΩ, uplo)
 function _hermitian_back(ΔΩ, uplo)
     L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
     return uplo == 'U' ? U .+ L' - rD : L .+ U' - rD
 end
-_hermitian_back(ΔΩ::Diagonal{<:Complex}, uplo) = real.(ΔΩ)
-function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular{<:Complex}, uplo)
+_hermitian_back(ΔΩ::Diagonal, uplo) = real.(ΔΩ)
+function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
     ∂UL = ΔΩ .- Diagonal(_extract_imag(diag(ΔΩ)))
     return if istriu(ΔΩ)
         return Matrix(uplo == 'U' ? ∂UL : ∂UL')
