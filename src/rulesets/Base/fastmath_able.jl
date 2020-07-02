@@ -134,9 +134,13 @@ let
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
         @scalar_rule x / y (inv(y), -((x / y) / y))
-        #log(complex(x)) is require so it give correct complex answer for x<0
-        @scalar_rule(x ^ y,
-            (ifelse(iszero(y), zero(Ω), y * x ^ (y - 1)), Ω * log(complex(x))),
+        @scalar_rule(
+            x ^ y,
+            (
+                ifelse(iszero(x), zero(Ω), ifelse(iszero(y), zero(Ω), y * Ω / x)),
+                #log(complex(x)) is required so it gives correct complex answer for x<0
+                Ω * log(complex(x)),
+            ),
         )
         @scalar_rule(
             rem(x, y),
