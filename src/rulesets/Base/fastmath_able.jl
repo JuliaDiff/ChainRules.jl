@@ -143,6 +143,15 @@ let
             ),
         )
         @scalar_rule(
+            x::Real ^ y::Real,
+            (
+                ifelse(iszero(x), zero(Ω), ifelse(iszero(y), zero(Ω), y * Ω / x)),
+                # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
+                # is undefined, so we adopt subgradient convention and set derivative to 0.
+                x ≤ 0 ? zero(Ω) : Ω * log(x),
+            ),
+        )
+        @scalar_rule(
             rem(x, y),
             @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
             (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))),
