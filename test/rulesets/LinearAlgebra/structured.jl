@@ -78,7 +78,10 @@
             end
         end
     end
-    @testset "$(TA)(::AbstractMatrix{$T}, '$(uplo)')" for TA in (Symmetric, Hermitian), T in (Float64, ComplexF64), uplo in (:U, :L)
+    @testset "$(TA)(::AbstractMatrix{$T}, '$(uplo)')" for TA in (Symmetric, Hermitian),
+        T in (Float64, ComplexF64),
+        uplo in (:U, :L)
+
         N = 3
         @testset "frule" begin
             x = randn(T, N, N)
@@ -102,7 +105,11 @@
             end
         end
     end
-    @testset "$(TM)(::$(TA){$T}) with uplo='$uplo'" for TM in (Matrix, Array), TA in (Symmetric, Hermitian), T in (Float64, ComplexF64), uplo in (:U, :L)
+    @testset "$(TM)(::$(TA){$T}) with uplo='$uplo'" for TM in (Matrix, Array),
+        TA in (Symmetric, Hermitian),
+        T in (Float64, ComplexF64),
+        uplo in (:U, :L)
+
         N = 3
         x = TA(randn(T, N, N), uplo)
         Δx = randn(T, N, N)
