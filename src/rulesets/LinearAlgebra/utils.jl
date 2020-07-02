@@ -35,4 +35,4 @@ function _add!(X::AbstractVecOrMat{T}, Y::AbstractVecOrMat{T}) where T<:Real
 end
 _add!(X, Y) = X + Y  # handles all `AbstractZero` overloads
 
-_extract_imag(x) = (x -> complex(0, imag(x))).(x)
+_extract_imag(x) = complex(0, imag(x))

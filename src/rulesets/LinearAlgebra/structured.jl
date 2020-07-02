@@ -134,7 +134,7 @@ function _hermitian_back(ΔΩ, uplo)
 end
 _hermitian_back(ΔΩ::Diagonal, uplo) = real.(ΔΩ)
 function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
-    ∂UL = ΔΩ .- Diagonal(_extract_imag(diag(ΔΩ)))
+    ∂UL = ΔΩ .- Diagonal(_extract_imag.(diag(ΔΩ)))
     return if istriu(ΔΩ)
         return Matrix(uplo == 'U' ? ∂UL : ∂UL')
     else
