@@ -134,22 +134,14 @@ let
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
         @scalar_rule x / y (inv(y), -((x / y) / y))
-        @scalar_rule(
-            x ^ y,
-            (
-                ifelse(iszero(x), zero(Ω), ifelse(iszero(y), zero(Ω), y * Ω / x)),
-                #log(complex(x)) is required so it gives correct complex answer for x<0
-                Ω * log(complex(x)),
-            ),
+        #log(complex(x)) is required so it gives correct complex answer for x<0
+        @scalar_rule(x ^ y,
+            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
         )
-        @scalar_rule(
-            x::Real ^ y::Real,
-            (
-                ifelse(iszero(x), zero(Ω), ifelse(iszero(y), zero(Ω), y * Ω / x)),
-                # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
-                # is undefined, so we adopt subgradient convention and set derivative to 0.
-                x ≤ 0 ? zero(Ω) : Ω * log(x),
-            ),
+        # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
+        # is undefined, so we adopt subgradient convention and set derivative to 0.
+        @scalar_rule(x::Real ^ y::Real,
+            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(ifelse(x ≤ 0, one(x), x))),
         )
         @scalar_rule(
             rem(x, y),
