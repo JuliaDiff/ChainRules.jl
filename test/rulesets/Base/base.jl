@@ -117,17 +117,6 @@
         rrule_test(mod, Δz, (x, x̄), (y, ȳ))
     end
 
-    @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
-        # for real x and n, x must be >0
-        x = T <: Real ? 15rand() : 15randn(ComplexF64)
-        Δx, x̄ = 10rand(T, 2)
-        y, Δy, ȳ = rand(T, 3)
-        Δz = rand(T)
-
-        frule_test(^, (x, Δx), (y, Δy))
-        rrule_test(^, Δz, (x, x̄), (y, ȳ))
-    end
-
     @testset "identity" for T in (Float64, ComplexF64)
         frule_test(identity, (randn(T), randn(T)))
         frule_test(identity, (randn(T, 4), randn(T, 4)))
