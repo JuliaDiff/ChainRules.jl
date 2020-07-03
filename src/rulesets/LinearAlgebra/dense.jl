@@ -139,12 +139,15 @@ end
 
 function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
-    ∂Y = -Y * ΔA * Y
     m, n = size(A)
-    if m < n # right inverse (A * Y = I)
-        ∂Y = _add!(∂Y, (I - Y * A) * ΔA' * Y' * Y)
+    ∂Y = if m < n # right inverse (A * Y = I)
+        # -Y ΔA Y + (I - Y A) ΔA' Y' Y
+        _add!(-Y * (ΔA * Y), (ΔA' - Y * (A * ΔA')) * (Y' * Y))
     elseif m > n # left inverse (Y * A = I)
-        ∂Y = _add!(∂Y, Y * Y' * ΔA' * (I - A * Y))
+        # -Y ΔA Y + Y Y' ΔA' (I - A Y)
+        _add!(-(Y * ΔA) * Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y))
+    else
+        -Y * ΔA * Y
     end
     return Y, ∂Y
 end
@@ -165,12 +168,15 @@ end
 function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     function pinv_pullback(ΔY)
-        ∂A = -Y' * ΔY * Y'
         m, n = size(A)
-        if m < n # right inverse (A * Y = I)
-            ∂A = _add!(∂A, Y' * Y * ΔY' * (I - Y * A))
+        ∂A = if m < n # right inverse (A * Y = I)
+            # -Y' ΔY Y' + Y' Y ΔY' (I - Y A)
+            _add!((Y' * -ΔY) * Y', (Y' * Y) * (ΔY' - (ΔY' * Y) * A))
         elseif m > n # left inverse (Y * A = I)
-            ∂A = _add!(∂A, (I - A * Y) * ΔY' * Y * Y')
+            # -Y' ΔY Y' + (I - A Y) ΔY' Y Y'
+            _add!(Y' * (-ΔY * Y'), (ΔY' - A * (Y * ΔY')) * (Y * Y'))
+        else
+            -Y' * ΔY * Y'
         end
         return (NO_FIELDS, ∂A)
     end
