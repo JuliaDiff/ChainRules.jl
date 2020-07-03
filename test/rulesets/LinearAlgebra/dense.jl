@@ -64,6 +64,20 @@
             rrule_test(pinv, Δy, (x, x̄), (tol, t̄ol))
             @test rrule(pinv, x)[2](Δy)[2] isa typeof(x)
         end
+        @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
+            n = 3
+            x, ẋ, x̄ = F(randn(T, n)), F(randn(T, n)), F(randn(T, n))
+            y = pinv(x)
+            Δy = copyto!(similar(y), randn(T, n))
+            frule_test(pinv, (x, ẋ))
+            y_fwd, ∂y_fwd = frule((Zero(),  ẋ), pinv, x)
+            @test y_fwd isa typeof(y)
+            @test ∂y_fwd isa typeof(y)
+            rrule_test(pinv, Δy, (x, x̄))
+            y_rev, back = rrule(pinv, x)
+            @test y_rev isa typeof(y)
+            @test back(Δy)[2] isa typeof(x)
+        end
         @testset "Matrix{$T} with size ($m,$n)" for T in (Float64, ComplexF64),
             m in 1:3,
             n in 1:3

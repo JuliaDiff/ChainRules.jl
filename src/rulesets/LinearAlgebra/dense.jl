@@ -137,6 +137,23 @@ function frule(
     return y, ∂y
 end
 
+function frule(
+    (Δself, Δx),
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    x′ = parent(x)
+    if x isa Transpose
+        x′, Δx′ = conj(x′), conj(transpose(Δx))
+    else
+        Δx′ = adjoint(Δx)
+    end
+    y′, ∂y′ = frule((Δself, Δx′, Zero()), pinv, x′, tol)
+    y, ∂y = parent(y′), parent(∂y′)
+    return y, ∂y
+end
+
 function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     m, n = size(A)
@@ -163,6 +180,26 @@ function rrule(
         ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
         return (NO_FIELDS, ∂x, Zero())
     end
+    return y, pinv_pullback
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    x′ = parent(x)
+    if x isa Transpose
+        x′ = conj(x′)
+    end
+    y′, inner_pullback = rrule(pinv, x′, tol)
+    function pinv_pullback(Δy)
+        (_, ∂x′, ∂tol) = inner_pullback(Δy')
+        ∂x′ = unthunk(∂x′)
+        ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
+        return (NO_FIELDS, ∂x, ∂tol)
+    end
+    y = parent(y′)
     return y, pinv_pullback
 end
 
