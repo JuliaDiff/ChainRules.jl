@@ -61,6 +61,7 @@
             frule_test(pinv, (x, ẋ))
             @test frule((Zero(),  ẋ), pinv, x)[2] isa typeof(pinv(x))
             rrule_test(pinv, Δy, (x, x̄))
+            @test rrule(pinv, x)[2](Δy)[2] isa Vector{T}
         end
         @testset "Matrix{$T} with size ($m,$n)" for T in (Float64, ComplexF64),
             m in 1:3,
