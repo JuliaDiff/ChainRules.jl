@@ -131,7 +131,9 @@ function frule(
     kwargs...,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x; kwargs...)
-    ∂y = sum(abs2, y') .* Δx' .- 2real(y * Δx) .* y
+    # make sure ∂y is the same type as y
+    fdual = y isa Transpose ? transpose : adjoint
+    ∂y = fdual(sum(abs2, y') .* Δx .- 2real(y * Δx) .* y')
     return y, ∂y
 end
 
@@ -150,7 +152,7 @@ function rrule(
 ) where {T<:Union{Real,Complex}}
     y = pinv(x; kwargs...)
     function pinv_pullback(Δy)
-        ∂x = sum(abs2, y') .* Δy' .- 2real(y * Δy') .* y'
+        ∂x = sum(abs2, y') .* vec(Δy') .- 2real(y * Δy') .* y'
         return (NO_FIELDS, ∂x)
     end
     return y, pinv_pullback
