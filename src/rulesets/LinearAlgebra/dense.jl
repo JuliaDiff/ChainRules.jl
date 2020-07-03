@@ -122,7 +122,7 @@ end
 ##### `pinv`
 #####
 
-@scalar_rule pinv(x::Number) -(Ω ^ 2)
+@scalar_rule pinv(x) -(Ω ^ 2)
 
 function frule(
     (_, Δx),
