@@ -48,6 +48,30 @@
         frule_test(inv, (B, randn(T, N, N)))
         rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
+    @testset "pinv" begin
+        @testset "$T" for T in (Float64, ComplexF64)
+            test_scalar(pinv, randn(T))
+            @test frule((Zero(), randn(T)), pinv, zero(T))[2] ≈ zero(T)
+            @test rrule(pinv, zero(T))[2](randn(T))[2] ≈ zero(T)
+        end
+        @testset "Vector{$T}" for T in (Float64, ComplexF64)
+            n = 3
+            x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
+            Δy = copyto!(similar(pinv(x)), randn(T, n))
+            frule_test(pinv, (x, ẋ))
+            @test frule((Zero(),  ẋ), pinv, x)[2] isa typeof(pinv(x))
+            rrule_test(pinv, Δy, (x, x̄))
+        end
+        @testset "Matrix{$T} with size ($m,$n)" for T in (Float64, ComplexF64),
+            m in 1:3,
+            n in 1:3
+
+            X, Ẋ, X̄ = randn(T, m, n), randn(T, m, n), randn(T, m, n)
+            ΔY = randn(T, size(pinv(X))...)
+            frule_test(pinv, (X, Ẋ))
+            rrule_test(pinv, ΔY, (X, X̄))
+        end
+    end
     @testset "det(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
         B = generate_well_conditioned_matrix(T, N)
