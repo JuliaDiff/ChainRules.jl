@@ -153,6 +153,10 @@ function frule(
     return y, ∂y
 end
 
+# Formula for derivative adapted from Eq 4.12 of
+# Golub, Gene H., and Victor Pereyra. "The Differentiation of Pseudo-Inverses and Nonlinear
+# Least Squares Problems Whose Variables Separate."
+# SIAM Journal on Numerical Analysis 10(2). (1973). 413-432. doi: 10.1137/0710036
 function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     m, n = size(A)
