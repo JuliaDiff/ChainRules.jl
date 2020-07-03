@@ -119,6 +119,29 @@ function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real}
 end
 
 #####
+##### `pinv`
+#####
+
+function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    ∂Y = -Y * ΔA * Y # matrix inverse
+    _add!(∂Y, (I - A * Y) * ΔA' * Y' * Y) # left inverse (Y * A = I)
+    _add!(∂Y, Y * Y' * ΔA' * (I - Y * A)) # right inverse (A * Y = I)
+    return Y, ∂Y
+end
+
+function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    function pinv_pullback(ΔY)
+        ∂A = -Y' * ΔY * Y' # matrix inverse
+        _add!(∂A, (I - A * Y) * ΔY' * Y * Y') # left inverse (Y * A = I)
+        _add!(∂A, Y' * Y * ΔY' * (I - Y * A)) # right inverse (A * Y = I)
+        return (NO_FIELDS, ∂A)
+    end
+    return Y, pinv_pullback
+end
+
+#####
 ##### `/`
 #####
 
