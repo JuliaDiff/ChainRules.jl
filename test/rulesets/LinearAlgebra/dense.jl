@@ -57,11 +57,12 @@
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
             n = 3
             x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
+            tol, ṫol, t̄ol = 0.0, randn(), randn()
             Δy = copyto!(similar(pinv(x)), randn(T, n))
-            frule_test(pinv, (x, ẋ))
-            @test frule((Zero(),  ẋ), pinv, x)[2] isa typeof(pinv(x))
-            rrule_test(pinv, Δy, (x, x̄))
-            @test rrule(pinv, x)[2](Δy)[2] isa Vector{T}
+            frule_test(pinv, (x, ẋ), (tol, ṫol))
+            @test frule((Zero(), ẋ), pinv, x)[2] isa typeof(pinv(x))
+            rrule_test(pinv, Δy, (x, x̄), (tol, t̄ol))
+            @test rrule(pinv, x)[2](Δy)[2] isa typeof(x)
         end
         @testset "Matrix{$T} with size ($m,$n)" for T in (Float64, ComplexF64),
             m in 1:3,
