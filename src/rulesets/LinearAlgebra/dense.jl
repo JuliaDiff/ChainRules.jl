@@ -131,9 +131,8 @@ function frule(
     tol::Real = 0,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
-    # make sure ∂y is the same type as y
-    fdual = y isa Transpose ? transpose : adjoint
-    ∂y = fdual(sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y))
+    ∂y′ = sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y)
+    ∂y = y isa Transpose ? transpose(∂y′) : adjoint(∂y′)
     return y, ∂y
 end
 
