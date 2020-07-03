@@ -122,12 +122,38 @@ end
 ##### `pinv`
 #####
 
+@scalar_rule pinv(x::Number) -(Ω ^ 2)
+
+function frule(
+    (_, Δx),
+    ::typeof(pinv),
+    x::AbstractVector{T};
+    kwargs...,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x; kwargs...)
+    ∂y = sum(abs2, y') .* Δx' .- 2real(y * Δx) .* y
+    return y, ∂y
+end
+
 function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     ∂Y = -Y * ΔA * Y # matrix inverse
     _add!(∂Y, (I - A * Y) * ΔA' * Y' * Y) # left inverse (Y * A = I)
     _add!(∂Y, Y * Y' * ΔA' * (I - Y * A)) # right inverse (A * Y = I)
     return Y, ∂Y
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::AbstractVector{T};
+    kwargs...,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x; kwargs...)
+    function pinv_pullback(Δy)
+        ∂x = sum(abs2, y') .* Δy' .- 2real(y * Δy') .* y'
+        return (NO_FIELDS, ∂x)
+    end
+    return y, pinv_pullback
 end
 
 function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
