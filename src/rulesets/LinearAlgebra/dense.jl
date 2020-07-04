@@ -326,3 +326,43 @@ function rrule(
 
     return y, normInf_pullback
 end
+
+#####
+##### `norm1`
+#####
+
+function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
+    Δx isa AbstractZero && return (LinearAlgebra.norm1(x), Zero())
+    x_Δx = zip(x, Δx)
+
+    ((xi, Δxi), i) = iterate(x_Δx)::Tuple
+    a = float(norm(xi))
+    T = typeof(a)
+    y::promote_type(Float64, T) = a
+    ∂a = _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
+    T∂ = typeof(zero(∂a))
+    ∂y::promote_type(Float64, T∂) = ∂a
+
+    while true
+        state = iterate(x_Δx, i)
+        state === nothing && break
+        ((xi, Δxi), i) = state
+
+        a = norm(xi)
+        y += a
+        ∂y += _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
+    end
+
+    return convert(T, y), convert(T∂, ∂y)
+end
+
+function rrule(::typeof(LinearAlgebra.norm1), x)
+    y = LinearAlgebra.norm1(x)
+
+    function norm1_pullback(Δy)
+        ∂x = sign.(x) .* real(Δy)
+        return (NO_FIELDS, ∂x)
+    end
+
+    return y, norm1_pullback
+end
