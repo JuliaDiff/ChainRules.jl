@@ -232,7 +232,7 @@ function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     iszero(y) || isinf(y) && return (y, zero(∂y))
 
     while true
-        a = abs(xi)
+        a = norm(xi)
         if !iszero(a)
             signxi = xi isa Real ? sign(xi) : xi / a
             ∂a = _realconjtimes(signxi, Δxi)
@@ -254,13 +254,13 @@ function rrule(::typeof(LinearAlgebra.normp), x, p)
         yΔy = y * real(Δy)
 
         ∂x = @thunk broadcast(x) do xi
-            ∂xi = xi * ((abs(xi) / y) ^ (p - 2) * yΔy)
+            ∂xi = xi * ((norm(xi) / y) ^ (p - 2) * yΔy)
             return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
         end
 
         ∂p = Thunk() do
             s = sum(x) do xi
-                a = abs(xi)
+                a = norm(xi)
                 return (a / y)^p * log(ifelse(iszero(a), one(a), a))
             end
             p̄ = yΔy * (s - log(y)) / p
