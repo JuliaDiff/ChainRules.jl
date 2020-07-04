@@ -249,28 +249,27 @@ end
 
 function rrule(::typeof(LinearAlgebra.normp), x, p)
     y = LinearAlgebra.normp(x, p)
-
-    function normp_pullback(Δy)
-        yΔy = y * real(Δy)
-
-        ∂x = @thunk broadcast(x) do xi
-            ∂xi = xi * ((norm(xi) / y) ^ (p - 2) * yΔy)
-            return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
-        end
-
-        ∂p = Thunk() do
-            s = sum(x) do xi
-                a = norm(xi)
-                return (a / y)^p * log(ifelse(iszero(a), one(a), a))
-            end
-            p̄ = yΔy * (s - log(y)) / p
-            return ifelse(isfinite(p̄), p̄, zero(p̄))
-        end
-
-        return (NO_FIELDS, ∂x, ∂p)
-    end
-
+    normp_pullback(Δy) = (NO_FIELDS, _normp_back(x, p, y, Δy)...)
     return y, normp_pullback
+end
+
+@inline function _normp_back(x, p, y, Δy)
+    Δy = real(Δy)
+    ∂x = @thunk broadcast(x) do xi
+        a = abs(xi)
+        signxi = xi isa Real ? sign(xi) : xi / a
+        ∂xi = signxi * (a / y)^(p - 1) * Δy
+        return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
+    end
+    ∂p = Thunk() do
+        s = sum(x) do xi
+            a = norm(xi)
+            return (a / y)^p * log(ifelse(iszero(a), one(a), a))
+        end
+        p̄ = y * (s - log(y)) / p
+        return ifelse(isfinite(p̄), p̄, zero(p̄))
+    end
+    return ∂x, ∂p
 end
 
 #####
@@ -285,16 +284,13 @@ function frule(
     Δx isa AbstractZero && return (fnorm(x), Zero())
     x_Δx = zip(x, Δx)
     fcmp = fnorm === LinearAlgebra.normMinusInf ? (<) : (>)
-
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
     y = norm(xi)
     ∂y = _realconjtimes(sign(xi), Δxi)
-
     while true
         state = iterate(x_Δx, i)
         state === nothing && break
         ((xi, Δxi), i) = state
-
         a = norm(xi)
         (y, ∂y) = ifelse(
             isnan(y) | fcmp(y, a),
@@ -306,25 +302,28 @@ function frule(
     return float(y), float(∂y)
 end
 
-function rrule(
-    fnorm::Union{typeof(LinearAlgebra.normMinusInf),typeof(LinearAlgebra.normInf)},
-    x,
-)
-    y = fnorm(x)
+function rrule(::typeof(LinearAlgebra.normMinusInf), x)
+    y = LinearAlgebra.normMinusInf(x)
+    normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
+    return y, normMinusInf_pullback
+end
 
-    function normInf_pullback(Δy)
-        Δy = real(Δy)
-        ∂x = broadcast(x) do xi
-            return ifelse(
-                float(norm(xi)) == y,
-                sign(xi) * Δy,
-                zero(float(xi)) * zero(Δy),
-            )
-        end
-        return (NO_FIELDS, ∂x)
-    end
-
+function rrule(::typeof(LinearAlgebra.normInf), x)
+    y = LinearAlgebra.normInf(x)
+    normInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
     return y, normInf_pullback
+end
+
+@inline function _normInf_back(x, y, Δy)
+    Δy = real(Δy)
+    ∂x = broadcast(x) do xi
+        return ifelse(
+            float(norm(xi)) == y,
+            sign(xi) * Δy,
+            zero(float(xi)) * zero(Δy),
+        )
+    end
+    return ∂x
 end
 
 #####
@@ -334,7 +333,6 @@ end
 function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
     Δx isa AbstractZero && return (LinearAlgebra.norm1(x), Zero())
     x_Δx = zip(x, Δx)
-
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
     a = float(norm(xi))
     T = typeof(a)
@@ -342,30 +340,24 @@ function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
     ∂a = _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
     T∂ = typeof(zero(∂a))
     ∂y::promote_type(Float64, T∂) = ∂a
-
     while true
         state = iterate(x_Δx, i)
         state === nothing && break
         ((xi, Δxi), i) = state
-
         a = norm(xi)
         y += a
         ∂y += _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
     end
-
     return convert(T, y), convert(T∂, ∂y)
 end
 
 function rrule(::typeof(LinearAlgebra.norm1), x)
     y = LinearAlgebra.norm1(x)
-
-    function norm1_pullback(Δy)
-        ∂x = sign.(x) .* real(Δy)
-        return (NO_FIELDS, ∂x)
-    end
-
+    norm1_pullback(Δy) = (NO_FIELDS, _norm1_back(x, y, Δy))
     return y, norm1_pullback
 end
+
+@inline _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 
 #####
 ##### `norm2`
@@ -380,12 +372,11 @@ end
 
 function rrule(::typeof(LinearAlgebra.norm2), x)
     y = LinearAlgebra.norm2(x)
-
-    function norm2_pullback(Δy)
-        n = ifelse(iszero(y), zero(y), y)
-        ∂x = _realconjtimes.(x, real(Δy)) ./ n
-        return (NO_FIELDS, ∂x)
-    end
-
+    norm2_pullback(Δy) = (NO_FIELDS, _norm2_back(x, y, Δy))
     return y, norm2_pullback
+end
+
+@inline function _norm2_back(x, y, Δy)
+    n = ifelse(iszero(y), zero(y), y)
+    return _realconjtimes.(x, real(Δy)) ./ n
 end
