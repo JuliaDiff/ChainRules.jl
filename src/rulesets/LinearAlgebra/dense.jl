@@ -302,13 +302,14 @@ function rrule(::typeof(LinearAlgebra.normInf), x)
 end
 
 @inline function _normInf_back(x, y, Δy)
-    Δy = real(Δy)
-    ∂x = broadcast(x) do xi
-        return ifelse(
-            float(norm(xi)) == y,
-            sign(xi) * Δy,
-            zero(float(xi)) * zero(Δy),
-        )
+    # if multiple `xi`s have the exact same norm, then they must have been identically
+    # produced, e.g. with `fill`. So we set only one to be non-zero.
+    # we choose last index to match the `frule`.
+    yind = findlast(xi -> norm(xi) == y, x)
+    yind === nothing && throw(ArgumentError("y is not the correct norm of x"))
+    Δu = real(Δy)
+    ∂x = broadcast(enumerate(x)) do (i, xi)
+        i == yind ? sign(xi) * Δu : zero(float(xi)) * zero(Δu)
     end
     return ∂x
 end
