@@ -272,3 +272,51 @@ function rrule(::typeof(LinearAlgebra.normp), x, p)
 
     return y, normp_pullback
 end
+
+#####
+##### `normMinusInf`
+#####
+
+function frule((_, Δx), ::typeof(LinearAlgebra.normMinusInf), x)
+    if Δx isa AbstractZero
+        Δx = Iterators.repeated(Δx)
+    end
+    x_Δx = zip(x, Δx)
+
+    ((xi, Δxi), i) = iterate(x_Δx)::Tuple
+    y = norm(xi)
+    ∂y = _realconjtimes(sign(xi), Δxi)
+
+    while true
+        state = iterate(x_Δx, i)
+        state === nothing && break
+        ((xi, Δxi), i) = state
+
+        a = norm(xi)
+        (y, ∂y) = ifelse(
+            isnan(y) | (y < a),
+            (y, ∂y),
+            (a, _realconjtimes(sign(xi), Δxi)),
+        )
+    end
+
+    return float(y), float(∂y)
+end
+
+function rrule(::typeof(LinearAlgebra.normMinusInf), x)
+    y = LinearAlgebra.normMinusInf(x)
+
+    function normMinusInf_pullback(Δy)
+        Δy = real(Δy)
+        ∂x = broadcast(x) do xi
+            return ifelse(
+                float(norm(xi)) == y,
+                sign(xi) * Δy,
+                zero(float(xi)) * zero(Δy),
+            )
+        end
+        return (NO_FIELDS, ∂x)
+    end
+
+    return y, normMinusInf_pullback
+end
