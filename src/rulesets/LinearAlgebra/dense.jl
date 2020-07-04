@@ -274,10 +274,15 @@ function rrule(::typeof(LinearAlgebra.normp), x, p)
 end
 
 #####
-##### `normMinusInf`
+##### `normMinusInf`/`normInf`
 #####
 
-function frule((_, Δx), ::typeof(LinearAlgebra.normMinusInf), x)
+function frule(
+    (_, Δx),
+    fnorm::Union{typeof(LinearAlgebra.normMinusInf),typeof(LinearAlgebra.normInf)},
+    x,
+)
+    fcmp = fnorm === LinearAlgebra.normMinusInf ? (<) : (>)
     if Δx isa AbstractZero
         Δx = Iterators.repeated(Δx)
     end
@@ -294,7 +299,7 @@ function frule((_, Δx), ::typeof(LinearAlgebra.normMinusInf), x)
 
         a = norm(xi)
         (y, ∂y) = ifelse(
-            isnan(y) | (y < a),
+            isnan(y) | fcmp(y, a),
             (y, ∂y),
             (a, _realconjtimes(sign(xi), Δxi)),
         )
@@ -303,10 +308,13 @@ function frule((_, Δx), ::typeof(LinearAlgebra.normMinusInf), x)
     return float(y), float(∂y)
 end
 
-function rrule(::typeof(LinearAlgebra.normMinusInf), x)
-    y = LinearAlgebra.normMinusInf(x)
+function rrule(
+    fnorm::Union{typeof(LinearAlgebra.normMinusInf),typeof(LinearAlgebra.normInf)},
+    x,
+)
+    y = fnorm(x)
 
-    function normMinusInf_pullback(Δy)
+    function normInf_pullback(Δy)
         Δy = real(Δy)
         ∂x = broadcast(x) do xi
             return ifelse(
@@ -318,5 +326,5 @@ function rrule(::typeof(LinearAlgebra.normMinusInf), x)
         return (NO_FIELDS, ∂x)
     end
 
-    return y, normMinusInf_pullback
+    return y, normInf_pullback
 end
