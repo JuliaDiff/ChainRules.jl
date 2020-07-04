@@ -187,6 +187,36 @@ end
 ##### `norm`
 #####
 
+function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
+    # TODO: accumulate `y` in parallel to `∂y`
+    y = LinearAlgebra.normp(x, p)
+    ylogy = y * log(y)
+    ∂logp = Δp / p
+    if Δx isa AbstractZero
+        Δx = Iterators.repeated(Δx)
+    end
+    x_Δx = zip(x, Δx)
+    ((xi, Δxi), i) = Base.iterate(x_Δx)::Tuple
+    if iszero(p) || isinf(p)
+        # non-differentiable wrt p at p ∈ {0, Inf}. use subgradient convention
+        ∂logp = zero(∂logp)
+    end
+    ∂y = -ylogy * ∂logp + zero(real(Δxi)) / one(y)
+    iszero(y) || isinf(y) && return (y, zero(∂y))
+    while true
+        a = abs(xi)
+        if !iszero(a)
+            signxi = xi isa Real ? sign(xi) : xi / a
+            ∂a = _realconjtimes(signxi, Δxi)
+            ∂y += (a / y)^(p - 1) * (∂a + a * log(a) * ∂logp)
+        end
+        state = Base.iterate(x_Δx, i)
+        state === nothing && break
+        ((xi, Δxi), i) = state
+    end
+    return y, ∂y
+end
+
 function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
     y = norm(A, p)
     function norm_pullback(ȳ)
