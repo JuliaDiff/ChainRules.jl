@@ -234,13 +234,13 @@ function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     return y, ∂y
 end
 
-function rrule(::typeof(LinearAlgebra.normp), x, p)
+function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray, p)
     y = LinearAlgebra.normp(x, p)
     normp_pullback(Δy) = (NO_FIELDS, _normp_back(x, p, y, Δy)...)
     return y, normp_pullback
 end
 
-@inline function _normp_back(x, p, y, Δy)
+function _normp_back(x, p, y, Δy)
     Δy = real(Δy)
     ∂x = @thunk broadcast(x) do xi
         a = abs(xi)
@@ -285,23 +285,22 @@ function frule(
             (a, _realconjtimes(sign(xi), Δxi)),
         )
     end
-
     return float(y), float(∂y)
 end
 
-function rrule(::typeof(LinearAlgebra.normMinusInf), x)
+function rrule(::typeof(LinearAlgebra.normMinusInf), x::AbstractArray)
     y = LinearAlgebra.normMinusInf(x)
     normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
     return y, normMinusInf_pullback
 end
 
-function rrule(::typeof(LinearAlgebra.normInf), x)
+function rrule(::typeof(LinearAlgebra.normInf), x::AbstractArray)
     y = LinearAlgebra.normInf(x)
     normInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
     return y, normInf_pullback
 end
 
-@inline function _normInf_back(x, y, Δy)
+function _normInf_back(x, y, Δy)
     # if multiple `xi`s have the exact same norm, then they must have been identically
     # produced, e.g. with `fill`. So we set only one to be non-zero.
     # we choose last index to match the `frule`.
@@ -339,13 +338,13 @@ function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
     return convert(T, y), convert(T∂, ∂y)
 end
 
-function rrule(::typeof(LinearAlgebra.norm1), x)
+function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
     y = LinearAlgebra.norm1(x)
     norm1_pullback(Δy) = (NO_FIELDS, _norm1_back(x, y, Δy))
     return y, norm1_pullback
 end
 
-@inline _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
+_norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 
 #####
 ##### `norm2`
@@ -359,13 +358,13 @@ function frule((_, Δx), ::typeof(LinearAlgebra.norm2), x)
     return y, ∂y
 end
 
-function rrule(::typeof(LinearAlgebra.norm2), x)
+function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray)
     y = LinearAlgebra.norm2(x)
     norm2_pullback(Δy) = (NO_FIELDS, _norm2_back(x, y, Δy))
     return y, norm2_pullback
 end
 
-@inline function _norm2_back(x, y, Δy)
+function _norm2_back(x, y, Δy)
     n = ifelse(iszero(y), zero(y), y)
     return _realconjtimes.(x, real(Δy)) ./ n
 end
