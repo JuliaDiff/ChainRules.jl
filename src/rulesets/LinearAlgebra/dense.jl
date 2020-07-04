@@ -187,6 +187,30 @@ end
 ##### `norm`
 #####
 
+function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
+    y = norm(A, p)
+    function norm_pullback(ȳ)
+        u = y^(1-p)
+        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
+        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
+        (NO_FIELDS, ∂A, ∂p)
+    end
+    return y, norm_pullback
+end
+
+function rrule(::typeof(norm), x::Real, p::Real=2)
+    function norm_pullback(ȳ)
+        ∂x = @thunk ȳ * sign(x)
+        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
+        (NO_FIELDS, ∂x, ∂p)
+    end
+    return norm(x, p), norm_pullback
+end
+
+#####
+##### `normp`
+#####
+
 function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     # TODO: accumulate `y` in parallel to `∂y`
     y = LinearAlgebra.normp(x, p)
@@ -215,24 +239,4 @@ function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
         ((xi, Δxi), i) = state
     end
     return y, ∂y
-end
-
-function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
-    y = norm(A, p)
-    function norm_pullback(ȳ)
-        u = y^(1-p)
-        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
-        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
-        (NO_FIELDS, ∂A, ∂p)
-    end
-    return y, norm_pullback
-end
-
-function rrule(::typeof(norm), x::Real, p::Real=2)
-    function norm_pullback(ȳ)
-        ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
-        (NO_FIELDS, ∂x, ∂p)
-    end
-    return norm(x, p), norm_pullback
 end
