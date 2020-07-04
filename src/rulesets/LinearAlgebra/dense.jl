@@ -366,3 +366,26 @@ function rrule(::typeof(LinearAlgebra.norm1), x)
 
     return y, norm1_pullback
 end
+
+#####
+##### `norm2`
+#####
+
+function frule((_, Δx), ::typeof(LinearAlgebra.norm2), x)
+    y = LinearAlgebra.norm2(x)
+    n = ifelse(iszero(y), zero(y), y)
+    ∂y = Δx isa AbstractZero ? Zero() : real(dot(x, Δx)) / n
+    return y, ∂y
+end
+
+function rrule(::typeof(LinearAlgebra.norm2), x)
+    y = LinearAlgebra.norm2(x)
+
+    function norm2_pullback(Δy)
+        n = ifelse(iszero(y), zero(y), y)
+        ∂x = _realconjtimes.(x, real(Δy)) ./ n
+        return (NO_FIELDS, ∂x)
+    end
+
+    return y, norm2_pullback
+end
