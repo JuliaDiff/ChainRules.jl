@@ -214,15 +214,9 @@ end
 function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     # TODO: accumulate `y` in parallel to `∂y`
     y = LinearAlgebra.normp(x, p)
-    if Δx isa AbstractZero
-        Δx = Iterators.repeated(Δx)
-    end
-    x_Δx = zip(x, Δx)
-    ∂logp = Δp / p
-    if iszero(p) || isinf(p)
-        # non-differentiable wrt p at p ∈ {0, Inf}. use subgradient convention
-        ∂logp = zero(∂logp)
-    end
+    x_Δx = zip(x, Δx isa AbstractZero ? Iterators.repeated(Δx) : Δx)
+    # non-differentiable wrt p at p ∈ {0, Inf}. use subgradient convention
+    ∂logp = ifelse(iszero(p) || isinf(p), zero(Δp) / one(p), Δp / p)
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
     ∂y = zero(real(Δxi)) / one(y) - (∂logp isa AbstractZero ? zero(y) : y * log(y) * ∂logp)
     iszero(y) || isinf(y) && return (y, zero(∂y))
