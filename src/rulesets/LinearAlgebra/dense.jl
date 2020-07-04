@@ -240,3 +240,24 @@ function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     end
     return y, ∂y
 end
+
+function rrule(::typeof(LinearAlgebra.normp), x, p)
+    y = LinearAlgebra.normp(x, p)
+    function normp_pullback(Δy)
+        yΔy = y * real(Δy)
+        ∂x = @thunk broadcast(x) do xi
+            ∂xi = xi * ((abs(xi) / y) ^ (p - 2) * yΔy)
+            return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
+        end
+        ∂p = Thunk() do
+            s = sum(x) do xi
+                a = abs(xi)
+                return (a / y)^p * log(ifelse(iszero(a), one(a), a))
+            end
+            p̄ = yΔy * (s - log(y)) / p
+            return ifelse(isfinite(p̄), p̄, zero(p̄))
+        end
+        return (NO_FIELDS, ∂x, ∂p)
+    end
+    return y, normp_pullback
+end
