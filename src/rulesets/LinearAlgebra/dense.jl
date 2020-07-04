@@ -279,6 +279,8 @@ function frule(
         state === nothing && break
         ((xi, Δxi), i) = state
         a = norm(xi)
+        # if multiple `xi`s have the exact same norm, then the corresponding `Δxi`s must
+        # be identical if upstream rules behaved correctly, so any `Δxi` will do.
         (y, ∂y) = ifelse(
             isnan(y) | fcmp(y, a),
             (y, ∂y),
