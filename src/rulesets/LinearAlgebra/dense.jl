@@ -359,6 +359,7 @@ end
 
 function frule((_, Δx), ::typeof(LinearAlgebra.norm2), x)
     y = LinearAlgebra.norm2(x)
+    # since dot product is efficient for pushforward, we don't accumulate in parallel
     n = ifelse(iszero(y), zero(y), y)
     ∂y = Δx isa AbstractZero ? Zero() : real(dot(x, Δx)) / n
     return y, ∂y
