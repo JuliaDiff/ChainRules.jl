@@ -218,21 +218,20 @@ function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
         Δx = Iterators.repeated(Δx)
     end
     x_Δx = zip(x, Δx)
-    ylogy = y * log(y)
     ∂logp = Δp / p
     if iszero(p) || isinf(p)
         # non-differentiable wrt p at p ∈ {0, Inf}. use subgradient convention
         ∂logp = zero(∂logp)
     end
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
-    ∂y = -ylogy * ∂logp + zero(real(Δxi)) / one(y)
+    ∂y = zero(real(Δxi)) / one(y) - (∂logp isa AbstractZero ? zero(y) : y * log(y) * ∂logp)
     iszero(y) || isinf(y) && return (y, zero(∂y))
     while true
         a = norm(xi)
         if !iszero(a)
             signxi = xi isa Real ? sign(xi) : xi / a
             ∂a = _realconjtimes(signxi, Δxi)
-            ∂y += (a / y)^(p - 1) * (∂a + a * log(a) * ∂logp)
+            ∂y += (a / y)^(p - 1) * (∂logp isa AbstractZero ? ∂a : ∂a + a * log(a) * ∂logp)
         end
         state = iterate(x_Δx, i)
         state === nothing && break
