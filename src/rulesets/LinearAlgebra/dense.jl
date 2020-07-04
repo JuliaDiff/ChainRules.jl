@@ -282,11 +282,9 @@ function frule(
     fnorm::Union{typeof(LinearAlgebra.normMinusInf),typeof(LinearAlgebra.normInf)},
     x,
 )
-    fcmp = fnorm === LinearAlgebra.normMinusInf ? (<) : (>)
-    if Δx isa AbstractZero
-        Δx = Iterators.repeated(Δx)
-    end
+    Δx isa AbstractZero && return (fnorm(x), Zero())
     x_Δx = zip(x, Δx)
+    fcmp = fnorm === LinearAlgebra.normMinusInf ? (<) : (>)
 
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
     y = norm(xi)
