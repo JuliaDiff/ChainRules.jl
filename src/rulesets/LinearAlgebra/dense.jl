@@ -218,13 +218,42 @@ function frule((_, Δx), ::typeof(norm), x::Number, p::Real=2)
     return y, ∂y
 end
 
-function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
-    y = norm(A, p)
-    function norm_pullback(ȳ)
-        u = y^(1-p)
-        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
-        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
-        (NO_FIELDS, ∂A, ∂p)
+function rrule(::typeof(norm), x::AbstractArray, p::Real)
+    y = LinearAlgebra.norm(x, p)
+    function norm_pullback(Δy)
+        ∂x = Thunk() do
+            return if isempty(x)
+                zero.(x) .* (zero(y) * zero(real(Δy)))
+            elseif p == 2
+                _norm2_back(x, y, Δy)
+            elseif p == 1
+                _norm1_back(x, y, Δy)
+            elseif p == Inf
+                _normInf_back(x, y, Δy)
+            elseif p == 0
+                zero.(x) .* (zero(y) * zero(real(Δy)))
+            elseif p == -Inf
+                _normInf_back(x, y, Δy)
+            else
+                _normp_back_x(x, p, y, Δy)
+            end
+        end
+        ∂p = Thunk() do
+            return if isempty(x) || p ∈ (2, 1, Inf, 0, -Inf)
+                y * zero(real(Δy))
+            else
+                _normp_back_p(x, p, y, Δy)
+            end
+        end
+        return (NO_FIELDS, ∂x, ∂p)
+    end
+    return y, norm_pullback
+end
+function rrule(::typeof(norm), x::AbstractArray)
+    y, inner_pullback = rrule(LinearAlgebra.norm2, x)
+    function norm_pullback(Δy)
+        (∂self, ∂x) = inner_pullback(Δy)
+        return (∂self, ∂x)
     end
     return y, norm_pullback
 end
