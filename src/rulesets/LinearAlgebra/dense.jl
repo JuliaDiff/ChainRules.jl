@@ -257,7 +257,7 @@ function rrule(::typeof(norm), x::AbstractArray)
     end
     return y, norm_pullback
 end
-function rrule(::typeof(norm), x::Real, p::Real=2)
+function rrule(::typeof(norm), x, p::Real=2)
     y = norm(x, p)
     function norm_pullback(Δy)
         ∂x = Thunk() do
