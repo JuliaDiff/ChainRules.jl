@@ -27,7 +27,7 @@ function _eyesubx!(X::AbstractMatrix)
 end
 
 # X + Y, overwrites X if possible
-function _add!(X::AbstractVecOrMat{T}, Y::AbstractVecOrMat{T}) where T<:Real
+function _add!(X::AbstractVecOrMat, Y::AbstractVecOrMat)
     @inbounds for i = eachindex(X, Y)
         X[i] += Y[i]
     end
