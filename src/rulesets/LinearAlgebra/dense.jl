@@ -372,6 +372,5 @@ function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray)
 end
 
 function _norm2_back(x, y, Δy)
-    n = ifelse(iszero(y), zero(y), y)
-    return _realconjtimes.(x, real(Δy)) ./ n
+    return _realconjtimes.(x, real(Δy) * pinv(y))
 end
