@@ -190,20 +190,20 @@ end
 function frule((_, Δx, Δp), ::typeof(norm), x, p::Real)
     return if isempty(x)
         z = float(norm(zero(eltype(x))))
-        z, z
+        z, zero(z * zero(Δp) + z * zero(Δx))
     elseif p == 2
-        frule((Zero(), Δx), LinearAlgebra.norm2, x)
+        _norm2_forward(x, Δx, Δp)
     elseif p == 1
-        frule((Zero(), Δx), LinearAlgebra.norm1, x)
+        _norm1_forward(x, Δx, Δp)
     elseif p == Inf
-        frule((Zero(), Δx), LinearAlgebra.normInf, x)
+        _normInf_forward(x, Δx, Δp; fnorm = LinearAlgebra.normInf)
     elseif p == 0
         z = typeof(float(norm(first(x))))(count(!iszero, x))
-        z, zero(z)
+        z, zero(z * zero(Δp) + z * zero(Δx))
     elseif p == -Inf
-        frule((Zero(), Δx), LinearAlgebra.normMinusInf, x)
+        _normInf_forward(x, Δx, Δp; fnorm = LinearAlgebra.normMinusInf)
     else
-        frule((Zero(), Δx, Δp), LinearAlgebra.normp, x, p)
+        _normp_forward(x, p, Δx, Δp)
     end
 end
 frule((Δself, Δx), ::typeof(norm), x) = frule((Δself, Δx, Zero()), norm, x, 2)
@@ -238,13 +238,7 @@ function rrule(::typeof(norm), x::AbstractArray, p::Real)
                 _normp_back_x(x, p, y, Δy)
             end
         end
-        ∂p = Thunk() do
-            return if isempty(x) || p ∈ (2, 1, Inf, 0, -Inf)
-                y * zero(real(Δy))
-            else
-                _normp_back_p(x, p, y, Δy)
-            end
-        end
+        ∂p = @thunk _normp_back_p(x, p, y, Δy)
         return (NO_FIELDS, ∂x, ∂p)
     end
     norm_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
