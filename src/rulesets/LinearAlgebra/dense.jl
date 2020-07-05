@@ -187,6 +187,37 @@ end
 ##### `norm`
 #####
 
+function frule((_, Δx, Δp), ::typeof(norm), x, p::Real)
+    return if isempty(x)
+        z = float(norm(zero(eltype(x))))
+        z, z
+    elseif p == 2
+        frule((Zero(), Δx), LinearAlgebra.norm2, x)
+    elseif p == 1
+        frule((Zero(), Δx), LinearAlgebra.norm1, x)
+    elseif p == Inf
+        frule((Zero(), Δx), LinearAlgebra.normInf, x)
+    elseif p == 0
+        z = typeof(float(norm(first(x))))(count(!iszero, x))
+        z, zero(z)
+    elseif p == -Inf
+        frule((Zero(), Δx), LinearAlgebra.normMinusInf, x)
+    else
+        frule((Zero(), Δx, Δp), LinearAlgebra.normp, x, p)
+    end
+end
+frule((Δself, Δx), ::typeof(norm), x) = frule((Δself, Δx, Zero()), norm, x, 2)
+function frule((_, Δx), ::typeof(norm), x::Number, p::Real=2)
+    y = norm(x, p)
+    ∂y = if iszero(p) || iszero(Δx)
+        zero(real(x)) * zero(real(Δx))
+    else
+        signx = x isa Real ? sign(x) : x * pinv(y)
+        _realconjtimes(signx, Δx)
+    end
+    return y, ∂y
+end
+
 function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
     y = norm(A, p)
     function norm_pullback(ȳ)
