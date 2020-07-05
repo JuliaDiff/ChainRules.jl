@@ -6,6 +6,7 @@ using Reexport
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using LinearAlgebra
 using LinearAlgebra.BLAS
+using Random
 using Requires
 using Statistics
 
@@ -34,6 +35,8 @@ include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
+
+include("rulesets/Random/random.jl")
 
 # Note: The following is only required because package authors sometimes do not
 # declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.
