@@ -261,7 +261,7 @@ function rrule(::typeof(norm), x::Real, p::Real=2)
     y = norm(x, p)
     function norm_pullback(Δy)
         ∂x = Thunk() do
-            if iszero(Δx) || iszero(p)
+            if iszero(Δy) || iszero(p)
                 zero(x) * zero(real(Δy))
             else
                 signx = x isa Real ? sign(x) : x * pinv(y)
