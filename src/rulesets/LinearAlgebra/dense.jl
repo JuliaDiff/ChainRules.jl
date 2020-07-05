@@ -247,6 +247,7 @@ function rrule(::typeof(norm), x::AbstractArray, p::Real)
         end
         return (NO_FIELDS, ∂x, ∂p)
     end
+    norm_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, norm_pullback
 end
 function rrule(::typeof(norm), x::AbstractArray)
@@ -270,6 +271,7 @@ function rrule(::typeof(norm), x, p::Real=2)
         end
         return (NO_FIELDS, ∂x, Zero())
     end
+    norm_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, norm_pullback
 end
 
@@ -280,12 +282,13 @@ end
 function frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p)
     # TODO: accumulate `y` in parallel to `∂y`
     y = LinearAlgebra.normp(x, p)
+    Δx isa AbstractZero && Δp isa AbstractZero && return (y, Zero())
     x_Δx = zip(x, Δx isa AbstractZero ? Iterators.repeated(Δx) : Δx)
     # non-differentiable wrt p at p ∈ {0, Inf}. use subgradient convention
     ∂logp = ifelse(iszero(p) || isinf(p), zero(Δp) / one(p), Δp / p)
     ((xi, Δxi), i) = iterate(x_Δx)::Tuple
     ∂y = zero(real(Δxi)) / one(y) - (∂logp isa AbstractZero ? zero(y) : y * log(y) * ∂logp)
-    iszero(y) || isinf(y) && return (y, zero(∂y))
+    y > 0 && isfinite(y) || return (y, zero(∂y))
     while true
         a = norm(xi)
         if !iszero(a)
@@ -307,27 +310,30 @@ function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray, p)
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
         return (NO_FIELDS, ∂x, ∂p)
     end
+    normp_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, normp_pullback
 end
 
 function _normp_back_x(x, p, y, Δy)
     Δu = real(Δy)
     ∂x = broadcast(x) do xi
-        a = abs(xi)
-        signxi = xi isa Real ? sign(xi) : xi / a
-        ∂xi = signxi * (a / y)^(p - 1) * Δu
+        r = xi / y
+        a = abs(r)
+        ∂xi = r * a^(p - 2) * Δu
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
     end
     return ∂x
 end
 
 function _normp_back_p(x, p, y, Δy)
+    y > 0 && isfinite(y) && !iszero(p) || return zero(real(Δy)) * zero(y) / one(p)
     s = sum(x) do xi
         a = norm(xi)
-        return (a / y)^p * log(ifelse(iszero(a), one(a), a))
+        c = (a / y)^(p - 1) * a * log(a)
+        return ifelse(isfinite(c), c, zero(c))
     end
-    ∂p = real(Δy) * y * (s - log(y)) / p
-    return ifelse(isfinite(∂p), ∂p, zero(∂p))
+    ∂p = real(Δy) * (s - y * log(y)) / p
+    return ∂p
 end
 
 #####
@@ -364,25 +370,27 @@ end
 function rrule(::typeof(LinearAlgebra.normMinusInf), x::AbstractArray)
     y = LinearAlgebra.normMinusInf(x)
     normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
+    normMinusInf_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, normMinusInf_pullback
 end
 
 function rrule(::typeof(LinearAlgebra.normInf), x::AbstractArray)
     y = LinearAlgebra.normInf(x)
     normInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
+    normInf_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, normInf_pullback
 end
 
 function _normInf_back(x, y, Δy)
+    Δu = real(Δy)
+    T = typeof(zero(float(eltype(x))) * zero(Δu))
+    ∂x = fill!(similar(x, T), 0)
     # if multiple `xi`s have the exact same norm, then they must have been identically
     # produced, e.g. with `fill`. So we set only one to be non-zero.
     # we choose last index to match the `frule`.
     yind = findlast(xi -> norm(xi) == y, x)
     yind === nothing && throw(ArgumentError("y is not the correct norm of x"))
-    Δu = real(Δy)
-    ∂x = broadcast(enumerate(x)) do (i, xi)
-        i == yind ? sign(xi) * Δu : zero(float(xi)) * zero(Δu)
-    end
+    @inbounds ∂x[yind] = sign(x[yind]) * Δu
     return ∂x
 end
 
@@ -397,7 +405,8 @@ function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
     a = float(norm(xi))
     T = typeof(a)
     y::promote_type(Float64, T) = a
-    ∂a = _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
+    signxi = xi isa Real ? sign(xi) : xi / ifelse(iszero(a), one(a), a)
+    ∂a = _realconjtimes(signxi, Δxi)
     T∂ = typeof(zero(∂a))
     ∂y::promote_type(Float64, T∂) = ∂a
     while true
@@ -406,7 +415,8 @@ function frule((_, Δx), ::typeof(LinearAlgebra.norm1), x)
         ((xi, Δxi), i) = state
         a = norm(xi)
         y += a
-        ∂y += _realconjtimes(xi isa Real ? sign(xi) : xi / a, Δxi)
+        signxi = xi isa Real ? sign(xi) : xi / ifelse(iszero(a), one(a), a)
+        ∂y += _realconjtimes(signxi, Δxi)
     end
     return convert(T, y), convert(T∂, ∂y)
 end
@@ -414,6 +424,7 @@ end
 function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
     y = LinearAlgebra.norm1(x)
     norm1_pullback(Δy) = (NO_FIELDS, _norm1_back(x, y, Δy))
+    norm1_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, norm1_pullback
 end
 
@@ -426,17 +437,15 @@ _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 function frule((_, Δx), ::typeof(LinearAlgebra.norm2), x)
     y = LinearAlgebra.norm2(x)
     # since dot product is efficient for pushforward, we don't accumulate in parallel
-    n = ifelse(iszero(y), zero(y), y)
-    ∂y = Δx isa AbstractZero ? Zero() : real(dot(x, Δx)) / n
+    ∂y = Δx isa AbstractZero ? Zero() : real(dot(x, Δx)) * pinv(y)
     return y, ∂y
 end
 
 function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray)
     y = LinearAlgebra.norm2(x)
     norm2_pullback(Δy) = (NO_FIELDS, _norm2_back(x, y, Δy))
+    norm2_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, norm2_pullback
 end
 
-function _norm2_back(x, y, Δy)
-    return _realconjtimes.(x, real(Δy) * pinv(y))
-end
+_norm2_back(x, y, Δy) = x .* (real(Δy) * pinv(y))
