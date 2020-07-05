@@ -236,27 +236,32 @@ end
 
 function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray, p)
     y = LinearAlgebra.normp(x, p)
-    normp_pullback(Δy) = (NO_FIELDS, _normp_back(x, p, y, Δy)...)
+    function normp_pullback(Δy)
+        ∂x = @thunk _normp_back_x(x, p, y, Δy)
+        ∂p = @thunk _normp_back_p(x, p, y, Δy)
+        return (NO_FIELDS, ∂x, ∂p)
+    end
     return y, normp_pullback
 end
 
-function _normp_back(x, p, y, Δy)
-    Δy = real(Δy)
-    ∂x = @thunk broadcast(x) do xi
+function _normp_back_x(x, p, y, Δy)
+    Δu = real(Δy)
+    ∂x = broadcast(x) do xi
         a = abs(xi)
         signxi = xi isa Real ? sign(xi) : xi / a
-        ∂xi = signxi * (a / y)^(p - 1) * Δy
+        ∂xi = signxi * (a / y)^(p - 1) * Δu
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
     end
-    ∂p = Thunk() do
-        s = sum(x) do xi
-            a = norm(xi)
-            return (a / y)^p * log(ifelse(iszero(a), one(a), a))
-        end
-        p̄ = y * (s - log(y)) / p
-        return ifelse(isfinite(p̄), p̄, zero(p̄))
+    return ∂x
+end
+
+function _normp_back_p(x, p, y, Δy)
+    s = sum(x) do xi
+        a = norm(xi)
+        return (a / y)^p * log(ifelse(iszero(a), one(a), a))
     end
-    return ∂x, ∂p
+    ∂p = real(Δy) * y * (s - log(y)) / p
+    return ifelse(isfinite(∂p), ∂p, zero(∂p))
 end
 
 #####
