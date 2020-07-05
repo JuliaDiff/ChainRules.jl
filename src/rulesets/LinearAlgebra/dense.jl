@@ -209,7 +209,7 @@ end
 frule((Δself, Δx), ::typeof(norm), x) = frule((Δself, Δx, Zero()), norm, x, 2)
 function frule((_, Δx), ::typeof(norm), x::Number, p::Real=2)
     y = norm(x, p)
-    ∂y = if iszero(p) || iszero(Δx)
+    ∂y = if iszero(Δx) || iszero(p)
         zero(real(x)) * zero(real(Δx))
     else
         signx = x isa Real ? sign(x) : x * pinv(y)
@@ -257,14 +257,20 @@ function rrule(::typeof(norm), x::AbstractArray)
     end
     return y, norm_pullback
 end
-
 function rrule(::typeof(norm), x::Real, p::Real=2)
-    function norm_pullback(ȳ)
-        ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
-        (NO_FIELDS, ∂x, ∂p)
+    y = norm(x, p)
+    function norm_pullback(Δy)
+        ∂x = Thunk() do
+            if iszero(Δx) || iszero(p)
+                zero(x) * zero(real(Δy))
+            else
+                signx = x isa Real ? sign(x) : x * pinv(y)
+                signx * real(Δy)
+            end
+        end
+        return (NO_FIELDS, ∂x, Zero())
     end
-    return norm(x, p), norm_pullback
+    return y, norm_pullback
 end
 
 #####
