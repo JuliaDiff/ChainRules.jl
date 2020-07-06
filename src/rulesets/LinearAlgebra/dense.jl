@@ -119,6 +119,101 @@ function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real}
 end
 
 #####
+##### `pinv`
+#####
+
+@scalar_rule pinv(x) -(Ω ^ 2)
+
+function frule(
+    (_, Δx),
+    ::typeof(pinv),
+    x::AbstractVector{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    ∂y′ = sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y)
+    ∂y = y isa Transpose ? transpose(∂y′) : adjoint(∂y′)
+    return y, ∂y
+end
+
+function frule(
+    (_, Δx),
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    ∂y = sum(abs2, y) .* vec(Δx') .- 2real(Δx * y) .* y
+    return y, ∂y
+end
+
+# Formula for derivative adapted from Eq 4.12 of
+# Golub, Gene H., and Victor Pereyra. "The Differentiation of Pseudo-Inverses and Nonlinear
+# Least Squares Problems Whose Variables Separate."
+# SIAM Journal on Numerical Analysis 10(2). (1973). 413-432. doi: 10.1137/0710036
+function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    m, n = size(A)
+    # contract over the largest dimension
+    if m ≤ n
+        ∂Y = -Y * (ΔA * Y)
+        _add!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y)) # (I - Y A) ΔA' Y' Y
+        _add!(∂Y, Y * (Y' * ΔA') * (I - A * Y)) # Y Y' ΔA' (I - A Y)
+    else
+        ∂Y = -(Y * ΔA) * Y
+        _add!(∂Y, (I - Y * A) * (ΔA' * Y') * Y) # (I - Y A) ΔA' Y' Y
+        _add!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y)) # Y Y' ΔA' (I - A Y)
+    end
+    return Y, ∂Y
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::AbstractVector{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    function pinv_pullback(Δy)
+        ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
+        return (NO_FIELDS, ∂x, Zero())
+    end
+    return y, pinv_pullback
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    function pinv_pullback(Δy)
+        ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
+        ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
+        return (NO_FIELDS, ∂x, Zero())
+    end
+    return y, pinv_pullback
+end
+
+function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    function pinv_pullback(ΔY)
+        m, n = size(A)
+        # contract over the largest dimension
+        if m ≤ n
+            ∂A = (Y' * -ΔY) * Y'
+            _add!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
+            _add!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
+        elseif m > n
+            ∂A = Y' * (-ΔY * Y')
+            _add!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
+            _add!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
+        end
+        return (NO_FIELDS, ∂A)
+    end
+    return Y, pinv_pullback
+end
+
+#####
 ##### `/`
 #####
 

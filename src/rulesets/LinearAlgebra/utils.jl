@@ -27,10 +27,12 @@ function _eyesubx!(X::AbstractMatrix)
 end
 
 # X + Y, overwrites X if possible
-function _add!(X::AbstractVecOrMat{T}, Y::AbstractVecOrMat{T}) where T<:Real
+function _add!(X::AbstractVecOrMat, Y::AbstractVecOrMat)
     @inbounds for i = eachindex(X, Y)
         X[i] += Y[i]
     end
     return X
 end
 _add!(X, Y) = X + Y  # handles all `AbstractZero` overloads
+
+_extract_imag(x) = complex(0, imag(x))
