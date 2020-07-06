@@ -26,5 +26,5 @@ jobs:
           repository: FluxML/Zygote.jl
           path: "Zygote.jl"
       - name: Run the tests
-        run: julia --project="Zygote.jl" -e "using Pkg; Pkg.develop('./'); Pkg.update(); Pkg.test();"
+        run: julia --project="Zygote.jl" -e "using Pkg; Pkg.develop(\"./\"); Pkg.update(); Pkg.test()"
         shell: bash
