@@ -1,6 +1,6 @@
-frule(Δargs, ::typeof(MersenneTwister), args...) = MersenneTwister(args...), Zero()
+frule(Δargs, ::Type{MersenneTwister}, args...) = MersenneTwister(args...), Zero()
 
-function rrule(::typeof(MersenneTwister), args...)
+function rrule(::Type{MersenneTwister}, args...)
     function MersenneTwister_rrule(ΔΩ)
         return (NO_FIELDS, map(_ -> Zero(), args)...)
     end
