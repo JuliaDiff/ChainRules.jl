@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        julia-version: [1.0, 1]
+        julia-version: [1.0, 1.4]
         os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
