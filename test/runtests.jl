@@ -41,6 +41,12 @@ println("Testing ChainRules.jl")
 
         print(" ")
 
+        @testset "Random" begin
+            include(joinpath("rulesets", "Random", "random.jl"))
+        end
+
+        print(" ")
+
         @testset "packages" begin
             include(joinpath("rulesets", "packages", "NaNMath.jl"))
             include(joinpath("rulesets", "packages", "SpecialFunctions.jl"))
