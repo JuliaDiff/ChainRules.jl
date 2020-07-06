@@ -14,10 +14,6 @@ using Statistics
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
 
-function rrule(T::Type{DataType}, x)
-    DataType_pullback(Δy) = error("You fail.")
-    return T(x), DataType_pullback
-end
 
 if VERSION < v"1.3.0-DEV.142"
     # In prior versions, the BLAS submodule also exported `dot`, which caused a conflict
