@@ -571,3 +571,60 @@ function _norm2_forward(x, Δx, Δp = Zero())
 end
 
 _norm2_back(x, y, Δy) = x .* (real(Δy) * pinv(y))
+
+#####
+##### `normalize`/`normalize!`
+#####
+
+function frule((_, Δx, Δp), ::typeof(normalize!), x::AbstractVector, p::Real)
+    (nrm, ∂nrm) = frule((Zero(), Δx, Δp), norm, x, p)
+    _normalize_forward!(x, nrm, Δx, ∂nrm)
+    return (x, Δx)
+end
+function frule((Δself, Δx), ::typeof(normalize!), x::AbstractVector)
+    return frule((Δself, Δx, Zero()), normalize!, x, 2)
+end
+
+function frule((_, Δx, Δp), ::typeof(normalize), x::AbstractVector, p::Real)
+    (nrm, ∂nrm) = frule((Zero(), Δx, Δp), norm, x, p)
+    T = typeof(first(x) / nrm)
+    y = copyto!(similar(x, T), x)
+    ∂y = copyto!(similar(Δx, typeof(one(T) * ∂nrm + first(Δx))), Δx)
+    _normalize_forward!(y, nrm, ∂y, ∂nrm)
+    return y, ∂y
+end
+function frule((Δself, Δx), ::typeof(normalize), x::AbstractVector)
+    return frule((Δself, Δx, Zero()), normalize, x, 2)
+end
+
+function rrule(::typeof(normalize), x::AbstractVector, p::Real)
+    nrm, inner_pullback = rrule(norm, x, p)
+    Ty = typeof(first(x) / nrm)
+    y = copyto!(similar(x, Ty), x)
+    LinearAlgebra.__normalize!(y, nrm)
+    function normalize_pullback(Δy)
+        invnrm = pinv(nrm)
+        ∂nrm = -dot(y, Δy) * pinv(nrm)
+        (_, ∂xnorm, ∂p) = inner_pullback(∂nrm)
+        ∂x = @thunk unthunk(∂xnorm) .+ Δy .* invnrm
+        return (NO_FIELDS, ∂x, ∂p)
+    end
+    return y, normalize_pullback
+end
+function rrule(::typeof(normalize), x::AbstractVector)
+    y, inner_pullback = rrule(normalize, x, 2)
+    function normalize_pullback(Δy)
+        (_, ∂x) = inner_pullback(Δy)
+        return (NO_FIELDS, ∂x)
+    end
+    return y, normalize_pullback
+end
+
+function _normalize_forward!(x, nrm, Δx, Δnrm)
+    LinearAlgebra.__normalize!(x, nrm)
+    @inbounds for i in eachindex(x, Δx)
+        Δx[i] -= x[i] * Δnrm
+    end
+    LinearAlgebra.__normalize!(Δx, nrm)
+    return x, Δx
+end
