@@ -612,9 +612,12 @@ function rrule(::typeof(normalize), x::AbstractVector, p::Real)
     return y, normalize_pullback
 end
 function rrule(::typeof(normalize), x::AbstractVector)
-    y, inner_pullback = rrule(normalize, x, 2)
+    nrm = LinearAlgebra.norm2(x)
+    Ty = typeof(first(x) / nrm)
+    y = copyto!(similar(x, Ty), x)
+    LinearAlgebra.__normalize!(y, nrm)
     function normalize_pullback(Δy)
-        (_, ∂x) = inner_pullback(Δy)
+        ∂x = (Δy .- real(dot(y, Δy)) .* y) .* pinv(nrm)
         return (NO_FIELDS, ∂x)
     end
     return y, normalize_pullback
