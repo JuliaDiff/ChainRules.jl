@@ -363,7 +363,7 @@ function rrule(
     return y, norm_pullback
 end
 function rrule(::typeof(norm), x::AbstractArray)
-    y, inner_pullback = rrule(LinearAlgebra.norm2, x)
+    y, inner_pullback = rrule(norm, x, 2)
     function norm_pullback(Δy)
         (∂self, ∂x) = inner_pullback(Δy)
         return (∂self, ∂x)
