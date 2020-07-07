@@ -312,6 +312,15 @@ function frule((_, Δx), ::typeof(norm), x::Number, p::Real=2)
     end
     return y, ∂y
 end
+function frule(
+    (Δself, Δx, Δp),
+    ::typeof(norm),
+    x::Union{LinearAlgebra.TransposeAbsVec,LinearAlgebra.AdjointAbsVec},
+    p::Real,
+)
+    fdual = x isa Transpose ? transpose : adjoint
+    return frule((Δself, vec(fdual(Δx)), Δp), norm, parent(x), p)
+end
 
 function rrule(::typeof(norm), x::AbstractArray, p::Real)
     y = LinearAlgebra.norm(x, p)
@@ -337,6 +346,20 @@ function rrule(::typeof(norm), x::AbstractArray, p::Real)
         return (NO_FIELDS, ∂x, ∂p)
     end
     norm_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
+    return y, norm_pullback
+end
+function rrule(
+    ::typeof(norm),
+    x::Union{LinearAlgebra.TransposeAbsVec,LinearAlgebra.AdjointAbsVec},
+    p::Real,
+)
+    y, inner_pullback = rrule(norm, parent(x), p)
+    function norm_pullback(Δy)
+        (∂self, ∂x′, ∂p) = inner_pullback(Δy)
+        fdual = x isa Transpose ? transpose : adjoint
+        ∂x = @thunk fdual(unthunk(∂x′))
+        return (∂self, ∂x, ∂p)
+    end
     return y, norm_pullback
 end
 function rrule(::typeof(norm), x::AbstractArray)
