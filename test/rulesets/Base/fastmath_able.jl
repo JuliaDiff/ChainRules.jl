@@ -140,10 +140,14 @@ const FASTABLE_AST = quote
                 frule_test(f, (x, Δx), (y, Δy))
                 rrule_test(f, Δz, (x, x̄), (y, ȳ))    
             end   
+
             # issue #233
             if T <: Real
                 @test frule((Zero(), Δx, Δy), f, x, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
+                @test extern.((∂x, ∂y)) isa Tuple{T, T}
+                @test frule((Zero(), Δx, Δy), f, x, 1) isa Tuple{T, T}
+                _, ∂x, ∂y = rrule(f, x, 1)[2](Δz)
                 @test extern.((∂x, ∂y)) isa Tuple{T, T}
             end
         end

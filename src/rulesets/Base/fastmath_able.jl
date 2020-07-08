@@ -113,16 +113,16 @@ let
         function frule(
             (_, Δx, Δy),
             ::typeof(hypot),
-            x::T,
-            y::T,
-        ) where {T<:Union{Real,Complex}}
+            x::T1,
+            y::T2,
+        ) where {T1<:Union{Real,Complex}, T2<:Union{Real,Complex}}
             Ω = hypot(x, y)
             n = ifelse(iszero(Ω), one(Ω), Ω)
             ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(hypot), x::T, y::T) where {T<:Union{Real,Complex}}
+        function rrule(::typeof(hypot), x::T1, y::T2) where {T1<:Union{Real,Complex}, T2<:Union{Real,Complex}}
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
