@@ -139,6 +139,34 @@ const FASTABLE_AST = quote
             frule_test(f, (x, Δx), (y, Δy))
             rrule_test(f, Δz, (x, x̄), (y, ȳ))
         end
+
+        @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
+            # for real x and n, x must be >0
+            x = T <: Real ? 15rand() : 15randn(ComplexF64)
+            Δx, x̄ = 10rand(T, 2)
+            y, Δy, ȳ = rand(T, 3)
+            Δz = rand(T)
+
+            frule_test(^, (x, Δx), (y, Δy))
+            rrule_test(^, Δz, (x, x̄), (y, ȳ))
+
+            T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
+                # finite differences doesn't work for x < 0, so we check manually
+                x, y = -10rand(T), 3
+                Δx = randn(T)
+                Δy = randn(T)
+                Δz = randn(T)
+
+                @test frule((Zero(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
+                @test frule((Zero(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
+                _, ∂x, ∂y = rrule(^, x, y)[2](Δz)
+                @test ∂x ≈ Δz * y * x^(y - 1)
+                @test ∂y ≈ 0
+                _, ∂x, ∂y = rrule(^, zero(x), y)[2](Δz)
+                @test ∂x ≈ 0
+                @test ∂y ≈ 0
+            end
+        end
     end
 
     @testset "sign" begin
