@@ -138,7 +138,7 @@ end
     ),
     (!(islow | ishigh), islow, ishigh),
 )
-@scalar_rule x \ y (-((y / x) / x), inv(x))
+@scalar_rule x \ y (-(Ω / x), one(Ω) / x)
 
 function frule((_, ẏ), ::typeof(identity), x)
     return (x, ẏ)
