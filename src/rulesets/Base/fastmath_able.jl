@@ -133,7 +133,7 @@ let
 
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
-        @scalar_rule x / y (one(Ω) / y, -(Ω / y))
+        @scalar_rule x / y (one(x) / y, -(Ω / y))
         #log(complex(x)) is required so it gives correct complex answer for x<0
         @scalar_rule(x ^ y,
             (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
@@ -141,7 +141,7 @@ let
         # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
         # is undefined, so we adopt subgradient convention and set derivative to 0.
         @scalar_rule(x::Real ^ y::Real,
-            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(convert(typeof(Ω), ifelse(x ≤ 0, one(x), x)))),
+            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x)))),
         )
         @scalar_rule(
             rem(x, y),
