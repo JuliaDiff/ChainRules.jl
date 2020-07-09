@@ -131,7 +131,7 @@ const FASTABLE_AST = quote
             rrule_test(f, Δz, (x, x̄), (y, ȳ))
         end
 
-        @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float32, Float64, ComplexF64)
+        @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
             x, Δx, x̄ = 10rand(T, 3)
             y, Δy, ȳ = rand(T, 3)
             Δz = randn(typeof(f(x, y)))
