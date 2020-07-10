@@ -137,7 +137,29 @@ const FASTABLE_AST = quote
             Δz = randn(typeof(f(x, y)))
 
             frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            rrule_test(f, Δz, (x, x̄), (y, ȳ))    
+        end
+
+        @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
+            x, Δx, x̄ = 10rand(T, 3)
+            y, Δy, ȳ = rand(T, 3)
+            @assert T == typeof(f(x, y))
+            Δz = randn(typeof(f(x, y)))
+
+            @test frule((Zero(), Δx, Δy), f, x, y) isa Tuple{T, T}
+            _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
+            @test extern.((∂x, ∂y)) isa Tuple{T, T}
+
+            if f != hypot
+                # Issue #233                
+                @test frule((Zero(), Δx, Δy), f, x, 2) isa Tuple{T, T}
+                _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
+                @test extern.((∂x, ∂y)) isa Tuple{T, T}
+                
+                @test frule((Zero(), Δx, Δy), f, 2, y) isa Tuple{T, T}
+                _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
+                @test extern.((∂x, ∂y)) isa Tuple{T, T}
+            end
         end
 
         @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
