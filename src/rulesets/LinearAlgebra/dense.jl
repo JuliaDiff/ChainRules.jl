@@ -57,11 +57,11 @@ end
 ##### `det`
 #####
 
-function frule((_, ẋ), ::typeof(det), x::Union{Number, AbstractMatrix})
+function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
-    return Ω, Ω * tr(inv(x) * ẋ)
+    return Ω, Ω * tr(x \ Δx)
 end
 
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
