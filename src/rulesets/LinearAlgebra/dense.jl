@@ -80,13 +80,14 @@ end
 
 function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
-    return Ω, tr(inv(x) * Δx)
+    return Ω, tr(x \ Δx)
 end
 
 function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
-        return (NO_FIELDS, ΔΩ * inv(x)')
+        ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, logdet_pullback
 end
