@@ -67,7 +67,8 @@ end
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        return NO_FIELDS, Ω * ΔΩ * inv(x)'
+        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, det_pullback
 end
