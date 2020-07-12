@@ -63,6 +63,7 @@ function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     # way to compute this trace without during the full compution within
     return Ω, Ω * tr(x \ Δx)
 end
+frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
