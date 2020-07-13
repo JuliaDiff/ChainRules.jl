@@ -21,14 +21,14 @@ end
 
 function rrule(::typeof(diag), A::AbstractMatrix)
     function diag_pullback(ȳ)
-        return (NO_FIELDS, @thunk(Diagonal(ȳ)))
+        return (NO_FIELDS, Diagonal(ȳ))
     end
     return diag(A), diag_pullback
 end
 if VERSION ≥ v"1.3"
     function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
         function diag_pullback(ȳ)
-            return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+            return (NO_FIELDS, diagm(size(A)..., k => ȳ), DoesNotExist())
         end
         return diag(A, k), diag_pullback
     end
@@ -48,11 +48,9 @@ function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
 end
 
 function _diagm_back(p, ȳ)
-    return Thunk() do
-        k, v = p
-        d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
-        return Composite{typeof(p)}(second = d)
-    end
+    k, v = p
+    d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
+    return Composite{typeof(p)}(second = d)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
@@ -73,7 +71,7 @@ end
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     function HermOrSym_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(_symherm_back(T, ΔΩ, Ω.uplo)), DoesNotExist())
+        return (NO_FIELDS, _symherm_back(T, ΔΩ, Ω.uplo), DoesNotExist())
     end
     return Ω, HermOrSym_pullback
 end
@@ -149,28 +147,28 @@ end
 # ✖️✖️✖️TODO: Deal with complex-valued arrays as well
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real})
     function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+        return (NO_FIELDS, adjoint(ȳ))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real})
     function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+        return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
     function adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+        return (NO_FIELDS, adjoint(ȳ))
     end
     return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
     function adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+        return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return adjoint(A), adjoint_pullback
 end
@@ -181,28 +179,28 @@ end
 
 function rrule(::Type{<:Transpose}, A::AbstractMatrix)
     function Transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk transpose(ȳ))
+        return (NO_FIELDS, transpose(ȳ))
     end
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::Type{<:Transpose}, A::AbstractVector)
     function Transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+        return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractMatrix)
     function transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk transpose(ȳ))
+        return (NO_FIELDS, transpose(ȳ))
     end
     return transpose(A), transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractVector)
     function transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+        return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return transpose(A), transpose_pullback
 end
@@ -213,40 +211,40 @@ end
 
 function rrule(::Type{<:UpperTriangular}, A::AbstractMatrix)
     function UpperTriangular_pullback(ȳ)
-        return (NO_FIELDS, @thunk Matrix(ȳ))
+        return (NO_FIELDS, Matrix(ȳ))
     end
     return UpperTriangular(A), UpperTriangular_pullback
 end
 
 function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
     function LowerTriangular_pullback(ȳ)
-        return (NO_FIELDS, @thunk Matrix(ȳ))
+        return (NO_FIELDS, Matrix(ȳ))
     end
     return LowerTriangular(A), LowerTriangular_pullback
 end
 
 function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, @thunk(triu(ȳ, k)), DoesNotExist())
+        return (NO_FIELDS, triu(ȳ, k), DoesNotExist())
     end
     return triu(A, k), triu_pullback
 end
 function rrule(::typeof(triu), A::AbstractMatrix)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, @thunk triu(ȳ))
+        return (NO_FIELDS, triu(ȳ))
     end
     return triu(A), triu_pullback
 end
 
 function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, @thunk(tril(ȳ, k)), DoesNotExist())
+        return (NO_FIELDS, tril(ȳ, k), DoesNotExist())
     end
     return tril(A, k), tril_pullback
 end
 function rrule(::typeof(tril), A::AbstractMatrix)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, @thunk tril(ȳ))
+        return (NO_FIELDS, tril(ȳ))
     end
     return tril(A), tril_pullback
 end
