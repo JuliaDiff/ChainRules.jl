@@ -12,10 +12,8 @@ function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
     y_sum, sum_pullback = rrule(sum, x; dims=dims)
     n = _denom(x, dims)
     function mean_pullback(ȳ)
-        ∂x = Thunk() do
-            _, ∂sum_x = sum_pullback(ȳ)
-            extern(∂sum_x) / n
-        end
+        _, ∂sum_x = sum_pullback(ȳ)
+        ∂x = extern(∂sum_x) / n
         return (NO_FIELDS, ∂x)
     end
     return y_sum / n, mean_pullback

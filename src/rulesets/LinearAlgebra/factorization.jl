@@ -8,7 +8,7 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)
-        ∂X = @thunk(svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V))
+        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
@@ -73,9 +73,9 @@ function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
     F = cholesky(X)
     function cholesky_pullback(Ȳ::Composite)
         ∂X = if F.uplo === 'U'
-            @thunk(chol_blocked_rev(Ȳ.U, F.U, 25, true))
+            chol_blocked_rev(Ȳ.U, F.U, 25, true)
         else
-            @thunk(chol_blocked_rev(Ȳ.L, F.L, 25, false))
+            chol_blocked_rev(Ȳ.L, F.L, 25, false)
         end
         return (NO_FIELDS, ∂X)
     end
@@ -85,7 +85,7 @@ end
 function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Cholesky
     function getproperty_cholesky_pullback(Ȳ)
         C = Composite{T}
-        ∂F = @thunk if x === :U
+        ∂F = if x === :U
             if F.uplo === 'U'
                 C(U=UpperTriangular(Ȳ),)
             else
