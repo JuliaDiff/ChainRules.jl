@@ -285,7 +285,7 @@ end
 function frule((_, Δx, Δp), ::typeof(norm), x, p::Real)
     return if isempty(x)
         z = float(norm(zero(eltype(x))))
-        z, zero(z * zero(Δp) + z * zero(Δx))
+        z, zero(z * zero(Δp) + z * zero(eltype(Δx)))
     elseif p == 2
         _norm2_forward(x, Δx, Δp)
     elseif p == 1
@@ -294,7 +294,7 @@ function frule((_, Δx, Δp), ::typeof(norm), x, p::Real)
         _normInf_forward(x, Δx, Δp; fnorm = LinearAlgebra.normInf)
     elseif p == 0
         z = typeof(float(norm(first(x))))(count(!iszero, x))
-        z, zero(z * zero(Δp) + z * zero(Δx))
+        z, zero(z * zero(Δp) + z * zero(first(Δx)))
     elseif p == -Inf
         _normInf_forward(x, Δx, Δp; fnorm = LinearAlgebra.normMinusInf)
     else
