@@ -4,14 +4,14 @@
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
     function reshape_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(reshape(Ȳ, dims)), DoesNotExist())
+        return (NO_FIELDS, reshape(Ȳ, dims), DoesNotExist())
     end
     return reshape(A, dims), reshape_pullback
 end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
     function reshape_pullback(Ȳ)
-        ∂A = @thunk(reshape(Ȳ, dims))
+        ∂A = reshape(Ȳ, dims)
         return (NO_FIELDS, ∂A, fill(DoesNotExist(), length(dims))...)
     end
     return reshape(A, dims...), reshape_pullback
@@ -63,14 +63,14 @@ end
 
 function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(sum(Ȳ)), DoesNotExist())
+        return (NO_FIELDS, sum(Ȳ), DoesNotExist())
     end
     return fill(value, dims), fill_pullback
 end
 
 function rrule(::typeof(fill), value::Any, dims::Int...)
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(sum(Ȳ)), ntuple(_->DoesNotExist(), length(dims))...)
+        return (NO_FIELDS, sum(Ȳ), ntuple(_->DoesNotExist(), length(dims))...)
     end
     return fill(value, dims), fill_pullback
 end

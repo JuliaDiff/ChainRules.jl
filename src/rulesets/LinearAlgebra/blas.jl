@@ -90,7 +90,7 @@ function rrule(::typeof(BLAS.asum), n, X, incx)
     function asum_pullback(ΔΩ)
         # BLAS.scal! requires s has the same eltype as X
         s = eltype(X)(real(ΔΩ))
-        ∂X = @thunk scal!(n, s, blascopy!(n, _signcomp.(X), incx, _zeros(X), incx), incx)
+        ∂X = scal!(n, s, blascopy!(n, _signcomp.(X), incx, _zeros(X), incx), incx)
         return (NO_FIELDS, DoesNotExist(), ∂X, DoesNotExist())
     end
     return Ω, asum_pullback
