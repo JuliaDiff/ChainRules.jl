@@ -99,10 +99,9 @@ end
 function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
     Ω = logabsdet(x)
     (y, signy) = Ω
-    ∂detx = tr(x \ Δx)
-    (∂y, b) = reim(∂detx)
-    signy_r, signy_i = reim(signy)
-    ∂signy = complex(-signy_i * b, signy_r * b) # signy * b * im
+    b = tr(x \ Δx)
+    ∂y = real(∂detx)
+    ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
     ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
     return Ω, ∂Ω
 end
@@ -112,8 +111,10 @@ function rrule(::typeof(logabsdet), x::AbstractMatrix)
     function logabsdet_pullback(ΔΩ)
         (Δy, Δsigny) = ΔΩ
         (_, signy) = Ω
-        ∂logdetx = real(Δy) + im * _imagconjtimes(signy, Δsigny)
-        ∂x = ∂logdetx * inv(x)'
+        f = signy' * Δsigny
+        imagf = f - real(f)
+        g = real(Δy) + imagf
+        ∂x = g * inv(x)'
         return (NO_FIELDS, ∂x)
     end
     return Ω, logabsdet_pullback
