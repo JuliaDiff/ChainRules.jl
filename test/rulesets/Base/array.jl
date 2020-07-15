@@ -34,6 +34,21 @@ end
     @test dC ≈ view(H̄, :, 4:6)
 end
 
+@testset "reduce hcat" begin
+    A = randn(3, 2)
+    B = randn(3, 1)
+    C = randn(3, 3)
+    H, pullback = rrule(reduce, hcat, [A, B, C])
+    @test H == reduce(hcat, [A, B, C])
+    H̄ = randn(3, 6)
+    (ds, dh, (dA, dB, dC)) = pullback(H̄)
+    @test ds == NO_FIELDS
+    @test dh == NO_FIELDS
+    @test dA ≈ view(H̄, :, 1:2)
+    @test dB ≈ view(H̄, :, 3:3)
+    @test dC ≈ view(H̄, :, 4:6)
+end
+
 @testset "vcat" begin
     A = randn(2, 4)
     B = randn(1, 4)
@@ -43,6 +58,21 @@ end
     V̄ = randn(6, 4)
     (ds, dA, dB, dC) = pullback(V̄)
     @test ds == NO_FIELDS
+    @test dA ≈ view(V̄, 1:2, :)
+    @test dB ≈ view(V̄, 3:3, :)
+    @test dC ≈ view(V̄, 4:6, :)
+end
+
+@testset "reduce vcat" begin
+    A = randn(2, 4)
+    B = randn(1, 4)
+    C = randn(3, 4)
+    V, pullback = rrule(reduce, vcat, [A, B, C])
+    @test V == reduce(vcat, [A, B, C])
+    V̄ = randn(6, 4)
+    (ds, dv, (dA, dB, dC)) = pullback(V̄)
+    @test ds == NO_FIELDS
+    @test dv == NO_FIELDS
     @test dA ≈ view(V̄, 1:2, :)
     @test dB ≈ view(V̄, 3:3, :)
     @test dC ≈ view(V̄, 4:6, :)
