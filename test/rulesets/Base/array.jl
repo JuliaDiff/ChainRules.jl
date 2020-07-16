@@ -38,15 +38,12 @@ end
     A = randn(3, 2)
     B = randn(3, 1)
     C = randn(3, 3)
-    H, pullback = rrule(reduce, hcat, [A, B, C])
-    @test H == reduce(hcat, [A, B, C])
+    x = [A, B, C]
+    H, pullback = rrule(reduce, hcat, x)
+    @test H == reduce(hcat, x)
     H̄ = randn(3, 6)
-    (ds, dh, (dA, dB, dC)) = pullback(H̄)
-    @test ds == NO_FIELDS
-    @test dh == NO_FIELDS
-    @test dA ≈ view(H̄, :, 1:2)
-    @test dB ≈ view(H̄, :, 3:3)
-    @test dC ≈ view(H̄, :, 4:6)
+    x̄ = [rand(size(m)...) for m in x]
+    rrule_test(reduce, H̄, (hcat, nothing), (x, x̄))
 end
 
 @testset "vcat" begin
@@ -67,15 +64,12 @@ end
     A = randn(2, 4)
     B = randn(1, 4)
     C = randn(3, 4)
-    V, pullback = rrule(reduce, vcat, [A, B, C])
-    @test V == reduce(vcat, [A, B, C])
+    x = [A, B, C]
+    V, pullback = rrule(reduce, vcat, x)
+    @test V == reduce(vcat, x)
     V̄ = randn(6, 4)
-    (ds, dv, (dA, dB, dC)) = pullback(V̄)
-    @test ds == NO_FIELDS
-    @test dv == NO_FIELDS
-    @test dA ≈ view(V̄, 1:2, :)
-    @test dB ≈ view(V̄, 3:3, :)
-    @test dC ≈ view(V̄, 4:6, :)
+    x̄ = [rand(size(m)...) for m in x]
+    rrule_test(reduce, V̄, (vcat, nothing), (x, x̄))
 end
 
 @testset "fill" begin
