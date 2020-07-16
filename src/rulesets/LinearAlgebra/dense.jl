@@ -100,7 +100,7 @@ function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
     Ω = logabsdet(x)
     (y, signy) = Ω
     b = tr(x \ Δx)
-    ∂y = real(∂detx)
+    ∂y = real(b)
     ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
     ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
     return Ω, ∂Ω
