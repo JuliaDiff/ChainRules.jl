@@ -42,7 +42,7 @@ end
     H, pullback = rrule(reduce, hcat, x)
     @test H == reduce(hcat, x)
     H̄ = randn(3, 6)
-    x̄ = [rand(size(m)...) for m in x]
+    x̄ = randn.(size.(x))
     rrule_test(reduce, H̄, (hcat, nothing), (x, x̄))
 end
 
@@ -68,7 +68,7 @@ end
     V, pullback = rrule(reduce, vcat, x)
     @test V == reduce(vcat, x)
     V̄ = randn(6, 4)
-    x̄ = [rand(size(m)...) for m in x]
+    x̄ = randn.(size.(x))
     rrule_test(reduce, V̄, (vcat, nothing), (x, x̄))
 end
 
