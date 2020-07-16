@@ -34,6 +34,18 @@ end
     @test dC ≈ view(H̄, :, 4:6)
 end
 
+@testset "reduce hcat" begin
+    A = randn(3, 2)
+    B = randn(3, 1)
+    C = randn(3, 3)
+    x = [A, B, C]
+    H, pullback = rrule(reduce, hcat, x)
+    @test H == reduce(hcat, x)
+    H̄ = randn(3, 6)
+    x̄ = randn.(size.(x))
+    rrule_test(reduce, H̄, (hcat, nothing), (x, x̄))
+end
+
 @testset "vcat" begin
     A = randn(2, 4)
     B = randn(1, 4)
@@ -46,6 +58,18 @@ end
     @test dA ≈ view(V̄, 1:2, :)
     @test dB ≈ view(V̄, 3:3, :)
     @test dC ≈ view(V̄, 4:6, :)
+end
+
+@testset "reduce vcat" begin
+    A = randn(2, 4)
+    B = randn(1, 4)
+    C = randn(3, 4)
+    x = [A, B, C]
+    V, pullback = rrule(reduce, vcat, x)
+    @test V == reduce(vcat, x)
+    V̄ = randn(6, 4)
+    x̄ = randn.(size.(x))
+    rrule_test(reduce, V̄, (vcat, nothing), (x, x̄))
 end
 
 @testset "fill" begin
