@@ -47,7 +47,7 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
             pre = post - diff + 1
             return ΔY[:, pre:post]
         end
-        return (NO_FIELDS, NO_FIELDS, ∂As)
+        return (NO_FIELDS, DoesNotExist(), ∂As)
     end
     return reduce(hcat, As), reduce_hcat_pullback
 end
@@ -78,7 +78,7 @@ function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVe
             pre = post - diff + 1
             return ΔY[pre:post, :]
         end
-        return (NO_FIELDS, NO_FIELDS, ∂As)
+        return (NO_FIELDS, DoesNotExist(), ∂As)
     end
     return reduce(vcat, As), reduce_vcat_pullback
 end
