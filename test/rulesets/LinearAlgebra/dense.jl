@@ -88,17 +88,26 @@
             rrule_test(pinv, ΔY, (X, X̄))
         end
     end
-    @testset "det(::Matrix{$T})" for T in (Float64, ComplexF64)
-        N = 3
-        B = generate_well_conditioned_matrix(T, N)
-        frule_test(det, (B, randn(T, N, N)))
-        rrule_test(det, randn(T), (B, randn(T, N, N)))
+    @testset "$f" for f in (det, logdet)
+        @testset "$f(::$T)" for T in (Float64, ComplexF64)
+            b = (f === logdet && T <: Real) ? abs(randn(T)) : randn(T)
+            test_scalar(f, b)
+        end
+        @testset "$f(::Matrix{$T})" for T in (Float64, ComplexF64)
+            N = 3
+            B = generate_well_conditioned_matrix(T, N)
+            frule_test(f, (B, randn(T, N, N)))
+            rrule_test(f, randn(T), (B, randn(T, N, N)))
+        end
     end
-    @testset "logdet(::Matrix{$T})" for T in (Float64, ComplexF64)
+    @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         N = 3
-        B = generate_well_conditioned_matrix(T, N)
-        frule_test(logdet, (B, randn(T, N, N)))
-        rrule_test(logdet, randn(T), (B, randn(T, N, N)))
+        B = randn(T, N, N)
+        frule_test(logabsdet, (B, randn(T, N, N)))
+        rrule_test(logabsdet, (randn(), randn(T)), (B, randn(T, N, N)))
+        # test for opposite sign of determinant
+        frule_test(logabsdet, (-B, randn(T, N, N)))
+        rrule_test(logabsdet, (randn(), randn(T)), (-B, randn(T, N, N)))
     end
     @testset "tr" begin
         N = 4

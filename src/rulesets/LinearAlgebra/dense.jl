@@ -57,17 +57,19 @@ end
 ##### `det`
 #####
 
-function frule((_, ẋ), ::typeof(det), x::Union{Number, AbstractMatrix})
+function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
-    return Ω, Ω * tr(inv(x) * ẋ)
+    return Ω, Ω * tr(x \ Δx)
 end
+frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        return NO_FIELDS, Ω * ΔΩ * inv(x)'
+        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, det_pullback
 end
@@ -78,15 +80,44 @@ end
 
 function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
-    return Ω, tr(inv(x) * Δx)
+    return Ω, tr(x \ Δx)
 end
 
 function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
-        return (NO_FIELDS, ΔΩ * inv(x)')
+        ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, logdet_pullback
+end
+
+#####
+##### `logabsdet`
+#####
+
+function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
+    Ω = logabsdet(x)
+    (y, signy) = Ω
+    b = tr(x \ Δx)
+    ∂y = real(b)
+    ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
+    ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
+    return Ω, ∂Ω
+end
+
+function rrule(::typeof(logabsdet), x::AbstractMatrix)
+    Ω = logabsdet(x)
+    function logabsdet_pullback(ΔΩ)
+        (Δy, Δsigny) = ΔΩ
+        (_, signy) = Ω
+        f = signy' * Δsigny
+        imagf = f - real(f)
+        g = real(Δy) + imagf
+        ∂x = g * inv(x)'
+        return (NO_FIELDS, ∂x)
+    end
+    return Ω, logabsdet_pullback
 end
 
 #####
