@@ -322,7 +322,11 @@ function frule(
     return frule((Δself, vec(fdual(Δx)), Δp), norm, parent(x), p)
 end
 
-function rrule(::typeof(norm), x::AbstractArray, p::Real)
+function rrule(
+    ::typeof(norm),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    p::Real,
+)
     y = LinearAlgebra.norm(x, p)
     function norm_pullback(Δy)
         ∂x = Thunk() do
@@ -362,7 +366,10 @@ function rrule(
     end
     return y, norm_pullback
 end
-function rrule(::typeof(norm), x::AbstractArray)
+function rrule(
+    ::typeof(norm),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
     y, inner_pullback = rrule(norm, x, 2)
     function norm_pullback(Δy)
         (∂self, ∂x) = inner_pullback(Δy)
@@ -370,7 +377,7 @@ function rrule(::typeof(norm), x::AbstractArray)
     end
     return y, norm_pullback
 end
-function rrule(::typeof(norm), x, p::Real=2)
+function rrule(::typeof(norm), x::Number, p::Real=2)
     y = norm(x, p)
     function norm_pullback(Δy)
         ∂x = if iszero(Δy) || iszero(p)
@@ -391,7 +398,11 @@ end
 
 frule((_, Δx, Δp), ::typeof(LinearAlgebra.normp), x, p) = _normp_forward(x, p, Δx, Δp)
 
-function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray, p)
+function rrule(
+    ::typeof(LinearAlgebra.normp),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    p,
+)
     y = LinearAlgebra.normp(x, p)
     function normp_pullback(Δy)
         ∂x = @thunk _normp_back_x(x, p, y, Δy)
@@ -467,14 +478,20 @@ function frule((_, Δx), ::typeof(LinearAlgebra.normInf), x)
     return _normInf_forward(x, Δx; fnorm = LinearAlgebra.normInf)
 end
 
-function rrule(::typeof(LinearAlgebra.normMinusInf), x::AbstractArray)
+function rrule(
+    ::typeof(LinearAlgebra.normMinusInf),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
     y = LinearAlgebra.normMinusInf(x)
     normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
     normMinusInf_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, normMinusInf_pullback
 end
 
-function rrule(::typeof(LinearAlgebra.normInf), x::AbstractArray)
+function rrule(
+    ::typeof(LinearAlgebra.normInf),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
     y = LinearAlgebra.normInf(x)
     normInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
     normInf_pullback(::Zero) = (NO_FIELDS, Zero())
@@ -523,7 +540,10 @@ end
 
 frule((_, Δx), ::typeof(LinearAlgebra.norm1), x) = _norm1_forward(x, Δx)
 
-function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
+function rrule(
+    ::typeof(LinearAlgebra.norm1),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
     y = LinearAlgebra.norm1(x)
     norm1_pullback(Δy) = (NO_FIELDS, _norm1_back(x, y, Δy))
     norm1_pullback(::Zero) = (NO_FIELDS, Zero())
@@ -570,7 +590,10 @@ _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 
 frule((_, Δx), ::typeof(LinearAlgebra.norm2), x) = _norm2_forward(x, Δx)
 
-function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray)
+function rrule(
+    ::typeof(LinearAlgebra.norm2),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
     y = LinearAlgebra.norm2(x)
     norm2_pullback(Δy) = (NO_FIELDS, _norm2_back(x, y, Δy))
     norm2_pullback(::Zero) = (NO_FIELDS, Zero())
