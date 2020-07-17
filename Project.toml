@@ -12,7 +12,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 ChainRulesCore = "0.9.2"
-ChainRulesTestUtils = "0.4.2, 0.5"
+ChainRulesTestUtils = "0.4.3, 0.5"
 Compat = "3"
 FiniteDifferences = "0.10"
 Reexport = "0.2"

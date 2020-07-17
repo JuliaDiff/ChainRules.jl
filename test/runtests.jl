@@ -2,7 +2,7 @@ using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
-using ChainRulesTestUtils: _fdm
+using ChainRulesTestUtils: rand_tangent, _fdm
 using Compat: only
 using FiniteDifferences
 using LinearAlgebra
