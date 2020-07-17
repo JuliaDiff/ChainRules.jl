@@ -7,7 +7,7 @@ function frule((_, ẋ), ::typeof(sum), x; dims=:)
 end
 
 function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
-    y = sum(sum, x; dims=dims)
+    y = sum(x; dims=dims)
     function sum_pullback(ȳ)
         # broadcasting the two works out the size no-matter `dims`
         x̄ = broadcast(x, ȳ) do xi, ȳi

@@ -39,6 +39,19 @@ function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
     return hcat(A, Bs...), hcat_pullback
 end
 
+function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    function reduce_hcat_pullback(ΔY)
+        sizes = size.(As, 2)
+        cumsizes = cumsum(sizes)
+        ∂As = map(cumsizes, sizes) do post, diff
+            pre = post - diff + 1
+            return ΔY[:, pre:post]
+        end
+        return (NO_FIELDS, DoesNotExist(), ∂As)
+    end
+    return reduce(hcat, As), reduce_hcat_pullback
+end
+
 #####
 ##### `vcat`
 #####
@@ -55,6 +68,19 @@ function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
         return (NO_FIELDS, ∂A, ∂Bs...)
     end
     return vcat(A, Bs...), vcat_pullback
+end
+
+function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
+    function reduce_vcat_pullback(ΔY)
+        sizes = size.(As, 1)
+        cumsizes = cumsum(sizes)
+        ∂As = map(cumsizes, sizes) do post, diff
+            pre = post - diff + 1
+            return ΔY[pre:post, :]
+        end
+        return (NO_FIELDS, DoesNotExist(), ∂As)
+    end
+    return reduce(vcat, As), reduce_vcat_pullback
 end
 
 #####
