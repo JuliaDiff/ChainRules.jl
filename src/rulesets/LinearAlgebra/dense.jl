@@ -366,20 +366,18 @@ function rrule(::typeof(norm), x::AbstractArray)
     y, inner_pullback = rrule(norm, x, 2)
     function norm_pullback(Δy)
         (∂self, ∂x) = inner_pullback(Δy)
-        return (∂self, ∂x)
+        return (∂self, unthunk(∂x))
     end
     return y, norm_pullback
 end
 function rrule(::typeof(norm), x, p::Real=2)
     y = norm(x, p)
     function norm_pullback(Δy)
-        ∂x = Thunk() do
-            if iszero(Δy) || iszero(p)
-                zero(x) * zero(real(Δy))
-            else
-                signx = x isa Real ? sign(x) : x * pinv(y)
-                signx * real(Δy)
-            end
+        ∂x = if iszero(Δy) || iszero(p)
+            zero(x) * zero(real(Δy))
+        else
+            signx = x isa Real ? sign(x) : x * pinv(y)
+            signx * real(Δy)
         end
         return (NO_FIELDS, ∂x, Zero())
     end
