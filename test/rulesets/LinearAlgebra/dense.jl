@@ -169,4 +169,36 @@
             rrule_test(norm, ȳ, (A, randn(dims...)), (p, randn()))
         end
     end
+    @testset "$f with p=$p" for f in (normalize, normalize!), T in (Float64, ComplexF64),
+        p in ((), 1.0, 2.0, -Inf, Inf, 1.5) # skip p=0, since FD is unstable
+
+        n = 3
+        @testset "frule" begin
+            x = randn(T, n)
+            ẋ = rand_tangent(x)
+            ṗ = rand_tangent(p)
+            pargs = isempty(p) ? () : ((p, ṗ),)
+            y = f(copy(x), p...)
+            # `frule_test` doesn't handle mutating functions yet
+            xcopy = copy(x)
+            ẋcopy = copy(ẋ)
+            (y_fwd, ẏ_fwd) = frule((Zero(), ẋcopy, ṗ), f, xcopy, p...)
+            if f === normalize!
+                @test y_fwd === xcopy
+                @test ẏ_fwd === ẋcopy
+            end
+            @test y_fwd ≈ y
+            ẏ_fd = jvp(_fdm, (x, p...) -> f(copy(x), p...), (x, ẋ), pargs...)
+            @test ẏ_fwd ≈ ẏ_fd
+        end
+        f === normalize && @testset "rrule" begin
+            x = randn(T, n)
+            y = f(copy(x), p...)
+            x̄ = rand_tangent(x)
+            ȳ = rand_tangent(y)
+            p̄ = rand_tangent(p)
+            pargs = isempty(p) ? () : ((p, p̄),)
+            rrule_test(f, ȳ, (x, x̄), pargs...)
+        end
+    end
 end
