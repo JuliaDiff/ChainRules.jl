@@ -21,14 +21,14 @@ end
 
 function rrule(::typeof(diag), A::AbstractMatrix)
     function diag_pullback(ȳ)
-        return (NO_FIELDS, @thunk(Diagonal(ȳ)))
+        return (NO_FIELDS, Diagonal(ȳ))
     end
     return diag(A), diag_pullback
 end
 if VERSION ≥ v"1.3"
     function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
         function diag_pullback(ȳ)
-            return (NO_FIELDS, @thunk(diagm(size(A)..., k => ȳ)), DoesNotExist())
+            return (NO_FIELDS, diagm(size(A)..., k => ȳ), DoesNotExist())
         end
         return diag(A, k), diag_pullback
     end
@@ -48,11 +48,9 @@ function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
 end
 
 function _diagm_back(p, ȳ)
-    return Thunk() do
-        k, v = p
-        d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
-        return Composite{typeof(p)}(second = d)
-    end
+    k, v = p
+    d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
+    return Composite{typeof(p)}(second = d)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
@@ -63,18 +61,84 @@ function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
 end
 
 #####
-##### `Symmetric`
+##### `Symmetric`/`Hermitian`
 #####
 
-function rrule(::Type{<:Symmetric}, A::AbstractMatrix)
-    function Symmetric_pullback(ȳ)
-        return (NO_FIELDS, @thunk(_symmetric_back(ȳ)))
-    end
-    return Symmetric(A), Symmetric_pullback
+function frule((_, ΔA, _), T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
+    return T(A, uplo), T(ΔA, uplo)
 end
 
-_symmetric_back(ΔΩ) = UpperTriangular(ΔΩ) + transpose(LowerTriangular(ΔΩ)) - Diagonal(ΔΩ)
-_symmetric_back(ΔΩ::Union{Diagonal,UpperTriangular}) = ΔΩ
+function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
+    Ω = T(A, uplo)
+    function HermOrSym_pullback(ΔΩ)
+        return (NO_FIELDS, _symherm_back(T, ΔΩ, Ω.uplo), DoesNotExist())
+    end
+    return Ω, HermOrSym_pullback
+end
+
+function frule((_, ΔA), TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
+    return TM(A), TM(_symherm_forward(A, ΔA))
+end
+function frule((_, ΔA), ::Type{Array}, A::LinearAlgebra.HermOrSym)
+    return Array(A), Array(_symherm_forward(A, ΔA))
+end
+
+function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
+    function Matrix_pullback(ΔΩ)
+        TA = _symhermtype(A)
+        T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
+        uplo = A.uplo
+        ∂A = T∂A(_symherm_back(A, ΔΩ, uplo), uplo)
+        return NO_FIELDS, ∂A
+    end
+    return TM(A), Matrix_pullback
+end
+rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
+
+# Get type (Symmetric or Hermitian) from type or matrix
+_symhermtype(::Type{<:Symmetric}) = Symmetric
+_symhermtype(::Type{<:Hermitian}) = Hermitian
+_symhermtype(A) = _symhermtype(typeof(A))
+
+# for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
+function _symherm_forward(A, ΔA)
+    TA = _symhermtype(A)
+    return if ΔA isa TA
+        ΔA
+    else
+        TA{eltype(ΔA),typeof(ΔA)}(ΔA, A.uplo)
+    end
+end
+
+# for Ω = HermOrSym(A, uplo), pull back ΔΩ to get ∂A
+_symherm_back(::Type{<:Symmetric}, ΔΩ, uplo) = _symmetric_back(ΔΩ, uplo)
+function _symherm_back(::Type{<:Hermitian}, ΔΩ::AbstractMatrix{<:Real}, uplo)
+    return _symmetric_back(ΔΩ, uplo)
+end
+_symherm_back(::Type{<:Hermitian}, ΔΩ, uplo) = _hermitian_back(ΔΩ, uplo)
+_symherm_back(Ω, ΔΩ, uplo) = _symherm_back(typeof(Ω), ΔΩ, uplo)
+
+function _symmetric_back(ΔΩ, uplo)
+    L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
+    return uplo == 'U' ? U .+ transpose(L) - D : L .+ transpose(U) - D
+end
+_symmetric_back(ΔΩ::Diagonal, uplo) = ΔΩ
+_symmetric_back(ΔΩ::UpperTriangular, uplo) = Matrix(uplo == 'U' ? ΔΩ : transpose(ΔΩ))
+_symmetric_back(ΔΩ::LowerTriangular, uplo) = Matrix(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
+
+function _hermitian_back(ΔΩ, uplo)
+    L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
+    return uplo == 'U' ? U .+ L' - rD : L .+ U' - rD
+end
+_hermitian_back(ΔΩ::Diagonal, uplo) = real.(ΔΩ)
+function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
+    ∂UL = ΔΩ .- Diagonal(_extract_imag.(diag(ΔΩ)))
+    return if istriu(ΔΩ)
+        return Matrix(uplo == 'U' ? ∂UL : ∂UL')
+    else
+        return Matrix(uplo == 'U' ? ∂UL' : ∂UL)
+    end
+end
 
 #####
 ##### `Symmetric{<:Real}`/`Hermitian` eigendecomposition
@@ -329,28 +393,28 @@ end
 # ✖️✖️✖️TODO: Deal with complex-valued arrays as well
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real})
     function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+        return (NO_FIELDS, adjoint(ȳ))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real})
     function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+        return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
     function adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(adjoint(ȳ)))
+        return (NO_FIELDS, adjoint(ȳ))
     end
     return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
     function adjoint_pullback(ȳ)
-        return (NO_FIELDS, @thunk(vec(adjoint(ȳ))))
+        return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return adjoint(A), adjoint_pullback
 end
@@ -361,28 +425,28 @@ end
 
 function rrule(::Type{<:Transpose}, A::AbstractMatrix)
     function Transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk transpose(ȳ))
+        return (NO_FIELDS, transpose(ȳ))
     end
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::Type{<:Transpose}, A::AbstractVector)
     function Transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+        return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractMatrix)
     function transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk transpose(ȳ))
+        return (NO_FIELDS, transpose(ȳ))
     end
     return transpose(A), transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractVector)
     function transpose_pullback(ȳ)
-        return (NO_FIELDS, @thunk vec(transpose(ȳ)))
+        return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return transpose(A), transpose_pullback
 end
@@ -393,40 +457,40 @@ end
 
 function rrule(::Type{<:UpperTriangular}, A::AbstractMatrix)
     function UpperTriangular_pullback(ȳ)
-        return (NO_FIELDS, @thunk Matrix(ȳ))
+        return (NO_FIELDS, Matrix(ȳ))
     end
     return UpperTriangular(A), UpperTriangular_pullback
 end
 
 function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
     function LowerTriangular_pullback(ȳ)
-        return (NO_FIELDS, @thunk Matrix(ȳ))
+        return (NO_FIELDS, Matrix(ȳ))
     end
     return LowerTriangular(A), LowerTriangular_pullback
 end
 
 function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, @thunk(triu(ȳ, k)), DoesNotExist())
+        return (NO_FIELDS, triu(ȳ, k), DoesNotExist())
     end
     return triu(A, k), triu_pullback
 end
 function rrule(::typeof(triu), A::AbstractMatrix)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, @thunk triu(ȳ))
+        return (NO_FIELDS, triu(ȳ))
     end
     return triu(A), triu_pullback
 end
 
 function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, @thunk(tril(ȳ, k)), DoesNotExist())
+        return (NO_FIELDS, tril(ȳ, k), DoesNotExist())
     end
     return tril(A, k), tril_pullback
 end
 function rrule(::typeof(tril), A::AbstractMatrix)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, @thunk tril(ȳ))
+        return (NO_FIELDS, tril(ȳ))
     end
     return tril(A), tril_pullback
 end

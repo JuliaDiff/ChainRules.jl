@@ -57,17 +57,19 @@ end
 ##### `det`
 #####
 
-function frule((_, ẋ), ::typeof(det), x::Union{Number, AbstractMatrix})
+function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
-    return Ω, Ω * tr(inv(x) * ẋ)
+    return Ω, Ω * tr(x \ Δx)
 end
+frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        return NO_FIELDS, Ω * ΔΩ * inv(x)'
+        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, det_pullback
 end
@@ -78,15 +80,44 @@ end
 
 function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
-    return Ω, tr(inv(x) * Δx)
+    return Ω, tr(x \ Δx)
 end
 
 function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
-        return (NO_FIELDS, ΔΩ * inv(x)')
+        ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
+        return (NO_FIELDS, ∂x)
     end
     return Ω, logdet_pullback
+end
+
+#####
+##### `logabsdet`
+#####
+
+function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
+    Ω = logabsdet(x)
+    (y, signy) = Ω
+    b = tr(x \ Δx)
+    ∂y = real(b)
+    ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
+    ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
+    return Ω, ∂Ω
+end
+
+function rrule(::typeof(logabsdet), x::AbstractMatrix)
+    Ω = logabsdet(x)
+    function logabsdet_pullback(ΔΩ)
+        (Δy, Δsigny) = ΔΩ
+        (_, signy) = Ω
+        f = signy' * Δsigny
+        imagf = f - real(f)
+        g = real(Δy) + imagf
+        ∂x = g * inv(x)'
+        return (NO_FIELDS, ∂x)
+    end
+    return Ω, logabsdet_pullback
 end
 
 #####
@@ -101,7 +132,7 @@ function rrule(::typeof(tr), x)
     # This should really be a FillArray
     # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
     function tr_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk Diagonal(fill(ΔΩ, size(x, 1))))
+        return (NO_FIELDS, Diagonal(fill(ΔΩ, size(x, 1))))
     end
     return tr(x), tr_pullback
 end
@@ -116,6 +147,101 @@ function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real}
         return (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
     end
     return A * B, times_pullback
+end
+
+#####
+##### `pinv`
+#####
+
+@scalar_rule pinv(x) -(Ω ^ 2)
+
+function frule(
+    (_, Δx),
+    ::typeof(pinv),
+    x::AbstractVector{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    ∂y′ = sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y)
+    ∂y = y isa Transpose ? transpose(∂y′) : adjoint(∂y′)
+    return y, ∂y
+end
+
+function frule(
+    (_, Δx),
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    ∂y = sum(abs2, y) .* vec(Δx') .- 2real(Δx * y) .* y
+    return y, ∂y
+end
+
+# Formula for derivative adapted from Eq 4.12 of
+# Golub, Gene H., and Victor Pereyra. "The Differentiation of Pseudo-Inverses and Nonlinear
+# Least Squares Problems Whose Variables Separate."
+# SIAM Journal on Numerical Analysis 10(2). (1973). 413-432. doi: 10.1137/0710036
+function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    m, n = size(A)
+    # contract over the largest dimension
+    if m ≤ n
+        ∂Y = -Y * (ΔA * Y)
+        _add!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y)) # (I - Y A) ΔA' Y' Y
+        _add!(∂Y, Y * (Y' * ΔA') * (I - A * Y)) # Y Y' ΔA' (I - A Y)
+    else
+        ∂Y = -(Y * ΔA) * Y
+        _add!(∂Y, (I - Y * A) * (ΔA' * Y') * Y) # (I - Y A) ΔA' Y' Y
+        _add!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y)) # Y Y' ΔA' (I - A Y)
+    end
+    return Y, ∂Y
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::AbstractVector{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    function pinv_pullback(Δy)
+        ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
+        return (NO_FIELDS, ∂x, Zero())
+    end
+    return y, pinv_pullback
+end
+
+function rrule(
+    ::typeof(pinv),
+    x::LinearAlgebra.AdjOrTransAbsVec{T},
+    tol::Real = 0,
+) where {T<:Union{Real,Complex}}
+    y = pinv(x, tol)
+    function pinv_pullback(Δy)
+        ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
+        ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
+        return (NO_FIELDS, ∂x, Zero())
+    end
+    return y, pinv_pullback
+end
+
+function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+    Y = pinv(A; kwargs...)
+    function pinv_pullback(ΔY)
+        m, n = size(A)
+        # contract over the largest dimension
+        if m ≤ n
+            ∂A = (Y' * -ΔY) * Y'
+            _add!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
+            _add!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
+        elseif m > n
+            ∂A = Y' * (-ΔY * Y')
+            _add!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
+            _add!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
+        end
+        return (NO_FIELDS, ∂A)
+    end
+    return Y, pinv_pullback
 end
 
 #####

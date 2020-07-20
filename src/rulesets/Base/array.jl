@@ -4,14 +4,14 @@
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
     function reshape_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(reshape(Ȳ, dims)), DoesNotExist())
+        return (NO_FIELDS, reshape(Ȳ, dims), DoesNotExist())
     end
     return reshape(A, dims), reshape_pullback
 end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
     function reshape_pullback(Ȳ)
-        ∂A = @thunk(reshape(Ȳ, dims))
+        ∂A = reshape(Ȳ, dims)
         return (NO_FIELDS, ∂A, fill(DoesNotExist(), length(dims))...)
     end
     return reshape(A, dims...), reshape_pullback
@@ -39,6 +39,19 @@ function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
     return hcat(A, Bs...), hcat_pullback
 end
 
+function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    function reduce_hcat_pullback(ΔY)
+        sizes = size.(As, 2)
+        cumsizes = cumsum(sizes)
+        ∂As = map(cumsizes, sizes) do post, diff
+            pre = post - diff + 1
+            return ΔY[:, pre:post]
+        end
+        return (NO_FIELDS, DoesNotExist(), ∂As)
+    end
+    return reduce(hcat, As), reduce_hcat_pullback
+end
+
 #####
 ##### `vcat`
 #####
@@ -57,20 +70,33 @@ function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
     return vcat(A, Bs...), vcat_pullback
 end
 
+function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
+    function reduce_vcat_pullback(ΔY)
+        sizes = size.(As, 1)
+        cumsizes = cumsum(sizes)
+        ∂As = map(cumsizes, sizes) do post, diff
+            pre = post - diff + 1
+            return ΔY[pre:post, :]
+        end
+        return (NO_FIELDS, DoesNotExist(), ∂As)
+    end
+    return reduce(vcat, As), reduce_vcat_pullback
+end
+
 #####
 ##### `fill`
 #####
 
 function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(sum(Ȳ)), DoesNotExist())
+        return (NO_FIELDS, sum(Ȳ), DoesNotExist())
     end
     return fill(value, dims), fill_pullback
 end
 
 function rrule(::typeof(fill), value::Any, dims::Int...)
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(sum(Ȳ)), ntuple(_->DoesNotExist(), length(dims))...)
+        return (NO_FIELDS, sum(Ȳ), ntuple(_->DoesNotExist(), length(dims))...)
     end
     return fill(value, dims), fill_pullback
 end
