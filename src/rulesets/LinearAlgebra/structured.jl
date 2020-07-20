@@ -307,13 +307,13 @@ end
 
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
 Base.@propagate_inbounds function _diffquot(i, j, λ, fλ, df_dλ)
-    i == j && return df_dλ[i]
+    T = typeof(zero(eltype(fλ)) / one(eltype(λ)) + zero(eltype(df_dλ)))
+    i == j && return T(df_dλ[i])
     Δλ = λ[i] - λ[j]
-    T = real(eltype(λ))
-    # Handle degenerate eigenvalues by taylor expanding Δfλ / Δλ as Δλ → 0
-    abs2(Δλ) < eps(T) && return (df_dλ[i] + df_dλ[j]) / 2
-    Δfλ = fλ[i] - fλ[j]
-    return Δfλ / Δλ
+    # handle round-off error by taylor expanding Δfλ / Δλ as Δλ → 0
+    # total error on the order of eps()^(2/3)
+    abs(Δλ) < cbrt(eps(real(T))) && return T((df_dλ[i] + df_dλ[j]) / 2)
+    return T((fλ[i] - fλ[j]) / Δλ)
 end
 
 # multiply Δ by the matrix of difference quotients P
