@@ -20,6 +20,7 @@ println("Testing ChainRules.jl")
         @testset "Base" begin
             include(joinpath("rulesets", "Base", "base.jl"))
             include(joinpath("rulesets", "Base", "fastmath_able.jl"))
+            include(joinpath("rulesets", "Base", "evalpoly.jl"))
             include(joinpath("rulesets", "Base", "array.jl"))
             include(joinpath("rulesets", "Base", "mapreduce.jl"))
         end
