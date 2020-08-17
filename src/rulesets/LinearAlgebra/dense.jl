@@ -78,12 +78,12 @@ end
 ##### `logdet`
 #####
 
-function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
+function frule((_, Δx), ::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     return Ω, tr(x \ Δx)
 end
 
-function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
+function rrule(::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
