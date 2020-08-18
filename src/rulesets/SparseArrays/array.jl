@@ -1,6 +1,6 @@
 using SparseArrays
 
-function rrule(<:Type{SparseMatrixCSC{T,N}}, arr) where {T,N}
+function rrule(::Type{<:SparseMatrixCSC{T,N}}, arr) where {T,N}
   function SparseMatrix_pullback(Δ)
     (collect(Δ),)
   end
