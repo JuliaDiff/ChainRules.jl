@@ -9,6 +9,7 @@ using LinearAlgebra.BLAS
 using Random
 using Requires
 using Statistics
+using SparseArrays
 
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
@@ -36,6 +37,8 @@ include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
+
+include("rulesets/SparseArrays/array.jl")
 
 include("rulesets/Random/random.jl")
 
