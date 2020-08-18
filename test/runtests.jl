@@ -10,6 +10,7 @@ using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
 using Statistics
+using SparseArrays
 using Test
 
 Random.seed!(1) # Set seed that all testsets should reset to.
@@ -44,6 +45,12 @@ println("Testing ChainRules.jl")
 
         @testset "Random" begin
             include(joinpath("rulesets", "Random", "random.jl"))
+        end
+
+        print(" ")
+
+        @testset "SparseArrays" begin
+            include(joinpath("rulesets", "SparseArrays", "array.jl"))
         end
 
         print(" ")
