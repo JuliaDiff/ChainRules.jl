@@ -332,3 +332,13 @@ function rrule(::typeof(norm), x::Real, p::Real=2)
     end
     return norm(x, p), norm_pullback
 end
+
+function rrule(::typeof(diagm), x::AbstractVector)
+    diagm_pullback(∂x) = (NO_FIELDS, diag(∂x),)
+    return diagm(x), diagm_pullback
+end
+
+function rrule(::typeof(issymmetric), x)
+    issymmetric_pullback(∂x) = (NO_FIELDS, ∂x)
+    return issymmetric(x), issymmetric_pullback
+end
