@@ -50,7 +50,7 @@ println("Testing ChainRules.jl")
         print(" ")
 
         @testset "SparseArrays" begin
-            include(joinpath("rulesets", "SparseArrays", "array.jl"))
+            include(joinpath("rulesets", "SparseArrays", "sparsematrix.jl"))
         end
 
         print(" ")

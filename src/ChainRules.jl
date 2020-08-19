@@ -38,7 +38,7 @@ include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 
-include("rulesets/SparseArrays/array.jl")
+include("rulesets/SparseArrays/sparsematrix.jl")
 
 include("rulesets/Random/random.jl")
 
