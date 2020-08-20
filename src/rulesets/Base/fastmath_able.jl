@@ -126,7 +126,7 @@ let
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
-                return (NO_FIELDS, @thunk(c * x), @thunk(c * y))
+                return (NO_FIELDS, c * x, c * y)
             end
             return (Ω, hypot_pullback)
         end
@@ -185,7 +185,7 @@ let
 
         function rrule(::typeof(*), x::Number, y::Number)
             function times_pullback(ΔΩ)
-                return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
+                return (NO_FIELDS,  ΔΩ * y', x' * ΔΩ)
             end
             return x * y, times_pullback
         end
