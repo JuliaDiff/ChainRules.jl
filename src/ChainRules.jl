@@ -23,6 +23,7 @@ if VERSION < v"1.3.0-DEV.142"
 end
 
 include("rulesets/Base/utils.jl")
+include("rulesets/Base/nondiff.jl")
 include("rulesets/Base/base.jl")
 include("rulesets/Base/fastmath_able.jl")
 include("rulesets/Base/evalpoly.jl")
