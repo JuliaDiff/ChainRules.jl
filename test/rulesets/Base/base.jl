@@ -44,7 +44,7 @@
             test_scalar(acotd, 1/x)
         end
         
-        @testset "sinc" for x = (0.434, Complex(0.434, 0.25))
+        @testset "sinc" for x = (0.0, 0.434, Complex(0.434, 0.25))
             test_scalar(sinc, x)
         end
     end  # Trig
