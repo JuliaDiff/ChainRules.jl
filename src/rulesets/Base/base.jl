@@ -130,6 +130,8 @@ end
 @scalar_rule sinpi(x) π * cospi(x)
 @scalar_rule tand(x) (π / oftype(x, 180)) * (1 + Ω ^ 2)
 
+@scalar_rule sinc(x) cosc(x)
+
 @scalar_rule(
     clamp(x, low, high),
     @setup(
