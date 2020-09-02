@@ -12,7 +12,9 @@ end
 @non_differentiable Random.randexp(::AbstractRNG)
 @non_differentiable Random.randstring(::AbstractRNG)
 
+@non_differentiable rand()
 @non_differentiable rand(::AbstractRNG)
+@non_differentiable randn()
 @non_differentiable randn(::AbstractRNG)
 @non_differentiable copy(::Random._GLOBAL_RNG)
 @non_differentiable copy(::MersenneTwister)
