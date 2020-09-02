@@ -53,4 +53,4 @@ end
 @static if VERSION > v"1.3"
     @non_differentiable Random.default_rng()
     @non_differentiable Random.default_rng(::Int)
-  end
+end
