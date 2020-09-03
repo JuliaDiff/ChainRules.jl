@@ -376,8 +376,8 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable xor(::Any, ::Any, ::Any, ::Any, ::Any)
 
 # Non-public Base
-@non_differentiable Base.OneTo(::Integer)
 @non_differentiable Base.OneTo(::AbstractRange{<:Integer})
+
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
