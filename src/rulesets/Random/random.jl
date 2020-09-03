@@ -44,11 +44,8 @@ end
 
 
 @non_differentiable randn(::AbstractRNG)
-@non_differentiable copy(::Random._GLOBAL_RNG)
-@non_differentiable copy(::MersenneTwister)
-@non_differentiable copy!(::MersenneTwister, ::MersenneTwister)
-@non_differentiable copy!(::MersenneTwister, ::Random._GLOBAL_RNG)
-@non_differentiable copy!(::Random._GLOBAL_RNG, ::MersenneTwister)
+@non_differentiable copy(::AbstractRNG)
+@non_differentiable copy!(::AbstractRNG, ::AbstractRNG)
 
 @static if VERSION > v"1.3"
     @non_differentiable Random.default_rng()
