@@ -19,6 +19,18 @@ function rrule(::typeof(dot), x, y)
     return dot(x, y), dot_pullback
 end
 
+function rrule(::typeof(dot), x::AbstractVector, A::AbstractMatrix, y::AbstractVector)
+    Ay = A * y
+    z = adjoint(x) * Ay
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* Ay
+        dA = @thunk conj.(ΔΩ .* x) .* transpose(y)
+        dy = @thunk conj(ΔΩ) .* vec(adjoint(x) * A)
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    return z, dot_pullback
+end
+
 #####
 ##### `cross`
 #####
