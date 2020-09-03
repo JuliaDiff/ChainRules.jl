@@ -21,10 +21,6 @@
 @non_differentiable ==(::Any)
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
-@non_differentiable Channel()
-@non_differentiable Channel(::Function)
-@non_differentiable Channel(::Function, ::Any)
-@non_differentiable Colon()
 
 @non_differentiable abspath(::AbstractString)
 @non_differentiable abspath(::AbstractString, ::AbstractString)
@@ -82,7 +78,7 @@
 @non_differentiable fd(::Base.Filesystem.File)
 @non_differentiable fd(::IOStream)
 @non_differentiable fieldtype(T, ::Union{Symbol, Integer})
-@non_differentiable fieldtypes(T)
+VERSION >= v"1.1" && @non_differentiable fieldtypes(T)
 @non_differentiable fieldname(T, ::Integer)
 @non_differentiable fieldnames(T)
 
@@ -114,7 +110,7 @@
 @non_differentiable getpid(::Base.Process)
 
 @non_differentiable haskey(::Any, ::Any)
-@non_differentiable hash(::Any, ::Any)
+@non_differentiable hash(::Any)
 @non_differentiable hash(::Any, ::UInt)
 @non_differentiable hex2bytes(::AbstractString)
 
@@ -146,7 +142,7 @@
 @non_differentiable isdir(::Any, ::Any)
 @non_differentiable isdir(::Any, ::Any, ::Any)
 @non_differentiable isdirpath(::AbstractString)
-@non_differentiable isdisjoint(::Any, ::Any)
+VERSION >= v"1.5" && @non_differentiable isdisjoint(::Any, ::Any)
 @non_differentiable isdispatchtuple(::Any)
 @non_differentiable isempty(::Any)
 @non_differentiable isequal(::Any)
@@ -173,7 +169,7 @@
 @non_differentiable ismount(::Any)
 @non_differentiable ismount(::Any, ::Any)
 @non_differentiable ismount(::Any, ::Any, ::Any)
-@non_differentiable ismutable(::Any)
+VERSION >= v"1.5" && @non_differentiable ismutable(::Any)
 @non_differentiable isnan(::Any)
 @non_differentiable isnothing(::Any)
 @non_differentiable isnumeric(::AbstractChar)
@@ -263,7 +259,7 @@
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
-@non_differentiable only(::Char)
+VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable open(::Any)
 
 @non_differentiable pointer(::Any)
