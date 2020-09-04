@@ -19,15 +19,20 @@ function rrule(::typeof(dot), x, y)
     return dot(x, y), dot_pullback
 end
 
+function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector, A::AbstractMatrix, y::AbstractVector)
+    return dot(x, A, y), dot(Δx, A, y) + dot(x, ΔA, y) + dot(x, A, Δy)
+end
+
 function rrule(::typeof(dot), x::AbstractVector, A::AbstractMatrix, y::AbstractVector)
     Ay = A * y
     z = adjoint(x) * Ay
     function dot_pullback(ΔΩ)
         dx = @thunk conj(ΔΩ) .* Ay
-        dA = @thunk conj.(ΔΩ .* x) .* transpose(y)
-        dy = @thunk conj(ΔΩ) .* vec(adjoint(x) * A)
+        dA = @thunk ΔΩ .* x .* adjoint(y)
+        dy = @thunk ΔΩ .* (adjoint(A) * x)
         return (NO_FIELDS, dx, dA, dy)
     end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
     return z, dot_pullback
 end
 

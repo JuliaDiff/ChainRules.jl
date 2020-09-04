@@ -24,12 +24,12 @@
             frule_test(dot, (x, ẋ), (y, ẏ))
             rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
         end
-        @testset "3-arg dot, {$T}" for T in (Float64, )#ComplexF64)
+        @testset "3-arg dot, Array{$T}" for T in (Float64, ComplexF64)
             M, N = 3, 4
             x, A, y = randn(T, M), randn(T, M,N), randn(T, N)
-            # ẋ, Adot, ẏ = randn(T, M), randn(T, M,N), randn(T, N)
+            ẋ, Adot, ẏ = randn(T, M), randn(T, M,N), randn(T, N)
             x̄, Abar, ȳ = randn(T, M), randn(T, M,N), randn(T, N)
-            # frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ))
+            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ))
             rrule_test(dot, randn(T), (x, x̄), (A, Abar), (y, ȳ))
         end
     end
