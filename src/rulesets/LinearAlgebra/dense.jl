@@ -36,6 +36,18 @@ function rrule(::typeof(dot), x::AbstractVector, A::AbstractMatrix, y::AbstractV
     return z, dot_pullback
 end
 
+function rrule(::typeof(dot), x::AbstractVector, A::Diagonal, y::AbstractVector)
+    z = dot(x,A,y)
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
+        dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
+        dy = @thunk ΔΩ .* conj.(A.diag) .* x
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    return z, dot_pullback
+end
+
 #####
 ##### `cross`
 #####
