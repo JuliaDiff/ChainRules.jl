@@ -22,8 +22,8 @@
 
     @testset "rand" begin
         non_differentiables = [((), Float64),
-                               ((Random.default_rng(),), Float64),
-                               ((Random.default_rng(),2,2), Matrix{<:Float64}),
+                               ((MersenneTwister(123),), Float64),
+                               ((MersenneTwister(123),2,2), Matrix{<:Float64}),
                                ((Float32,), Float32),
                                ((Float32,2,2), Matrix{<:Float32}),
                                ((Float32,(2,2)), Matrix{<:Float32}),
