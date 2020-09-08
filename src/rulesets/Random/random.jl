@@ -14,7 +14,17 @@ end
 
 @non_differentiable rand()
 @non_differentiable rand(::AbstractRNG)
-@non_differentiable rand(::AbstractRNG, ::dims::Integer...)
+@non_differentiable rand(::AbstractRNG, ::Int)
+@non_differentiable rand(::AbstractRNG, ::Int, ::Int)
+@non_differentiable rand(::AbstractRNG, ::Int, ::Int, ::Int)
+@non_differentiable rand(::AbstractRNG, ::Int, ::Int, ::Int, ::Int)
+@non_differentiable rand(::AbstractRNG, ::Int, ::Int, ::Int, ::Int, ::Int)
+@non_differentiable rand(::Int)
+@non_differentiable rand(::Int, ::Int)
+@non_differentiable rand(::Int, ::Int, ::Int)
+@non_differentiable rand(::Int, ::Int, ::Int, ::Int)
+@non_differentiable rand(::Int, ::Int, ::Int, ::Int, ::Int)
+
 
 # There are many different 1-3 arg methods, but not varargs
 @non_differentiable rand!(::Any)
