@@ -19,4 +19,27 @@
             @test all(map(x -> x isa Zero, pb(10)))
         end
     end
+
+    @testset "rand" begin
+        non_differentiables = [((), Float64),
+                               ((Random.default_rng(),), Float64),
+                               ((Random.default_rng(),2,2), Matrix{<:Float64}),
+                               ((Float32,), Float32),
+                               ((Float32,2,2), Matrix{<:Float32}),
+                               ((Float32,(2,2)), Matrix{<:Float32}),
+                               ((2,2), Matrix{<:Float64})]
+
+        for (args,xType) in non_differentiables
+            x, dΩ = frule((), rand, args...)
+            @test x isa xType
+            @test dΩ isa DoesNotExist
+
+            x, pb = rrule(rand, args...)
+            @test x isa xType
+            @test first(pb(10)) isa Zero
+        end
+
+        @test frule((), rand, ones(2,2)) === nothing
+        @test rrule(rand, ones(2,2)) === nothing
+    end
 end
