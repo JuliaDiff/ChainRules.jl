@@ -44,7 +44,12 @@
         end
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
-        @test frule((Zero(), 1.3*ones(2,2)), rand, ones(2,2)) === nothing
-        @test rrule(rand, ones(2,2)) === nothing
+        struct Normal
+            μ
+            σ
+        end
+        Random.rand(d::Normal) = d.μ + d.σ*randn()
+        @test frule((Zero(), Normal(0.5,2.0)), rand, Normal(0.1,1.5)) === nothing
+        @test rrule(rand, Normal(0.1,1.5)) === nothing
     end
 end
