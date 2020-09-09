@@ -21,13 +21,15 @@
     end
 
     @testset "rand" begin
-        non_differentiables = [((), Float64),
-                               ((MersenneTwister(123),), Float64),
-                               ((MersenneTwister(123),2,2), Matrix{<:Float64}),
-                               ((Float32,), Float32),
-                               ((Float32,2,2), Matrix{<:Float32}),
-                               ((Float32,(2,2)), Matrix{<:Float32}),
-                               ((2,2), Matrix{<:Float64})]
+        non_differentiables = [
+            ((), Float64),
+            ((MersenneTwister(123),), Float64),
+            ((MersenneTwister(123),2,2), Matrix{<:Float64}),
+            ((Float32,), Float32),
+            ((Float32,2,2), Matrix{<:Float32}),
+            ((Float32,(2,2)), Matrix{<:Float32}),
+            ((2,2), Matrix{<:Float64}),
+        ]
 
         for (args, xType) in non_differentiables
             x, dΩ = frule((), rand, args...)
