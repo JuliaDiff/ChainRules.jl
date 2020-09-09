@@ -32,7 +32,7 @@
         ]
 
         for (args, xType) in non_differentiables
-            x, dΩ = frule((Zero(), 1.2.*ones(args)...), rand, args...)
+            x, dΩ = frule((Zero(), randn(args...)), rand, args...)
             @test x isa xType
             @test dΩ isa DoesNotExist
 
