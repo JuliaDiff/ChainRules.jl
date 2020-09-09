@@ -1,3 +1,9 @@
+struct Normal
+    μ
+    σ
+end
+Random.rand(d::Normal) = d.μ + d.σ*randn()
+
 @testset "random" begin
     @testset "MersenneTwister" begin
         @testset "no args" begin
@@ -44,11 +50,6 @@
         end
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
-        struct Normal
-            μ
-            σ
-        end
-        Random.rand(d::Normal) = d.μ + d.σ*randn()
         @test frule((Zero(), Normal(0.5,2.0)), rand, Normal(0.1,1.5)) === nothing
         @test rrule(rand, Normal(0.1,1.5)) === nothing
     end
