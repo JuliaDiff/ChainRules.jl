@@ -1,8 +1,9 @@
-struct Normal
+# Simple Distributions like object for testing purposes
+struct NormalDistribution
     μ
     σ
 end
-Random.rand(d::Normal) = d.μ + d.σ*randn()
+Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
 @testset "random" begin
     @testset "MersenneTwister" begin
@@ -50,7 +51,11 @@ Random.rand(d::Normal) = d.μ + d.σ*randn()
         end
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
-        @test frule((Zero(), Normal(0.5,2.0)), rand, Normal(0.1,1.5)) === nothing
-        @test rrule(rand, Normal(0.1,1.5)) === nothing
+        @test nothing === frule(
+            (Zero(), Composite{NormalDistribution}(μ=0.5,σ=2.0),
+            rand,
+            NormalDistribution(0.1,1.5),
+        )
+        @test rrule(rand, NormalDistribution(0.1,1.5)) === nothing
     end
 end
