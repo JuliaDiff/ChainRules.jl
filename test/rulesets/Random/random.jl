@@ -52,7 +52,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
         @test nothing === frule(
-            (Zero(), Composite{NormalDistribution}(μ=0.5,σ=2.0),
+            (Zero(), Composite{NormalDistribution}(μ=0.5,σ=2.0)),
             rand,
             NormalDistribution(0.1,1.5),
         )
