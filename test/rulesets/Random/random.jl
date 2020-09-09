@@ -29,7 +29,7 @@
                                ((Float32,(2,2)), Matrix{<:Float32}),
                                ((2,2), Matrix{<:Float64})]
 
-        for (args,xType) in non_differentiables
+        for (args, xType) in non_differentiables
             x, dΩ = frule((), rand, args...)
             @test x isa xType
             @test dΩ isa DoesNotExist
