@@ -30,16 +30,19 @@
                                ((2,2), Matrix{<:Float64})]
 
         for (args, xType) in non_differentiables
-            x, dΩ = frule((), rand, args...)
+            x, dΩ = frule((Zero(), 1.2.*ones(args)...), rand, args...)
             @test x isa xType
             @test dΩ isa DoesNotExist
 
             x, pb = rrule(rand, args...)
             @test x isa xType
-            @test first(pb(10)) isa Zero
+            dself, dargs = Iterators.peel(pb(10.0))
+            @test dself isa Zero
+            @test all(darg isa DoesNotExist for darg in dargs)
         end
 
-        @test frule((), rand, ones(2,2)) === nothing
+        # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
+        @test frule((Zero(), 1.3*ones(2,2)), rand, ones(2,2)) === nothing
         @test rrule(rand, ones(2,2)) === nothing
     end
 end
