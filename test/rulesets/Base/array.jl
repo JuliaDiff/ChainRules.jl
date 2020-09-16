@@ -1,23 +1,11 @@
 @testset "reshape" begin
-    A = rand(4, 5)
-    B, pullback = rrule(reshape, A, (5, 4))
-    @test B == reshape(A, (5, 4))
-    Ȳ = randn(4, 5)
+    x = rand(4, 5)
+    x̄ = rand(4, 5)
 
-    (s̄, Ā, d̄) = pullback(Ȳ)
-    @test s̄ == NO_FIELDS
-    @test d̄ isa DoesNotExist
-    @test extern(Ā) == reshape(Ȳ, (5, 4))
+    ȳ = rand(2, 10)
 
-    B, pullback = rrule(reshape, A, 5, 4)
-    @test B == reshape(A, 5, 4)
-
-    Ȳ = randn(4, 5)
-    (s̄, Ā, d̄1, d̄2) = pullback(Ȳ)
-    @test s̄ == NO_FIELDS
-    @test d̄1 isa DoesNotExist
-    @test d̄2 isa DoesNotExist
-    @test extern(Ā) == reshape(Ȳ, 5, 4)
+    rrule_test(reshape, ȳ, (x, x̄), ((2, 10), nothing))
+    rrule_test(reshape, ȳ, (x, x̄), (2, nothing), (10, nothing))
 end
 
 @testset "hcat" begin
