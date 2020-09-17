@@ -115,13 +115,21 @@
         rrule_test(tr, randn(), (randn(N, N), randn(N, N)))
     end
     @testset "*" begin
-        dims = [3,4,5]
-        for n in dims, m in dims, p in dims
-            n > 3 && n == m == p && continue  # don't need to test square case multiple times
-            A = randn(m, n)
-            B = randn(n, p)
-            Ȳ = randn(m, p)
-            rrule_test(*, Ȳ, (A, randn(m, n)), (B, randn(n, p)))
+        @testset "Matrix-Matrix" begin
+            dims = [3,4,5]
+            for n in dims, m in dims, p in dims
+                n > 3 && n == m == p && continue  # don't need to test square case multiple times
+                A = randn(m, n)
+                B = randn(n, p)
+                Ȳ = randn(m, p)
+                rrule_test(*, Ȳ, (A, randn(m, n)), (B, randn(n, p)))
+            end
+        end
+        @testset "Scalar-AbstractArray" begin
+            for dims in ((3,), (5,4), (10,10), (2,3,4), (2,3,4,5))
+                rrule_test(*, randn(dims), (1.5, 4.2), (randn(dims), randn(dims)))
+                rrule_test(*, randn(dims), (randn(dims), randn(dims)), (1.5, 4.2))
+            end
         end
     end
     @testset "$f" for f in [/, \]
