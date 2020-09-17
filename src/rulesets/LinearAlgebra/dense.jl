@@ -151,14 +151,14 @@ end
 
 function rrule(::typeof(*), A::Real, B::AbstractArray{<:Real})
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(dot(Ȳ, B)), @thunk(A' * Ȳ))
+        return (NO_FIELDS, @thunk(dot(Ȳ, B)), @thunk(A * Ȳ))
     end
     return A * B, times_pullback
 end
 
 function rrule(::typeof(*), B::AbstractArray{<:Real}, A::Real)
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(A' * Ȳ), @thunk(dot(Ȳ, B)))
+        return (NO_FIELDS, @thunk(A * Ȳ), @thunk(dot(Ȳ, B)))
     end
     return A * B, times_pullback
 end
