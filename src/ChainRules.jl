@@ -42,6 +42,7 @@ include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 
 include("rulesets/Random/random.jl")
+include("utils.jl")
 
 # Note: The following is only required because package authors sometimes do not
 # declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.
