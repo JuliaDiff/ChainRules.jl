@@ -178,6 +178,13 @@
             end
         end
     end
+    @testset "/ and \\ Scalar-AbstractArray" begin
+        A = randn(3, 4, 5)
+        Ā = randn(3, 4, 5)
+        Ȳ = randn(3, 4, 5)
+        rrule_test(/, Ȳ, (A, Ā), (7.2, 2.3))
+        rrule_test(\, Ȳ, (7.2, 2.3), (A, Ā))
+    end
     @testset "norm" begin
         for dims in [(), (5,), (3, 2), (7, 3, 2)]
             A = randn(dims...)
