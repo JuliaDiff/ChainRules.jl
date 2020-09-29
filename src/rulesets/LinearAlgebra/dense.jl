@@ -163,6 +163,25 @@ function rrule(::typeof(*), B::AbstractArray{<:Real}, A::Real)
     return A * B, times_pullback
 end
 
+#####
+##### `\`, `/` matrix-scalar_rule
+
+function rrule(::typeof(/), A::AbstractArray{<:Real}, b::Real)
+    Y = A/b
+    function slash_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(Ȳ/b), @thunk(-dot(Ȳ, Y)/b))
+    end
+    return Y, slash_pullback
+end
+
+function rrule(::typeof(\), b::Real, A::AbstractArray{<:Real})
+    Y = b\A
+    function backslash_pullback(Ȳ)
+        return (NO_FIELDS, @thunk(-dot(Ȳ, Y)/b), @thunk(Ȳ/b))
+    end
+    return Y, backslash_pullback
+end
+
 
 #####
 ##### `pinv`
