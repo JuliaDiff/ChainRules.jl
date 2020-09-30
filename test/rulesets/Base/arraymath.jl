@@ -26,7 +26,7 @@
         end
     end
 
-    @testset "$f" for f in [/, \]
+    @testset "$f" for f in (/, \)
         @testset "Matrix" begin
             for n in 3:5, m in 3:5
                 A = randn(m, n)
@@ -41,23 +41,7 @@
             ȳ = randn(size(f(x, y))...)
             rrule_test(f, ȳ, (x, randn(10)), (y, randn(10)))
         end
-        if f == (/)
-            @testset "$T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
-                RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-                Y = randn(5, 10)
-                Ȳ = randn(size(f(Y, RHS))...)
-                rrule_test(f, Ȳ, (Y, randn(size(Y))), (RHS, randn(size(RHS))))
-            end
-        else
-            @testset "$T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
-                LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-                y = randn(10)
-                ȳ = randn(size(f(LHS, y))...)
-                rrule_test(f, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
-                Y = randn(10, 10)
-                Ȳ = randn(10, 10)
-                rrule_test(f, Ȳ, (LHS, randn(size(LHS))), (Y, randn(size(Y))))
-            end
+        if f == (\)
             @testset "Matrix $f Vector" begin
                 X = randn(10, 4)
                 y = randn(10)

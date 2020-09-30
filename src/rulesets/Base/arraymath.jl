@@ -46,17 +46,6 @@ end
 ##### `/`
 #####
 
-function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
-    Y = A / B
-    function slash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk Ȳ / B'
-        ∂B = @thunk S(-Y' * (Ȳ / B'))
-        return (NO_FIELDS, ∂A, ∂B)
-    end
-    return Y, slash_pullback
-end
-
 function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Aᵀ, dA_pb = rrule(adjoint, A)
     Bᵀ, dB_pb = rrule(adjoint, B)
@@ -78,17 +67,6 @@ end
 #####
 ##### `\`
 #####
-
-function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
-    Y = A \ B
-    function backslash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk S(-(A' \ Ȳ) * Y')
-        ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
-    end
-    return Y, backslash_pullback
-end
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Y = A \ B

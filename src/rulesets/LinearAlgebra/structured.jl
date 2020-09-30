@@ -1,5 +1,31 @@
 # Structured matrices
+using LinearAlgebra: AbstractTriangular
 
+# Matrix wrapper types that we know are square and are thus potentially invertible. For
+# these we can use simpler definitions for `/` and `\`.
+const SquareMatrix{T} = Union{Diagonal{T}, AbstractTriangular{T}}
+
+function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
+    Y = A / B
+    function slash_pullback(Ȳ)
+        S = T.name.wrapper
+        ∂A = @thunk Ȳ / B'
+        ∂B = @thunk S(-Y' * (Ȳ / B'))
+        return (NO_FIELDS, ∂A, ∂B)
+    end
+    return Y, slash_pullback
+end
+
+function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
+    Y = A \ B
+    function backslash_pullback(Ȳ)
+        S = T.name.wrapper
+        ∂A = @thunk S(-(A' \ Ȳ) * Y')
+        ∂B = @thunk A' \ Ȳ
+        return NO_FIELDS, ∂A, ∂B
+    end
+    return Y, backslash_pullback
+end
 
 #####
 ##### `Diagonal`
