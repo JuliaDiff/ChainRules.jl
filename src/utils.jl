@@ -1,13 +1,11 @@
-try:
-    using Zygote: @adjoint
+function frule((_, ḟ), ::typeof(ignore), f)
+    return f(), nothing
+end
 
-    ignore(f) = f()
-    @adjoint ignore(f) = ignore(f), _ -> nothing
-
-    macro ignore(ex)
-        return :(ChainRules.ignore() do
-            $(esc(ex))
-        end)
+function rrule(::typeof(ignore), f)
+    y = f()
+    function ignore_pullback(ȳ)
+        return (NO_FIELDS, nothing)
     end
-catch
-    nothing
+    return y, ignore_pullback
+end
