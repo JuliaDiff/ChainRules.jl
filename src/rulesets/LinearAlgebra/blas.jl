@@ -263,5 +263,5 @@ function rrule(
         (_, dtA, dtB, _, dA, dB) = inner_pullback(Ȳ)
         return (NO_FIELDS, dtA, dtB, dA, dB)
     end
-    return C, gemm_pullback
+    return C, gemv_pullback
 end
