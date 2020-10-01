@@ -10,7 +10,7 @@
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
             y = randn(10)
-            ȳ = randn(size(/(LHS, y))...)
+            ȳ = randn(size(\(LHS, y))...)
             rrule_test(\, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
             Y = randn(10, 10)
             Ȳ = randn(10, 10)
