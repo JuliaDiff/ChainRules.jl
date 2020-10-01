@@ -259,7 +259,7 @@ function rrule(
     ::typeof(gemm), tA::Char, tB::Char, A::AbstractMatrix{T}, B::AbstractMatrix{T}
 ) where T<:BlasFloat
     C, inner_pullback = rrule(gemm, tA, tB, one(T), A, B)
-    function gemv_pullback(Ȳ)
+    function gemm_pullback(Ȳ)
         (_, dtA, dtB, _, dA, dB) = inner_pullback(Ȳ)
         return (NO_FIELDS, dtA, dtB, dA, dB)
     end
