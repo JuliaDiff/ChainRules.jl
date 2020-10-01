@@ -96,6 +96,15 @@
                 (A, randn(T, size(A))),
                 (B, randn(T, size(B))),
             )
+
+            rrule_test(
+                gemm,
+                ȳ,
+                (tA, nothing),
+                (tB, nothing),
+                (A, randn(T, size(A))),
+                (B, randn(T, size(B))),
+            )
         end
     end
 
