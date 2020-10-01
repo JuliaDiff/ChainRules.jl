@@ -1,4 +1,23 @@
 @testset "Structured Matrices" begin
+    @testset "/ and \\ on Square Matrixes" begin
+        @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+            RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
+            Y = randn(5, 10)
+            Ȳ = randn(size(/(Y, RHS))...)
+            rrule_test(/, Ȳ, (Y, randn(size(Y))), (RHS, randn(size(RHS))))
+        end
+
+        @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+            LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
+            y = randn(10)
+            ȳ = randn(size(\(LHS, y))...)
+            rrule_test(\, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
+            Y = randn(10, 10)
+            Ȳ = randn(10, 10)
+            rrule_test(\, Ȳ, (LHS, randn(size(LHS))), (Y, randn(size(Y))))
+        end
+    end
+
     @testset "Diagonal" begin
         N = 3
         rrule_test(Diagonal, randn(N, N), (randn(N), randn(N)))
