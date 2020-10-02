@@ -17,10 +17,10 @@ for (TA,  TB,  tCA, tDA, CA, DA, tCB, tDB, CB, DB) in [
         function strided_matmul_pullback(Ȳ)
             @show :A=>($tCA, $tDA, $CA, $DA)
             @show :B=>($tCB, $tDB, $CB, $DB)
-            # TODO: I  think we are messing up what is transposed for GEMM
+            # TODO: for testing purposes just starting with this
             Ā = LinearAlgebra.BLAS.gemm($tCA, $tDA, $CA, $DA)
             B̄ = LinearAlgebra.BLAS.gemm($tCB, $tDB, $CB, $DB)
-            #==
+            #== # TODO uncomment this inplace version
             Ā = InplaceableThunk(
                 @thunk(LinearAlgebra.BLAS.gemm($tCA, $tDA, $CA, $DA)),
                 X̄ -> LinearAlgebra.BLAS.gemm!($tCA, $tDA, 1.0, $CA, $DA, 1.0, X̄),
