@@ -340,6 +340,8 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable success(::Array{Base.Process,1})
 @non_differentiable success(::Base.Process)
 @non_differentiable success(::Base.ProcessChain)
+@non_differentiable sum(::AbstractArray{Bool})
+@non_differentiable sum(::NTuple{<:Any, Bool})
 @non_differentiable supertype(::Any)
 @non_differentiable symlink(::AbstractString, ::AbstractString)
 
