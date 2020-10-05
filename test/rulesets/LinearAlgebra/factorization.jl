@@ -47,9 +47,8 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         @testset "Helper functions" begin
             X = randn(10, 10)
             Y = randn(10, 10)
-            @test ChainRules._mulsubtrans!(copy(X), Y) ≈ Y .* (X - X')
+            @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
-            @test ChainRules._add!(copy(X), Y) ≈ X + Y
         end
     end
     @testset "cholesky" begin
