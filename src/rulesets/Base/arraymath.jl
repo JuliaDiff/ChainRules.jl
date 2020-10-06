@@ -74,8 +74,8 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         ∂A = @thunk begin
             B̄ = A' \ Ȳ
             Ā = -B̄ * Y'
-            _add!(Ā, (B - A * Y) * B̄' / A')
-            _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
+            Ā = add!!(Ā, (B - A * Y) * B̄' / A')
+            Ā = add!!(Ā, A' \ Y * (Ȳ' - B̄'A))
             Ā
         end
         ∂B = @thunk A' \ Ȳ

@@ -49,18 +49,18 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
     # place functions here are significantly faster than their out-of-place, naively
     # implemented counterparts, and allocate no additional memory.
     Ut = U'
-    FUᵀŪ = _mulsubtrans!(Ut*Ū, F)  # F .* (UᵀŪ - ŪᵀU)
-    FVᵀV̄ = _mulsubtrans!(Vt*V̄, F)  # F .* (VᵀV̄ - V̄ᵀV)
-    ImUUᵀ = _eyesubx!(U*Ut)        # I - UUᵀ
-    ImVVᵀ = _eyesubx!(V*Vt)        # I - VVᵀ
+    FUᵀŪ = _mulsubtrans!!(Ut*Ū, F)  # F .* (UᵀŪ - ŪᵀU)
+    FVᵀV̄ = _mulsubtrans!!(Vt*V̄, F)  # F .* (VᵀV̄ - V̄ᵀV)
+    ImUUᵀ = _eyesubx!(U*Ut)  # I - UUᵀ
+    ImVVᵀ = _eyesubx!(V*Vt)  # I - VVᵀ
 
     S = Diagonal(s)
     S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
 
     # TODO: consider using MuladdMacro here
-    Ā = _add!(U * FUᵀŪ * S, ImUUᵀ * (Ū / S)) * Vt
-    Ā = _add!(Ā, U * S̄ * Vt)
-    Ā = _add!(Ā, U * _add!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
+    Ā = add!!(U * FUᵀŪ * S, ImUUᵀ * (Ū / S)) * Vt
+    Ā = add!!(Ā, U * S̄ * Vt)
+    Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
 
     return Ā
 end

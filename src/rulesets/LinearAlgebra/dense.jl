@@ -155,12 +155,12 @@ function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where 
     # contract over the largest dimension
     if m ≤ n
         ∂Y = -Y * (ΔA * Y)
-        _add!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y)) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, Y * (Y' * ΔA') * (I - A * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y))  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, Y * (Y' * ΔA') * (I - A * Y))  # Y Y' ΔA' (I - A Y)
     else
         ∂Y = -(Y * ΔA) * Y
-        _add!(∂Y, (I - Y * A) * (ΔA' * Y') * Y) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (I - Y * A) * (ΔA' * Y') * Y)  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y))  # Y Y' ΔA' (I - A Y)
     end
     return Y, ∂Y
 end
@@ -199,12 +199,12 @@ function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
         # contract over the largest dimension
         if m ≤ n
             ∂A = (Y' * -ΔY) * Y'
-            _add!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
         elseif m > n
             ∂A = Y' * (-ΔY * Y')
-            _add!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
         end
         return (NO_FIELDS, ∂A)
     end
