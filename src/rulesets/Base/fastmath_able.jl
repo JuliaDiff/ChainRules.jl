@@ -156,14 +156,14 @@ let
 
         # `sign`
 
-        function frule((_, Δx), ::typeof(sign), x)
+        function frule((_, Δx), ::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(x), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(sign), x)
+        function rrule(::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(x), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
