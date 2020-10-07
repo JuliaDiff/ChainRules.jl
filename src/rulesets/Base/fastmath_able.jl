@@ -173,6 +173,34 @@ let
             return Ω, sign_pullback
         end
 
+        function frule((_, Δx), ::typeof(inv), x::Number)
+            Ω = inv(x)
+            return Ω, -(Ω * Δx * Ω)
+        end
+
+        function rrule(::typeof(inv), x::Number)
+            Ω = inv(x)
+            function inv_pullback(ΔΩ)
+                return (NO_FIELDS, -(Ω' * ΔΩ * Ω'))
+            end
+            return Ω, inv_pullback
+        end
+
+        # quotient rule requires special care for arguments where `/` is non-commutative
+        function frule((_, Δx, Δy), ::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            return Ω, muladd(-Ω, Δy, Δx) / y
+        end
+
+        function rrule(::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            function rdiv_pullback(ΔΩ)
+                ∂x = ΔΩ / y'
+                return (NO_FIELDS, ∂x, -(Ω' * ∂x))
+            end
+            return Ω, rdiv_pullback
+        end
+
         # product rule requires special care for arguments where `mul` is non-commutative
         function frule((_, Δx, Δy), ::typeof(*), x::Number, y::Number)
             # Optimized version of `Δx .* y .+ x .* Δy`. Also, it is potentially more

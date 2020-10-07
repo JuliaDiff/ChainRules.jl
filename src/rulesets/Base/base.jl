@@ -140,7 +140,36 @@ end
     ),
     (!(islow | ishigh), islow, ishigh),
 )
+
+# product rule requires special care for arguments where `muladd` is non-commutative
+function frule((_, Δx, Δy, Δz), ::typeof(muladd), x::Number, y::Number, z::Number)
+    ∂xyz = muladd(Δx, y, muladd(x, Δy, Δz))
+    return muladd(x, y, z), ∂xyz
+end
+
+function rrule(::typeof(muladd), x::Number, y::Number, z::Number)
+    function muladd_pullback(ΔΩ)
+        return (NO_FIELDS, ΔΩ * y', x' * ΔΩ, ΔΩ)
+    end
+    return muladd(x, y, z), muladd_pullback
+end
+
 @scalar_rule x::CommutativeMulNumber \ y (-(x \ Ω), x \ one(y))
+
+# quotient rule requires special care for arguments where `\` is non-commutative
+function frule((_, Δx, Δy), ::typeof(\), x::Number, y::Number)
+    Ω = x \ y
+    return Ω, x \ muladd(-Δx, Ω, Δy)
+end
+
+function rrule(::typeof(\), x::Number, y::Number)
+    Ω = x \ y
+    function ldiv_pullback(ΔΩ)
+        ∂y = x' \ ΔΩ
+        return (NO_FIELDS, -(∂y * Ω'), ∂y)
+    end
+    return Ω, ldiv_pullback
+end
 
 function frule((_, ẏ), ::typeof(identity), x)
     return (x, ẏ)
