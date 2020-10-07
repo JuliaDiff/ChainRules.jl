@@ -2,37 +2,36 @@ let
     # Include inside this quote any rules that should have FastMath versions
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
-        @scalar_rule tan(x) 1 + Ω ^ 2
-
+        @scalar_rule cos(x::CommutativeMulNumber) -(sin(x))
+        @scalar_rule sin(x::CommutativeMulNumber) cos(x)
+        @scalar_rule tan(x::CommutativeMulNumber) 1 + Ω ^ 2
 
         # Trig-Hyperbolic
-        @scalar_rule cosh(x) sinh(x)
-        @scalar_rule sinh(x) cosh(x)
-        @scalar_rule tanh(x) 1 - Ω ^ 2
+        @scalar_rule cosh(x::CommutativeMulNumber) sinh(x)
+        @scalar_rule sinh(x::CommutativeMulNumber) cosh(x)
+        @scalar_rule tanh(x::CommutativeMulNumber) 1 - Ω ^ 2
 
         # Trig- Inverses
-        @scalar_rule acos(x) -(inv(sqrt(1 - x ^ 2)))
-        @scalar_rule asin(x) inv(sqrt(1 - x ^ 2))
-        @scalar_rule atan(x) inv(1 + x ^ 2)
+        @scalar_rule acos(x::CommutativeMulNumber) -(inv(sqrt(1 - x ^ 2)))
+        @scalar_rule asin(x::CommutativeMulNumber) inv(sqrt(1 - x ^ 2))
+        @scalar_rule atan(x::CommutativeMulNumber) inv(1 + x ^ 2)
 
         # Trig-Multivariate
-        @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
-        @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
+        @scalar_rule atan(y::Real, x::Real) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
+        @scalar_rule sincos(x::CommutativeMulNumber) @setup((sinx, cosx) = Ω) cosx -sinx
 
         # exponents
-        @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
-        @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)
-        @scalar_rule exp(x) Ω
-        @scalar_rule exp10(x) Ω * log(oftype(x, 10))
-        @scalar_rule exp2(x) Ω * log(oftype(x, 2))
-        @scalar_rule expm1(x) exp(x)
-        @scalar_rule log(x) inv(x)
-        @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
-        @scalar_rule log1p(x) inv(x + 1)
-        @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
+        @scalar_rule cbrt(x::CommutativeMulNumber) inv(3 * Ω ^ 2)
+        @scalar_rule inv(x::CommutativeMulNumber) -(Ω ^ 2)
+        @scalar_rule sqrt(x::CommutativeMulNumber) inv(2Ω)
+        @scalar_rule exp(x::CommutativeMulNumber) Ω
+        @scalar_rule exp10(x::CommutativeMulNumber) Ω * log(oftype(x, 10))
+        @scalar_rule exp2(x::CommutativeMulNumber) Ω * log(oftype(x, 2))
+        @scalar_rule expm1(x::CommutativeMulNumber) exp(x)
+        @scalar_rule log(x::CommutativeMulNumber) inv(x)
+        @scalar_rule log10(x::CommutativeMulNumber) inv(x) / log(oftype(x, 10))
+        @scalar_rule log1p(x::CommutativeMulNumber) inv(x + 1)
+        @scalar_rule log2(x::CommutativeMulNumber) inv(x) / log(oftype(x, 2))
 
 
         # Unary complex functions
@@ -133,9 +132,9 @@ let
 
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
-        @scalar_rule x / y (one(x) / y, -(Ω / y))
+        @scalar_rule x / y::CommutativeMulNumber (one(x) / y, -(Ω / y))
         #log(complex(x)) is required so it gives correct complex answer for x<0
-        @scalar_rule(x ^ y,
+        @scalar_rule(x::CommutativeMulNumber ^ y::CommutativeMulNumber,
             (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
         )
         # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
