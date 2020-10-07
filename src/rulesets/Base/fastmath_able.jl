@@ -77,7 +77,7 @@ let
         end
 
         ## angle
-        function frule((_, Δx), ::typeof(angle), x)
+        function frule((_, Δx), ::typeof(angle), x::Union{Real, Complex})
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
