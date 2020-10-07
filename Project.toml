@@ -15,6 +15,7 @@ ChainRulesCore = "0.9.12"
 ChainRulesTestUtils = "0.4.2, 0.5"
 Compat = "3"
 FiniteDifferences = "0.10"
+Quaternions = "0.4"
 Reexport = "0.2"
 Requires = "0.5.2, 1"
 julia = "1"
@@ -24,9 +25,10 @@ ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
+Quaternions = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["ChainRulesTestUtils", "Compat", "FiniteDifferences", "NaNMath", "Random", "SpecialFunctions", "Test"]
+test = ["ChainRulesTestUtils", "Compat", "FiniteDifferences", "NaNMath", "Quaternions", "Random", "SpecialFunctions", "Test"]

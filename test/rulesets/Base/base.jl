@@ -179,4 +179,64 @@
         frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
+
+    @testset "non-commutative number (quaternion)" begin
+        function FiniteDifferences.to_vec(q::Quaternion)
+            function Quaternion_from_vec(q_vec)
+                return Quaternion(q_vec[1], q_vec[2], q_vec[3], q_vec[4])
+            end
+            return [q.s, q.v1, q.v2, q.v3], Quaternion_from_vec
+        end
+
+        @testset "unary functions" begin
+            @testset "$f" for f in (+, -, inv, identity, one, zero, transpose, adjoint, real)
+                test_scalar(f, quatrand())
+            end
+        end
+
+        @testset "binary functions" begin
+            @testset "$f(::Quaternion, ::Quaternion)" for f in (+, -, *, /, \)
+                x, ẋ, x̄ = quatrand(), quatrand(), quatrand()
+                y, ẏ, ȳ = quatrand(), quatrand(), quatrand()
+                ΔΩ = quatrand()
+                frule_test(f, (x, ẋ), (y, ẏ))
+                rrule_test(f, ΔΩ, (x, x̄), (y, ȳ))
+            end
+            @testset "/(::Quaternion, ::Real)" begin
+                x, ẋ = quatrand(), quatrand(), quatrand()
+                y, ẏ = randn(3)
+                frule_test(/, (x, ẋ), (y, ẏ))
+                # don't test rrule, because it doesn't project adjoint of y to the reals
+                # so fd won't agree
+            end
+            @testset "\\(::Real, ::Quaternion)" begin
+                x, ẋ, x̄ = randn(3)
+                y, ẏ, ȳ = quatrand(), quatrand(), quatrand()
+                ΔΩ = quatrand()
+                frule_test(\, (x, ẋ), (y, ẏ))
+                # don't test rrule, because it doesn't project adjoint of x to the reals
+                # so fd won't agree
+            end
+        end
+
+        @testset "ternary functions" begin
+            @testset "$f(::Quaternion, ::Quaternion, ::Quaternion)" for f in (muladd,)
+                x, ẋ, x̄ = quatrand(), quatrand(), quatrand()
+                y, ẏ, ȳ = quatrand(), quatrand(), quatrand()
+                z, ż, z̄ = quatrand(), quatrand(), quatrand()
+                ΔΩ = quatrand()
+                frule_test(f, (x, ẋ), (y, ẏ), (z, ż))
+                rrule_test(f, ΔΩ, (x, x̄), (y, ȳ), (z, z̄))
+            end
+            @testset "muladd(::Quaternion, ::Real, ::Quaternion)" begin
+                x, ẋ, x̄ = quatrand(), quatrand(), quatrand()
+                y, ẏ, ȳ = randn(3)
+                z, ż, z̄ = quatrand(), quatrand(), quatrand()
+                ΔΩ = quatrand()
+                frule_test(muladd, (x, ẋ), (y, ẏ), (z, ż))
+                # don't test rrule, because it doesn't project adjoint of y to the reals
+                # so fd won't agree
+            end
+        end
+    end
 end

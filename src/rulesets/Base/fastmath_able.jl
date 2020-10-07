@@ -2,37 +2,36 @@ let
     # Include inside this quote any rules that should have FastMath versions
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
-        @scalar_rule tan(x) 1 + Ω ^ 2
-
+        @scalar_rule cos(x::CommutativeMulNumber) -(sin(x))
+        @scalar_rule sin(x::CommutativeMulNumber) cos(x)
+        @scalar_rule tan(x::CommutativeMulNumber) 1 + Ω ^ 2
 
         # Trig-Hyperbolic
-        @scalar_rule cosh(x) sinh(x)
-        @scalar_rule sinh(x) cosh(x)
-        @scalar_rule tanh(x) 1 - Ω ^ 2
+        @scalar_rule cosh(x::CommutativeMulNumber) sinh(x)
+        @scalar_rule sinh(x::CommutativeMulNumber) cosh(x)
+        @scalar_rule tanh(x::CommutativeMulNumber) 1 - Ω ^ 2
 
         # Trig- Inverses
-        @scalar_rule acos(x) -(inv(sqrt(1 - x ^ 2)))
-        @scalar_rule asin(x) inv(sqrt(1 - x ^ 2))
-        @scalar_rule atan(x) inv(1 + x ^ 2)
+        @scalar_rule acos(x::CommutativeMulNumber) -(inv(sqrt(1 - x ^ 2)))
+        @scalar_rule asin(x::CommutativeMulNumber) inv(sqrt(1 - x ^ 2))
+        @scalar_rule atan(x::CommutativeMulNumber) inv(1 + x ^ 2)
 
         # Trig-Multivariate
-        @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
-        @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
+        @scalar_rule atan(y::Real, x::Real) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
+        @scalar_rule sincos(x::CommutativeMulNumber) @setup((sinx, cosx) = Ω) cosx -sinx
 
         # exponents
-        @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
-        @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)
-        @scalar_rule exp(x) Ω
-        @scalar_rule exp10(x) Ω * log(oftype(x, 10))
-        @scalar_rule exp2(x) Ω * log(oftype(x, 2))
-        @scalar_rule expm1(x) exp(x)
-        @scalar_rule log(x) inv(x)
-        @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
-        @scalar_rule log1p(x) inv(x + 1)
-        @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
+        @scalar_rule cbrt(x::CommutativeMulNumber) inv(3 * Ω ^ 2)
+        @scalar_rule inv(x::CommutativeMulNumber) -(Ω ^ 2)
+        @scalar_rule sqrt(x::CommutativeMulNumber) inv(2Ω)
+        @scalar_rule exp(x::CommutativeMulNumber) Ω
+        @scalar_rule exp10(x::CommutativeMulNumber) Ω * log(oftype(x, 10))
+        @scalar_rule exp2(x::CommutativeMulNumber) Ω * log(oftype(x, 2))
+        @scalar_rule expm1(x::CommutativeMulNumber) exp(x)
+        @scalar_rule log(x::CommutativeMulNumber) inv(x)
+        @scalar_rule log10(x::CommutativeMulNumber) inv(x) / log(oftype(x, 10))
+        @scalar_rule log1p(x::CommutativeMulNumber) inv(x + 1)
+        @scalar_rule log2(x::CommutativeMulNumber) inv(x) / log(oftype(x, 2))
 
 
         # Unary complex functions
@@ -78,7 +77,7 @@ let
         end
 
         ## angle
-        function frule((_, Δx), ::typeof(angle), x)
+        function frule((_, Δx), ::typeof(angle), x::Union{Real, Complex})
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
@@ -133,9 +132,9 @@ let
 
         @scalar_rule x + y (One(), One())
         @scalar_rule x - y (One(), -1)
-        @scalar_rule x / y (one(x) / y, -(Ω / y))
+        @scalar_rule x / y::CommutativeMulNumber (one(x) / y, -(Ω / y))
         #log(complex(x)) is required so it gives correct complex answer for x<0
-        @scalar_rule(x ^ y,
+        @scalar_rule(x::CommutativeMulNumber ^ y::CommutativeMulNumber,
             (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
         )
         # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
@@ -157,14 +156,14 @@ let
 
         # `sign`
 
-        function frule((_, Δx), ::typeof(sign), x)
+        function frule((_, Δx), ::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(x), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(sign), x)
+        function rrule(::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(x), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
@@ -172,6 +171,34 @@ let
                 return (NO_FIELDS, ∂x)
             end
             return Ω, sign_pullback
+        end
+
+        function frule((_, Δx), ::typeof(inv), x::Number)
+            Ω = inv(x)
+            return Ω, -(Ω * Δx * Ω)
+        end
+
+        function rrule(::typeof(inv), x::Number)
+            Ω = inv(x)
+            function inv_pullback(ΔΩ)
+                return (NO_FIELDS, -(Ω' * ΔΩ * Ω'))
+            end
+            return Ω, inv_pullback
+        end
+
+        # quotient rule requires special care for arguments where `/` is non-commutative
+        function frule((_, Δx, Δy), ::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            return Ω, muladd(-Ω, Δy, Δx) / y
+        end
+
+        function rrule(::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            function rdiv_pullback(ΔΩ)
+                ∂x = ΔΩ / y'
+                return (NO_FIELDS, ∂x, -(Ω' * ∂x))
+            end
+            return Ω, rdiv_pullback
         end
 
         # product rule requires special care for arguments where `mul` is non-commutative
