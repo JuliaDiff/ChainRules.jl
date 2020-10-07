@@ -8,6 +8,7 @@ using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
+using Quaternions
 using Random
 using Statistics
 using Test
