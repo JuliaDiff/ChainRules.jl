@@ -4,6 +4,7 @@ using Reexport
 @reexport using ChainRulesCore
 
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
+using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
