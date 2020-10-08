@@ -19,23 +19,47 @@ end
 ##### `*`
 #####
 
-function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
+function rrule(::typeof(*), A::AbstractMatrix{<:Number}, B::AbstractMatrix{<:Number})
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(Ȳ * B'),
+                X̄ -> mul!(X̄, Ȳ, B', true, true)
+            ),
+            InplaceableThunk(
+                @thunk(A' * Ȳ),
+                X̄ -> mul!(X̄, A', Ȳ, true, true)
+            )
+        )
     end
     return A * B, times_pullback
 end
 
 function rrule(::typeof(*), A::Real, B::AbstractArray{<:Real})
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(dot(Ȳ, B)), @thunk(A * Ȳ))
+        return (
+            NO_FIELDS,
+            @thunk(dot(Ȳ, B)),
+            InplaceableThunk(
+                @thunk(A * Ȳ),
+                X̄ -> mul!(X̄, A, Ȳ, true, true)
+            )
+        )
     end
     return A * B, times_pullback
 end
 
 function rrule(::typeof(*), B::AbstractArray{<:Real}, A::Real)
     function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(A * Ȳ), @thunk(dot(Ȳ, B)))
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(A * Ȳ),
+                X̄ -> mul!(X̄, A, Ȳ, true, true)
+            ),
+            @thunk(dot(Ȳ, B)),
+        )
     end
     return A * B, times_pullback
 end
