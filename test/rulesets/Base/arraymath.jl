@@ -6,25 +6,53 @@
         rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
 
-    @testset "*" begin
-        @testset "Matrix-Matrix" begin
-            dims = [3,4,5]
-            for n in dims, m in dims, p in dims
-                # don't need to test square case multiple times
-                n > 3 && n == m == p && continue
-                A = randn(m, n)
-                B = randn(n, p)
-                Ȳ = randn(m, p)
-                rrule_test(*, Ȳ, (A, randn(m, n)), (B, randn(n, p)))
-            end
+    # TODO Test on Complex once we have Complex support for all of these.
+    @testset "*: $T" for T in (Float64,)
+        ⋆(a) = round.(5*randn(T, a))  # Helper to generate nice random values
+        ⋆(a, b) = ⋆((a, b))  # matrix
+        ⋆() = only(⋆(()))  # scalar
+
+        ⋆₂(a) = (⋆(a), ⋆(a)) # Helper to generate random matrix and its cotangent
+        ⋆₂(a, b) = ⋆₂((a, b))  #matrix
+        ⋆₂() = ⋆₂(())  # scalar
+
+        @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (10,10), (2,3,4), (2,3,4,5))
+            rrule_test(*, ⋆(dims), ⋆₂(), ⋆₂(dims))
+            rrule_test(*, ⋆(dims), ⋆₂(dims), ⋆₂())
         end
-        @testset "Scalar-AbstractArray" begin
-            for dims in ((3,), (5,4), (10,10), (2,3,4), (2,3,4,5))
-                rrule_test(*, randn(dims), (1.5, 4.2), (randn(dims), randn(dims)))
-                rrule_test(*, randn(dims), (randn(dims), randn(dims)), (1.5, 4.2))
+
+        @testset "AbstractMatrix-AbstractMatrix" begin
+            dims = [2, 4, 5, 10]  # small matrixes have some special cases
+            @testset "n=$n, m=$m, p=$p" for n in dims, m in dims, p in dims
+                @testset "Array" begin
+                    rrule_test(*, n⋆p, (n⋆₂m), (m⋆₂p))
+                end
+
+                #==  # This breaks FiniteDiff
+                # TODO uncomment after we have: https://github.com/JuliaDiff/FiniteDifferences.jl/pull/110
+                @testset "SubArray - $indexname" for (indexname, m_index) in (
+                    ("fast", :), ("slow", Ref(m:-1:1))
+                )
+                    rrule_test(*, n⋆p, view.(n⋆₂m, :, m_index), view.(m⋆₂p, m_index, :))
+                    rrule_test(*, n⋆p, n⋆₂m, view.(m⋆₂p, m_index, :))
+                    rrule_test(*, n⋆p, view.(n⋆₂m, :, m_index), m⋆₂p)
+                end
+                ==#
+
+                @testset "Adjoints and Transposes" begin
+                    rrule_test(*, n⋆p, Transpose.(m⋆₂n), Transpose.(p⋆₂m))
+                    rrule_test(*, n⋆p, Adjoint.(m⋆₂n), Adjoint.(p⋆₂m))
+
+                    rrule_test(*, n⋆p, Transpose.(m⋆₂n), (m⋆₂p))
+                    rrule_test(*, n⋆p, Adjoint.(m⋆₂n), (m⋆₂p))
+
+                    rrule_test(*, n⋆p, (n⋆₂m), Transpose.(p⋆₂m))
+                    rrule_test(*, n⋆p, (n⋆₂m), Adjoint.(p⋆₂m))
+                end
             end
         end
     end
+
 
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin
