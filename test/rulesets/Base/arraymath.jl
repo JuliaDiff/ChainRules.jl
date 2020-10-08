@@ -7,7 +7,7 @@
     end
 
     # TODO Test on Complex once we have Complex support for all of these.
-    @testset "*: $T" for T in (Float64,)
+    @testset "*: $T" for T in (Float64, ComplexF64)
         ⋆(a) = round.(5*randn(T, a))  # Helper to generate nice random values
         ⋆(a, b) = ⋆((a, b))  # matrix
         ⋆() = only(⋆(()))  # scalar
@@ -22,7 +22,7 @@
         end
 
         @testset "AbstractMatrix-AbstractMatrix" begin
-            dims = [2, 4, 5, 10]  # small matrixes have some special cases
+            dims = [2, 5, 10]  # small matrixes can have some special cases
             @testset "n=$n, m=$m, p=$p" for n in dims, m in dims, p in dims
                 @testset "Array" begin
                     rrule_test(*, n⋆p, (n⋆₂m), (m⋆₂p))

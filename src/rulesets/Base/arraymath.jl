@@ -36,13 +36,13 @@ function rrule(::typeof(*), A::AbstractMatrix{<:Number}, B::AbstractMatrix{<:Num
     return A * B, times_pullback
 end
 
-function rrule(::typeof(*), A::Real, B::AbstractArray{<:Real})
+function rrule(::typeof(*), A::Number, B::AbstractArray{<:Number})
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
-            @thunk(dot(Ȳ, B)),
+            @thunk(dot(Ȳ, B)'),
             InplaceableThunk(
-                @thunk(A * Ȳ),
+                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, A, Ȳ, true, true)
             )
         )
@@ -50,15 +50,15 @@ function rrule(::typeof(*), A::Real, B::AbstractArray{<:Real})
     return A * B, times_pullback
 end
 
-function rrule(::typeof(*), B::AbstractArray{<:Real}, A::Real)
+function rrule(::typeof(*), B::AbstractArray{<:Number}, A::Number)
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
             InplaceableThunk(
-                @thunk(A * Ȳ),
+                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, A, Ȳ, true, true)
             ),
-            @thunk(dot(Ȳ, B)),
+            @thunk(dot(Ȳ, B)'),
         )
     end
     return A * B, times_pullback
