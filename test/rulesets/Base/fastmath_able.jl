@@ -90,6 +90,16 @@ const FASTABLE_AST = quote
         end
     end
 
+    @testset "rounding" begin
+        for x in (-0.1, 6.4, 0.5 + 0.25im)
+            test_scalar(round, x)
+            if x isa Real
+                test_scalar(floor, x)
+                test_scalar(ceil, x)
+            end
+        end
+    end
+
     @testset "Unary complex functions" begin
         for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
             @testset "Unary complex functions f = $f, z = $z" begin
