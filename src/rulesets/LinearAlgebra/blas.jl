@@ -129,7 +129,7 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
         else  # uppercase(tA) === 'T'
             ∂A = InplaceableThunk(
                 @thunk(conj(α * x * ȳ')),
-                Ā -> conj!(ger!(α, x, ȳ, Ā))
+                Ā -> conj!(ger!(α, x, ȳ, conj!(Ā)))
             )
             ∂x = InplaceableThunk(
                 @thunk(gemv('N', α', conj(A), ȳ)),
@@ -188,7 +188,7 @@ function rrule(
                 )
                 ∂B = InplaceableThunk(
                     @thunk(conj(gemm('C', 'N', α, C̄, A))),
-                    B̄ -> conj!(gemm!('C', 'N', α, C̄, A, β, B̄))
+                    B̄ -> conj!(gemm!('C', 'N', α, C̄, A, β, conj!(B̄)))
                 )
             end
         elseif uppercase(tA) === 'C'
@@ -224,7 +224,7 @@ function rrule(
             if uppercase(tB) === 'N'
                 ∂A = InplaceableThunk(
                     @thunk(conj(gemm('N', 'C', α, B, C̄))),
-                    Ā -> conj!(gemm!('N', 'C', α, B, C̄, β, Ā))
+                    Ā -> conj!(gemm!('N', 'C', α, B, C̄, β, conj!(Ā)))
                 )
                 ∂B = InplaceableThunk(
                     @thunk(gemm('N', 'N', α', conj(A), C̄)),
