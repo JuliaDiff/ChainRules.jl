@@ -27,9 +27,8 @@
             Ω = evalpoly(x, p)
             Ω̄ = randn(T, size(Ω)...)
             frule_test(evalpoly, (x, ẋ), (p, ṗ))
-            frule_test(evalpoly, (x, ẋ), (Tuple(p), Tuple(ṗ)))
+            frule_test(evalpoly, (x, ẋ), (Tuple(p), rand_tangent(Tuple(p))))
             rrule_test(evalpoly, Ω̄, (x, x̄), (p, p̄))
-            rrule_test(evalpoly, Ω̄, (x, x̄), (Tuple(p), Tuple(p̄)))
+            rrule_test(evalpoly, Ω̄, (x, x̄), (Tuple(p), rand_tangent(Tuple(p))))
         end
     end
-

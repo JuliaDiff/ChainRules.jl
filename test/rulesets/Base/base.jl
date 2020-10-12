@@ -43,7 +43,7 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
-        
+
         @testset "sinc" for x = (0.0, 0.434, Complex(0.434, 0.25))
             test_scalar(sinc, x)
         end
@@ -126,14 +126,14 @@
         frule_test(identity, (randn(T, 4), randn(T, 4)))
         frule_test(
             identity,
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
         )
 
         rrule_test(identity, randn(T), (randn(T), randn(T)))
         rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
         rrule_test(
-            identity, Tuple(randn(T, 3)),
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+            identity, Composite{Tuple{T, T, T}}(randn(T, 3)...),
+            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
         )
     end
 

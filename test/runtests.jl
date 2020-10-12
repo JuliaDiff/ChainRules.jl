@@ -5,6 +5,7 @@ using ChainRulesTestUtils
 using ChainRulesTestUtils: _fdm
 using Compat: only
 using FiniteDifferences
+using FiniteDifferences: rand_tangent
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
