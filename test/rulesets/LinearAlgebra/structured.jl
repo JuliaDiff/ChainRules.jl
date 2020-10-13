@@ -156,4 +156,20 @@
             rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)), (k, nothing))
         end
     end
+
+    @testset "det and logdet $T" for T in (Diagonal, UpperTriangular, LowerTriangular)
+        n = 5
+        # rand (not randn) so det will be postive, so logdet will be defined
+        X = T(rand(n, n))
+        X̄_acc = Diagonal(rand(n, n))  # sensitivity is always a diagonal for these types
+        @testset "$op" for op in (det, logdet)
+            rrule_test(op, 2.7, (X, X̄_acc))
+
+            @testset "return type" begin
+                _, op_pullback = rrule(op, X)
+                X̄ = op_pullback(2.7)[2]
+                @test X̄ isa Diagonal
+            end
+        end
+    end
 end
