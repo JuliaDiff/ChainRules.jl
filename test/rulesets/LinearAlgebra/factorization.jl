@@ -13,8 +13,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test dself1 === NO_FIELDS
                 @test dp === DoesNotExist()
 
-                ΔF = unthunk(dF)
-                dself2, dX = dX_pullback(ΔF)
+                dself2, dX = dX_pullback(dF)
                 @test dself2 === NO_FIELDS
                 X̄_ad = unthunk(dX)
                 X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
@@ -24,6 +23,26 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 Y, dF_pullback = rrule(getproperty, F, :Vt)
                 Ȳ = randn(size(Y)...)
                 @test_throws ArgumentError dF_pullback(Ȳ)
+            end
+        end
+
+        @testset "Thunked inputs" begin
+            X = randn(4, 3)
+            F, dX_pullback = rrule(svd, X)
+            for p in [:U, :S, :V]
+                Y, dF_pullback = rrule(getproperty, F, p)
+                Ȳ = randn(size(Y)...)
+
+                _, dF_unthunked, _ = dF_pullback(Ȳ)
+
+                @assert !(getproperty(dF_unthunked, p) isa AbstractThunk)
+                dF_thunked = map(f->Thunk(()->f), dF_unthunked)
+                @assert getproperty(dF_thunked, p) isa AbstractThunk
+
+                dself_thunked, dX_thunked = dX_pullback(dF_thunked)
+                dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
+                @test dself_thunked == dself_unthunked
+                @test dX_thunked == dX_unthunked
             end
         end
 
