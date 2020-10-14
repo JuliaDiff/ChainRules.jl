@@ -17,6 +17,9 @@ _mulsubtrans!!(X::AbstractZero, F::AbstractZero) = X
 _mulsubtrans!!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
 _mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
 
+_subtract!!(x, y) = x - y
+_subtract!!(x::Array, y::AbstractArray) = x .-= y
+
 # I - X, overwrites X
 function _eyesubx!(X::AbstractMatrix)
     n, m = size(X)

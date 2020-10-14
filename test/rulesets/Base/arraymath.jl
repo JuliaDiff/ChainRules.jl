@@ -63,4 +63,13 @@
         rrule_test(/, Ȳ, (A, Ā), (7.2, 2.3))
         rrule_test(\, Ȳ, (7.2, 2.3), (A, Ā))
     end
+
+
+    @testset "negation" begin
+        A = randn(4, 4)
+        Ā = randn(4, 4,)
+        Ȳ = randn(4, 4,)
+        rrule_test(-, Ȳ, (A, Ā))
+        rrule_test(-, Diagonal(Ȳ), (Diagonal(A), Diagonal(Ā)))
+    end
 end

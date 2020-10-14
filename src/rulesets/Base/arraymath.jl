@@ -104,3 +104,14 @@ function rrule(::typeof(\), b::Real, A::AbstractArray{<:Real})
     end
     return Y, backslash_pullback
 end
+
+#####
+##### Negation (Unary -)
+#####
+
+function rrule(::typeof(-), x::AbstractArray)
+    function negation_pullback(ȳ)
+        return NO_FIELDS, InplaceableThunk(@thunk(-ȳ), _subtract!!)
+    end
+    return -x, negation_pullback
+end

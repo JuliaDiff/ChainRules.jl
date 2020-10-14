@@ -40,6 +40,7 @@ println("Testing ChainRules.jl")
             include(joinpath("rulesets", "LinearAlgebra", "structured.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
+            include(joinpath("rulesets", "LinearAlgebra", "utils.jl"))
         end
 
         print(" ")
