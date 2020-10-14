@@ -111,7 +111,7 @@ end
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
-        return NO_FIELDS, InplaceableThunk(@thunk(-ȳ), _subtract!!)
+        return NO_FIELDS, InplaceableThunk(@thunk(-ȳ), ā -> _subtract!!(ā, ȳ))
     end
     return -x, negation_pullback
 end
