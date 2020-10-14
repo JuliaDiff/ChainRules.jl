@@ -32,9 +32,6 @@ end
 #####
 
 function rrule(::Type{<:Diagonal}, d::AbstractVector)
-    function Diagonal_pullback(x::AbstractThunk)
-        return Diagonal_pullback(unthunk(x))
-    end
     function Diagonal_pullback(ȳ::AbstractMatrix)
         return (NO_FIELDS, diag(ȳ))
     end
