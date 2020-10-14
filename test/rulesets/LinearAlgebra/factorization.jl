@@ -89,10 +89,10 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 ΔF = unthunk(dF)
                 _, dX = dX_pullback(ΔF)
                 X̄_ad = dot(unthunk(dX), V)
-                X̄_fd = _fdm() do ε
+                X̄_fd = central_fdm(5, 1)(0.000_001) do ε
                     dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
                 end
-                @test X̄_ad ≈ X̄_fd rtol=1e-6 atol=1e-6
+                @test X̄_ad ≈ X̄_fd rtol=1e-4
             end
         end
         @testset "helper functions" begin

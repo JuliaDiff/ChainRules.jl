@@ -33,7 +33,7 @@
                 n = 10
                 x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
                 frule_test(BLAS.nrm2, (x, ẋ))
-                rrule_test(BLAS.nrm2, randn(), (x, x̄))
+                rrule_test(BLAS.nrm2, randn(), (x, x̄); rtol=1e-7)
             end
         end
 
