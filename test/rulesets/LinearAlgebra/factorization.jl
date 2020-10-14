@@ -18,7 +18,6 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 X̄_ad = unthunk(dX)
                 X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
                 @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
-
             end
             @testset "Vt" begin
                 Y, dF_pullback = rrule(getproperty, F, :Vt)
