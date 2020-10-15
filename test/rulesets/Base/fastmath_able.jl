@@ -91,12 +91,9 @@ const FASTABLE_AST = quote
     end
 
     @testset "rounding" begin
-        for x in (-0.1, 6.4, 0.5 + 0.25im)
-            test_scalar(round, x)
-            if x isa Real
-                test_scalar(floor, x)
-                test_scalar(ceil, x)
-            end
+        for x in (-0.6, -0.2, -0.1, 0.1, 0.2, 0.6, 6.4)
+            test_scalar(floor, x, fdm = backward_fdm(5, 1))
+            test_scalar(ceil, x, fdm = forward_fdm(5, 1))
         end
     end
 
