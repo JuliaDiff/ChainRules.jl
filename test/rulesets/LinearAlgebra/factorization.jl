@@ -35,9 +35,12 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
                 _, dF_unthunked, _ = dF_pullback(Ȳ)
 
-                @assert !(getproperty(dF_unthunked, p) isa AbstractThunk)
+                # helper to let us check how things are stored.
+                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p)
+                @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
+
                 dF_thunked = map(f->Thunk(()->f), dF_unthunked)
-                @assert getproperty(dF_thunked, p) isa AbstractThunk
+                @assert backing_field(dF_thunked, p) isa AbstractThunk
 
                 dself_thunked, dX_thunked = dX_pullback(dF_thunked)
                 dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
