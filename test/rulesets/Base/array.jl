@@ -66,7 +66,7 @@ end
     (ds, dv, dd) = pullback(ones(4))
     @test ds === NO_FIELDS
     @test dd isa DoesNotExist
-    @test extern(dv) == 4   
+    @test extern(dv) == 4
 
     y, pullback = rrule(fill, 2.0, (3, 3, 3))
     @test y == fill(2.0, (3, 3, 3))
@@ -78,14 +78,7 @@ end
 
 @testset "getindex" begin
     x = [1.0 2.0 3.0; 10.0 20.0 30.0]
-    ind = [2,3]
-    ȳ = 7.2
-    x̄_fd, = j′vp(ChainRulesTestUtils._fdm, a->getindex(a, ind...), ȳ, x)
-    y, pullback = rrule(getindex, x, ind...)
-    _, x̄_ad, = pullback(ȳ)
-
-    @test unthunk(x̄_ad) ≈ x̄_fd
-
-    x_like = x .+ 1.0
-    @test x̄_ad.add!(copy(x_like)) ≈ x_like + x̄_fd
+    x̄ = [1.4 2.5 3.7; 10.5 20.1 30.2]
+    rrule_test(getindex, 2.3, (x, x̄), (2, nothing))
+    rrule_test(getindex, 2.3, (x, x̄), (2, nothing), (1, nothing))
 end
