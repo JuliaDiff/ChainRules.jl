@@ -32,6 +32,7 @@ include("rulesets/Base/fastmath_able.jl")
 include("rulesets/Base/evalpoly.jl")
 include("rulesets/Base/array.jl")
 include("rulesets/Base/arraymath.jl")
+include("rulesets/Base/indexing.jl")
 include("rulesets/Base/mapreduce.jl")
 
 include("rulesets/Statistics/statistics.jl")

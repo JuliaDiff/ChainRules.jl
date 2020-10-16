@@ -24,6 +24,7 @@ println("Testing ChainRules.jl")
             include(joinpath("rulesets", "Base", "evalpoly.jl"))
             include(joinpath("rulesets", "Base", "array.jl"))
             include(joinpath("rulesets", "Base", "arraymath.jl"))
+            include(joinpath("rulesets", "Base", "indexing.jl"))
             include(joinpath("rulesets", "Base", "mapreduce.jl"))
         end
 
