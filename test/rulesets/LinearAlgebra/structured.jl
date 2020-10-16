@@ -160,7 +160,7 @@
     @testset "det and logdet $T" for T in (Diagonal, UpperTriangular, LowerTriangular)
         n = 5
         # rand (not randn) so det will be postive, so logdet will be defined
-        X = T(rand(n, n))
+        X = T(3*rand(n, n) .+ 1)
         X̄_acc = Diagonal(rand(n, n))  # sensitivity is always a diagonal for these types
         @testset "$op" for op in (det, logdet)
             rrule_test(op, 2.7, (X, X̄_acc))
