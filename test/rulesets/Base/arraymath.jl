@@ -28,8 +28,6 @@
                     rrule_test(*, n⋆p, (n⋆₂m), (m⋆₂p))
                 end
 
-                #==  # This breaks FiniteDiff
-                # TODO uncomment after we have: https://github.com/JuliaDiff/FiniteDifferences.jl/pull/110
                 @testset "SubArray - $indexname" for (indexname, m_index) in (
                     ("fast", :), ("slow", Ref(m:-1:1))
                 )
@@ -37,7 +35,6 @@
                     rrule_test(*, n⋆p, n⋆₂m, view.(m⋆₂p, m_index, :))
                     rrule_test(*, n⋆p, view.(n⋆₂m, :, m_index), m⋆₂p)
                 end
-                ==#
 
                 @testset "Adjoints and Transposes" begin
                     rrule_test(*, n⋆p, Transpose.(m⋆₂n), Transpose.(p⋆₂m))
