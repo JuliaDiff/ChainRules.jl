@@ -274,3 +274,24 @@ function rrule(::typeof(tril), A::AbstractMatrix)
     end
     return tril(A), tril_pullback
 end
+
+_diag_view(X) = view(X, diagind(X))
+_diag_view(X::Diagonal) = parent(X)  #Diagonal wraps a Vector of just Diagonal elements
+
+function rrule(::typeof(det), X::Union{Diagonal, AbstractTriangular})
+    y = det(X)
+    s = conj!(y ./ _diag_view(X))
+    function det_pullback(ȳ)
+        return (NO_FIELDS, Diagonal(ȳ .* s))
+    end
+    return y, det_pullback
+end
+
+function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
+    y = logdet(X)
+    s = conj!(one(eltype(X)) ./ _diag_view(X))
+    function logdet_pullback(ȳ)
+        return (NO_FIELDS, Diagonal(ȳ .* s))
+    end
+    return y, logdet_pullback
+end
