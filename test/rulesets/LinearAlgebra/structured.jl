@@ -157,15 +157,17 @@
         end
     end
 
-    @testset "det and logdet $T" for T in (Diagonal, UpperTriangular, LowerTriangular)
-        n = 5
-        # rand (not randn) so det will be postive, so logdet will be defined
-        X = T(3*rand(n, n) .+ 1)
-        X̄_acc = Diagonal(rand(n, n))  # sensitivity is always a diagonal for these types
+    @testset "det and logdet $S" for S in (Diagonal, UpperTriangular, LowerTriangular)
         @testset "$op" for op in (det, logdet)
-            rrule_test(op, 2.7, (X, X̄_acc))
-
+            @testset "$T" for T in (Float64, ComplexF64)
+                n = 5
+                # rand (not randn) so det will be postive, so logdet will be defined
+                X = S(3*rand(T, (n, n)) .+ 1)
+                X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
+                rrule_test(op, rand(T), (X, X̄_acc))
+            end
             @testset "return type" begin
+                X = S(3*rand(6, 6) .+ 1)
                 _, op_pullback = rrule(op, X)
                 X̄ = op_pullback(2.7)[2]
                 @test X̄ isa Diagonal

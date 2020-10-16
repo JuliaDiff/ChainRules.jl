@@ -280,7 +280,7 @@ _diag_view(X::Diagonal) = parent(X)  #Diagonal wraps a Vector of just Diagonal e
 
 function rrule(::typeof(det), X::Union{Diagonal, AbstractTriangular})
     y = det(X)
-    s = y ./ _diag_view(X)
+    s = conj!(y ./ _diag_view(X))
     function det_pullback(ȳ)
         return (NO_FIELDS, Diagonal(ȳ .* s))
     end
@@ -289,7 +289,7 @@ end
 
 function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
     y = logdet(X)
-    s = one(eltype(X)) ./ _diag_view(X)
+    s = conj!(one(eltype(X)) ./ _diag_view(X))
     function logdet_pullback(ȳ)
         return (NO_FIELDS, Diagonal(ȳ .* s))
     end
