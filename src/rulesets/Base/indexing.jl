@@ -2,7 +2,7 @@
 ##### getindex
 #####
 
-function rrule(::typeof(getindex), x::Array, inds...)
+function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     # removes any logical indexing, CartesianIndex etc
     # leaving us just with a tuple of Int, Arrays of Int and Ranges of Int
     plain_inds = Base.to_indices(x, inds)
