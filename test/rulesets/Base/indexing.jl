@@ -21,8 +21,8 @@
             rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (1:2, nothing), (2:3, nothing))
             rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (:, nothing), (2:3, nothing))
 
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (2:3, nothing), (1, nothing))
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (1, nothing), (2:3, nothing))
+            rrule_test(getindex, [2.3, 3.1], (x, x̄), (1:2, nothing), (1, nothing))
+            rrule_test(getindex, [2.3, 3.1], (x, x̄), (1, nothing), (1:2, nothing))
 
             rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (1:2, nothing), (2:3, nothing))
             rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (:, nothing), (2:3, nothing))
