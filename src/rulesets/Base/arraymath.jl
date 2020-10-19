@@ -43,7 +43,7 @@ function rrule(::typeof(*), A::Number, B::AbstractArray{<:Number})
             @thunk(dot(Ȳ, B)'),
             InplaceableThunk(
                 @thunk(A' * Ȳ),
-                X̄ -> mul!(X̄, A, Ȳ, true, true)
+                X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
             )
         )
     end
@@ -56,7 +56,7 @@ function rrule(::typeof(*), B::AbstractArray{<:Number}, A::Number)
             NO_FIELDS,
             InplaceableThunk(
                 @thunk(A' * Ȳ),
-                X̄ -> mul!(X̄, A, Ȳ, true, true)
+                X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
             ),
             @thunk(dot(Ȳ, B)'),
         )
