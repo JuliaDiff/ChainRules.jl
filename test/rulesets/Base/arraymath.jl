@@ -6,7 +6,6 @@
         rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
 
-    # TODO Test on Complex once we have Complex support for all of these.
     @testset "*: $T" for T in (Float64, ComplexF64)
         ⋆(a) = round.(5*randn(T, a))  # Helper to generate nice random values
         ⋆(a, b) = ⋆((a, b))  # matrix
