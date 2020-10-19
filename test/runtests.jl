@@ -38,7 +38,6 @@ println("Testing ChainRules.jl")
 
         @testset "LinearAlgebra" begin
             include(joinpath("rulesets", "LinearAlgebra", "dense.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "stided.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "structured.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
             include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))

@@ -16,14 +16,13 @@
         ⋆₂(a, b) = ⋆₂((a, b))  #matrix
         ⋆₂() = ⋆₂(())  # scalar
 
-        @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (10,10), (2,3,4), (2,3,4,5))
+        @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (2, 3, 4, 5))
             rrule_test(*, ⋆(dims), ⋆₂(), ⋆₂(dims))
             rrule_test(*, ⋆(dims), ⋆₂(dims), ⋆₂())
         end
 
         @testset "AbstractMatrix-AbstractMatrix" begin
-            dims = [2, 5, 10]  # small matrixes can have some special cases
-            @testset "n=$n, m=$m, p=$p" for n in dims, m in dims, p in dims
+            @testset "n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
                 @testset "Array" begin
                     rrule_test(*, n⋆p, (n⋆₂m), (m⋆₂p))
                 end
