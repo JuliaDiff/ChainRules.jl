@@ -19,7 +19,11 @@ end
 ##### `*`
 #####
 
-function rrule(::typeof(*), A::AbstractMatrix{<:Number}, B::AbstractMatrix{<:Number})
+function rrule(
+    ::typeof(*),
+    A::AbstractMatrix{<:CommutativeMulNumber},
+    B::AbstractMatrix{<:CommutativeMulNumber},
+)
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
@@ -36,7 +40,9 @@ function rrule(::typeof(*), A::AbstractMatrix{<:Number}, B::AbstractMatrix{<:Num
     return A * B, times_pullback
 end
 
-function rrule(::typeof(*), A::Number, B::AbstractArray{<:Number})
+function rrule(
+   ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
+)
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
@@ -50,7 +56,9 @@ function rrule(::typeof(*), A::Number, B::AbstractArray{<:Number})
     return A * B, times_pullback
 end
 
-function rrule(::typeof(*), B::AbstractArray{<:Number}, A::Number)
+function rrule(
+    ::typeof(*), B::AbstractArray{<:CommutativeMulNumber}, A::CommutativeMulNumber
+)
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
