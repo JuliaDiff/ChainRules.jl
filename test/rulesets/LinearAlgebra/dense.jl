@@ -32,6 +32,15 @@
             frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ))
             rrule_test(dot, randn(T), (x, x̄), (A, Abar), (y, ȳ))
         end
+        permuteddimsarray(A) = PermutedDimsArray(A, (2,1))
+        @testset "3-arg dot, $F{$T}" for T in (Float32, ComplexF32), F in (adjoint, permuteddimsarray)
+            M, N = 3, 4
+            x, A, y = rand(T, M), F(rand(T, N, M)), rand(T, N)
+            ẋ, Adot, ẏ = rand(T, M), F(rand(T, N, M)), rand(T, N)
+            x̄, Abar, ȳ = similar(x), F(rand(T, N, M)), similar(y)
+            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ); rtol=1f-3)
+            rrule_test(dot, float(rand(T)), (x, x̄), (A, Abar), (y, ȳ); rtol=1f-3)
+        end
     end
     @testset "cross" begin
         @testset "frule" begin
