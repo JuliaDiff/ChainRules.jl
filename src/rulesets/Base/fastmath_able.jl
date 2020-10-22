@@ -33,6 +33,12 @@ let
         @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
         @scalar_rule log1p(x) inv(x + 1)
         @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
+        
+        # rouding related, 
+        # we use `zero` rather than `Zero()` for scalar, and avoids issues with map etc
+        @scalar_rule round(x) zero(x)
+        @scalar_rule floor(x) zero(x)
+        @scalar_rule ceil(x) zero(x)
 
 
         # Unary complex functions

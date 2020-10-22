@@ -13,8 +13,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @test dself1 === NO_FIELDS
                 @test dp === DoesNotExist()
 
-                ΔF = unthunk(dF)
-                dself2, dX = dX_pullback(ΔF)
+                dself2, dX = dX_pullback(dF)
                 @test dself2 === NO_FIELDS
                 X̄_ad = unthunk(dX)
                 X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
@@ -24,6 +23,29 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 Y, dF_pullback = rrule(getproperty, F, :Vt)
                 Ȳ = randn(size(Y)...)
                 @test_throws ArgumentError dF_pullback(Ȳ)
+            end
+        end
+
+        @testset "Thunked inputs" begin
+            X = randn(4, 3)
+            F, dX_pullback = rrule(svd, X)
+            for p in [:U, :S, :V]
+                Y, dF_pullback = rrule(getproperty, F, p)
+                Ȳ = randn(size(Y)...)
+
+                _, dF_unthunked, _ = dF_pullback(Ȳ)
+
+                # helper to let us check how things are stored.
+                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p)
+                @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
+
+                dF_thunked = map(f->Thunk(()->f), dF_unthunked)
+                @assert backing_field(dF_thunked, p) isa AbstractThunk
+
+                dself_thunked, dX_thunked = dX_pullback(dF_thunked)
+                dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
+                @test dself_thunked == dself_unthunked
+                @test dX_thunked == dX_unthunked
             end
         end
 
@@ -47,9 +69,8 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         @testset "Helper functions" begin
             X = randn(10, 10)
             Y = randn(10, 10)
-            @test ChainRules._mulsubtrans!(copy(X), Y) ≈ Y .* (X - X')
+            @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
-            @test ChainRules._add!(copy(X), Y) ≈ X + Y
         end
     end
     @testset "cholesky" begin
@@ -71,10 +92,10 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 ΔF = unthunk(dF)
                 _, dX = dX_pullback(ΔF)
                 X̄_ad = dot(unthunk(dX), V)
-                X̄_fd = _fdm() do ε
+                X̄_fd = central_fdm(5, 1)(0.000_001) do ε
                     dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
                 end
-                @test X̄_ad ≈ X̄_fd rtol=1e-6 atol=1e-6
+                @test X̄_ad ≈ X̄_fd rtol=1e-4
             end
         end
         @testset "helper functions" begin

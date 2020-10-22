@@ -38,6 +38,8 @@ function complex_jacobian_test(f, z)
 end
 
 const FASTABLE_AST = quote
+    is_fastmath_mode = sin === Base.FastMath.sin_fast
+
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
             test_scalar(sin, x)
@@ -66,7 +68,7 @@ const FASTABLE_AST = quote
     end
 
     @testset "exponents" begin
-        for x in (-0.1, 6.4, 0.5 + 0.25im)
+        for x in (-0.1, 7.9, 0.5 + 0.25im)
             test_scalar(inv, x)
 
             test_scalar(exp, x)
@@ -85,6 +87,19 @@ const FASTABLE_AST = quote
                 test_scalar(log10, x)
                 test_scalar(log1p, x)
             end
+        end
+    end
+
+    @testset "rounding" begin
+        for x in (-0.6, -0.2, 0.1, 0.6)
+            # thanks to RoundNearest
+            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
+                test_scalar(round, x; fdm=backward_fdm(5,1))
+            else
+                test_scalar(round, x; fdm=forward_fdm(5,1))
+            end
+            test_scalar(floor, x; fdm=backward_fdm(5, 1))
+            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
         end
     end
 
@@ -117,14 +132,14 @@ const FASTABLE_AST = quote
         for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(+, x)
             test_scalar(-, x)
-            test_scalar(atan, x)
+            test_scalar(atan, x; rtol=(is_fastmath_mode ? 1e-7 : 1e-9))
         end
     end
 
     @testset "binary functions" begin
         @testset "$f(x, y)" for f in (atan, rem, max, min)
-            x, Δx, x̄ = 10rand(3)
-            y, Δy, ȳ = rand(3)
+            x, Δx, x̄ = 100rand(3)
+            y, Δy, ȳ = 10rand(3)
             Δz = rand()
 
             frule_test(f, (x, Δx), (y, Δy))
@@ -136,8 +151,9 @@ const FASTABLE_AST = quote
             y, Δy, ȳ = rand(T, 3)
             Δz = randn(typeof(f(x, y)))
 
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))    
+            # some tests struggle in fast_math mode to get accurasy so we relax it some.
+            frule_test(f, (x, Δx), (y, Δy); rtol=(is_fastmath_mode ? 1e-5 : 1e-7))
+            rrule_test(f, Δz, (x, x̄), (y, ȳ); rtol=(is_fastmath_mode ? 1e-5 : 1e-7))
         end
 
         @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
@@ -151,11 +167,11 @@ const FASTABLE_AST = quote
             @test extern.((∂x, ∂y)) isa Tuple{T, T}
 
             if f != hypot
-                # Issue #233                
+                # Issue #233
                 @test frule((Zero(), Δx, Δy), f, x, 2) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
                 @test extern.((∂x, ∂y)) isa Tuple{T, T}
-                
+
                 @test frule((Zero(), Δx, Δy), f, 2, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
                 @test extern.((∂x, ∂y)) isa Tuple{T, T}
@@ -164,9 +180,8 @@ const FASTABLE_AST = quote
 
         @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
             # for real x and n, x must be >0
-            x = T <: Real ? 15rand() : 15randn(ComplexF64)
-            Δx, x̄ = 10rand(T, 2)
-            y, Δy, ȳ = rand(T, 3)
+            x, Δx, x̄ = rand(T, 3) .+ 3
+            y, Δy, ȳ = rand(T, 3) .+ 3
             Δz = rand(T)
 
             frule_test(^, (x, Δx), (y, Δy))
@@ -174,7 +189,8 @@ const FASTABLE_AST = quote
 
             T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
                 # finite differences doesn't work for x < 0, so we check manually
-                x, y = -10rand(T), 3
+                x = -rand(T) .- 3
+                y = 3
                 Δx = randn(T)
                 Δy = randn(T)
                 Δz = randn(T)
