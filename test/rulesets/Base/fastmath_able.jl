@@ -90,6 +90,19 @@ const FASTABLE_AST = quote
         end
     end
 
+    @testset "rounding" begin
+        for x in (-0.6, -0.2, 0.1, 0.6)
+            # thanks to RoundNearest
+            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
+                test_scalar(round, x; fdm=backward_fdm(5,1))
+            else
+                test_scalar(round, x; fdm=forward_fdm(5,1))
+            end
+            test_scalar(floor, x; fdm=backward_fdm(5, 1))
+            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
+        end
+    end
+
     @testset "Unary complex functions" begin
         for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
             @testset "Unary complex functions f = $f, z = $z" begin
