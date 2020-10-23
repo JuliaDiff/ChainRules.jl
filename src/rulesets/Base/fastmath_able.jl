@@ -197,12 +197,12 @@ let
     fast_ast = Base.FastMath.make_fastmath(fastable_ast)
 
     # Guard against mistakenly defining something as fast-able when it isn't.
-    non_tranformed_definitions = intersect(fastable_ast.args, fast_ast.args)
-    filter!(expr->!(expr isa LineNumberNode), non_tranformed_definitions)
-    if !isempty(non_tranformed_definitions)
+    non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
+    filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
+    if !isempty(non_transformed_definitions)
         error(
             "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
-            join(non_tranformed_definitions, "\n")
+            join(non_transformed_definitions, "\n")
         )
     end
 
