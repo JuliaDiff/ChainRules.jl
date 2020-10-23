@@ -179,4 +179,17 @@
         frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
     end
+
+    @testset "rounding" begin
+        for x in (-0.6, -0.2, 0.1, 0.6)
+            # thanks to RoundNearest
+            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
+                test_scalar(round, x; fdm=backward_fdm(5,1))
+            else
+                test_scalar(round, x; fdm=forward_fdm(5,1))
+            end
+            test_scalar(floor, x; fdm=backward_fdm(5, 1))
+            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
+        end
+    end
 end

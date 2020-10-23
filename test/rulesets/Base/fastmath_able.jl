@@ -37,6 +37,9 @@ function complex_jacobian_test(f, z)
     @test jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
 end
 
+# IMPORTANT:
+# Do not add any tests here for functions that do not have varients in Base.FastMath
+# e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
 const FASTABLE_AST = quote
     is_fastmath_mode = sin === Base.FastMath.sin_fast
 
@@ -87,19 +90,6 @@ const FASTABLE_AST = quote
                 test_scalar(log10, x)
                 test_scalar(log1p, x)
             end
-        end
-    end
-
-    @testset "rounding" begin
-        for x in (-0.6, -0.2, 0.1, 0.6)
-            # thanks to RoundNearest
-            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
-                test_scalar(round, x; fdm=backward_fdm(5,1))
-            else
-                test_scalar(round, x; fdm=forward_fdm(5,1))
-            end
-            test_scalar(floor, x; fdm=backward_fdm(5, 1))
-            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
         end
     end
 
