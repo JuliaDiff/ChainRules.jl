@@ -33,7 +33,12 @@
         comp = Composite{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
         @test pb(comp) == (NO_FIELDS, [10, 40])
     end
-
+    @testset "dot(x, ::Diagonal, y)" begin
+        N = 4
+        x, d, y = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
+        D = Diagonal(d)
+        rrule_test(dot, rand(ComplexF64), (x,similar(x)), (D,similar(D)), (y,similar(y)))
+    end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
         rrule_test(

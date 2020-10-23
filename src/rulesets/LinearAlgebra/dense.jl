@@ -13,6 +13,35 @@ function rrule(::typeof(dot), x, y)
     return dot(x, y), dot_pullback
 end
 
+function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    return dot(x, A, y), dot(Δx, A, y) + dot(x, ΔA, y) + dot(x, A, Δy)
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    Ay = A * y
+    z = adjoint(x) * Ay
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* Ay
+        dA = @thunk ΔΩ .* x .* adjoint(y)
+        dy = @thunk ΔΩ .* (adjoint(A) * x)
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    return z, dot_pullback
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}, y::AbstractVector{<:Number})
+    z = dot(x,A,y)
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
+        dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
+        dy = @thunk ΔΩ .* conj.(A.diag) .* x
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    return z, dot_pullback
+end
+
 #####
 ##### `cross`
 #####
