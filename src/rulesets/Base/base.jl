@@ -153,3 +153,8 @@ function rrule(::typeof(identity), x)
     return (x, identity_pullback)
 end
 
+# rouding related,
+# we use `zero` rather than `Zero()` for scalar, and avoids issues with map etc
+@scalar_rule round(x) zero(x)
+@scalar_rule floor(x) zero(x)
+@scalar_rule ceil(x) zero(x)

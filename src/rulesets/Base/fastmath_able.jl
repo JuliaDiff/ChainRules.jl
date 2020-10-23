@@ -1,5 +1,8 @@
 let
     # Include inside this quote any rules that should have FastMath versions
+    # IMPORTANT:
+    # Do not add any rules here for functions that do not have varients in Base.FastMath
+    # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
         @scalar_rule cos(x) -(sin(x))
@@ -33,13 +36,6 @@ let
         @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
         @scalar_rule log1p(x) inv(x + 1)
         @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
-        
-        # rouding related, 
-        # we use `zero` rather than `Zero()` for scalar, and avoids issues with map etc
-        @scalar_rule round(x) zero(x)
-        @scalar_rule floor(x) zero(x)
-        @scalar_rule ceil(x) zero(x)
-
 
         # Unary complex functions
         ## abs
@@ -195,10 +191,22 @@ let
             end
             return x * y, times_pullback
         end
-    end
+    end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
-    eval(Base.FastMath.make_fastmath(fastable_ast))
+    fast_ast = Base.FastMath.make_fastmath(fastable_ast)
+
+    # Guard against mistakenly defining something as fast-able when it isn't.
+    non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
+    filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
+    if !isempty(non_transformed_definitions)
+        error(
+            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
+            join(non_transformed_definitions, "\n")
+        )
+    end
+
+    eval(fast_ast)
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
 end
