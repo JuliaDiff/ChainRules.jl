@@ -5,8 +5,6 @@ let
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
         @scalar_rule tan(x) 1 + Ω ^ 2
 
 
