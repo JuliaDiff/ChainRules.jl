@@ -75,32 +75,6 @@ function rrule(::typeof(hypot), z::Complex)
     return (Ω, hypot_pullback)
 end
 
-# `sin`
-
-function rrule(::typeof(sin), x::Number)
-    sinx, cosx = sincos(x)
-    sin_pullback(dy) = (NO_FIELDS, cosx * dy)
-    return (sinx, sin_pullback)
-end
-
-function frule((_, dy), ::typeof(sin), x::Number)
-    sinx, cosx = sincos(x)
-    return (sinx, cosx)
-end
-
-# `cos`
-
-function rrule(::typeof(cos), x::Number)
-    sinx, cosx = sincos(x)
-    cos_pullback(dy) = (NO_FIELDS, -sinx * dy)
-    return (cosx, cos_pullback)
-end
-
-function frule((_, dy), ::typeof(cos), x::Number)
-    sinx, cosx = sincos(x)
-    return (cosx, -sinx)
-end
-
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
 @scalar_rule rem2pi(x, r::RoundingMode) (One(), DoesNotExist())
