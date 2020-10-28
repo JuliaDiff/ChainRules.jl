@@ -5,13 +5,13 @@ let
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
-        ## use `sincos` to comput sin and cos at the same time
-        ## for the rules for sin and cos
-        ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291s
+        ## use `sincos` to compute `sin` and `cos` at the same time
+        ## for the rules for `sin` and `cos`
+        ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291
         ## sin
         function rrule(::typeof(sin), x::Number)
             sinx, cosx = sincos(x)
-            sin_pullback(Δy) = (NO_FIELDS, cosx * Δy)
+            sin_pullback(Δy) = (NO_FIELDS, cosx' * Δy)
             return (sinx, sin_pullback)
         end
 
@@ -23,7 +23,7 @@ let
         ## cos
         function rrule(::typeof(cos), x::Number)
             sinx, cosx = sincos(x)
-            cos_pullback(Δy) = (NO_FIELDS, -sinx * Δy)
+            cos_pullback(Δy) = (NO_FIELDS, -sinx' * Δy)
             return (cosx, cos_pullback)
         end
         
