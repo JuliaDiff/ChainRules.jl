@@ -67,6 +67,9 @@
     (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
      SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b),)
 )
+@scalar_rule(
+    SpecialFunctions.expint(ν, z), (NaN, -SpecialFunctions.expint(ν - 1, z)),
+)
 # Changes between SpecialFunctions 0.7 and 0.8
 if isdefined(SpecialFunctions, :lgamma)
     # actually is the absolute value of the logorithm of gamma
