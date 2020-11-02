@@ -5,8 +5,33 @@ let
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
+        ## use `sincos` to compute `sin` and `cos` at the same time
+        ## for the rules for `sin` and `cos`
+        ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291
+        ## sin
+        function rrule(::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            sin_pullback(Δy) = (NO_FIELDS, cosx' * Δy)
+            return (sinx, sin_pullback)
+        end
+
+        function frule((_, Δx), ::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            return (sinx, cosx * Δx)
+        end
+
+        ## cos
+        function rrule(::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            cos_pullback(Δy) = (NO_FIELDS, -sinx' * Δy)
+            return (cosx, cos_pullback)
+        end
+        
+        function frule((_, Δx), ::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            return (cosx, -sinx * Δx)
+        end
+        
         @scalar_rule tan(x) 1 + Ω ^ 2
 
 
