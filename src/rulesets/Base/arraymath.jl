@@ -126,13 +126,11 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     Af = factorize(A)  # precompute factorized form, to reused in pullback
     Y = Af \ B  # factorized form is much faster to run \ on
     function backslash_pullback(Ȳ)
-        # TODO: we write `(B'/Af)'` rather than the simpler `Af'\B` because of
-        # https://github.com/JuliaLang/julia/issues/38293
-        ∂B = (Ȳ' / Af)'
+        ∂B = Af' \ Ȳ
         ∂A = @thunk begin
             Ā = -∂B * Y'
-            Ā = add!!(Ā, (B - A * Y) * (Af \ ∂B)')
-            Ā = add!!(Ā, (Y' / Af)' * (Ȳ' - ∂B'A))
+            Ā = add!!(Ā, (B - A * Y) * ∂B' / Af')
+            Ā = add!!(Ā, Af' \ Y * (Ȳ' - ∂B'A))
             Ā
         end
         return NO_FIELDS, ∂A, ∂B
