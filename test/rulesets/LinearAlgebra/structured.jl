@@ -36,8 +36,10 @@
     @testset "dot(x, ::Diagonal, y)" begin
         N = 4
         x, d, y = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
+        x̄, d̄, ȳ = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
         D = Diagonal(d)
-        rrule_test(dot, rand(ComplexF64), (x,similar(x)), (D,similar(D)), (y,similar(y)))
+        D̄ = Diagonal(d̄)
+        rrule_test(dot, rand(ComplexF64), (x, x̄), (D, D̄), (y, ȳ))
     end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
