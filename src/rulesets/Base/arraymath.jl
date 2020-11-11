@@ -21,8 +21,8 @@ end
 
 function rrule(
     ::typeof(*),
-    A::AbstractMatrix{<:CommutativeMulNumber},
-    B::AbstractMatrix{<:CommutativeMulNumber},
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
 )
     function times_pullback(Ȳ)
         return (
