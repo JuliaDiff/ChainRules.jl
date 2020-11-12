@@ -15,7 +15,7 @@
         ⋆₂(a, b) = ⋆₂((a, b))  #matrix
         ⋆₂() = ⋆₂(())  # scalar
 
-        ⋆₃(a) = (⋆(n), ⋆(n, 1))
+        ⋆₃(a) = (⋆(a), ⋆(a, 1))
 
         @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (2, 3, 4, 5))
             rrule_test(*, ⋆(dims), ⋆₂(), ⋆₂(dims))
@@ -24,13 +24,13 @@
 
         @testset "AbstractMatrix-AbstractMatrix" begin
             # Matrix-Vector product
-            @testset "n=$n, m=$m" for n in (2, 3), m in (4, 5)
+            @testset "Matrix * Vector n=$n, m=$m" for n in (2, 3), m in (4, 5)
                 @testset "Array" begin
                     rrule_test(*, ⋆(n), ⋆₂(n, m), ⋆₂(m))
                 end
             end
 
-            @testset "n=$n, m=$m" for n in (2, 3), m in (4, 5)
+            @testset "Vector * Matrix n=$n, m=$m" for n in (2, 3), m in (4, 5)
                 @testset "Array" begin
                     rrule_test(*, ⋆(n, m), ⋆₃(n), ⋆₂(1, m))
                 end
