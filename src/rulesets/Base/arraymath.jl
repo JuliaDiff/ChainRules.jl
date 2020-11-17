@@ -41,6 +41,27 @@ function rrule(
 end
 
 function rrule(
+    ::typeof(*),
+    A::AbstractVector{<:CommutativeMulNumber},
+    B::AbstractMatrix{<:CommutativeMulNumber},
+)
+    function times_pullback(Ȳ)
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(Ȳ * vec(B')),
+                X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
+            ),
+            InplaceableThunk(
+                @thunk(A' * Ȳ),
+                X̄ -> mul!(X̄, A', Ȳ, true, true)
+            )
+        )
+    end
+    return A * B, times_pullback
+end
+
+function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
 )
     function times_pullback(Ȳ)
