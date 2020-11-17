@@ -59,7 +59,7 @@
             end
         end
 
-        @testset "Covector * Vector n=$n" for in in (3, 5)
+        @testset "Covector * Vector n=$n" for n in (3, 5)
             @testset "$f" for f in (adjoint, transpose)
                 # This should be same as dot product and give a scalar
                 rrule_test(*, ⋆(), f.(⋆₂(n)), ⋆₂(n))
