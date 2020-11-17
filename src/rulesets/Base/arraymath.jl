@@ -21,8 +21,8 @@ end
 
 function rrule(
     ::typeof(*),
-    A::AbstractMatrix{<:CommutativeMulNumber},
-    B::AbstractMatrix{<:CommutativeMulNumber},
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
 )
     function times_pullback(Ȳ)
         return (
@@ -30,6 +30,28 @@ function rrule(
             InplaceableThunk(
                 @thunk(Ȳ * B'),
                 X̄ -> mul!(X̄, Ȳ, B', true, true)
+            ),
+            InplaceableThunk(
+                @thunk(A' * Ȳ),
+                X̄ -> mul!(X̄, A', Ȳ, true, true)
+            )
+        )
+    end
+    return A * B, times_pullback
+end
+
+function rrule(
+    ::typeof(*),
+    A::AbstractVector{<:CommutativeMulNumber},
+    B::AbstractMatrix{<:CommutativeMulNumber},
+)
+    function times_pullback(Ȳ)
+        @assert size(B, 1) === 1   # otherwise primal would have failed.
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(Ȳ * vec(B')),
+                X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
             ),
             InplaceableThunk(
                 @thunk(A' * Ȳ),
