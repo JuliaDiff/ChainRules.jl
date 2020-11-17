@@ -46,6 +46,7 @@ function rrule(
     B::AbstractMatrix{<:CommutativeMulNumber},
 )
     function times_pullback(Ȳ)
+        @assert size(B, 1) === 1   # otherwise primal would have failed.
         return (
             NO_FIELDS,
             InplaceableThunk(
