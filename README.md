@@ -2,6 +2,7 @@
 
 # ChainRules
 
+[![CI](https://github.com/JuliaDiff/ChainRules.jl/workflows/CI/badge.svg?branch=master)](https://github.com/JuliaDiff/ChainRules.jl/actions?query=workflow%3ACI)
 [![Travis](https://travis-ci.org/JuliaDiff/ChainRules.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ChainRules.jl)
 [![Coveralls](https://coveralls.io/repos/github/JuliaDiff/ChainRules.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ChainRules.jl?branch=master)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/ChainRules.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
