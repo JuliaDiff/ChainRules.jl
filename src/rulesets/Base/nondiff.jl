@@ -22,6 +22,13 @@
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
 
+@non_differentiable accumulate(::Any, ::BitArray; kwargs...)
+@non_differentiable accumulate!(::Any, ::Any, ::BitArray; kwargs...)
+@non_differentiable cumprod(::BitArray; kwargs...)
+@non_differentiable cumprod!(::Any, ::BitArray; kwargs...)
+@non_differentiable cumsum(::BitArray; kwargs...)
+@non_differentiable cumsum!(::Any, ::BitArray; kwargs...)
+
 @non_differentiable abspath(::AbstractString)
 @non_differentiable abspath(::AbstractString, ::AbstractString)
 @non_differentiable all(::Any)
