@@ -23,39 +23,39 @@ end
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
     @testset "rulesets" begin
-        # @testset "Base" begin
-        #     include_test("rulesets/Base/base.jl")
-        #     include_test("rulesets/Base/fastmath_able.jl")
-        #     include_test("rulesets/Base/evalpoly.jl")
-        #     include_test("rulesets/Base/array.jl")
-        #     include_test("rulesets/Base/arraymath.jl")
-        #     include_test("rulesets/Base/indexing.jl")
-        #     include_test("rulesets/Base/mapreduce.jl")
-        # end
-        # println()
-
-        # @testset "Statistics" begin
-        #     include_test("rulesets/Statistics/statistics.jl")
-        # end
-        # println()
-
-        @testset "LinearAlgebra" begin
-            # include_test("rulesets/LinearAlgebra/dense.jl")
-            # include_test("rulesets/LinearAlgebra/structured.jl")
-            include_test("rulesets/LinearAlgebra/factorization.jl")
-            # include_test("rulesets/LinearAlgebra/blas.jl")
+        @testset "Base" begin
+            include_test("rulesets/Base/base.jl")
+            include_test("rulesets/Base/fastmath_able.jl")
+            include_test("rulesets/Base/evalpoly.jl")
+            include_test("rulesets/Base/array.jl")
+            include_test("rulesets/Base/arraymath.jl")
+            include_test("rulesets/Base/indexing.jl")
+            include_test("rulesets/Base/mapreduce.jl")
         end
         println()
 
-        # @testset "Random" begin
-        #     include_test("rulesets/Random/random.jl")
-        # end
-        # println()
+        @testset "Statistics" begin
+            include_test("rulesets/Statistics/statistics.jl")
+        end
+        println()
 
-        # @testset "packages" begin
-        #     include_test("rulesets/packages/NaNMath.jl")
-        #     include_test("rulesets/packages/SpecialFunctions.jl")
-        # end
-        # println()
+        @testset "LinearAlgebra" begin
+            include_test("rulesets/LinearAlgebra/dense.jl")
+            include_test("rulesets/LinearAlgebra/structured.jl")
+            include_test("rulesets/LinearAlgebra/factorization.jl")
+            include_test("rulesets/LinearAlgebra/blas.jl")
+        end
+        println()
+
+        @testset "Random" begin
+            include_test("rulesets/Random/random.jl")
+        end
+        println()
+
+        @testset "packages" begin
+            include_test("rulesets/packages/NaNMath.jl")
+            include_test("rulesets/packages/SpecialFunctions.jl")
+        end
+        println()
     end
 end
