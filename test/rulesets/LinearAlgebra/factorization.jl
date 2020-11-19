@@ -1,5 +1,3 @@
-using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblocked_rev
-
 @testset "Factorizations" begin
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
@@ -74,68 +72,39 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         end
     end
     @testset "cholesky" begin
-        @testset "the thing" begin
-            X = generate_well_conditioned_matrix(10)
-            V = generate_well_conditioned_matrix(10)
-            F, dX_pullback = rrule(cholesky, X)
-            for p in [:U, :L]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-                (dself, dF, dp) = dF_pullback(Ȳ)
-                @test dself === NO_FIELDS
-                @test dp === DoesNotExist()
+        X = generate_well_conditioned_matrix(10)
+        V = generate_well_conditioned_matrix(10)
+        @show typeof(X)
+        F, dX_pullback = rrule(cholesky, X)
+        @testset "uplo=$p" for p in [:U, :L]
+            Y, dF_pullback = rrule(getproperty, F, p)
+            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
+            (dself, dF, dp) = dF_pullback(Ȳ)
+            @test dself === NO_FIELDS
+            @test dp === DoesNotExist()
 
-                # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-                # machinery from FiniteDifferences because that isn't set up to respect
-                # necessary special properties of the input. In the case of the Cholesky
-                # factorization, we need the input to be Hermitian.
-                ΔF = unthunk(dF)
-                _, dX = dX_pullback(ΔF)
-                X̄_ad = dot(unthunk(dX), V)
-                X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                    dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
-                end
-                @test X̄_ad ≈ X̄_fd rtol=1e-4
+            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
+            # machinery from FiniteDifferences because that isn't set up to respect
+            # necessary special properties of the input. In the case of the Cholesky
+            # factorization, we need the input to be Hermitian.
+            ΔF = unthunk(dF)
+            _, dX = dX_pullback(ΔF)
+            X̄_ad = dot(unthunk(dX), V)
+            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
+                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
             end
+            @test X̄_ad ≈ X̄_fd rtol=1e-4
         end
-        @testset "helper functions" begin
-            A = randn(5, 5)
-            r, d, B2, c = level2partition(A, 4, false)
-            R, D, B3, C = level3partition(A, 4, 4, false)
-            @test all(r .== R')
-            @test all(d .== D)
-            @test B2[1] == B3[1]
-            @test all(c .== C)
 
-            # Check that level 2 partition with `upper == true` is consistent with `false`
-            rᵀ, dᵀ, B2ᵀ, cᵀ = level2partition(transpose(A), 4, true)
-            @test r == rᵀ
-            @test d == dᵀ
-            @test B2' == B2ᵀ
-            @test c == cᵀ
+        # Ensure that cotangents of cholesky(::StridedMatrix) and
+        # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
+        @testset "Symmetric" begin
+            X_symmetric, sym_back = rrule(Symmetric, X, :U)
+            C, chol_back_sym = rrule(cholesky, X_symmetric)
 
-            # Check that level 3 partition with `upper == true` is consistent with `false`
-            R, D, B3, C = level3partition(A, 2, 4, false)
-            Rᵀ, Dᵀ, B3ᵀ, Cᵀ = level3partition(transpose(A), 2, 4, true)
-            @test transpose(R) == Rᵀ
-            @test transpose(D) == Dᵀ
-            @test transpose(B3) == B3ᵀ
-            @test transpose(C) == Cᵀ
-
-            A = Matrix(LowerTriangular(randn(10, 10)))
-            Ā = Matrix(LowerTriangular(randn(10, 10)))
-            # NOTE: BLAS gets angry if we don't materialize the Transpose objects first
-            B = Matrix(transpose(A))
-            B̄ = Matrix(transpose(Ā))
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 1, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 3, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 5, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 10, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ transpose(chol_unblocked_rev(B̄, B, true))
-
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 1, true)
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 5, true)
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 10, true)
+            Δ = Composite{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            ΔX_symmetric = chol_back_sym(Δ)[2]
+            @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
     end
 end
