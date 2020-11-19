@@ -20,8 +20,20 @@
             rrule_test(*, ⋆(dims), ⋆₂(dims), ⋆₂())
         end
 
+        @testset "AbstractMatrix-AbstractVector n=$n, m=$m" for n in (2, 3), m in (4, 5)
+            @testset "Array" begin
+                rrule_test(*, ⋆(n), n ⋆₂ m, ⋆₂(m))
+            end
+        end
+
+        @testset "AbstractVector-AbstractMatrix n=$n, m=$m" for n in (2, 3), m in (4, 5)
+            @testset "Array" begin
+                rrule_test(*, n ⋆ m, ⋆₂(n), 1 ⋆₂ m)
+            end
+        end
+
         @testset "AbstractMatrix-AbstractMatrix" begin
-            @testset "n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
+            @testset "Matrix * Matrix n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
                 @testset "Array" begin
                     rrule_test(*, n⋆p, (n⋆₂m), (m⋆₂p))
                 end
@@ -44,6 +56,13 @@
                     rrule_test(*, n⋆p, (n⋆₂m), Transpose.(p⋆₂m))
                     rrule_test(*, n⋆p, (n⋆₂m), Adjoint.(p⋆₂m))
                 end
+            end
+        end
+
+        @testset "Covector * Vector n=$n" for n in (3, 5)
+            @testset "$f" for f in (adjoint, transpose)
+                # This should be same as dot product and give a scalar
+                rrule_test(*, ⋆(), f.(⋆₂(n)), ⋆₂(n))
             end
         end
     end
