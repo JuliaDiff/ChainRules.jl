@@ -74,7 +74,6 @@
     @testset "cholesky" begin
         X = generate_well_conditioned_matrix(10)
         V = generate_well_conditioned_matrix(10)
-        @show typeof(X)
         F, dX_pullback = rrule(cholesky, X)
         @testset "uplo=$p" for p in [:U, :L]
             Y, dF_pullback = rrule(getproperty, F, p)
