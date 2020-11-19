@@ -37,8 +37,7 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-      # fixes for coveralls pushed since last release v1.1.1
-      - run: julia --color=yes -e 'using Pkg; Pkg.add(PackageSpec(name="Coverage", rev="master")); using Coverage; Coveralls.submit(process_folder())'
-        shell: bash
-        env:
-          COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v1
+        with:
+          file: lcov.info
