@@ -50,46 +50,46 @@
 
 
     VERSION >= v"1.6.0-DEV.1536" && @testset "muladd: $T" for T in (Float64, ComplexF64)
-        @testset "add $(typeof(z))" for z in [rand(T), rand(T,3), rand(T,3,3)] #, false]
+        @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3)] #, false]
             dz = rand(T, fill(3, ndims(z))...)
             @testset "matrix * matrix" begin
-                A, B = rand(T,3,3), rand(T,3,3)
-                dA, dB = rand(T,3,3), rand(T,3,3)
+                A, B = rand(T, 3, 3), rand(T, 3, 3)
+                dA, dB = rand(T, 3, 3), rand(T, 3, 3)
                 rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 rrule_test(muladd, A'*B.+z, (A', dA'), (B, dB), (z, dz))
                 rrule_test(muladd, A*B'.+z, (A, dA), (B', dB'), (z, dz))
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
-                    A, B = rand(T,3,3), rand(T,3)
-                    dA, dB = rand(T,3,3), rand(T,3)
+                    A, B = rand(T, 3, 3), rand(T, 3)
+                    dA, dB = rand(T, 3, 3), rand(T, 3)
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T,3,3), rand(T,3,1)
+                    dA, dB = rand(T, 3, 3), rand(T, 3,1)
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 end
                 @testset "adjoint * matrix" begin
-                    At, B, zt = rand(T,3)', rand(T,3,3), z'
-                    dAt, dB, dzt = rand(T,3)', rand(T,3,3), z'
+                    At, B, zt = rand(T, 3)', rand(T, 3, 3), z'
+                    dAt, dB, dzt = rand(T, 3)', rand(T, 3, 3), z'
                     rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
-                    dAt, dB, dzt = rand(T,1,3), rand(T,3,3), z'
+                    dAt, dB, dzt = rand(T,1,3), rand(T, 3, 3), z'
                     rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
                 end
             end
             if ndims(z) == 0
                 @testset "adjoint * vector" begin # like dot
-                    A, B = rand(T,3)', rand(T,3)
-                    dA, dB = rand(T,3)', rand(T,3)
+                    A, B = rand(T, 3)', rand(T, 3)
+                    dA, dB = rand(T, 3)', rand(T, 3)
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T,1,3), rand(T,3)
+                    dA, dB = rand(T,1,3), rand(T, 3)
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 end
             end
             if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
                 @testset "vector * adjoint" begin # outer product
-                    A, B = rand(T,3), rand(T,3)'
-                    dA, dB = rand(T,3), rand(T,3)'
+                    A, B = rand(T, 3), rand(T, 3)'
+                    dA, dB = rand(T, 3), rand(T, 3)'
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T,3), rand(T,1,3)
+                    dA, dB = rand(T, 3), rand(T,1,3)
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 end
             end
