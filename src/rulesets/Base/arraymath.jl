@@ -140,7 +140,17 @@ function rrule(
         z::CommutativeMulNumber,
     )
     # This case is dot(u,v)+z, but would also match signature above.
-    muladd_pullback_2(dy) = (NO_FIELDS, @thunk(v' .* dy), @thunk(ut' .* dy), z isa Bool ? DoesNotExist() : dy)
+    function muladd_pullback_2(dy)
+        ut_thunk = InplaceableThunk(
+            @thunk(v' .* dy),
+            dut -> dut .+= v' .* dy
+        )
+        v_thunk = InplaceableThunk(
+            @thunk(ut' .* dy),
+            dv -> dv .+= ut' .* dy
+        )
+        (NO_FIELDS, ut_thunk, v_thunk, z isa Bool ? DoesNotExist() : dy)
+    end
     return muladd(ut, v, z), muladd_pullback_2
 end
 
