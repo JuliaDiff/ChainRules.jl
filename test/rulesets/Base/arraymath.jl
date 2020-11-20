@@ -58,6 +58,9 @@
                 rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 rrule_test(muladd, A'*B.+z, (A', dA'), (B, dB), (z, dz))
                 rrule_test(muladd, A*B'.+z, (A, dA), (B', dB'), (z, dz))
+                A, B = rand(T, 3, 5), rand(T, 5, 3)
+                dA, dB = rand(T, 3, 5), rand(T, 5, 3)
+                rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
