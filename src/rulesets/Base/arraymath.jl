@@ -95,6 +95,83 @@ function rrule(
 end
 
 
+#####
+##### `muladd`
+#####
+
+function rrule(
+        ::typeof(muladd),
+        A::AbstractMatrix{<:CommutativeMulNumber},
+        B::AbstractVecOrMat{<:CommutativeMulNumber},
+        z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
+    )
+    # The useful case, mul! fused with +
+    function muladd_pullback_1(Ȳ)
+        matmul = (
+            InplaceableThunk(
+                @thunk(Ȳ * B'),
+                dA -> mul!(dA, Ȳ, B', true, true)
+            ),
+            InplaceableThunk(
+                @thunk(A' * Ȳ),
+                dB -> mul!(dB, A', Ȳ, true, true)
+            )
+        )
+        addon = if z isa Bool
+            Zero()
+        elseif z isa Number
+            @thunk(sum(Ȳ))
+        else
+            T = eltype(Ȳ)
+            InplaceableThunk(
+                @thunk(sum!(similar(z, T), Ȳ)),
+                dz -> sum!(dz, Ȳ; init=false)
+            )
+        end
+        (NO_FIELDS, matmul..., addon)
+    end
+    return muladd(A, B, z), muladd_pullback_1
+end
+
+function rrule(
+        ::typeof(muladd),
+        ut::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
+        v::AbstractVector{<:CommutativeMulNumber},
+        z::CommutativeMulNumber,
+    )
+    # This case is dot(u,v)+z, but would also match signature above.
+    muladd_pullback_2(dy) = (NO_FIELDS, @thunk(v' .* dy), @thunk(ut' .* dy), dy)
+    return muladd(ut, v, z), muladd_pullback_2
+end
+
+function rrule(
+        ::typeof(muladd),
+        u::AbstractVector{<:CommutativeMulNumber},
+        vt::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
+        z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
+    )
+    # Outer product, just broadcasting
+    function muladd_pullback_3(Ȳ)
+        proj = (
+            @thunk(vec(sum(Ȳ .* conj.(vt), dims=2))),
+            @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
+        )
+        addon = if z isa Bool
+            Zero()
+        elseif z isa Number
+            @thunk(sum(Ȳ))
+        else
+            T = eltype(Ȳ)
+            InplaceableThunk(
+                @thunk(sum!(similar(z, T), Ȳ)),
+                dz -> sum!(dz, Ȳ; init=false)
+            )
+        end
+        (NO_FIELDS, proj..., addon)
+    end
+    return muladd(u, vt, z), muladd_pullback_3
+end
+
 
 #####
 ##### `/`
