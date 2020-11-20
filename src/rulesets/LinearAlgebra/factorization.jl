@@ -72,8 +72,8 @@ end
 
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     C = cholesky(A, uplo)
-    function cholesky_Real_pullback(Δ::Composite)
-        return NO_FIELDS, Δ.factors[1, 1] / (2 * C.U[1, 1]), DoesNotExist()
+    function cholesky_Real_pullback(ΔC::Composite)
+        return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), DoesNotExist()
     end
     return C, cholesky_Real_pullback
 end
@@ -82,9 +82,15 @@ function rrule(
     ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}=Val(false); check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
+<<<<<<< Updated upstream
     function cholesky_Diagonal_pullback(Δ::Composite)
         check && !issuccess(C) && throw(PosDefException(C.info))
         Ā = Diagonal(diag(Δ.factors) .* inv.(2 .* C.factors.diag))
+=======
+    function cholesky_Diagonal_pullback(ΔC::Composite)
+        issuccess(C) || throw(PosDefException(C.info))
+        Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
+>>>>>>> Stashed changes
         return NO_FIELDS, Ā, DoesNotExist()
     end
     return C, cholesky_Diagonal_pullback
@@ -95,13 +101,13 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::Union{Symmetric{<:Real, <:StridedMatrix}, Hermitian{<:Real, <:StridedMatrix}},
+    A::Union{Symmetric{<:BlasFloat, <:StridedMatrix}, Hermitian{<:BlasFlat, <:StridedMatrix}},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_SymHerm_pullback(Δ::Composite)
-        Ā, U = _cholesky_pullback_shared_code(C, Δ)
+    function cholesky_SymHerm_pullback(ΔC::Composite)
+        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'T', 'N', one(eltype(Ā)) / 2, U.data, Ā)
         return NO_FIELDS, _symhermtype(A)(Ā), DoesNotExist()
     end
@@ -109,11 +115,14 @@ function rrule(
 end
 
 function rrule(
-    ::typeof(cholesky), A::StridedMatrix{<:Real}, ::Val{false}=Val(false); check::Bool=true,
+    ::typeof(cholesky),
+    A::StridedMatrix{<:BlasFloat},
+    ::Val{false}=Val(false);
+    check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_StridedMatrix_pullback(Δ::Composite)
-        Ā, U = _cholesky_pullback_shared_code(C, Δ)
+    function cholesky_StridedMatrix_pullback(ΔC::Composite)
+        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
         Ā[diagind(Ā)] ./= 2
         return (NO_FIELDS, UpperTriangular(Ā), DoesNotExist())
@@ -121,10 +130,10 @@ function rrule(
     return C, cholesky_StridedMatrix_pullback
 end
 
-function _cholesky_pullback_shared_code(C, Δ)
+function _cholesky_pullback_shared_code(C, ΔC)
     issuccess(C) || throw(PosDefException(C.info))
     U = C.U
-    Ū = Δ.U
+    Ū = ΔC.U
     Ā = similar(U.data)
     Ā = mul!(Ā, Ū, U')
     Ā = LinearAlgebra.copytri!(Ā, 'U', true)
