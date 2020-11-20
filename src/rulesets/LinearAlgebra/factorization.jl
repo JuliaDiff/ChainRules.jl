@@ -79,12 +79,12 @@ function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
 end
 
 function rrule(
-    ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}=Val(false); check::Bool=true,
+    ::typeof(cholesky), A::Diagonal{<:BlasFloat}, ::Val{false}=Val(false); check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
     function cholesky_pullback(ΔC::Composite)
         check && !issuccess(C) && throw(PosDefException(C.info))
-        Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
+        Ā = Diagonal(conj.(diag(ΔC.factors)) .* inv.(2 .* diag(C.factors)))
         return NO_FIELDS, Ā, DoesNotExist()
     end
     return C, cholesky_Diagonal_pullback
@@ -95,7 +95,7 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::Union{Symmetric{<:BlasFloat, <:StridedMatrix}, Hermitian{<:BlasFlat, <:StridedMatrix}},
+    A::LinearAlgebra.HermOrSym{<:BlasFloat, <:StridedMatrix},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
