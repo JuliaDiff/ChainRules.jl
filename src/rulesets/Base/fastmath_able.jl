@@ -1,9 +1,37 @@
 let
     # Include inside this quote any rules that should have FastMath versions
+    # IMPORTANT:
+    # Do not add any rules here for functions that do not have varients in Base.FastMath
+    # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
+        ## use `sincos` to compute `sin` and `cos` at the same time
+        ## for the rules for `sin` and `cos`
+        ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291
+        ## sin
+        function rrule(::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            sin_pullback(Δy) = (NO_FIELDS, cosx' * Δy)
+            return (sinx, sin_pullback)
+        end
+
+        function frule((_, Δx), ::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            return (sinx, cosx * Δx)
+        end
+
+        ## cos
+        function rrule(::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            cos_pullback(Δy) = (NO_FIELDS, -sinx' * Δy)
+            return (cosx, cos_pullback)
+        end
+        
+        function frule((_, Δx), ::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            return (cosx, -sinx * Δx)
+        end
+        
         @scalar_rule tan(x) 1 + Ω ^ 2
 
 
@@ -33,7 +61,6 @@ let
         @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
         @scalar_rule log1p(x) inv(x + 1)
         @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
-
 
         # Unary complex functions
         ## abs
@@ -126,7 +153,7 @@ let
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
-                return (NO_FIELDS, @thunk(c * x), @thunk(c * y))
+                return (NO_FIELDS, c * x, c * y)
             end
             return (Ω, hypot_pullback)
         end
@@ -185,14 +212,26 @@ let
 
         function rrule(::typeof(*), x::Number, y::Number)
             function times_pullback(ΔΩ)
-                return (NO_FIELDS,  @thunk(ΔΩ * y'), @thunk(x' * ΔΩ))
+                return (NO_FIELDS,  ΔΩ * y', x' * ΔΩ)
             end
             return x * y, times_pullback
         end
-    end
+    end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
-    eval(Base.FastMath.make_fastmath(fastable_ast))
+    fast_ast = Base.FastMath.make_fastmath(fastable_ast)
+
+    # Guard against mistakenly defining something as fast-able when it isn't.
+    non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
+    filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
+    if !isempty(non_transformed_definitions)
+        error(
+            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
+            join(non_transformed_definitions, "\n")
+        )
+    end
+
+    eval(fast_ast)
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
 end

@@ -43,6 +43,10 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
+
+        @testset "sinc" for x = (0.0, 0.434, Complex(0.434, 0.25))
+            test_scalar(sinc, x)
+        end
     end  # Trig
 
     @testset "Angles" begin
@@ -122,50 +126,15 @@
         frule_test(identity, (randn(T, 4), randn(T, 4)))
         frule_test(
             identity,
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
         )
 
         rrule_test(identity, randn(T), (randn(T), randn(T)))
         rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
         rrule_test(
-            identity, Tuple(randn(T, 3)),
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
+            identity, Composite{Tuple{T, T, T}}(randn(T, 3)...),
+            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
         )
-    end
-
-    VERSION ≥ v"1.4" && @testset "evalpoly" begin
-        # test fallbacks for when code generation fails
-        @testset "fallbacks for $T" for T in (Float64, ComplexF64)
-            x, p = randn(T), Tuple(randn(T, 10))
-            y_fb, ys_fb = ChainRules._evalpoly_intermediates_fallback(x, p)
-            y, ys = ChainRules._evalpoly_intermediates(x, p)
-            @test y_fb ≈ y
-            @test collect(ys_fb) ≈ collect(ys)
-
-            Δy, ys = randn(T), Tuple(randn(T, 9))
-            ∂x_fb, ∂p_fb = ChainRules._evalpoly_back_fallback(x, p, ys, Δy)
-            ∂x, ∂p = ChainRules._evalpoly_back(x, p, ys, Δy)
-            @test ∂x_fb ≈ ∂x
-            @test collect(∂p_fb) ≈ collect(∂p)
-        end
-
-        @testset "x dim: $(nx), pi dim: $(np), type: $T" for T in (Float64, ComplexF64), nx in (tuple(), 3), np in (tuple(), 3)
-            # skip x::Matrix, pi::Number case, which is not supported by evalpoly
-            isempty(np) && !isempty(nx) && continue
-            m = 5
-            sx = (nx..., nx...)
-            sp = (np..., np...)
-            x, ẋ, x̄ = randn(T, sx...), randn(T, sx...), randn(T, sx...)
-            p = [randn(T, sp...) for _ in 1:m]
-            ṗ = [randn(T, sp...) for _ in 1:m]
-            p̄ = [randn(T, sp...) for _ in 1:m]
-            Ω = evalpoly(x, p)
-            Ω̄ = randn(T, size(Ω)...)
-            frule_test(evalpoly, (x, ẋ), (p, ṗ))
-            frule_test(evalpoly, (x, ẋ), (Tuple(p), Tuple(ṗ)))
-            rrule_test(evalpoly, Ω̄, (x, x̄), (p, p̄))
-            rrule_test(evalpoly, Ω̄, (x, x̄), (Tuple(p), Tuple(p̄)))
-        end
     end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
@@ -209,5 +178,18 @@
         x, y, z = 4., 2., 3.  # to right
         frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
         rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    end
+
+    @testset "rounding" begin
+        for x in (-0.6, -0.2, 0.1, 0.6)
+            # thanks to RoundNearest
+            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
+                test_scalar(round, x; fdm=backward_fdm(5,1))
+            else
+                test_scalar(round, x; fdm=forward_fdm(5,1))
+            end
+            test_scalar(floor, x; fdm=backward_fdm(5, 1))
+            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
+        end
     end
 end

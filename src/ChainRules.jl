@@ -4,6 +4,7 @@ using Reexport
 @reexport using ChainRulesCore
 
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
+using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
@@ -22,10 +23,19 @@ if VERSION < v"1.3.0-DEV.142"
     import LinearAlgebra: dot
 end
 
+# numbers that we know commute under multiplication
+const CommutativeMulNumber = Union{Real,Complex}
+
+include("rulesets/Core/core.jl")
+
 include("rulesets/Base/utils.jl")
+include("rulesets/Base/nondiff.jl")
 include("rulesets/Base/base.jl")
 include("rulesets/Base/fastmath_able.jl")
+include("rulesets/Base/evalpoly.jl")
 include("rulesets/Base/array.jl")
+include("rulesets/Base/arraymath.jl")
+include("rulesets/Base/indexing.jl")
 include("rulesets/Base/mapreduce.jl")
 
 include("rulesets/Statistics/statistics.jl")

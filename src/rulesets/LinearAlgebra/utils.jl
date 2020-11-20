@@ -2,7 +2,7 @@
 # to any particular rule definition
 
 # F .* (X - X'), overwrites X if possible
-function _mulsubtrans!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
+function _mulsubtrans!!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
     k = size(X, 1)
     @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
         if i == j
@@ -13,9 +13,9 @@ function _mulsubtrans!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
     end
     return X
 end
-_mulsubtrans!(X::AbstractZero, F::AbstractZero) = X
-_mulsubtrans!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
-_mulsubtrans!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
+_mulsubtrans!!(X::AbstractZero, F::AbstractZero) = X
+_mulsubtrans!!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
+_mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
 
 # I - X, overwrites X
 function _eyesubx!(X::AbstractMatrix)
@@ -25,14 +25,5 @@ function _eyesubx!(X::AbstractMatrix)
     end
     return X
 end
-
-# X + Y, overwrites X if possible
-function _add!(X::AbstractVecOrMat, Y::AbstractVecOrMat)
-    @inbounds for i = eachindex(X, Y)
-        X[i] += Y[i]
-    end
-    return X
-end
-_add!(X, Y) = X + Y  # handles all `AbstractZero` overloads
 
 _extract_imag(x) = complex(0, imag(x))

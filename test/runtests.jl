@@ -5,6 +5,7 @@ using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
 using Compat: only
 using FiniteDifferences
+using FiniteDifferences: rand_tangent
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
@@ -14,42 +15,47 @@ using Test
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
+function include_test(path)
+    print("Testing $path:\t")  # print so TravisCI doesn't timeout due to no output
+    @time include(path)  # show basic timing, (this will print a newline at end)
+end
+
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
     @testset "rulesets" begin
         @testset "Base" begin
-            include(joinpath("rulesets", "Base", "base.jl"))
-            include(joinpath("rulesets", "Base", "fastmath_able.jl"))
-            include(joinpath("rulesets", "Base", "array.jl"))
-            include(joinpath("rulesets", "Base", "mapreduce.jl"))
+            include_test("rulesets/Base/base.jl")
+            include_test("rulesets/Base/fastmath_able.jl")
+            include_test("rulesets/Base/evalpoly.jl")
+            include_test("rulesets/Base/array.jl")
+            include_test("rulesets/Base/arraymath.jl")
+            include_test("rulesets/Base/indexing.jl")
+            include_test("rulesets/Base/mapreduce.jl")
         end
-
-        print(" ")
+        println()
 
         @testset "Statistics" begin
-            include(joinpath("rulesets", "Statistics", "statistics.jl"))
+            include_test("rulesets/Statistics/statistics.jl")
         end
-
-        print(" ")
+        println()
 
         @testset "LinearAlgebra" begin
-            include(joinpath("rulesets", "LinearAlgebra", "dense.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "structured.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
+            include_test("rulesets/LinearAlgebra/dense.jl")
+            include_test("rulesets/LinearAlgebra/structured.jl")
+            include_test("rulesets/LinearAlgebra/factorization.jl")
+            include_test("rulesets/LinearAlgebra/blas.jl")
         end
-
-        print(" ")
+        println()
 
         @testset "Random" begin
-            include(joinpath("rulesets", "Random", "random.jl"))
+            include_test("rulesets/Random/random.jl")
         end
-
-        print(" ")
+        println()
 
         @testset "packages" begin
-            include(joinpath("rulesets", "packages", "NaNMath.jl"))
-            include(joinpath("rulesets", "packages", "SpecialFunctions.jl"))
+            include_test("rulesets/packages/NaNMath.jl")
+            include_test("rulesets/packages/SpecialFunctions.jl")
         end
+        println()
     end
 end
