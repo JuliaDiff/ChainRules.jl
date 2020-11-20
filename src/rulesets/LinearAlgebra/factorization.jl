@@ -83,7 +83,7 @@ function rrule(
 )
     C = cholesky(A, Val(false); check=check)
     function cholesky_Diagonal_pullback(Δ::Composite)
-        issuccess(C) || throw(PosDefException(C.info))
+        check && !issuccess(C) && throw(PosDefException(C.info))
         Ā = Diagonal(diag(Δ.factors) .* inv.(2 .* C.factors.diag))
         return NO_FIELDS, Ā, DoesNotExist()
     end
