@@ -144,35 +144,6 @@ function rrule(
     return muladd(ut, v, z), muladd_pullback_2
 end
 
-function rrule(
-        ::typeof(muladd),
-        u::AbstractVector{<:CommutativeMulNumber},
-        vt::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
-        z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
-    )
-    # Outer product, just broadcasting
-    function muladd_pullback_3(Ȳ)
-        proj = (
-            @thunk(vec(sum(Ȳ .* conj.(vt), dims=2))),
-            @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
-        )
-        addon = if z isa Bool
-            Zero()
-        elseif z isa Number
-            @thunk(sum(Ȳ))
-        else
-            T = eltype(Ȳ)
-            InplaceableThunk(
-                @thunk(sum!(similar(z, T), Ȳ)),
-                dz -> sum!(dz, Ȳ; init=false)
-            )
-        end
-        (NO_FIELDS, proj..., addon)
-    end
-    return muladd(u, vt, z), muladd_pullback_3
-end
-
-
 #####
 ##### `/`
 #####
