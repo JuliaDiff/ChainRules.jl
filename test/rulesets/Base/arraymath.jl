@@ -98,6 +98,15 @@
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 end
             end
+            if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
+                @testset "vector * adjoint" begin # outer product
+                    A, B = rand(T,3), rand(T,3)'
+                    dA, dB = rand(T,3), rand(T,3)'
+                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                    dA, dB = rand(T,3), rand(T,1,3)
+                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                end
+            end
         end
     end
     @testset "$f" for f in (/, \)
