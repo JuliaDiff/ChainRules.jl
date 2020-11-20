@@ -72,7 +72,7 @@ end
 
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     C = cholesky(A, uplo)
-    function cholesky_Real_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Composite)
         return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), DoesNotExist()
     end
     return C, cholesky_Real_pullback
@@ -82,15 +82,9 @@ function rrule(
     ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}=Val(false); check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-<<<<<<< Updated upstream
-    function cholesky_Diagonal_pullback(Δ::Composite)
+    function cholesky_pullback(ΔC::Composite)
         check && !issuccess(C) && throw(PosDefException(C.info))
-        Ā = Diagonal(diag(Δ.factors) .* inv.(2 .* C.factors.diag))
-=======
-    function cholesky_Diagonal_pullback(ΔC::Composite)
-        issuccess(C) || throw(PosDefException(C.info))
         Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
->>>>>>> Stashed changes
         return NO_FIELDS, Ā, DoesNotExist()
     end
     return C, cholesky_Diagonal_pullback
@@ -106,12 +100,12 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_SymHerm_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Composite)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
         return NO_FIELDS, _symhermtype(A)(Ā), DoesNotExist()
     end
-    return C, cholesky_SymHerm_pullback
+    return C, cholesky_pullback
 end
 
 function rrule(
@@ -121,14 +115,14 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_StridedMatrix_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Composite)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NO_FIELDS, UpperTriangular(Ā), DoesNotExist())
     end
-    return C, cholesky_StridedMatrix_pullback
+    return C, cholesky_pullback
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
