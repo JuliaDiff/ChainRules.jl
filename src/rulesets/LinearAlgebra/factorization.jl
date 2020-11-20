@@ -95,7 +95,7 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::LinearAlgebra.HermOrSym{<:BlasFloat, <:StridedMatrix},
+    A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
@@ -110,7 +110,7 @@ end
 
 function rrule(
     ::typeof(cholesky),
-    A::StridedMatrix{<:BlasFloat},
+    A::StridedMatrix{<:LinearAlgebra.BlasReal},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
