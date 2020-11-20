@@ -1,4 +1,4 @@
-@testset "linalg" begin
+@testset "dense" begin
     @testset "dot" begin
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
             M = 3
@@ -24,6 +24,23 @@
             frule_test(dot, (x, ẋ), (y, ẏ))
             rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
         end
+        @testset "3-arg dot, Array{$T}" for T in (Float64, ComplexF64)
+            M, N = 3, 4
+            x, A, y = randn(T, M), randn(T, M, N), randn(T, N)
+            ẋ, Adot, ẏ = randn(T, M), randn(T, M, N), randn(T, N)
+            x̄, Abar, ȳ = randn(T, M), randn(T, M, N), randn(T, N)
+            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ))
+            rrule_test(dot, randn(T), (x, x̄), (A, Abar), (y, ȳ))
+        end
+        permuteddimsarray(A) = PermutedDimsArray(A, (2,1))
+        @testset "3-arg dot, $F{$T}" for T in (Float32, ComplexF32), F in (adjoint, permuteddimsarray)
+            M, N = 3, 4
+            x, A, y = rand(T, M), F(rand(T, N, M)), rand(T, N)
+            ẋ, Adot, ẏ = rand(T, M), F(rand(T, N, M)), rand(T, N)
+            x̄, Abar, ȳ = rand(T, M), F(rand(T, N, M)), rand(T, N)
+            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ); rtol=1f-3)
+            rrule_test(dot, float(rand(T)), (x, x̄), (A, Abar), (y, ȳ); rtol=1f-3)
+        end
     end
     @testset "cross" begin
         @testset "frule" begin
@@ -41,12 +58,6 @@
             ΔΩ = randn(n)
             rrule_test(cross, ΔΩ, (x, x̄), (y, ȳ))
         end
-    end
-    @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
-        N = 3
-        B = generate_well_conditioned_matrix(T, N)
-        frule_test(inv, (B, randn(T, N, N)))
-        rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
     @testset "pinv" begin
         @testset "$T" for T in (Float64, ComplexF64)
@@ -113,62 +124,6 @@
         N = 4
         frule_test(tr, (randn(N, N), randn(N, N)))
         rrule_test(tr, randn(), (randn(N, N), randn(N, N)))
-    end
-    @testset "*" begin
-        dims = [3,4,5]
-        for n in dims, m in dims, p in dims
-            n > 3 && n == m == p && continue  # don't need to test square case multiple times
-            A = randn(m, n)
-            B = randn(n, p)
-            Ȳ = randn(m, p)
-            rrule_test(*, Ȳ, (A, randn(m, n)), (B, randn(n, p)))
-        end
-    end
-    @testset "$f" for f in [/, \]
-        @testset "Matrix" begin
-            for n in 3:5, m in 3:5
-                A = randn(m, n)
-                B = randn(m, n)
-                Ȳ = randn(size(f(A, B)))
-                rrule_test(f, Ȳ, (A, randn(m, n)), (B, randn(m, n)))
-            end
-        end
-        @testset "Vector" begin
-            x = randn(10)
-            y = randn(10)
-            ȳ = randn(size(f(x, y))...)
-            rrule_test(f, ȳ, (x, randn(10)), (y, randn(10)))
-        end
-        if f == (/)
-            @testset "$T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
-                RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-                Y = randn(5, 10)
-                Ȳ = randn(size(f(Y, RHS))...)
-                rrule_test(f, Ȳ, (Y, randn(size(Y))), (RHS, randn(size(RHS))))
-            end
-        else
-            @testset "$T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
-                LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-                y = randn(10)
-                ȳ = randn(size(f(LHS, y))...)
-                rrule_test(f, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
-                Y = randn(10, 10)
-                Ȳ = randn(10, 10)
-                rrule_test(f, Ȳ, (LHS, randn(size(LHS))), (Y, randn(size(Y))))
-            end
-            @testset "Matrix $f Vector" begin
-                X = randn(10, 4)
-                y = randn(10)
-                ȳ = randn(size(f(X, y))...)
-                rrule_test(f, ȳ, (X, randn(size(X))), (y, randn(10)))
-            end
-            @testset "Vector $f Matrix" begin
-                x = randn(10)
-                Y = randn(10, 4)
-                ȳ = randn(size(f(x, Y))...)
-                rrule_test(f, ȳ, (x, randn(size(x))), (Y, randn(size(Y))))
-            end
-        end
     end
     @testset "norm" begin
         for dims in [(), (5,), (3, 2), (7, 3, 2)]

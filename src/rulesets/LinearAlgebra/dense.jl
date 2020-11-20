@@ -1,9 +1,3 @@
-using LinearAlgebra: AbstractTriangular
-
-# Matrix wrapper types that we know are square and are thus potentially invertible. For
-# these we can use simpler definitions for `/` and `\`.
-const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
-
 #####
 ##### `dot`
 #####
@@ -17,6 +11,35 @@ function rrule(::typeof(dot), x, y)
         return (NO_FIELDS, @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
     end
     return dot(x, y), dot_pullback
+end
+
+function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    return dot(x, A, y), dot(Δx, A, y) + dot(x, ΔA, y) + dot(x, A, Δy)
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    Ay = A * y
+    z = adjoint(x) * Ay
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* Ay
+        dA = @thunk ΔΩ .* x .* adjoint(y)
+        dy = @thunk ΔΩ .* (adjoint(A) * x)
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    return z, dot_pullback
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}, y::AbstractVector{<:Number})
+    z = dot(x,A,y)
+    function dot_pullback(ΔΩ)
+        dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
+        dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
+        dy = @thunk ΔΩ .* conj.(A.diag) .* x
+        return (NO_FIELDS, dx, dA, dy)
+    end
+    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    return z, dot_pullback
 end
 
 #####
@@ -36,22 +59,6 @@ function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:R
     return Ω, cross_pullback
 end
 
-#####
-##### `inv`
-#####
-
-function frule((_, Δx), ::typeof(inv), x::AbstractArray)
-    Ω = inv(x)
-    return Ω, -Ω * Δx * Ω
-end
-
-function rrule(::typeof(inv), x::AbstractArray)
-    Ω = inv(x)
-    function inv_pullback(ΔΩ)
-        return NO_FIELDS, -Ω' * ΔΩ * Ω'
-    end
-    return Ω, inv_pullback
-end
 
 #####
 ##### `det`
@@ -78,12 +85,12 @@ end
 ##### `logdet`
 #####
 
-function frule((_, Δx), ::typeof(logdet), x::Union{Number, AbstractMatrix})
+function frule((_, Δx), ::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     return Ω, tr(x \ Δx)
 end
 
-function rrule(::typeof(logdet), x::Union{Number, AbstractMatrix})
+function rrule(::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
@@ -139,17 +146,6 @@ end
 
 
 #####
-##### `*`
-#####
-
-function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
-    function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
-    end
-    return A * B, times_pullback
-end
-
-#####
 ##### `pinv`
 #####
 
@@ -188,12 +184,12 @@ function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where 
     # contract over the largest dimension
     if m ≤ n
         ∂Y = -Y * (ΔA * Y)
-        _add!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y)) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, Y * (Y' * ΔA') * (I - A * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y))  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, Y * (Y' * ΔA') * (I - A * Y))  # Y Y' ΔA' (I - A Y)
     else
         ∂Y = -(Y * ΔA) * Y
-        _add!(∂Y, (I - Y * A) * (ΔA' * Y') * Y) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (I - Y * A) * (ΔA' * Y') * Y)  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y))  # Y Y' ΔA' (I - A Y)
     end
     return Y, ∂Y
 end
@@ -232,81 +228,16 @@ function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
         # contract over the largest dimension
         if m ≤ n
             ∂A = (Y' * -ΔY) * Y'
-            _add!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
         elseif m > n
             ∂A = Y' * (-ΔY * Y')
-            _add!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
         end
         return (NO_FIELDS, ∂A)
     end
     return Y, pinv_pullback
-end
-
-#####
-##### `/`
-#####
-
-function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
-    Y = A / B
-    function slash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk Ȳ / B'
-        ∂B = @thunk S(-Y' * (Ȳ / B'))
-        return (NO_FIELDS, ∂A, ∂B)
-    end
-    return Y, slash_pullback
-end
-
-function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Aᵀ, dA_pb = rrule(adjoint, A)
-    Bᵀ, dB_pb = rrule(adjoint, B)
-    Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
-    C, dC_pb = rrule(adjoint, Cᵀ)
-    function slash_pullback(Ȳ)
-        # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        _, dC = dC_pb(Ȳ)
-        _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
-
-        ∂A = last(dA_pb(unthunk(dAᵀ)))
-        ∂B = last(dA_pb(unthunk(dBᵀ)))
-
-        (NO_FIELDS, ∂A, ∂B)
-    end
-    return C, slash_pullback
-end
-
-#####
-##### `\`
-#####
-
-function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
-    Y = A \ B
-    function backslash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk S(-(A' \ Ȳ) * Y')
-        ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
-    end
-    return Y, backslash_pullback
-end
-
-function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Y = A \ B
-    function backslash_pullback(Ȳ)
-        ∂A = @thunk begin
-            B̄ = A' \ Ȳ
-            Ā = -B̄ * Y'
-            _add!(Ā, (B - A * Y) * B̄' / A')
-            _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
-            Ā
-        end
-        ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
-    end
-    return Y, backslash_pullback
-
 end
 
 #####

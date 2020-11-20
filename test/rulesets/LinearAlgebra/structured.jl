@@ -1,4 +1,23 @@
 @testset "Structured Matrices" begin
+    @testset "/ and \\ on Square Matrixes" begin
+        @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+            RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
+            Y = randn(5, 10)
+            Ȳ = randn(size(/(Y, RHS))...)
+            rrule_test(/, Ȳ, (Y, randn(size(Y))), (RHS, randn(size(RHS))))
+        end
+
+        @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
+            LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
+            y = randn(10)
+            ȳ = randn(size(\(LHS, y))...)
+            rrule_test(\, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
+            Y = randn(10, 10)
+            Ȳ = randn(10, 10)
+            rrule_test(\, Ȳ, (LHS, randn(size(LHS))), (Y, randn(size(Y))))
+        end
+    end
+
     @testset "Diagonal" begin
         N = 3
         rrule_test(Diagonal, randn(N, N), (randn(N), randn(N)))
@@ -14,7 +33,14 @@
         comp = Composite{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
         @test pb(comp) == (NO_FIELDS, [10, 40])
     end
-
+    @testset "dot(x, ::Diagonal, y)" begin
+        N = 4
+        x, d, y = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
+        x̄, d̄, ȳ = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
+        D = Diagonal(d)
+        D̄ = Diagonal(d̄)
+        rrule_test(dot, rand(ComplexF64), (x, x̄), (D, D̄), (y, ȳ))
+    end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
         rrule_test(
@@ -135,6 +161,24 @@
         rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)))
         @testset "k=$k" for k in -2:2
             rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)), (k, nothing))
+        end
+    end
+
+    @testset "det and logdet $S" for S in (Diagonal, UpperTriangular, LowerTriangular)
+        @testset "$op" for op in (det, logdet)
+            @testset "$T" for T in (Float64, ComplexF64)
+                n = 5
+                # rand (not randn) so det will be postive, so logdet will be defined
+                X = S(3*rand(T, (n, n)) .+ 1)
+                X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
+                rrule_test(op, rand(T), (X, X̄_acc))
+            end
+            @testset "return type" begin
+                X = S(3*rand(6, 6) .+ 1)
+                _, op_pullback = rrule(op, X)
+                X̄ = op_pullback(2.7)[2]
+                @test X̄ isa Diagonal
+            end
         end
     end
 
