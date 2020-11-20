@@ -75,7 +75,7 @@ function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     function cholesky_pullback(ΔC::Composite)
         return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), DoesNotExist()
     end
-    return C, cholesky_Real_pullback
+    return C, cholesky_pullback
 end
 
 function rrule(
@@ -87,7 +87,7 @@ function rrule(
         Ā = Diagonal(conj.(diag(ΔC.factors)) .* inv.(2 .* diag(C.factors)))
         return NO_FIELDS, Ā, DoesNotExist()
     end
-    return C, cholesky_Diagonal_pullback
+    return C, cholesky_pullback
 end
 
 # The appropriate cotangent is different depending upon whether A is Symmetric / Hermitian,
@@ -95,7 +95,7 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::LinearAlgebra.HermOrSym{<:BlasReal, <:StridedMatrix},
+    A::LinearAlgebra.HermOrSym{<:BlasFloat, <:StridedMatrix},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
@@ -110,7 +110,7 @@ end
 
 function rrule(
     ::typeof(cholesky),
-    A::StridedMatrix{<:BlasReal},
+    A::StridedMatrix{<:BlasFloat},
     ::Val{false}=Val(false);
     check::Bool=true,
 )
