@@ -127,7 +127,7 @@ function _cholesky_pullback_shared_code(C, Δ)
     Ū = Δ.U
     Ā = similar(U.data)
     Ā = mul!(Ā, Ū, U')
-    Ā = LinearAlgebra.copytri!(Ā, 'U')
+    Ā = LinearAlgebra.copytri!(Ā, 'U', true)
     Ā = ldiv!(U, Ā)
     return Ā, U
 end
