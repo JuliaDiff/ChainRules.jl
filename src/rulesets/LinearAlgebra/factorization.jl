@@ -96,7 +96,7 @@ end
 function rrule(
     ::typeof(cholesky),
     A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
-    ::Val{false}=Val(false);
+    ::Val{false};
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
