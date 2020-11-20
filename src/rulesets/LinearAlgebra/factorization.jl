@@ -124,7 +124,8 @@ function rrule(
     function cholesky_StridedMatrix_pullback(ΔC::Composite)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
-        Ā[diagind(Ā)] ./= 2
+        idx = diagind(Ā)
+        @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NO_FIELDS, UpperTriangular(Ā), DoesNotExist())
     end
     return C, cholesky_StridedMatrix_pullback
