@@ -48,10 +48,16 @@
         end
     end
 
+    _adjoint(x) = x'
+    _adjoint(::Nothing) = nothing
 
     VERSION >= v"1.6.0-DEV.1536" && @testset "muladd: $T" for T in (Float64, ComplexF64)
-        @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3)] #, false]
-            dz = rand(T, fill(3, ndims(z))...)
+        @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
+            dz = if z===false
+                nothing  # gradient for z::Bool is tested to be DoesNotExist()
+            else
+                rand(T, fill(3, ndims(z))...)
+            end
             @testset "matrix * matrix" begin
                 A, B = rand(T, 3, 3), rand(T, 3, 3)
                 dA, dB = rand(T, 3, 3), rand(T, 3, 3)
@@ -71,10 +77,10 @@
                     rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
                 end
                 @testset "adjoint * matrix" begin
-                    At, B, zt = rand(T, 3)', rand(T, 3, 3), z'
-                    dAt, dB, dzt = rand(T, 3)', rand(T, 3, 3), z'
+                    At, B, zt = rand(T, 3)', rand(T, 3, 3), _adjoint(z)
+                    dAt, dB, dzt = rand(T, 3)', rand(T, 3, 3), _adjoint(dz)
                     rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
-                    dAt, dB, dzt = rand(T,1,3), rand(T, 3, 3), z'
+                    dAt, dB, dzt = rand(T,1,3), rand(T, 3, 3), _adjoint(dz)
                     rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
                 end
             end
