@@ -108,7 +108,7 @@ function rrule(
     C = cholesky(A, Val(false); check=check)
     function cholesky_SymHerm_pullback(ΔC::Composite)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'T', 'N', one(eltype(Ā)) / 2, U.data, Ā)
+        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
         return NO_FIELDS, _symhermtype(A)(Ā), DoesNotExist()
     end
     return C, cholesky_SymHerm_pullback
