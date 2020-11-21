@@ -128,6 +128,77 @@ function rrule(
     return A * B, times_pullback
 end
 
+#####
+##### fused 3-argument *
+#####
+
+using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!
+
+function rrule(
+    ::typeof(mat_mat_scalar),
+    A::AbstractMatrix{<:CommutativeMulNumber},
+    B::AbstractMatrix{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber
+)
+    AB  = A * B
+    function mat_mat_scalar_back(Ȳ)
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(mat_mat_scalar(Ȳ, B', conj(γ))),
+                dA -> mul!(dA, Ȳ, B', conj(γ), true)
+            ),
+            InplaceableThunk(
+                @thunk(mat_mat_scalar(A', Ȳ, conj(γ))),
+                dB -> mul!(dB, A', Ȳ, conj(γ), true)
+            ),
+            @thunk(sum(Ȳ .* conj.(AB)) * size(A,2)), # not so certain!
+        )
+    end
+    return rmul!(AB, γ), mat_mat_scalar_back
+end
+
+#=
+julia> A = rand(100,100); B = rand(100,100);
+julia> AB = A*B;
+julia> Ȳ = rand(100,100);
+
+julia> @btime sum($Ȳ .* conj.($AB))
+  7.206 μs (2 allocations: 78.20 KiB)
+
+julia> @btime sum(y * conj(ab) for (y,ab) in zip($Ȳ, $AB))
+  11.162 μs (0 allocations: 0 bytes)
+
+julia> @btime mapreduce((y,ab) -> y * conj(ab), +, $Ȳ, $AB)
+  11.239 μs (6 allocations: 78.31 KiB)
+
+julia> @btime sum(Broadcast.broadcasted((y,ab) -> y * conj(ab), $Ȳ, $AB))
+  73.458 μs (0 allocations: 0 bytes)
+=#
+
+function rrule(
+    ::typeof(mat_mat_scalar),
+    A::AbstractMatrix{<:CommutativeMulNumber},
+    b::AbstractVector{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber
+)
+    Ab  = A * b
+    function mat_vec_scalar_back(dy)
+        return (
+            NO_FIELDS,
+            InplaceableThunk(
+                @thunk(mat_mat_scalar(dy, b', conj(γ))),
+                dA -> mul!(dA, dy, b', conj(γ), true)
+            ),
+            InplaceableThunk(
+                @thunk(mat_mat_scalar(A', dy, conj(γ))),
+                db -> mul!(db, A', dy, conj(γ), true)
+            ),
+            @thunk(sum(dy .* conj.(Ab)) * size(A,2))
+        )
+    end
+    return rmul!(Ab, γ), mat_vec_scalar_back
+end
 
 #####
 ##### `muladd`
