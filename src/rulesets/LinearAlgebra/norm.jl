@@ -107,7 +107,7 @@ function _normp_back_x(x, p, y, Δy)
     ∂x = broadcast(x) do xi
         r = xi / y
         a = abs(r)
-        ∂xi = r * a^(p - 2) * Δu
+        ∂xi = r * (a^(p - 2) * Δu)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
     end
     return ∂x
