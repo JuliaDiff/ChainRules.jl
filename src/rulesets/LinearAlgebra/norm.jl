@@ -2,6 +2,15 @@
 ##### `norm`
 #####
 
+function frule((_, Δx), ::typeof(norm), x)
+    return if isempty(x)
+        z = zero(eltype(x))
+        az = float(norm(z))
+        az, zero(muladd(az, z, az))
+    else
+        _norm2_forward(x, Δx)
+    end
+end
 function frule((_, Δx), ::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
     ∂y = if iszero(Δx) || iszero(p)
@@ -170,6 +179,8 @@ _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 ##### `norm2`
 #####
 
+frule((_, Δx), ::typeof(LinearAlgebra.norm2), x) = _norm2_forward(x, Δx)
+
 function rrule(
     ::typeof(LinearAlgebra.norm2),
     x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
@@ -180,6 +191,12 @@ function rrule(
     return y, norm2_pullback
 end
 
+function _norm2_forward(x, Δx, Δp = Zero())
+    y = LinearAlgebra.norm2(x)
+    # since dot product is efficient for pushforward, we don't accumulate in parallel
+    ∂y = real(dot(x, Δx)) * pinv(y)
+    return y, ∂y
+end
 _norm2_back(x, y, Δy) = x .* (real(Δy) * pinv(y))
 
 #####
