@@ -193,7 +193,7 @@ function rrule(::typeof(normalize), x::AbstractVector, p::Real)
     LinearAlgebra.__normalize!(y, nrm)
     function normalize_pullback(Δy)
         invnrm = pinv(nrm)
-        ∂nrm = -dot(y, Δy) * pinv(nrm)
+        ∂nrm = -dot(y, Δy) * invnrm
         (_, ∂xnorm, ∂p) = inner_pullback(∂nrm)
         ∂x = @thunk unthunk(∂xnorm) .+ Δy .* invnrm
         return (NO_FIELDS, ∂x, ∂p)
