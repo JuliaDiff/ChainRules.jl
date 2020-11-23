@@ -54,6 +54,22 @@ function rrule(
 end
 function rrule(
     ::typeof(norm),
+    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+)
+    y = LinearAlgebra.norm(x)
+    function norm_pullback(Δy)
+        ∂x = if isempty(x)
+            zero.(x) .* (zero(y) * zero(real(Δy)))
+        else
+            _norm2_back(x, y, Δy)
+        end
+        return (NO_FIELDS, ∂x)
+    end
+    norm_pullback(::Zero) = (NO_FIELDS, Zero())
+    return y, norm_pullback
+end
+function rrule(
+    ::typeof(norm),
     x::Union{LinearAlgebra.TransposeAbsVec,LinearAlgebra.AdjointAbsVec},
     p::Real,
 )
