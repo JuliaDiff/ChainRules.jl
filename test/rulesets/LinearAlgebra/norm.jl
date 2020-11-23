@@ -51,6 +51,19 @@
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
+    @testset "norm($fdual(::Vector{$T}), p)" for
+        T in (Float64, ComplexF64),
+        fdual in (adjoint, transpose)
+        p = 1.5
+        n = 3
+        x = fdual(randn(T, n))
+        y = norm(x, p)
+        x̄ = rand_tangent(x)
+        ȳ = rand_tangent(y)
+        p̄ = rand_tangent(p)
+        rrule_test(norm, ȳ, (x, x̄), (p, p̄))
+        @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
+    end
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 1.5, 2.0)
             x = randn(T)
