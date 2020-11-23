@@ -72,13 +72,24 @@
         end
     end
 end
-@testset "normalize with T=$T, p=$p" for T in (Float64, ComplexF64),
-    p in ((), 1.0, 2.0, -Inf, Inf, 1.5) # skip p=0, since FD is unstable
-    n = 3
-    x = randn(T, n)
-    y = normalize(copy(x), p...)
-    x̄ = rand_tangent(x)
-    ȳ = rand_tangent(y)
-    pp̄ = isempty(p) ? () : ((p, rand_tangent(p)),)
-    rrule_test(normalize, ȳ, (x, x̄), pp̄...)
+
+@testset "normalize" begin
+    @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
+        n = 3
+        x = randn(T, n)
+        y = normalize(x)
+        x̄ = rand_tangent(x)
+        ȳ = rand_tangent(y)
+        rrule_test(normalize, ȳ, (x, x̄))
+    end
+    @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
+        p in (1.0, 2.0, -Inf, Inf, 1.5) # skip p=0, since FD is unstable
+        n = 3
+        x = randn(T, n)
+        y = normalize(x, p)
+        x̄ = rand_tangent(x)
+        ȳ = rand_tangent(y)
+        p̄ = rand_tangent(p)
+        rrule_test(normalize, ȳ, (x, x̄), (p, p̄))
+    end
 end
