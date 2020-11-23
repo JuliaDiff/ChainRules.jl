@@ -34,10 +34,10 @@
         ȳ = rand_tangent(y)
         pp̄ = isempty(p) ? () : ((p, rand_tangent(p)),)
 
-        # fd has stability issues for the norm functions, so we use high order 10
-        rrule_test(norm, ȳ, (x, x̄), pp̄...; fdm = central_fdm(10, 1))
-        @test extern(rrule(norm, zero(x), p...)[2](ȳ)[2]) ≈ zero(x)
-        @test rrule(norm, x, p...)[2](Zero())[2] isa Zero
+        # fd has stability issues for the norm functions, so lower the required precision
+        rrule_test(fnorm, ȳ, (x, x̄), pp̄...; rtol=1e-6)
+        @test extern(rrule(fnorm, zero(x), p...)[2](ȳ)[2]) ≈ zero(x)
+        @test rrule(fnorm, x, p...)[2](Zero())[2] isa Zero
     end
     @testset "norm(x::$T[, p])" for T in (Float64, ComplexF64)
         @testset "norm(x::$T)" for T in (Float64, ComplexF64)
