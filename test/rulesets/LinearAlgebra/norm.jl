@@ -28,6 +28,23 @@
         @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x)[2](Zero())[2] isa Zero
     end
+    @testset "norm(x::Array{$T,$(length(sz))})" for
+        T in (Float64, ComplexF64),
+        sz in [(3,), (3, 2), (3, 2, 1)]
+
+        x = randn(T, sz)
+        y = norm(x)
+        ẋ = rand_tangent(x)
+        x̄ = rand_tangent(x)
+        ȳ = rand_tangent(y)
+
+        frule_test(norm, (x, ẋ))
+        @test frule((Zero(), Zero()), norm, x)[2] isa Zero
+        @test iszero(frule((Zero(), ẋ), norm, zero(x))[2])
+        rrule_test(norm, ȳ, (x, x̄))
+        @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+        @test rrule(norm, x)[2](Zero())[2] isa Zero
+    end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
         fnorm in (norm, LinearAlgebra.normp),
         p in (1.0, 2.0, Inf, -Inf, 1.5),
