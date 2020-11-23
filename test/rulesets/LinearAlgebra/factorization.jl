@@ -6,6 +6,11 @@ function FiniteDifferences.to_vec(C::Cholesky)
     return C_vec, cholesky_from_vec
 end
 
+function FiniteDifferences.to_vec(x::Val)
+    Val_from_vec(v) = x
+    return Bool[], Val_from_vec
+end
+
 @testset "Factorizations" begin
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
@@ -92,13 +97,13 @@ end
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
             ΔC = Composite{typeof(C)}((factors=Diagonal(randn(5))))
-            rrule_test(cholesky, ΔC, (D, Diagonal(randn(5))))  
+            rrule_test(cholesky, ΔC, (D, Diagonal(randn(5))), (Val(false), nothing))
         end
 
 
         X = generate_well_conditioned_matrix(10)
         V = generate_well_conditioned_matrix(10)
-        F, dX_pullback = rrule(cholesky, X)
+        F, dX_pullback = rrule(cholesky, X, Val(false))
         @testset "uplo=$p" for p in [:U, :L]
             Y, dF_pullback = rrule(getproperty, F, p)
             Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
@@ -123,7 +128,7 @@ end
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
-            C, chol_back_sym = rrule(cholesky, X_symmetric)
+            C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
             Δ = Composite{typeof(C)}((U=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]

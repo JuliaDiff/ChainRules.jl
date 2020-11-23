@@ -79,7 +79,7 @@ function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
 end
 
 function rrule(
-    ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}=Val(false); check::Bool=true,
+    ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
     function cholesky_pullback(ΔC::Composite)
@@ -111,7 +111,7 @@ end
 function rrule(
     ::typeof(cholesky),
     A::StridedMatrix{<:LinearAlgebra.BlasReal},
-    ::Val{false}=Val(false);
+    ::Val{false};
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
