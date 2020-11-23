@@ -231,6 +231,7 @@ function rrule(::typeof(normalize), x::AbstractVector, p::Real)
         ∂x = @thunk unthunk(∂xnorm) .+ Δy .* invnrm
         return (NO_FIELDS, ∂x, ∂p)
     end
+    normalize_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, normalize_pullback
 end
 function rrule(::typeof(normalize), x::AbstractVector)
@@ -242,5 +243,6 @@ function rrule(::typeof(normalize), x::AbstractVector)
         ∂x = (Δy .- real(dot(y, Δy)) .* y) .* pinv(nrm)
         return (NO_FIELDS, ∂x)
     end
+    normalize_pullback(::Zero) = (NO_FIELDS, Zero())
     return y, normalize_pullback
 end

@@ -117,6 +117,7 @@ end
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
         rrule_test(normalize, ȳ, (x, x̄))
+        @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
         p in (1.0, 2.0, -Inf, Inf, 1.5) # skip p=0, since FD is unstable
@@ -127,5 +128,6 @@ end
         ȳ = rand_tangent(y)
         p̄ = rand_tangent(p)
         rrule_test(normalize, ȳ, (x, x̄), (p, p̄))
+        @test rrule(normalize, x, p)[2](Zero()) === (NO_FIELDS, Zero(), Zero())
     end
 end
