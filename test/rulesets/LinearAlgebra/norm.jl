@@ -55,7 +55,9 @@
         @testset "p = $p" for p in (-1.0, 1.5, 2.0)
             x = randn(T)
             y = norm(x, p)
+            ẋ, ṗ = rand_tangent.((x, p))
             x̄, p̄, ȳ = rand_tangent.((x, p, y))
+            frule_test(norm, (x, ẋ), (p, ṗ))
             rrule_test(norm, ȳ, (x, x̄), (p, p̄))
             _, back = rrule(norm, x, p)
             @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
@@ -64,7 +66,11 @@
             p = 0.0
             x = randn(T)
             y = norm(x, p)
+            ẋ, ṗ = rand_tangent.((x, p))
             x̄, p̄, ȳ = rand_tangent.((x, p, y))
+            y_fwd, ẏ = frule((Zero(), ẋ, ṗ), norm, x, p)
+            @test y_fwd == y
+            @test iszero(ẏ)
             y_rev, back = rrule(norm, x, p)
             @test y_rev == y
             @test back(ȳ) == (NO_FIELDS, zero(x), Zero())
