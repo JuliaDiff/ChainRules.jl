@@ -2,7 +2,7 @@
 ##### `norm`
 #####
 
-function frule((_, Δx), ::typeof(norm), x::Number, p::Real=2)
+function frule((_, Δx), ::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
     ∂y = if iszero(Δx) || iszero(p)
         zero(real(x)) * zero(real(Δx))
@@ -57,18 +57,7 @@ function rrule(
     end
     return y, norm_pullback
 end
-function rrule(
-    ::typeof(norm),
-    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
-)
-    y, inner_pullback = rrule(norm, x, 2)
-    function norm_pullback(Δy)
-        (∂self, ∂x) = inner_pullback(Δy)
-        return (∂self, unthunk(∂x))
-    end
-    return y, norm_pullback
-end
-function rrule(::typeof(norm), x::Number, p::Real=2)
+function rrule(::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
     function norm_pullback(Δy)
         ∂x = if iszero(Δy) || iszero(p)

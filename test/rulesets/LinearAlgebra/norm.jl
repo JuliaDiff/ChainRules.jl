@@ -1,27 +1,40 @@
 @testset "norm functions" begin
-    @testset "$fnorm(x, $(p...)) with eltype $T and dimension $dims" for
+    @testset "$fnorm(x::Array{$T,$(length(sz))})" for
         fnorm in (
-            norm,
-            LinearAlgebra.normp,
             LinearAlgebra.norm1,
             LinearAlgebra.norm2,
             LinearAlgebra.normInf,
             LinearAlgebra.normMinusInf,
         ),
-        p in ((), 1.0, 2.0, Inf, -Inf, 1.5),
         T in (Float64, ComplexF64),
-        dims in [(0,), (3,), (3, 2), (3, 2, 1)]
+        sz in [(3,), (3, 2), (3, 2, 1)]
 
-        # there is no default p for normp
-        fnorm === LinearAlgebra.normp && isempty(p) && continue
-        # the specialized norm functions don't take a p
-        fnorm !== norm && fnorm !== LinearAlgebra.normp && !isempty(p) && continue
-        # only norm can take empty iterators
-        prod(dims) == 0 && fnorm !== norm && continue
-
-        x = randn(T, dims...)
+        x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
         # separated from other values
+        if fnorm === LinearAlgebra.normInf
+            x[3] = 1000rand(T)
+        elseif fnorm == LinearAlgebra.normMinusInf
+            x .*= 1000
+            x[3] = rand(T)
+        end
+
+        y = fnorm(x)
+        x̄ = rand_tangent(x)
+        ȳ = rand_tangent(y)
+
+        # fd has stability issues for the norm functions, so lower the required precision
+        rrule_test(fnorm, ȳ, (x, x̄); rtol=1e-6)
+        @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+        @test rrule(fnorm, x)[2](Zero())[2] isa Zero
+    end
+    @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
+        fnorm in (norm, LinearAlgebra.normp),
+        p in (1.0, 2.0, Inf, -Inf, 1.5),
+        T in (Float64, ComplexF64),
+        sz in (fnorm === norm ? [(0,), (3,), (3, 2), (3, 2, 1)] : [(3,), (3, 2), (3, 2, 1)])
+
+        x = randn(T, sz)
         !isempty(x) && if p == Inf
             x[3] = 1000rand(T)
         elseif p == -Inf
@@ -29,21 +42,16 @@
             x[3] = rand(T)
         end
 
-        y = fnorm(x, p...)
+        y = fnorm(x, p)
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
-        pp̄ = isempty(p) ? () : ((p, rand_tangent(p)),)
+        p̄ = rand_tangent(p)
 
-        # fd has stability issues for the norm functions, so lower the required precision
-        rrule_test(fnorm, ȳ, (x, x̄), pp̄...; rtol=1e-6)
-        @test extern(rrule(fnorm, zero(x), p...)[2](ȳ)[2]) ≈ zero(x)
-        @test rrule(fnorm, x, p...)[2](Zero())[2] isa Zero
+        rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); rtol=1e-6)
+        @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
+        @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
-    @testset "norm(x::$T[, p])" for T in (Float64, ComplexF64)
-        @testset "norm(x::$T)" for T in (Float64, ComplexF64)
-            test_scalar(norm, randn(T))
-            test_scalar(norm, zero(T))
-        end
+    @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 1.5, 2.0)
             x = randn(T)
             y = norm(x, p)
