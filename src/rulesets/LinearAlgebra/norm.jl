@@ -24,7 +24,7 @@ end
 
 function rrule(
     ::typeof(norm),
-    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    x::Union{StridedArray, LinearAlgebra.AbstractTriangular, Diagonal},
     p::Real,
 )
     y = LinearAlgebra.norm(x, p)
@@ -54,7 +54,7 @@ function rrule(
 end
 function rrule(
     ::typeof(norm),
-    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    x::Union{StridedArray, LinearAlgebra.AbstractTriangular, Diagonal},
 )
     y = LinearAlgebra.norm(x)
     function norm_pullback(Δy)
@@ -70,7 +70,7 @@ function rrule(
 end
 function rrule(
     ::typeof(norm),
-    x::Union{LinearAlgebra.TransposeAbsVec,LinearAlgebra.AdjointAbsVec},
+    x::Union{LinearAlgebra.TransposeAbsVec, LinearAlgebra.AdjointAbsVec},
     p::Real,
 )
     y, inner_pullback = rrule(norm, parent(x), p)
@@ -103,7 +103,7 @@ end
 
 function rrule(
     ::typeof(LinearAlgebra.normp),
-    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    x::Union{StridedArray, LinearAlgebra.AbstractTriangular, Diagonal},
     p,
 )
     y = LinearAlgebra.normp(x, p)
@@ -144,7 +144,7 @@ end
 
 function rrule(
     ::typeof(LinearAlgebra.normMinusInf),
-    x::Union{StridedArray,LinearAlgebra.AbstractTriangular,Diagonal},
+    x::Union{StridedArray, LinearAlgebra.AbstractTriangular, Diagonal},
 )
     y = LinearAlgebra.normMinusInf(x)
     normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
