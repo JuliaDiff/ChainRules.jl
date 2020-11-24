@@ -109,7 +109,7 @@ function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm)
                 U′∂AU = K ./ _nonzero.(λ' .- λ)
                 _setdiag!(U′∂AU, ∂λ)
             end
-            return _symhermback!(U * U′∂AU * U', A)
+            return _hermitrizeback!(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A
     end
@@ -177,15 +177,13 @@ function _symhermfwd!(A, uplo = :U)
 end
 
 # pullback of hermitrization
-function _symhermback!(∂A, A)
+function _hermitrizeback!(∂A, A)
     @inbounds for i in axes(∂A, 1)
         for j in 1:(i - 1)
             if A.uplo === 'U'
-                ∂A[j, i] += ∂A[i, j]
-                ∂A[i, j] = 0
+                ∂A[j, i] = (∂A[j, i] + ∂A[i, j]') / 2
             else
-                ∂A[i, j] += ∂A[j, i]
-                ∂A[j, i] = 0
+                ∂A[i, j] = (∂A[i, j] + ∂A[j, i]') / 2
             end
         end
         if eltype(∂A) <: Complex
@@ -227,7 +225,7 @@ function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
             dλᵖ_dλ = p .* λ .^ (p - 1)
             ∂Λᵖ = U' * _realifydiag(ΔY) * U
             U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
-            return _symhermback!(U * U′∂AU * U', A)
+            return _hermitrizeback!(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A, DoesNotExist()
     end
@@ -261,7 +259,7 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
                     df_dλ = unthunk.(last.(fλ_df_dλ))
                     ∂fΛ = U' * _realifydiag(ΔY) * U
                     U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
-                    return _symhermback!(U * U′∂AU * U', A)
+                    return _hermitrizeback!(U * U′∂AU * U', A)
                 end
                 return NO_FIELDS, ∂A
             end
@@ -300,7 +298,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
                 _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
                 _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
             end
-            return _symhermback!(U * U′∂AU * U', A)
+            return _hermitrizeback!(U * U′∂AU * U', A)
         end
         return NO_FIELDS, ∂A
     end
