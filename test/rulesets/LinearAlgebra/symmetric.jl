@@ -114,16 +114,19 @@ end
 
         @testset "rrule" begin
             @testset for uplo in (:L, :U)
-                A, Δλ = T(randn(n, n), uplo), randn(n)
-                λ = eigvals(A)
-                λ_ad, back = rrule(eigvals, A)
+                A, Δλ = randn(n, n), randn(n)
+                symA = T(A, uplo)
+                λ = eigvals(symA)
+                λ_ad, back = rrule(eigvals, symA)
                 @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
-                ∂self, ∂A = back(Δλ)
+                ∂self, ∂symA = back(Δλ)
                 @test ∂self === NO_FIELDS
-                ∂A = unthunk(∂A)
-                @test ∂A isa typeof(A)
-                @test ∂A.uplo == A.uplo
-                @test ∂A.data ≈ only(j′vp(_fdm, A -> eigvals(T(A, uplo)), Δλ, A.data))
+                ∂symA = unthunk(∂symA)
+                @test ∂symA isa typeof(symA)
+                @test ∂symA.uplo == symA.uplo
+                # pull the cotangent back to A to test against finite differences
+                ∂A = unthunk(rrule(T, A, uplo)[2](∂symA)[2])
+                @test ∂A ≈ j′vp(_fdm, A -> eigvals(T(A, uplo)), Δλ, A)[1]
             end
         end
     end
