@@ -22,12 +22,9 @@
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
 
-# vcat
-# hcat
-# hvcat
-# vect
-# findprev
-# promote_shape
+
+@non_differentiable Bool(::Any)
+
 @non_differentiable accumulate(::Any, ::AbstractArray{Bool})
 @non_differentiable accumulate!(::Any, ::Any, ::AbstractArray{Bool})
 @non_differentiable cat(::AbstractArray{Bool})
@@ -53,7 +50,11 @@
 @non_differentiable findfirst(::Any, ::AbstractArray{Bool})
 @non_differentiable findlast(::AbstractArray{Bool})
 @non_differentiable findlast(::Any, ::AbstractArray{Bool})
+@non_differentiable findprev(::AbstractArray{Bool}, ::Any)
+@non_differentiable findprev(::Any, ::AbstractArray{Bool}, ::Any)
 @non_differentiable getindex(::AbstractArray{Bool}, ::Any)
+@non_differentiable hcat(::AbstractArray{Bool})
+@non_differentiable hvcat(::Any, ::AbstractArray{Bool})
 @non_differentiable isperm(::AbstractArray{Bool})
 # reverseind
 @non_differentiable invperm(::AbstractArray{Bool})
@@ -88,6 +89,7 @@
 @non_differentiable similar(::AbstractArray{Bool}, ::Any)
 @non_differentiable stride(::AbstractArray{Bool}, ::Any)
 @non_differentiable strides(::AbstractArray{Bool})
+@non_differentiable vcat(::AbstractArray{Bool})
 @non_differentiable vec(::AbstractArray{Bool})
 @non_differentiable Vector(::AbstractArray{Bool})
 
