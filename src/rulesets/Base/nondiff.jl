@@ -75,7 +75,6 @@
 @non_differentiable rotr90(::AbstractArray{Bool}, ::Any)
 @non_differentiable selectdim(::AbstractArray{Bool}, ::Any, ::Any)
 @non_differentiable setindex!(::AbstractArray{Bool}, ::Any, ::Any)
-@non_differentiable similar(::AbstractArray{Bool})
 @non_differentiable similar(::AbstractArray{Bool}, ::Any, ::Any...)
 @non_differentiable stride(::AbstractArray{Bool}, ::Any)
 @non_differentiable strides(::AbstractArray{Bool})
