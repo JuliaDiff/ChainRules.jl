@@ -41,6 +41,8 @@ end
 # Do not add any tests here for functions that do not have varients in Base.FastMath
 # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
 const FASTABLE_AST = quote
+    is_fastmath_mode = sin === Base.FastMath.sin_fast
+
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
             test_scalar(sin, x)
@@ -104,7 +106,7 @@ const FASTABLE_AST = quote
             complex_jacobian_test(angle, z)
         end
         @test frule((Zero(), randn()), angle, randn())[2] === Zero()
-        @test rrule(angle, randn())[2](randn())[2] === Zero()
+        @test rrule(angle, randn())[2](randn())[2]        === Zero()
 
         # test that real primal with complex tangent gives complex tangent
         ΔΩ = randn(ComplexF64)
@@ -120,7 +122,7 @@ const FASTABLE_AST = quote
         for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(+, x)
             test_scalar(-, x)
-            test_scalar(atan, x)
+            test_scalar(atan, x; rtol=(is_fastmath_mode ? 1e-7 : 1e-9))
         end
     end
 
@@ -139,8 +141,9 @@ const FASTABLE_AST = quote
             y, Δy, ȳ = rand(T, 3)
             Δz = randn(typeof(f(x, y)))
 
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            # some tests struggle in fast_math mode to get accurasy so we relax it some.
+            frule_test(f, (x, Δx), (y, Δy); rtol=(is_fastmath_mode ? 1e-5 : 1e-7))
+            rrule_test(f, Δz, (x, x̄), (y, ȳ); rtol=(is_fastmath_mode ? 1e-5 : 1e-7))
         end
 
         @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
