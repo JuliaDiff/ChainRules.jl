@@ -139,7 +139,6 @@ const FASTABLE_AST = quote
             y, Δy, ȳ = rand(T, 3)
             Δz = randn(typeof(f(x, y)))
 
-            # some tests struggle in fast_math mode to get accurasy so we relax it some.
             frule_test(f, (x, Δx), (y, Δy))
             rrule_test(f, Δz, (x, x̄), (y, ȳ))
         end
