@@ -1,5 +1,5 @@
 # CI for Julia nightly, separate workflow to avoid failing CI badge on nightly fail
-name: Nightly
+name: JuliaNightly
 on:
   push:
     branches: [master]
@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
