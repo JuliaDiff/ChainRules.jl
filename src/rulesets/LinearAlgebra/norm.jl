@@ -117,11 +117,10 @@ function rrule(
 end
 
 function _normp_back_x(x, p, y, Δy)
-    Δu = real(Δy)
+    c = real(Δy) / y
     ∂x = broadcast(x) do xi
-        r = xi / y
-        a = abs(r)
-        ∂xi = r * (a^(p - 2) * Δu)
+        a = norm(xi)
+        ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
     end
     return ∂x
