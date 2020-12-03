@@ -14,17 +14,20 @@
         # separated from other values
         if fnorm === LinearAlgebra.normInf
             x[3] = 1000rand(T)
+            kwargs = (atol=1e-5, rtol=1e-5)
         elseif fnorm == LinearAlgebra.normMinusInf
             x .*= 1000
             x[3] = rand(T)
+            kwargs = (atol=1e-5, rtol=1e-5)
+        else
+            kwargs = NamedTuple()
         end
 
         y = fnorm(x)
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
 
-        # fd has stability issues for the norm functions, so lower the required precision
-        rrule_test(fnorm, ȳ, (x, x̄); rtol=1e-6)
+        rrule_test(fnorm, ȳ, (x, x̄); kwargs...)
         @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x)[2](Zero())[2] isa Zero
     end
@@ -52,11 +55,17 @@
         sz in (fnorm === norm ? [(0,), (3,), (3, 2), (3, 2, 1)] : [(3,), (3, 2), (3, 2, 1)])
 
         x = randn(T, sz)
+        # finite differences is unstable if maxabs (minabs) values are not well
+        # separated from other values
         !isempty(x) && if p == Inf
             x[3] = 1000rand(T)
+            kwargs = (atol=1e-5, rtol=1e-5)
         elseif p == -Inf
             x .*= 1000
             x[3] = rand(T)
+            kwargs = (atol=1e-5, rtol=1e-5)
+        else
+            kwargs = NamedTuple()
         end
 
         y = fnorm(x, p)
@@ -64,7 +73,7 @@
         ȳ = rand_tangent(y)
         p̄ = rand_tangent(p)
 
-        rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); rtol=1e-6)
+        rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); kwargs...)
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
