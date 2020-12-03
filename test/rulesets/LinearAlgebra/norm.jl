@@ -57,12 +57,16 @@
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
         # separated from other values
-        !isempty(x) && if p == Inf
-            x[3] = 1000rand(T)
+        if p == Inf
+            if !isempty(x)
+                x[3] = 1000rand(T)
+            end
             kwargs = (atol=1e-5, rtol=1e-5)
         elseif p == -Inf
-            x .*= 1000
-            x[3] = rand(T)
+            if !isempty(x)
+                x .*= 1000
+                x[3] = rand(T)
+            end
             kwargs = (atol=1e-5, rtol=1e-5)
         else
             kwargs = NamedTuple()
