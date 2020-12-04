@@ -67,6 +67,103 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
 end
 
 #####
+##### `eigen`
+#####
+
+function frule((_, ΔA), ::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F = eigen(A; kwargs...)
+    ΔA isa AbstractZero && return F, ΔA
+    λ, V = F.values, F.vectors
+    tmp = V \ ΔA
+    ∂K = tmp * V
+    ∂Kdiag = @view ∂K[diagind(∂K)]
+    ∂λ = eltype(λ) <: Real ? real.(∂Kdiag) : copy(∂Kdiag)
+    ∂K ./= transpose(λ) .- λ
+    fill!(∂Kdiag, 0)
+    ∂V = mul!(tmp, V, ∂K)
+    _eigen_norm_phase_fwd!(∂V, A, V)
+    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂V)
+    return F, ∂F
+end
+
+function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F = eigen(A; kwargs...)
+    function eigen_pullback(ΔF::Composite{<:Eigen})
+        λ, V = F.values, F.vectors
+        Δλ, ΔV = ΔF.values, ΔF.vectors
+        if ΔV isa AbstractZero
+            Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+            ∂K = Diagonal(Δλ)
+            tmp = Matrix(∂K)
+        else
+            ∂V = copyto!(similar(ΔV), ΔV)
+            _eigen_norm_phase_rev!(∂V, A, V)
+            ∂K = V' * ∂V
+            ∂K ./= λ' .- conj.(λ)
+            ∂K[diagind(∂K)] .= Δλ
+            tmp = ∂K
+        end
+        ∂A = mul!(tmp, V' \ ∂K, V')
+        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+    end
+    eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
+    return F, eigen_pullback
+end
+
+# mutate ∂V to account for the (arbitrary but consistent) normalization and phase condition
+# applied to the eigenvectors.
+# these implementations assume the convention used by eigen in LinearAlgebra (i.e. that of
+# LAPACK.geevx!; eigenvectors have unit norm, and the element with the largest absolute
+# value is real), but they can be specialized for `A`
+
+function _eigen_norm_phase_fwd!(∂V, A, V)
+    @inbounds for i in axes(V, 2)
+        vᵢ, ∂vᵢ = @views V[:, i], ∂V[:, i]
+        # account for unit normalization
+        ∂cᵢnorm = -real(dot(vᵢ, ∂vᵢ))
+        if eltype(V) <: Real
+            ∂cᵢ = ∂cᵢnorm
+        else
+            # account for rotation of largest element to real
+            k = _findrealmaxabs2(vᵢ)
+            ∂cᵢphase = -imag(∂vᵢ[k]) / real(vᵢ[k])
+            ∂cᵢ = complex(∂cᵢnorm, ∂cᵢphase)
+        end
+        ∂vᵢ .+= vᵢ .* ∂cᵢ
+    end
+    return ∂V
+end
+
+function _eigen_norm_phase_rev!(∂V, A, V)
+    @inbounds for i in axes(V, 2)
+        vᵢ, ∂vᵢ = @views V[:, i], ∂V[:, i]
+        ∂cᵢ = dot(vᵢ, ∂vᵢ)
+        # account for unit normalization
+        ∂vᵢ .-= real(∂cᵢ) .* vᵢ
+        if !(eltype(V) <: Real)
+            # account for rotation of largest element to real
+            k = _findrealmaxabs2(vᵢ)
+            ∂vᵢ[k] -= im * (imag(∂cᵢ) / real(vᵢ[k]))
+        end
+    end
+    return ∂V
+end
+
+# workaround for findmax not taking a mapped function
+function _findrealmaxabs2(x)
+    amax = abs2(first(x))
+    imax = 1
+    for i in 2:length(x)
+        xi = x[i]
+        !isreal(xi) && continue
+        a = abs2(xi)
+        a < amax && continue
+        amax, imax = a, i
+    end
+    return imax
+end
+
+#####
 ##### `cholesky`
 #####
 
