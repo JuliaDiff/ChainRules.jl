@@ -70,6 +70,11 @@ end
 ##### `eigen`
 #####
 
+# TODO:
+# - support correct differential of phase convention when A is hermitian
+# - simplify when A is diagonal
+# - support degenerate matrices (see #144)
+
 function frule((_, ΔA), ::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     F = eigen(A; kwargs...)
     ΔA isa AbstractZero && return F, ΔA
