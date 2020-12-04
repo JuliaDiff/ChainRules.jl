@@ -164,6 +164,32 @@ function _findrealmaxabs2(x)
 end
 
 #####
+##### `eigvals`
+#####
+
+function frule((_, ΔA), ::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F = eigen(A; kwargs...)
+    λ, V = F.values, F.vectors
+    ΔA isa AbstractZero && return λ, ΔA
+    ∂K = V \ ΔA * V
+    idx = diagind(∂K)
+    ∂λ = eltype(λ) <: Real ? real.(getindex.(Ref(∂K), idx)) : ∂K[idx]
+    return λ, ∂λ
+end
+
+function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F = eigen(A; kwargs...)
+    λ = F.values
+    function eigvals_pullback(Δλ)
+        V = F.vectors
+        ∂A = V' \ Diagonal(Δλ) * V'
+        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+    end
+    eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
+    return λ, eigvals_pullback
+end
+
+#####
 ##### `cholesky`
 #####
 
