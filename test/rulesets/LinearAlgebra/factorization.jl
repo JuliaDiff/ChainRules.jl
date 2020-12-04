@@ -73,6 +73,70 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
         end
     end
+    @testset "eigendecomposition" begin
+        @testset "eigen" begin
+            # avoid implementing to_vec(::Eigen)
+            f(E::Eigen) = (values=E.values, vectors=E.vectors)
+
+            # NOTE: for unstructured matrices and low enough n, finite differences of eigen
+            # seems to be stable enough for direct comparison
+            # this allows us to directly check differential of normalization/phase
+            # convention
+            n = 8
+
+            @testset "eigen(::Matrix{$T})" for T in (Float64,ComplexF64)
+                @testset "frule" begin
+                    X = randn(T, n, n)
+                    Ẋ = rand_tangent(X)
+                    F = eigen(X)
+                    F_fwd, Ḟ_ad = frule((Zero(), Ẋ), eigen, X)
+                    @test F_fwd == F
+                    @test Ḟ_ad isa Composite{typeof(F)}
+                    Ḟ_fd = jvp(_fdm, f ∘ eigen, (X, Ẋ))
+                    @test Ḟ_ad.values ≈ Ḟ_fd.values
+                    @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
+                    @test frule((Zero(), Zero()), eigen, X) == (F, Zero())
+                end
+
+                @testset "rrule" begin
+                    X = randn(T, n, n)
+                    F = eigen(X)
+                    V̄ = rand_tangent(F.vectors)
+                    λ̄ = rand_tangent(F.values)
+                    CT = Composite{typeof(F)}
+                    F_rev, back = rrule(eigen, X)
+                    @test F_rev == F
+                    @test back(CT(values = λ̄))[2] ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
+                    @test back(CT(vectors = V̄))[2] ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                    F̄ = CT(values = λ̄, vectors = V̄)
+                    s̄elf, X̄_ad = back(F̄)
+                    @test s̄elf === NO_FIELDS
+                    X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
+                    @test X̄_ad ≈ X̄_fd
+                    @test back(Zero()) === (NO_FIELDS, Zero())
+                    @test back(CT(values = Zero(), vectors = Zero())) === (NO_FIELDS, Zero())
+                end
+            end
+        end
+
+        @testset "eigvals" begin
+            @testset "eigvals(::Matrix{$T})" for T in (Float64,ComplexF64)
+                n = 10
+
+                X = randn(T, n, n)
+                λ = eigvals(X)
+                Ẋ = rand_tangent(X)
+                frule_test(eigvals, (X, Ẋ))
+                @test frule((Zero(), Zero()), eigvals, X) == (λ, Zero())
+
+                X̄ = rand_tangent(X)
+                λ̄ = rand_tangent(eigvals(X))
+                rrule_test(eigvals, λ̄, (X, X̄))
+                back = rrule(eigen, X)[2]
+                @test back(Zero()) === (NO_FIELDS, Zero())
+            end
+        end
+    end
     @testset "cholesky" begin
         @testset "the thing" begin
             X = generate_well_conditioned_matrix(10)
