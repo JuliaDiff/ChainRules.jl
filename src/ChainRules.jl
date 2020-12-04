@@ -57,7 +57,9 @@ function __init__()
     end
 
     @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
-        include("rulesets/packages/SpecialFunctions.jl")
+        if !isdefined(SpecialFunctions, :ChainRulesCore)
+            include("rulesets/packages/SpecialFunctions.jl")
+        end
     end
 end
 
