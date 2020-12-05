@@ -50,7 +50,7 @@
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
         fnorm in (norm, LinearAlgebra.normp),
-        p in (1.0, 2.0, Inf, -Inf, 1.5),
+        p in (1.0, 2.0, Inf, -Inf, 2.5),
         T in (Float64, ComplexF64),
         sz in (fnorm === norm ? [(0,), (3,), (3, 2), (3, 2, 1)] : [(3,), (3, 2), (3, 2, 1)])
 
@@ -84,7 +84,7 @@
     @testset "norm($fdual(::Vector{$T}), p)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
-        p = 1.5
+        p = 2.5
         n = 3
         x = fdual(randn(T, n))
         y = norm(x, p)
@@ -95,7 +95,7 @@
         @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
-        @testset "p = $p" for p in (-1.0, 1.5, 2.0)
+        @testset "p = $p" for p in (-1.0, 2.0, 2.5)
             x = randn(T)
             y = norm(x, p)
             ẋ, ṗ = rand_tangent.((x, p))
@@ -133,7 +133,7 @@ end
         @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
-        p in (1.0, 2.0, -Inf, Inf, 1.5) # skip p=0, since FD is unstable
+        p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
         n = 3
         x = randn(T, n)
         y = normalize(x, p)
