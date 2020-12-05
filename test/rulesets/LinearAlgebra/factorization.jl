@@ -120,6 +120,25 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                     F̄zero = CT(values = Zero(), vectors = Zero())
                     @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
                 end
+
+                @testset "sensitivities are real when primals are" begin
+                    X = randn(T, n, n)
+                    Ẋ = rand_tangent(X)
+
+                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
+                    _, Ḟ_ad = frule((Zero(), Matrix(Hermitian(Ẋ))), eigen, Matrix(Hermitian(X)))
+                    @test eltype(Ḟ_ad.values) <: Real
+                    T <: Real && @test eltype(Ḟ_ad.vectors) <: Real
+
+                    if T <: Real
+                        F = eigen(X)
+                        V̄ = rand_tangent(F.vectors)
+                        λ̄ = rand_tangent(F.values)
+                        F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
+                        X̄ = rrule(eigen, X)[2](F̄)[2]
+                        @test eltype(X̄) <: Real
+                    end
+                end
             end
 
             @testset "normalization/phase functions are idempotent" begin
