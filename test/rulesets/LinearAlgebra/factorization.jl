@@ -139,27 +139,27 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                         @test eltype(X̄) <: Real
                     end
                 end
-            end
 
-            @testset "normalization/phase functions are idempotent" begin
-                # this is as much a math check as a code check. because normalization when
-                # applied repeatedly is idempotent, repeated pushforward/pullback should
-                # leave the (co)tangent unchanged
-                X = randn(T, n, n)
-                Ẋ = rand_tangent(X)
-                F = eigen(X)
+                @testset "normalization/phase functions are idempotent" begin
+                    # this is as much a math check as a code check. because normalization when
+                    # applied repeatedly is idempotent, repeated pushforward/pullback should
+                    # leave the (co)tangent unchanged
+                    X = randn(T, n, n)
+                    Ẋ = rand_tangent(X)
+                    F = eigen(X)
 
-                V̇ = rand_tangent(F.vectors)
-                V̇proj = ChainRules._eigen_norm_phase_fwd!(copy(V̇), X, F.vectors)
-                @test !isapprox(V̇, V̇proj)
-                V̇proj2 = ChainRules._eigen_norm_phase_fwd!(copy(V̇proj), X, F.vectors)
-                @test V̇proj2 ≈ V̇proj
+                    V̇ = rand_tangent(F.vectors)
+                    V̇proj = ChainRules._eigen_norm_phase_fwd!(copy(V̇), X, F.vectors)
+                    @test !isapprox(V̇, V̇proj)
+                    V̇proj2 = ChainRules._eigen_norm_phase_fwd!(copy(V̇proj), X, F.vectors)
+                    @test V̇proj2 ≈ V̇proj
 
-                V̄ = rand_tangent(F.vectors)
-                V̄proj = ChainRules._eigen_norm_phase_rev!(copy(V̄), X, F.vectors)
-                @test !isapprox(V̄, V̄proj)
-                V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
-                @test V̄proj2 ≈ V̄proj
+                    V̄ = rand_tangent(F.vectors)
+                    V̄proj = ChainRules._eigen_norm_phase_rev!(copy(V̄), X, F.vectors)
+                    @test !isapprox(V̄, V̄proj)
+                    V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
+                    @test V̄proj2 ≈ V̄proj
+                end
             end
         end
 
