@@ -3,13 +3,8 @@
 #####
 
 function frule((_, Δx), ::typeof(norm), x)
-    return if isempty(x)
-        z = zero(eltype(x))
-        az = float(norm(z))
-        az, zero(muladd(az, z, az))
-    else
-        _norm2_forward(x, Δx)
-    end
+    y = norm(x)
+    return y, _norm2_forward(x, Δx, norm(x))
 end
 function frule((_, Δx), ::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
@@ -194,7 +189,10 @@ _norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
 ##### `norm2`
 #####
 
-frule((_, Δx), ::typeof(LinearAlgebra.norm2), x) = _norm2_forward(x, Δx)
+function frule((_, Δx), ::typeof(LinearAlgebra.norm2), x)
+    y = LinearAlgebra.norm2(x)
+    return y, _norm2_forward(x, Δx, y)
+end
 
 function rrule(
     ::typeof(LinearAlgebra.norm2),
@@ -206,11 +204,9 @@ function rrule(
     return y, norm2_pullback
 end
 
-function _norm2_forward(x, Δx, Δp = Zero())
-    y = LinearAlgebra.norm2(x)
-    # since dot product is efficient for pushforward, we don't accumulate in parallel
+function _norm2_forward(x, Δx, y)
     ∂y = real(dot(x, Δx)) * pinv(y)
-    return y, ∂y
+    return ∂y
 end
 _norm2_back(x, y, Δy) = x .* (real(Δy) * pinv(y))
 
