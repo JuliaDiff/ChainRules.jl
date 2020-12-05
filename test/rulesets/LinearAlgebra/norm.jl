@@ -7,17 +7,17 @@
             LinearAlgebra.normMinusInf,
         ),
         T in (Float64, ComplexF64),
-        sz in [(3,), (3, 2), (3, 2, 1)]
+        sz in [(3,), (3, 3), (3, 2, 1)]
 
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
         # separated from other values
         if fnorm === LinearAlgebra.normInf
-            x[3] = 1000rand(T)
+            x[end] = 1000rand(T)
             kwargs = (atol=1e-5, rtol=1e-5)
         elseif fnorm == LinearAlgebra.normMinusInf
             x .*= 1000
-            x[3] = rand(T)
+            x[end] = rand(T)
             kwargs = (atol=1e-5, rtol=1e-5)
         else
             kwargs = NamedTuple()
@@ -27,17 +27,22 @@
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
 
-        if fnorm === LinearAlgebra.norm2
+        fnorm === LinearAlgebra.norm2 && @testset "frule" begin
             ẋ = rand_tangent(x)
             frule_test(fnorm, (x, ẋ))
         end
-        rrule_test(fnorm, ȳ, (x, x̄); kwargs...)
-        @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
-        @test rrule(fnorm, x)[2](Zero())[2] isa Zero
+        @testset "rrule" begin
+            rrule_test(fnorm, ȳ, (x, x̄); kwargs...)
+            x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
+                rrule_test(fnorm, ȳ, (MT(x), MT(x̄)); kwargs...)
+            end
+            @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+            @test rrule(fnorm, x)[2](Zero())[2] isa Zero
+        end
     end
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
-        sz in [(0,), (3,), (3, 2), (3, 2, 1)]
+        sz in [(0,), (3,), (3, 3), (3, 2, 1)]
 
         x = randn(T, sz)
         y = norm(x)
@@ -45,31 +50,38 @@
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
 
-        frule_test(norm, (x, ẋ))
-        @test frule((Zero(), Zero()), norm, x)[2] isa Zero
-        @test iszero(frule((Zero(), ẋ), norm, zero(x))[2])
-        rrule_test(norm, ȳ, (x, x̄))
-        @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
-        @test rrule(norm, x)[2](Zero())[2] isa Zero
+        @testset "frule" begin
+            frule_test(norm, (x, ẋ))
+            @test frule((Zero(), Zero()), norm, x)[2] isa Zero
+            @test iszero(frule((Zero(), ẋ), norm, zero(x))[2])
+        end
+        @testset "rrule" begin
+            rrule_test(norm, ȳ, (x, x̄))
+            x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
+                rrule_test(norm, ȳ, (MT(x), MT(x̄)))
+            end
+            @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+            @test rrule(norm, x)[2](Zero())[2] isa Zero
+        end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
         fnorm in (norm, LinearAlgebra.normp),
         p in (1.0, 2.0, Inf, -Inf, 2.5),
         T in (Float64, ComplexF64),
-        sz in (fnorm === norm ? [(0,), (3,), (3, 2), (3, 2, 1)] : [(3,), (3, 2), (3, 2, 1)])
+        sz in (fnorm === norm ? [(0,), (3,), (3, 3), (3, 2, 1)] : [(3,), (3, 3), (3, 2, 1)])
 
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
         # separated from other values
         if p == Inf
             if !isempty(x)
-                x[3] = 1000rand(T)
+                x[end] = 1000rand(T)
             end
             kwargs = (atol=1e-5, rtol=1e-5)
         elseif p == -Inf
             if !isempty(x)
                 x .*= 1000
-                x[3] = rand(T)
+                x[end] = rand(T)
             end
             kwargs = (atol=1e-5, rtol=1e-5)
         else
@@ -82,6 +94,9 @@
         p̄ = rand_tangent(p)
 
         rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); kwargs...)
+        x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
+            rrule_test(fnorm, ȳ, (MT(x), MT(x̄)), (p, p̄); kwargs...)
+        end
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
