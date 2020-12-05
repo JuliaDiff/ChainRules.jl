@@ -126,9 +126,9 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                     Ẋ = rand_tangent(X)
 
                     # hermitian matrices have real eigenvalues and, when real, real eigenvectors
-                    _, Ḟ_ad = frule((Zero(), Matrix(Hermitian(Ẋ))), eigen, Matrix(Hermitian(X)))
-                    @test eltype(Ḟ_ad.values) <: Real
-                    T <: Real && @test eltype(Ḟ_ad.vectors) <: Real
+                    _, Ḟ = frule((Zero(), Matrix(Hermitian(Ẋ))), eigen, Matrix(Hermitian(X)))
+                    @test eltype(Ḟ.values) <: Real
+                    T <: Real && @test eltype(Ḟ.vectors) <: Real
 
                     if T <: Real
                         F = eigen(X)
@@ -179,6 +179,22 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 back = rrule(eigvals, X)[2]
                 @inferred back(λ̄)
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+
+                @testset "sensitivities are real when primals are" begin
+                    X = randn(T, n, n)
+                    Ẋ = rand_tangent(X)
+
+                    # hermitian matrices have real eigenvalues and
+                    _, λ̇ = frule((Zero(), Matrix(Hermitian(Ẋ))), eigvals, Matrix(Hermitian(X)))
+                    @test eltype(λ̇) <: Real
+
+                    if T <: Real
+                        λ = eigvals(X)
+                        λ̄ = rand_tangent(λ)
+                        X̄ = rrule(eigvals, X)[2](λ̄)[2]
+                        @test eltype(X̄) <: Real
+                    end
+                end
             end
         end
     end
