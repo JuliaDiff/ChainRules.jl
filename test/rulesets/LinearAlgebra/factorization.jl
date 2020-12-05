@@ -132,8 +132,8 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 X̄ = rand_tangent(X)
                 λ̄ = rand_tangent(eigvals(X))
                 rrule_test(eigvals, λ̄, (X, X̄))
-                back = rrule(eigen, X)[2]
                 @test back(Zero()) === (NO_FIELDS, Zero())
+                back = rrule(eigvals, X)[2]
             end
         end
     end
