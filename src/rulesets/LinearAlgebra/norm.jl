@@ -25,7 +25,7 @@ function rrule(
     y = LinearAlgebra.norm(x, p)
     function norm_pullback(Δy)
         ∂x = Thunk() do
-            return if isempty(x)
+            return if isempty(x) || p == 0
                 zero.(x) .* (zero(y) * zero(real(Δy)))
             elseif p == 2
                 _norm2_back(x, y, Δy)
@@ -33,8 +33,6 @@ function rrule(
                 _norm1_back(x, y, Δy)
             elseif p == Inf
                 _normInf_back(x, y, Δy)
-            elseif p == 0
-                zero.(x) .* (zero(y) * zero(real(Δy)))
             elseif p == -Inf
                 _normInf_back(x, y, Δy)
             else
