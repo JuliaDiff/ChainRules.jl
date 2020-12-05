@@ -37,7 +37,7 @@
     end
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
-        sz in [(3,), (3, 2), (3, 2, 1)]
+        sz in [(0,), (3,), (3, 2), (3, 2, 1)]
 
         x = randn(T, sz)
         y = norm(x)
