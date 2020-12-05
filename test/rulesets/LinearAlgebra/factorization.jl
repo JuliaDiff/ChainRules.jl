@@ -106,15 +106,18 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                     CT = Composite{typeof(F)}
                     F_rev, back = rrule(eigen, X)
                     @test F_rev == F
-                    @test back(CT(values = λ̄))[2] ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
-                    @test back(CT(vectors = V̄))[2] ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                    _, X̄_values_ad = @inferred back(CT(values = λ̄))
+                    @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
+                    _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
+                    @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
                     F̄ = CT(values = λ̄, vectors = V̄)
-                    s̄elf, X̄_ad = back(F̄)
+                    s̄elf, X̄_ad = @inferred back(F̄)
                     @test s̄elf === NO_FIELDS
                     X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
                     @test X̄_ad ≈ X̄_fd
-                    @test back(Zero()) === (NO_FIELDS, Zero())
-                    @test back(CT(values = Zero(), vectors = Zero())) === (NO_FIELDS, Zero())
+                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                    F̄zero = CT(values = Zero(), vectors = Zero())
+                    @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
                 end
             end
         end
@@ -132,8 +135,9 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 X̄ = rand_tangent(X)
                 λ̄ = rand_tangent(eigvals(X))
                 rrule_test(eigvals, λ̄, (X, X̄))
-                @test back(Zero()) === (NO_FIELDS, Zero())
                 back = rrule(eigvals, X)[2]
+                @inferred back(λ̄)
+                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
             end
         end
     end
