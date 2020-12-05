@@ -78,11 +78,11 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             # avoid implementing to_vec(::Eigen)
             f(E::Eigen) = (values=E.values, vectors=E.vectors)
 
-            # NOTE: for unstructured matrices and low enough n, finite differences of eigen
-            # seems to be stable enough for direct comparison
-            # this allows us to directly check differential of normalization/phase
+            # NOTE: for unstructured matrices, low enough n, and this specific seed, finite
+            # differences of eigen seems to be stable enough for direct comparison.
+            # This allows us to directly check differential of normalization/phase
             # convention
-            n = 8
+            n = 10
 
             @testset "eigen(::Matrix{$T})" for T in (Float64,ComplexF64)
                 @testset "frule" begin
