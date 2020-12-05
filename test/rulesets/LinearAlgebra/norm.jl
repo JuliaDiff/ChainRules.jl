@@ -27,6 +27,10 @@
         x̄ = rand_tangent(x)
         ȳ = rand_tangent(y)
 
+        if fnorm === LinearAlgebra.norm2
+            ẋ = rand_tangent(x)
+            frule_test(fnorm, (x, ẋ))
+        end
         rrule_test(fnorm, ȳ, (x, x̄); kwargs...)
         @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x)[2](Zero())[2] isa Zero
