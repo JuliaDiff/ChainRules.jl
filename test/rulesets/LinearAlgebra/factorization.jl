@@ -85,6 +85,7 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             n = 10
 
             @testset "eigen(::Matrix{$T})" for T in (Float64,ComplexF64)
+                # NOTE: eigen is not type-stable, so neither are its frule and rrule
                 @testset "frule" begin
                     X = randn(T, n, n)
                     Ẋ = rand_tangent(X)
@@ -124,8 +125,8 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
 
         @testset "eigvals" begin
             @testset "eigvals(::Matrix{$T})" for T in (Float64,ComplexF64)
+                # NOTE: eigvals is not type-stable, so neither are its frule and rrule
                 n = 10
-
                 X = randn(T, n, n)
                 λ = eigvals(X)
                 Ẋ = rand_tangent(X)
