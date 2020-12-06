@@ -79,15 +79,20 @@ function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
 end
 
 #####
-##### `eigen`
+##### `eigen!`/`eigen`
 #####
 
-function frule((_, ΔA), ::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm; sortby::Union{Function,Nothing}=nothing)
-    F = eigen(A; sortby=sortby)
+function frule(
+    (_, ΔA),
+    ::typeof(eigen!),
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BlasReal,<:StridedMatrix};
+    sortby::Union{Function,Nothing}=nothing,
+)
+    F = eigen!(A; sortby=sortby)
     ΔA isa AbstractZero && return F, ΔA
     λ, U = F.values, F.vectors
     tmp = U' * ΔA
-    ∂K = tmp * U
+    ∂K = mul!(ΔA.data, tmp, U)
     ∂Kdiag = @view ∂K[diagind(∂K)]
     ∂λ = real.(∂Kdiag)
     ∂K ./= λ' .- λ
@@ -145,12 +150,17 @@ function _eigen_norm_phase_rev!(∂V, A::Hermitian, V)
 end
 
 #####
-##### `eigvals`
+##### `eigvals!`/`eigvals`
 #####
 
-function frule((_, ΔA), ::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
-    ΔA isa AbstractZero && return eigvals(A), ΔA
-    F = eigen(A)
+function frule(
+    (_, ΔA),
+    ::typeof(eigvals!),
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BlasReal,<:StridedMatrix};
+    sortby::Union{Function,Nothing}=nothing,
+)
+    ΔA isa AbstractZero && return eigvals!(A; sortby=sortby), ΔA
+    F = eigen!(A; sortby=sortby)
     λ, U = F.values, F.vectors
     tmp = ΔA * U
     # diag(U' * tmp) without computing matrix product
