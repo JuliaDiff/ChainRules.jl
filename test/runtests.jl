@@ -2,7 +2,7 @@ using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
-using ChainRulesTestUtils: _fdm
+using ChainRulesTestUtils: rand_tangent, _fdm
 using Compat: only
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
@@ -42,7 +42,9 @@ println("Testing ChainRules.jl")
 
         @testset "LinearAlgebra" begin
             include_test("rulesets/LinearAlgebra/dense.jl")
+            include_test("rulesets/LinearAlgebra/norm.jl")
             include_test("rulesets/LinearAlgebra/structured.jl")
+            include_test("rulesets/LinearAlgebra/symmetric.jl")
             include_test("rulesets/LinearAlgebra/factorization.jl")
             include_test("rulesets/LinearAlgebra/blas.jl")
         end
