@@ -195,3 +195,30 @@ function rrule(
     eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
 end
+
+#####
+##### `svd`
+#####
+
+function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm)
+    F = svd(A)
+    function svd_pullback(ΔF::Composite{<:SVD})
+        U, Vt = F.U, F.Vt
+        ∂S = ΔF.S
+        # recreate sign difference between U and Vt
+        n = size(U, 1)
+        c = similar(F.S, Int)
+        @inbounds broadcast!(c, eachindex(c)) do i
+            u = @views U[:, i]
+            # find element not close to zero
+            # at least one element has abs2 ≥ 1/n > 1/(n + 1)
+            k = findfirst(x -> (n + 1) * abs2(x) ≥ 1, u)
+            return sign(real(u[k]) * real(Vt[k, i]))
+        end
+        ∂U = ΔF.U .+ (ΔF.Vt .+ ΔF.V') .* c'
+        ∂A = eigen_rev(A, F.S .* c, U, ∂S .* c, ∂U)
+        return NO_FIELDS, ∂A
+    end
+    svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
+    return F, svd_pullback
+end
