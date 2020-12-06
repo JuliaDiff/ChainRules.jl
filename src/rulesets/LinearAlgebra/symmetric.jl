@@ -132,7 +132,7 @@ function eigen_rev(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
         ∂K[diagind(∂K)] = ∂λ
         ∂A = mul!(∂K, U * ∂K, U')
     end
-    return ∂A
+    return _hermitrize!(∂A, A)
 end
 
 _eigen_norm_phase_fwd!(∂V, ::LinearAlgebra.RealHermSym, V) = ∂V
@@ -189,7 +189,7 @@ function rrule(
     λ = F.values
     function eigvals_pullback(Δλ)
         U = F.vectors
-        ∂A = U * Diagonal(Δλ) * U'
+        ∂A = _hermitrize!(U * Diagonal(Δλ) * U', A)
         return NO_FIELDS, ∂A
     end
     eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
@@ -221,4 +221,17 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm)
     end
     svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
     return F, svd_pullback
+end
+#####
+##### utilities
+#####
+
+# in-place hermitrize matrix, optionally wrapping like A
+function _hermitrize!(A)
+    A .= (A .+ A') ./ 2
+    return A
+end
+function _hermitrize!(∂A, A)
+    _hermitrize!(∂A)
+    return _symhermtype(A)(∂A, Symbol(A.uplo))
 end
