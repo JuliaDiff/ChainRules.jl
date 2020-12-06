@@ -153,9 +153,10 @@ function frule((_, ΔA), ::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexH
     F = eigen(A)
     λ, U = F.values, F.vectors
     tmp = ΔA * U
+    # diag(U' * tmp) without computing matrix product
     ∂λ = similar(λ)
     @inbounds for i in eachindex(λ)
-        ∂λ[i] = real(dot(U[:, i], tmp[:, i]))
+        ∂λ[i] = @views real(dot(U[:, i], tmp[:, i]))
     end
     return λ, ∂λ
 end
