@@ -173,9 +173,9 @@ end
 #####
 
 function frule((_, ΔA), ::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    ΔA isa AbstractZero && return eigvals(A; kwargs...), ΔA
     F = eigen(A; kwargs...)
     λ, V = F.values, F.vectors
-    ΔA isa AbstractZero && return λ, ΔA
     ∂K = V \ ΔA * V
     idx = diagind(∂K)
     ∂λ = eltype(λ) <: Real ? real.(getindex.(Ref(∂K), idx)) : ∂K[idx]
