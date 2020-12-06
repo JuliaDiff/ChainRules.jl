@@ -74,7 +74,9 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
         end
     end
     @testset "eigendecomposition" begin
-        @testset "eigen" begin
+        @testset "eigen/eigen!" begin
+            # NOTE: eigen!/eigen are not type-stable, so neither are their frule/rrule
+
             # avoid implementing to_vec(::Eigen)
             f(E::Eigen) = (values=E.values, vectors=E.vectors)
 
@@ -84,95 +86,107 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             # convention
             n = 10
 
-            @testset "eigen(::Matrix{$T})" for T in (Float64,ComplexF64)
-                # NOTE: eigen is not type-stable, so neither are its frule and rrule
-                @testset "frule" begin
+            @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
+                X = randn(T, n, n)
+                Ẋ = rand_tangent(X)
+                F = eigen!(copy(X))
+                F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
+                @test F_fwd == F
+                @test Ḟ_ad isa Composite{typeof(F)}
+                Ḟ_fd = jvp(_fdm, f ∘ eigen! ∘ copy, (X, Ẋ))
+                @test Ḟ_ad.values ≈ Ḟ_fd.values
+                @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
+                @test frule((Zero(), Zero()), eigen!, copy(X)) == (F, Zero())
+
+                @testset "tangents are real when outputs are" begin
+                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
+                    X = Matrix(Hermitian(randn(T, n, n)))
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, Ḟ = frule((Zero(), Ẋ), eigen!, X)
+                    @test eltype(Ḟ.values) <: Real
+                    T <: Real && @test eltype(Ḟ.vectors) <: Real
+                end
+            end
+
+            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
+                # NOTE: eigen is not type-stable, so neither are is its rrule
+                X = randn(T, n, n)
+                F = eigen(X)
+                V̄ = rand_tangent(F.vectors)
+                λ̄ = rand_tangent(F.values)
+                CT = Composite{typeof(F)}
+                F_rev, back = rrule(eigen, X)
+                @test F_rev == F
+                _, X̄_values_ad = @inferred back(CT(values = λ̄))
+                @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
+                _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
+                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                F̄ = CT(values = λ̄, vectors = V̄)
+                s̄elf, X̄_ad = @inferred back(F̄)
+                @test s̄elf === NO_FIELDS
+                X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
+                @test X̄_ad ≈ X̄_fd
+                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                F̄zero = CT(values = Zero(), vectors = Zero())
+                @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
+
+                T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
                     Ẋ = rand_tangent(X)
-                    F = eigen(X)
-                    F_fwd, Ḟ_ad = frule((Zero(), Ẋ), eigen, X)
-                    @test F_fwd == F
-                    @test Ḟ_ad isa Composite{typeof(F)}
-                    Ḟ_fd = jvp(_fdm, f ∘ eigen, (X, Ẋ))
-                    @test Ḟ_ad.values ≈ Ḟ_fd.values
-                    @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
-                    @test frule((Zero(), Zero()), eigen, X) == (F, Zero())
-                end
 
-                @testset "rrule" begin
-                    X = randn(T, n, n)
                     F = eigen(X)
                     V̄ = rand_tangent(F.vectors)
                     λ̄ = rand_tangent(F.values)
-                    CT = Composite{typeof(F)}
-                    F_rev, back = rrule(eigen, X)
-                    @test F_rev == F
-                    _, X̄_values_ad = @inferred back(CT(values = λ̄))
-                    @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
-                    _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
-                    @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
-                    F̄ = CT(values = λ̄, vectors = V̄)
-                    s̄elf, X̄_ad = @inferred back(F̄)
-                    @test s̄elf === NO_FIELDS
-                    X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
-                    @test X̄_ad ≈ X̄_fd
-                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
-                    F̄zero = CT(values = Zero(), vectors = Zero())
-                    @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
+                    F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
+                    X̄ = rrule(eigen, X)[2](F̄)[2]
+                    @test eltype(X̄) <: Real
                 end
+            end
 
-                @testset "sensitivities are real when primals are" begin
-                    X = randn(T, n, n)
-                    Ẋ = rand_tangent(X)
+            @testset "normalization/phase functions are idempotent" for T in (Float64,ComplexF64)
+                # this is as much a math check as a code check. because normalization when
+                # applied repeatedly is idempotent, repeated pushforward/pullback should
+                # leave the (co)tangent unchanged
+                X = randn(T, n, n)
+                Ẋ = rand_tangent(X)
+                F = eigen(X)
 
-                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
-                    _, Ḟ = frule((Zero(), Matrix(Hermitian(Ẋ))), eigen, Matrix(Hermitian(X)))
-                    @test eltype(Ḟ.values) <: Real
-                    T <: Real && @test eltype(Ḟ.vectors) <: Real
+                V̇ = rand_tangent(F.vectors)
+                V̇proj = ChainRules._eigen_norm_phase_fwd!(copy(V̇), X, F.vectors)
+                @test !isapprox(V̇, V̇proj)
+                V̇proj2 = ChainRules._eigen_norm_phase_fwd!(copy(V̇proj), X, F.vectors)
+                @test V̇proj2 ≈ V̇proj
 
-                    if T <: Real
-                        F = eigen(X)
-                        V̄ = rand_tangent(F.vectors)
-                        λ̄ = rand_tangent(F.values)
-                        F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
-                        X̄ = rrule(eigen, X)[2](F̄)[2]
-                        @test eltype(X̄) <: Real
-                    end
-                end
-
-                @testset "normalization/phase functions are idempotent" begin
-                    # this is as much a math check as a code check. because normalization when
-                    # applied repeatedly is idempotent, repeated pushforward/pullback should
-                    # leave the (co)tangent unchanged
-                    X = randn(T, n, n)
-                    Ẋ = rand_tangent(X)
-                    F = eigen(X)
-
-                    V̇ = rand_tangent(F.vectors)
-                    V̇proj = ChainRules._eigen_norm_phase_fwd!(copy(V̇), X, F.vectors)
-                    @test !isapprox(V̇, V̇proj)
-                    V̇proj2 = ChainRules._eigen_norm_phase_fwd!(copy(V̇proj), X, F.vectors)
-                    @test V̇proj2 ≈ V̇proj
-
-                    V̄ = rand_tangent(F.vectors)
-                    V̄proj = ChainRules._eigen_norm_phase_rev!(copy(V̄), X, F.vectors)
-                    @test !isapprox(V̄, V̄proj)
-                    V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
-                    @test V̄proj2 ≈ V̄proj
-                end
+                V̄ = rand_tangent(F.vectors)
+                V̄proj = ChainRules._eigen_norm_phase_rev!(copy(V̄), X, F.vectors)
+                @test !isapprox(V̄, V̄proj)
+                V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
+                @test V̄proj2 ≈ V̄proj
             end
         end
 
-        @testset "eigvals" begin
-            @testset "eigvals(::Matrix{$T})" for T in (Float64,ComplexF64)
-                # NOTE: eigvals is not type-stable, so neither are its frule and rrule
+        @testset "eigvals/eigvals!" begin
+            # NOTE: eigvals!/eigvals are not type-stable, so neither are their frule/rrule
+            @testset "eigvals!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
                 n = 10
                 X = randn(T, n, n)
-                λ = eigvals(X)
+                λ = eigvals!(copy(X))
                 Ẋ = rand_tangent(X)
-                frule_test(eigvals, (X, Ẋ))
-                @test frule((Zero(), Zero()), eigvals, X) == (λ, Zero())
+                frule_test(eigvals!, (X, Ẋ))
+                @test frule((Zero(), Zero()), eigvals!, copy(X)) == (λ, Zero())
 
+                @testset "tangents are real when outputs are" begin
+                    # hermitian matrices have real eigenvalues
+                    X = Matrix(Hermitian(randn(T, n, n)))
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, λ̇ = frule((Zero(), Ẋ), eigvals!, X)
+                    @test eltype(λ̇) <: Real
+                end
+            end
+
+            @testset "eigvals(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
+                n = 10
+                X = randn(T, n, n)
                 X̄ = rand_tangent(X)
                 λ̄ = rand_tangent(eigvals(X))
                 rrule_test(eigvals, λ̄, (X, X̄))
@@ -180,20 +194,12 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
                 @inferred back(λ̄)
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
 
-                @testset "sensitivities are real when primals are" begin
+                T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
-                    Ẋ = rand_tangent(X)
-
-                    # hermitian matrices have real eigenvalues and
-                    _, λ̇ = frule((Zero(), Matrix(Hermitian(Ẋ))), eigvals, Matrix(Hermitian(X)))
-                    @test eltype(λ̇) <: Real
-
-                    if T <: Real
-                        λ = eigvals(X)
-                        λ̄ = rand_tangent(λ)
-                        X̄ = rrule(eigvals, X)[2](λ̄)[2]
-                        @test eltype(X̄) <: Real
-                    end
+                    λ = eigvals(X)
+                    λ̄ = rand_tangent(λ)
+                    X̄ = rrule(eigvals, X)[2](λ̄)[2]
+                    @test eltype(X̄) <: Real
                 end
             end
         end
