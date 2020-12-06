@@ -43,6 +43,7 @@ println("Testing ChainRules.jl")
             include_test("rulesets/LinearAlgebra/dense.jl")
             include_test("rulesets/LinearAlgebra/norm.jl")
             include_test("rulesets/LinearAlgebra/structured.jl")
+            include_test("rulesets/LinearAlgebra/symmetric.jl")
             include_test("rulesets/LinearAlgebra/factorization.jl")
             include_test("rulesets/LinearAlgebra/blas.jl")
         end

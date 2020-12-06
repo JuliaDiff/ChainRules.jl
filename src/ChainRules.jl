@@ -45,6 +45,7 @@ include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/norm.jl")
 include("rulesets/LinearAlgebra/structured.jl")
+include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 
 include("rulesets/Random/random.jl")
