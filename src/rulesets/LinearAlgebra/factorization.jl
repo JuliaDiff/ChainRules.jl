@@ -122,32 +122,32 @@ end
 
 function _eigen_norm_phase_fwd!(∂V, A, V)
     @inbounds for i in axes(V, 2)
-        vᵢ, ∂vᵢ = @views V[:, i], ∂V[:, i]
+        v, ∂v = @views V[:, i], ∂V[:, i]
         # account for unit normalization
-        ∂cᵢnorm = -real(dot(vᵢ, ∂vᵢ))
+        ∂c_norm = -real(dot(v, ∂v))
         if eltype(V) <: Real
-            ∂cᵢ = ∂cᵢnorm
+            ∂c = ∂c_norm
         else
             # account for rotation of largest element to real
-            k = _findrealmaxabs2(vᵢ)
-            ∂cᵢphase = -imag(∂vᵢ[k]) / real(vᵢ[k])
-            ∂cᵢ = complex(∂cᵢnorm, ∂cᵢphase)
+            k = _findrealmaxabs2(v)
+            ∂c_phase = -imag(∂v[k]) / real(v[k])
+            ∂c = complex(∂c_norm, ∂c_phase)
         end
-        ∂vᵢ .+= vᵢ .* ∂cᵢ
+        ∂v .+= v .* ∂c
     end
     return ∂V
 end
 
 function _eigen_norm_phase_rev!(∂V, A, V)
     @inbounds for i in axes(V, 2)
-        vᵢ, ∂vᵢ = @views V[:, i], ∂V[:, i]
-        ∂cᵢ = dot(vᵢ, ∂vᵢ)
+        v, ∂v = @views V[:, i], ∂V[:, i]
+        ∂c = dot(v, ∂v)
         # account for unit normalization
-        ∂vᵢ .-= real(∂cᵢ) .* vᵢ
+        ∂v .-= real(∂c) .* v
         if !(eltype(V) <: Real)
             # account for rotation of largest element to real
-            k = _findrealmaxabs2(vᵢ)
-            ∂vᵢ[k] -= im * (imag(∂cᵢ) / real(vᵢ[k]))
+            k = _findrealmaxabs2(v)
+            @inbounds ∂v[k] -= im * (imag(∂c) / real(v[k]))
         end
     end
     return ∂V
@@ -157,7 +157,7 @@ end
 function _findrealmaxabs2(x)
     amax = abs2(first(x))
     imax = 1
-    for i in 2:length(x)
+    @inbounds for i in 2:length(x)
         xi = x[i]
         !isreal(xi) && continue
         a = abs2(xi)
