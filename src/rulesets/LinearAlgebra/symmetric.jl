@@ -205,16 +205,7 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm)
     function svd_pullback(ΔF::Composite{<:SVD})
         U, Vt = F.U, F.Vt
         ∂S = ΔF.S
-        # recreate sign difference between U and Vt
-        n = size(U, 1)
-        c = similar(F.S, Int)
-        @inbounds broadcast!(c, eachindex(c)) do i
-            u = @views U[:, i]
-            # find element not close to zero
-            # at least one element has abs2 ≥ 1/n > 1/(n + 1)
-            k = findfirst(x -> (n + 1) * abs2(x) ≥ 1, u)
-            return sign(real(u[k]) * real(Vt[k, i]))
-        end
+        c = _svd_eigvals_sign!(similar(F.S), U, Vt)
         ∂U = ΔF.U .+ (ΔF.Vt .+ ΔF.V') .* c'
         ∂A = eigen_rev(A, F.S .* c, U, ∂S .* c, ∂U)
         return NO_FIELDS, ∂A
@@ -222,6 +213,20 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm)
     svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
     return F, svd_pullback
 end
+
+# given singular vectors, compute sign of eigenvalues corresponding to singular values
+function _svd_eigvals_sign!(c, U, Vt)
+    n = size(U, 1)
+    @inbounds broadcast!(c, eachindex(c)) do i
+        u = @views U[:, i]
+        # find element not close to zero
+        # at least one element has abs2 ≥ 1/n > 1/(n + 1)
+        k = findfirst(x -> (n + 1) * abs2(x) ≥ 1, u)
+        return sign(real(u[k]) * real(Vt[k, i]))
+    end
+    return c
+end
+
 #####
 ##### utilities
 #####
