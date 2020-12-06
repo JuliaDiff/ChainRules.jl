@@ -91,64 +91,74 @@ end
 #####
 
 # ✖️✖️✖️TODO: Deal with complex-valued arrays as well
-function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real})
+function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Union{Real, Complex}})
     function Adjoint_pullback(ȳ)
         return (NO_FIELDS, adjoint(ȳ))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
-function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real})
+function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Union{Real, Complex}})
     function Adjoint_pullback(ȳ)
         return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return Adjoint(A), Adjoint_pullback
 end
 
-function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
+function rrule(::typeof(adjoint), A::AbstractMatrix{<:Union{Real, Complex}})
     function adjoint_pullback(ȳ)
         return (NO_FIELDS, adjoint(ȳ))
     end
     return adjoint(A), adjoint_pullback
 end
 
-function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
+function rrule(::typeof(adjoint), A::AbstractVector{<:Union{Real, Complex}})
     function adjoint_pullback(ȳ)
         return (NO_FIELDS, vec(adjoint(ȳ)))
     end
     return adjoint(A), adjoint_pullback
+end
+
+function rrule(::typeof(parent), A::Adjoint)
+    parent_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, Adjoint(ȳ))
+    return parent(A), parent_pullback
 end
 
 #####
 ##### `Transpose`
 #####
 
-function rrule(::Type{<:Transpose}, A::AbstractMatrix)
+function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Union{Real, Complex}})
     function Transpose_pullback(ȳ)
         return (NO_FIELDS, transpose(ȳ))
     end
     return Transpose(A), Transpose_pullback
 end
 
-function rrule(::Type{<:Transpose}, A::AbstractVector)
+function rrule(::Type{<:Transpose}, A::AbstractVector{<:Union{Real, Complex}})
     function Transpose_pullback(ȳ)
         return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return Transpose(A), Transpose_pullback
 end
 
-function rrule(::typeof(transpose), A::AbstractMatrix)
+function rrule(::typeof(transpose), A::AbstractMatrix{<:Union{Real, Complex}})
     function transpose_pullback(ȳ)
         return (NO_FIELDS, transpose(ȳ))
     end
     return transpose(A), transpose_pullback
 end
 
-function rrule(::typeof(transpose), A::AbstractVector)
+function rrule(::typeof(transpose), A::AbstractVector{<:Union{Real, Complex}})
     function transpose_pullback(ȳ)
         return (NO_FIELDS, vec(transpose(ȳ)))
     end
     return transpose(A), transpose_pullback
+end
+
+function rrule(::typeof(parent), A::Transpose)
+    parent_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, Transpose(ȳ))
+    return parent(A), parent_pullback
 end
 
 #####

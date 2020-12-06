@@ -104,11 +104,14 @@
             end
         end
     end
-    @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
+    @testset "$f, $T" for
+        f in (Adjoint, adjoint, Transpose, transpose),
+        T in (Float64, ComplexF64)
+
         n = 5
         m = 3
-        rrule_test(f, randn(m, n), (randn(n, m), randn(n, m)))
-        rrule_test(f, randn(1, n), (randn(n), randn(n)))
+        rrule_test(f, randn(T, m, n), (randn(T, n, m), randn(T, n, m)))
+        rrule_test(f, randn(T, 1, n), (randn(T, n), randn(T, n)))
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5
