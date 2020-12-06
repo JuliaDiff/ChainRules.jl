@@ -110,8 +110,31 @@
 
         n = 5
         m = 3
-        rrule_test(f, randn(T, m, n), (randn(T, n, m), randn(T, n, m)))
-        rrule_test(f, randn(T, 1, n), (randn(T, n), randn(T, n)))
+        @testset "$f(::Matrix{$T})" begin
+            A = randn(T, n, m)
+            Ā = randn(T, n, m)
+            Y = f(A)
+            Ȳ_mat = randn(T, m, n)
+            Ȳ_composite = Composite{typeof(Y)}(parent=collect(f(Ȳ_mat)))
+
+            rrule_test(f, Ȳ_mat, (A, Ā))
+
+            _, pb = rrule(f, A)
+            @test pb(Ȳ_mat) == pb(Ȳ_composite)
+        end
+
+        @testset "$f(::Vector{$T})" begin
+            a = randn(T, n)
+            ā = randn(T, n)
+            y = f(a)
+            ȳ_mat = randn(T, 1, n)
+            ȳ_composite = Composite{typeof(y)}(parent=collect(f(ȳ_mat)))
+
+            rrule_test(f, ȳ_mat, (a, ā))
+
+            _, pb = rrule(f, a)
+            @test pb(ȳ_mat) == pb(ȳ_composite)
+        end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5
