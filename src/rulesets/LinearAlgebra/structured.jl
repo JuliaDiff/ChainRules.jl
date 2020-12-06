@@ -90,7 +90,6 @@ end
 ##### `Adjoint`
 #####
 
-# ✖️✖️✖️TODO: Deal with complex-valued arrays as well
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Union{Real, Complex}})
     Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
     Adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, adjoint(ȳ))
