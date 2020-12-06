@@ -105,10 +105,15 @@
             test_scalar(f, b)
         end
         @testset "$f(::Matrix{$T})" for T in (Float64, ComplexF64)
+            if f === logdet && float(T) <: Float32
+                kwargs = (atol=1e-5, rtol=1e-5)
+            else
+                kwargs = NamedTuple()
+            end
             N = 3
             B = generate_well_conditioned_matrix(T, N)
-            frule_test(f, (B, randn(T, N, N)))
-            rrule_test(f, randn(T), (B, randn(T, N, N)))
+            frule_test(f, (B, randn(T, N, N)); kwargs...)
+            rrule_test(f, randn(T), (B, randn(T, N, N)); kwargs...)
         end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
@@ -124,13 +129,5 @@
         N = 4
         frule_test(tr, (randn(N, N), randn(N, N)))
         rrule_test(tr, randn(), (randn(N, N), randn(N, N)))
-    end
-    @testset "norm" begin
-        for dims in [(), (5,), (3, 2), (7, 3, 2)]
-            A = randn(dims...)
-            p = randn()
-            ȳ = randn()
-            rrule_test(norm, ȳ, (A, randn(dims...)), (p, randn()))
-        end
     end
 end

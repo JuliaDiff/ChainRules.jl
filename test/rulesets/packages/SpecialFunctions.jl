@@ -50,7 +50,7 @@ end
             isreal(x) || continue
 
             Δx, x̄ = randn(2)
-            Δz = Composite{Tuple{Float64, DoesNotExist}}(randn(), Zero())
+            Δz = Composite{Tuple{Float64, DoesNotExist}}(randn(), randn())
 
             frule_test(SpecialFunctions.logabsgamma, (x, Δx))
             rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))
