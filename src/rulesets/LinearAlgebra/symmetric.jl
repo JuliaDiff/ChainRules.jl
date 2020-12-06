@@ -134,9 +134,9 @@ _eigen_norm_phase_fwd!(∂V, ::LinearAlgebra.RealHermSym, V) = ∂V
 function _eigen_norm_phase_fwd!(∂V, A::Hermitian, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
     @inbounds for i in axes(V, 2)
-        vᵢ = @view V[:, i]
-        vₖᵢ, ∂vₖᵢ = real(vᵢ[k]), ∂V[k, i]
-        ∂vᵢ .-= vᵢ .* (imag(∂vₖᵢ) / ifelse(iszero(vₖᵢ), one(vₖᵢ), vₖᵢ))
+        v = @view V[:, i]
+        vₖ, ∂vₖ = real(v[k]), ∂V[k, i]
+        ∂v .-= v .* (imag(∂vₖ) / ifelse(iszero(vₖ), one(vₖ), vₖ))
     end
     return ∂V
 end
@@ -145,10 +145,10 @@ _eigen_norm_phase_rev!(∂V, ::LinearAlgebra.RealHermSym, V) = ∂V
 function _eigen_norm_phase_rev!(∂V, A::Hermitian, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
     @inbounds for i in axes(V, 2)
-        vᵢ, ∂vᵢ = @views V[:, i], ∂V[:, i]
-        vₖᵢ = real(vᵢ[k])
-        ∂cᵢ = dot(vᵢ, ∂vᵢ)
-        ∂vᵢ[k] -= im * (imag(∂cᵢ) / ifelse(iszero(vₖᵢ), one(vₖᵢ), vₖᵢ))
+        v, ∂v = @views V[:, i], ∂V[:, i]
+        vₖ = real(v[k])
+        ∂c = dot(v, ∂v)
+        ∂v[k] -= im * (imag(∂c) / ifelse(iszero(vₖ), one(vₖ), vₖ))
     end
     return ∂V
 end
