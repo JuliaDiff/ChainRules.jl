@@ -75,8 +75,8 @@ end
 # - simplify when A is diagonal
 # - support degenerate matrices (see #144)
 
-function frule((_, ΔA), ::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    F = eigen(A; kwargs...)
+function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    F = eigen!(A; kwargs...)
     ΔA isa AbstractZero && return F, ΔA
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
@@ -171,9 +171,9 @@ end
 ##### `eigvals`
 #####
 
-function frule((_, ΔA), ::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    ΔA isa AbstractZero && return eigvals(A; kwargs...), ΔA
-    F = eigen(A; kwargs...)
+function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
+    F = eigen!(A; kwargs...)
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
     ∂λ = similar(λ)
