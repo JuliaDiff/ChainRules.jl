@@ -115,11 +115,6 @@ function rrule(::typeof(adjoint), A::AbstractVector{<:Union{Real, Complex}})
     return adjoint(A), adjoint_pullback
 end
 
-function rrule(::typeof(parent), A::Adjoint)
-    parent_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, Composite{typeof(A)}(parent=ȳ))
-    return parent(A), parent_pullback
-end
-
 #####
 ##### `Transpose`
 #####
@@ -146,11 +141,6 @@ function rrule(::typeof(transpose), A::AbstractVector{<:Union{Real, Complex}})
     transpose_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
     transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(transpose(ȳ)))
     return transpose(A), transpose_pullback
-end
-
-function rrule(::typeof(parent), A::Transpose)
-    parent_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, Transpose(ȳ))
-    return parent(A), parent_pullback
 end
 
 #####
