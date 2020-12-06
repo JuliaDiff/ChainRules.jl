@@ -112,22 +112,27 @@ function rrule(
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
-        if ΔU isa AbstractZero
-            Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔU)
-            ∂K = Diagonal(Δλ)
-            ∂A = U * ∂K * U'
-        else
-            ∂U = copyto!(similar(ΔU), ΔU)
-            _eigen_norm_phase_rev!(∂U, A, U)
-            ∂K = U' * ∂U
-            ∂K ./= λ' .- λ
-            ∂K[diagind(∂K)] = Δλ
-            ∂A = mul!(∂K, U * ∂K, U')
-        end
+        ∂A = eigen_rev(A, λ, U, Δλ, ΔU)
         return NO_FIELDS, ∂A
     end
     eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
     return F, eigen_pullback
+end
+
+function eigen_rev(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
+    if ∂U isa AbstractZero
+        ∂λ isa AbstractZero && return (NO_FIELDS, ∂λ + ∂U)
+        ∂K = Diagonal(∂λ)
+        ∂A = U * ∂K * U'
+    else
+        ∂U = copyto!(similar(∂U), ∂U)
+        _eigen_norm_phase_rev!(∂U, A, U)
+        ∂K = U' * ∂U
+        ∂K ./= λ' .- λ
+        ∂K[diagind(∂K)] = ∂λ
+        ∂A = mul!(∂K, U * ∂K, U')
+    end
+    return ∂A
 end
 
 _eigen_norm_phase_fwd!(∂V, ::LinearAlgebra.RealHermSym, V) = ∂V
