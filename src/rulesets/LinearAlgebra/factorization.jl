@@ -99,16 +99,15 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
         if ΔV isa AbstractZero
             Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
             ∂K = Diagonal(Δλ)
-            tmp = Matrix(∂K)
+            ∂A = V' \ ∂K * V'
         else
             ∂V = copyto!(similar(ΔV), ΔV)
             _eigen_norm_phase_rev!(∂V, A, V)
             ∂K = V' * ∂V
             ∂K ./= λ' .- conj.(λ)
             ∂K[diagind(∂K)] .= Δλ
-            tmp = ∂K
+            ∂A = mul!(∂K, V' \ ∂K, V')
         end
-        ∂A = mul!(tmp, V' \ ∂K, V')
         return NO_FIELDS, T <: Real ? real(∂A) : ∂A
     end
     eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
