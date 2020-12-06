@@ -176,9 +176,14 @@ function frule((_, ΔA), ::typeof(eigvals), A::StridedMatrix{T}; kwargs...) wher
     ΔA isa AbstractZero && return eigvals(A; kwargs...), ΔA
     F = eigen(A; kwargs...)
     λ, V = F.values, F.vectors
-    ∂K = V \ ΔA * V
-    idx = diagind(∂K)
-    ∂λ = eltype(λ) <: Real ? real.(getindex.(Ref(∂K), idx)) : ∂K[idx]
+    tmp = V \ ΔA
+    ∂λ = similar(λ)
+    # diag(tmp * V) without computing full matrix product
+    if eltype(∂λ) <: Real
+        broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+    else
+        broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+    end
     return λ, ∂λ
 end
 
