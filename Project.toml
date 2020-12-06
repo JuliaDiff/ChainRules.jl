@@ -13,10 +13,10 @@ Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-ChainRulesCore = "0.9.16"
-ChainRulesTestUtils = "0.5"
+ChainRulesCore = "0.9.21"
+ChainRulesTestUtils = "0.5.1"
 Compat = "3"
-FiniteDifferences = "0.11"
+FiniteDifferences = "0.11.4"
 Reexport = "0.2"
 Requires = "0.5.2, 1"
 julia = "1"
