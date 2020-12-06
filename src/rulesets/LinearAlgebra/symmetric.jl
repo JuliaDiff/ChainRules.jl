@@ -227,6 +227,19 @@ function _svd_eigvals_sign!(c, U, Vt)
     return c
 end
 
+function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm)
+    # sorting doesn't affect the eigvals pullback, and it simplifies this rrule
+    λ, back = rrule(eigvals, A; sortby = x -> -abs2(x))
+    S = abs.(λ)
+    function svdvals_pullback(ΔS)
+        ∂λ = ΔS .* S ./ ifelse.(iszero.(λ), one.(λ), λ)
+        ∂A = back(∂λ)
+        return NO_FIELDS, ∂A
+    end
+    svdvals_pullback(ΔS::AbstractZero) = (NO_FIELDS, ΔS)
+    return S, svdvals_pullback
+end
+
 #####
 ##### utilities
 #####
