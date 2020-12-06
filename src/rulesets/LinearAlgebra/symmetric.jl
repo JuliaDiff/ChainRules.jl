@@ -85,7 +85,7 @@ end
 function frule(
     (_, ΔA),
     ::typeof(eigen!),
-    A::LinearAlgebra.RealHermSymComplexHerm{<:BlasReal,<:StridedMatrix};
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     sortby::Union{Function,Nothing}=nothing,
 )
     F = eigen!(A; sortby=sortby)
@@ -160,7 +160,7 @@ end
 function frule(
     (_, ΔA),
     ::typeof(eigvals!),
-    A::LinearAlgebra.RealHermSymComplexHerm{<:BlasReal,<:StridedMatrix};
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     sortby::Union{Function,Nothing}=nothing,
 )
     ΔA isa AbstractZero && return eigvals!(A; sortby=sortby), ΔA
