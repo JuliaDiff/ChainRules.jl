@@ -103,7 +103,11 @@ function frule(
     return F, ∂F
 end
 
-function rrule(::typeof(eigen), A::LinearAlgebra.RealHermSymComplexHerm; sortby::Union{Function,Nothing}=nothing)
+function rrule(
+    ::typeof(eigen),
+    A::LinearAlgebra.RealHermSymComplexHerm;
+    sortby::Union{Function,Nothing}=nothing,
+)
     F = eigen(A; sortby=sortby)
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, U = F.values, F.vectors
@@ -171,8 +175,12 @@ function frule(
     return λ, ∂λ
 end
 
-function rrule(::typeof(eigvals), A::LinearAlgebra.RealHermSymComplexHerm)
-    F = eigen(A)
+function rrule(
+    ::typeof(eigvals),
+    A::LinearAlgebra.RealHermSymComplexHerm;
+    sortby::Union{Function,Nothing}=nothing,
+)
+    F = eigen(A; sortby=sortby)
     λ = F.values
     function eigvals_pullback(Δλ)
         U = F.vectors
