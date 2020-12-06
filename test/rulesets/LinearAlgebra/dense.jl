@@ -130,12 +130,4 @@
         frule_test(tr, (randn(N, N), randn(N, N)))
         rrule_test(tr, randn(), (randn(N, N), randn(N, N)))
     end
-    @testset "norm" begin
-        for dims in [(), (5,), (3, 2), (7, 3, 2)]
-            A = randn(dims...)
-            p = randn()
-            ȳ = randn()
-            rrule_test(norm, ȳ, (A, randn(dims...)), (p, randn()))
-        end
-    end
 end
