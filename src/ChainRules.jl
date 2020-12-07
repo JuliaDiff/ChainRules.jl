@@ -58,8 +58,12 @@ function __init__()
         include("rulesets/packages/NaNMath.jl")
     end
 
+    # Note: drop SpecialFunctions dependency in next breaking release
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/319
     @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
-        include("rulesets/packages/SpecialFunctions.jl")
+        if !isdefined(SpecialFunctions, :ChainRulesCore)
+            include("rulesets/packages/SpecialFunctions.jl")
+        end
     end
 end
 
