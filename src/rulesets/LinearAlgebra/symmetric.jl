@@ -33,11 +33,6 @@ function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
 end
 rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
-# Get type (Symmetric or Hermitian) from type or matrix
-_symhermtype(::Type{<:Symmetric}) = Symmetric
-_symhermtype(::Type{<:Hermitian}) = Hermitian
-_symhermtype(A) = _symhermtype(typeof(A))
-
 # for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
 function _symherm_forward(A, ΔA)
     TA = _symhermtype(A)
@@ -243,6 +238,11 @@ end
 #####
 ##### utilities
 #####
+
+# Get type (Symmetric or Hermitian) from type or matrix
+_symhermtype(::Type{<:Symmetric}) = Symmetric
+_symhermtype(::Type{<:Hermitian}) = Hermitian
+_symhermtype(A) = _symhermtype(typeof(A))
 
 # in-place hermitrize matrix, optionally wrapping like A
 function _hermitrize!(A)
