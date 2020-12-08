@@ -134,7 +134,7 @@ function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
 end
 
 _eigen_norm_phase_fwd!(∂V, ::Union{Symmetric{T,S},Hermitian{T,S}}, V) where {T<:Real,S} = ∂V
-function _eigen_norm_phase_fwd!(∂V, A::Hermitian, V)
+function _eigen_norm_phase_fwd!(∂V, A::Hermitian{<:Complex}, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
     @inbounds for i in axes(V, 2)
         v = @view V[:, i]
@@ -145,7 +145,7 @@ function _eigen_norm_phase_fwd!(∂V, A::Hermitian, V)
 end
 
 _eigen_norm_phase_rev!(∂V, ::Union{Symmetric{T,S},Hermitian{T,S}}, V) where {T<:Real,S} = ∂V
-function _eigen_norm_phase_rev!(∂V, A::Hermitian, V)
+function _eigen_norm_phase_rev!(∂V, A::Hermitian{<:Complex}, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
     @inbounds for i in axes(V, 2)
         v, ∂v = @views V[:, i], ∂V[:, i]
