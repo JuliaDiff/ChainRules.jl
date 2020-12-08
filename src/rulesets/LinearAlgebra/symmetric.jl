@@ -139,7 +139,7 @@ function _eigen_norm_phase_fwd!(∂V, A::Hermitian{<:Complex}, V)
     @inbounds for i in axes(V, 2)
         v, ∂v = @views V[:, i], ∂V[:, i]
         vₖ, ∂vₖ = real(v[k]), ∂v[k]
-        ∂v .-= v .* (imag(∂vₖ) / ifelse(iszero(vₖ), one(vₖ), vₖ))
+        ∂v .-= v .* (im * (imag(∂vₖ) / ifelse(iszero(vₖ), one(vₖ), vₖ)))
     end
     return ∂V
 end
