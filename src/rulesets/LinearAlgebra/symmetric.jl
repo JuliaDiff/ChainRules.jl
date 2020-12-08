@@ -128,7 +128,7 @@ function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
         ∂K[diagind(∂K)] .= real.(∂λ)
         mul!(tmp, ∂K, U')
         mul!(∂A.data, U, tmp)
-        _hermitrize!(∂A.data)
+        @inbounds _hermitrize!(∂A.data)
     end
     return ∂A
 end
@@ -249,12 +249,15 @@ _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
 
-# in-place hermitrize matrix, optionally wrapping like A
+# in-place hermitrize matrix
 function _hermitrize!(A)
-    A .= (A .+ A') ./ 2
+    n = size(A, 1)
+    for i in 1:n
+        for j in (i + 1):n
+            A[i, j] = (A[i, j] + conj(A[j, i])) / 2
+            A[j, i] = conj(A[i, j])
+        end
+        A[i, i] = real(A[i, i])
+    end
     return A
-end
-function _hermitrize!(∂A, A)
-    _hermitrize!(∂A)
-    return _symhermtype(A)(∂A, Symbol(A.uplo))
 end
