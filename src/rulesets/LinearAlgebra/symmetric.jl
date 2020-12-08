@@ -137,8 +137,8 @@ _eigen_norm_phase_fwd!(∂V, ::Union{Symmetric{T,S},Hermitian{T,S}}, V) where {T
 function _eigen_norm_phase_fwd!(∂V, A::Hermitian{<:Complex}, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
     @inbounds for i in axes(V, 2)
-        v = @view V[:, i]
-        vₖ, ∂vₖ = real(v[k]), ∂V[k, i]
+        v, ∂v = @views V[:, i], ∂V[:, i]
+        vₖ, ∂vₖ = real(v[k]), ∂v[k]
         ∂v .-= v .* (imag(∂vₖ) / ifelse(iszero(vₖ), one(vₖ), vₖ))
     end
     return ∂V
