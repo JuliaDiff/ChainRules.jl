@@ -100,7 +100,7 @@ end
 
 function rrule(
     ::typeof(eigen),
-    A::LinearAlgebra.RealHermSymComplexHerm;
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     sortby::Union{Function,Nothing}=nothing,
 )
     F = eigen(A; sortby=sortby)
@@ -177,7 +177,7 @@ end
 
 function rrule(
     ::typeof(eigvals),
-    A::LinearAlgebra.RealHermSymComplexHerm;
+    A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     sortby::Union{Function,Nothing}=nothing,
 )
     F = eigen(A; sortby=sortby)
@@ -196,7 +196,7 @@ end
 ##### `svd`
 #####
 
-function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm)
+function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
     function svd_pullback(ΔF::Composite{<:SVD})
         U, Vt = F.U, F.Vt
@@ -223,7 +223,7 @@ function _svd_eigvals_sign!(c, U, Vt)
     return c
 end
 
-function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm)
+function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     # sorting doesn't affect the eigvals pullback, and it simplifies this rrule
     λ, back = rrule(eigvals, A; sortby = x -> -abs2(x))
     S = abs.(λ)
