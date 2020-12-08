@@ -115,19 +115,23 @@ function rrule(
 end
 
 function eigen_rev(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
+    ∂λ isa AbstractZero && ∂λ isa AbstractZero && return (NO_FIELDS, ∂λ + ∂U)
+    ∂A = similar(A, eltype(U))
+    tmp = similar(U)
     if ∂U isa AbstractZero
-        ∂λ isa AbstractZero && return (NO_FIELDS, ∂λ + ∂U)
-        ∂K = Diagonal(∂λ)
-        ∂A = U * ∂K * U'
+        tmp .= U .* real.(∂λ)
+        mul!(∂A.data, U, tmp')
     else
-        ∂U = copyto!(similar(∂U), ∂U)
+        ∂U = copyto!(tmp, ∂U)
         _eigen_norm_phase_rev!(∂U, A, U)
-        ∂K = U' * ∂U
+        ∂K = mul!(∂A.data, U', ∂U)
         ∂K ./= λ' .- λ
         ∂K[diagind(∂K)] .= real.(∂λ)
-        ∂A = mul!(∂K, U * ∂K, U')
+        mul!(tmp, ∂K, U')
+        mul!(∂A.data, U, tmp)
+        _hermitrize!(∂A.data)
     end
-    return _hermitrize!(∂A, A)
+    return ∂A
 end
 
 _eigen_norm_phase_fwd!(∂V, ::LinearAlgebra.RealHermSym, V) = ∂V
@@ -185,7 +189,7 @@ function rrule(
     function eigvals_pullback(Δλ)
         U = F.vectors
         ∂A = similar(A)
-        mul!(∂A.data, U .* real.(Δλ'), U')
+        mul!(∂A.data, U, (U .* real.(Δλ))')
         return NO_FIELDS, ∂A
     end
     eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
