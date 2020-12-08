@@ -41,4 +41,112 @@
         frule_test(f, (x, SymHerm(Δx, uplo)))
         rrule_test(f, ΔΩ, (x, ∂x))
     end
+
+    # symmetric/hermitian eigendecomposition follows the sign convention
+    # v = v * sign(real(vₖ)) * sign(vₖ)', where vₖ is the first or last coordinate
+    # in the eigenvector. This is unstable for finite differences, but using the convention
+    # v = v * sign(vₖ)' seems to be more stable, the (co)tangents are related as
+    # ∂v_ad = sign(real(vₖ)) * ∂v_fd
+
+    function _eigvecs_stabilize_mat(vectors, uplo)
+        Ui = Symbol(uplo) === :U ? @view(vectors[end, :]) : @view(vectors[1, :])
+        return Diagonal(conj.(sign.(Ui)))
+    end
+
+    function _eigen_stable(A)
+        F = eigen(A)
+        rmul!(F.vectors, _eigvecs_stabilize_mat(F.vectors, A.uplo))
+        return F
+    end
+
+    @testset "eigendecomposition" begin
+        @testset "eigen/eigen!" begin
+            # avoid implementing to_vec(::Eigen)
+            asnt(E::Eigen) = (values=E.values, vectors=E.vectors)
+
+            n = 10
+            @testset "eigen!(::Hermitian{ComplexF64}) frule" for SymHerm in
+                                                                (Symmetric, Hermitian),
+                T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                uplo in (:L, :U)
+
+                A, ΔA = SymHerm(randn(T, n, n), uplo), SymHerm(randn(T, n, n), uplo)
+                F = eigen!(copy(A))
+                F_ad, ∂F_ad = frule((Zero(), copy(ΔA)), eigen!, copy(A))
+                @test F_ad == F
+                @test ∂F_ad isa Composite{typeof(F)}
+                f = x -> asnt(eigen(SymHerm(x, uplo)))
+                f_stable = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
+                ∂F_fd = jvp(_fdm, f, (A.data, ΔA.data))
+                @test ∂F_ad.values ≈ ∂F_fd.values
+                F_stable = f_stable(A)
+                ∂F_stable_fd = jvp(_fdm, f_stable, (A.data, ΔA.data))
+                C = _eigvecs_stabilize_mat(F.vectors, uplo)
+                @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
+            end
+
+            @testset "eigen(::Hermitian{ComplexF64}) rrule" for SymHerm in
+                                                                (Symmetric, Hermitian),
+                T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                uplo in (:L, :U)
+
+                A, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(n)
+                symA = SymHerm(A, uplo)
+                F = eigen(symA)
+                ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
+                F_ad, back = rrule(eigen, symA)
+                @test F_ad == F
+                ∂self, ∂symA = back(ΔF)
+                @test ∂self === NO_FIELDS
+                ∂symA = unthunk(∂symA)
+                @test ∂symA isa typeof(symA)
+                @test ∂symA.uplo == symA.uplo
+                # pull the cotangent back to A to test against finite differences
+                ∂A = unthunk(rrule(SymHerm, A, uplo)[2](∂symA)[2])
+                # adopt a deterministic sign convention to stabilize FD
+                C = _eigvecs_stabilize_mat(F.vectors, uplo)
+                ΔF_stable = Composite{typeof(F)}(; values=Δλ, vectors=ΔU * C)
+                f = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
+                ∂A_fd = j′vp(_fdm, f, ΔF_stable, A)[1]
+                @test ∂A ≈ ∂A_fd
+            end
+        end
+
+        @testset "eigvals!/eigvals" begin
+            n = 10
+            @testset "eigvals!(::Hermitian{ComplexF64}) frule" for SymHerm in
+                                                                (Symmetric, Hermitian),
+                T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                uplo in (:L, :U)
+
+                A, ΔA = SymHerm(randn(T, n, n), uplo), SymHerm(randn(T, n, n), uplo)
+                λ = eigvals!(copy(A))
+                λ_ad, ∂λ_ad = frule((Zero(), ΔA), eigvals!, copy(A))
+                @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
+                ∂λ_ad = unthunk(∂λ_ad)
+                @test ∂λ_ad isa typeof(λ)
+                @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A.data, ΔA.data))
+            end
+
+            @testset "eigvals(::Hermitian{ComplexF64}) rrule" for SymHerm in
+                                                                (Symmetric, Hermitian),
+                T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                uplo in (:L, :U)
+
+                A, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(n)
+                symA = SymHerm(A, uplo)
+                λ = eigvals(symA)
+                λ_ad, back = rrule(eigvals, symA)
+                @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
+                ∂self, ∂symA = back(Δλ)
+                @test ∂self === NO_FIELDS
+                ∂symA = unthunk(∂symA)
+                @test ∂symA isa typeof(symA)
+                @test ∂symA.uplo == symA.uplo
+                # pull the cotangent back to A to test against finite differences
+                ∂A = unthunk(rrule(SymHerm, A, uplo)[2](∂symA)[2])
+                @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
+            end
+        end
+    end
 end
