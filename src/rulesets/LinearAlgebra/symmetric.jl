@@ -107,22 +107,21 @@ function rrule(
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
-        ∂A = eigen_rev(A, λ, U, Δλ, ΔU)
+        ∂A = eigen_rev!(A, λ, U, Δλ, copy(ΔU))
         return NO_FIELDS, ∂A
     end
     eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
     return F, eigen_pullback
 end
 
-function eigen_rev(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
+# ∂U is overwritten if not an `AbstractZero`
+function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     ∂λ isa AbstractZero && ∂λ isa AbstractZero && return (NO_FIELDS, ∂λ + ∂U)
     ∂A = similar(A, eltype(U))
-    tmp = similar(U)
+    tmp = ∂U
     if ∂U isa AbstractZero
-        tmp .= U .* real.(∂λ)
-        mul!(∂A.data, U, tmp')
+        mul!(∂A.data, U, (U .* real.(∂λ))')
     else
-        ∂U = copyto!(tmp, ∂U)
         _eigen_norm_phase_rev!(∂U, A, U)
         ∂K = mul!(∂A.data, U', ∂U)
         ∂K ./= λ' .- λ
@@ -207,7 +206,7 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.Bla
         ∂S = ΔF.S
         c = _svd_eigvals_sign!(similar(F.S), U, Vt)
         ∂U = ΔF.U .+ (ΔF.Vt .+ ΔF.V') .* c'
-        ∂A = eigen_rev(A, F.S .* c, U, ∂S .* c, ∂U)
+        ∂A = eigen_rev!(A, F.S .* c, U, ∂S .* c, ∂U)
         return NO_FIELDS, ∂A
     end
     svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
