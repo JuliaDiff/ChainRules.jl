@@ -120,7 +120,7 @@ function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     ∂A = similar(A, eltype(U))
     tmp = ∂U
     if ∂U isa AbstractZero
-        mul!(∂A.data, U, (U .* real.(∂λ))')
+        mul!(∂A.data, U, real.(∂λ) .* U')
     else
         _eigen_norm_phase_rev!(∂U, A, U)
         ∂K = mul!(∂A.data, U', ∂U)
@@ -188,7 +188,7 @@ function rrule(
     function eigvals_pullback(Δλ)
         U = F.vectors
         ∂A = similar(A)
-        mul!(∂A.data, U, (U .* real.(Δλ))')
+        mul!(∂A.data, U, real.(Δλ) .* U')
         return NO_FIELDS, ∂A
     end
     eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
