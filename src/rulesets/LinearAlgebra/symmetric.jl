@@ -227,6 +227,10 @@ function _svd_eigvals_sign!(c, U, Vt)
     return c
 end
 
+#####
+##### `svdvals`
+#####
+
 function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     # sorting doesn't affect the eigvals pullback, and it simplifies this rrule
     λ, back = rrule(eigvals, A; sortby = x -> -abs2(x))
