@@ -203,10 +203,11 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.Bla
     F = svd(A)
     function svd_pullback(ΔF::Composite{<:SVD})
         U, Vt = F.U, F.Vt
-        ∂S = ΔF.S
         c = _svd_eigvals_sign!(similar(F.S), U, Vt)
+        λ = F.S .* c
+        ∂λ = ΔF.S .* c
         ∂U = ΔF.U .+ (ΔF.Vt .+ ΔF.V') .* c'
-        ∂A = eigen_rev!(A, F.S .* c, U, ∂S .* c, ∂U)
+        ∂A = eigen_rev!(A, λ, U, ∂λ, ∂U)
         return NO_FIELDS, ∂A
     end
     svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
