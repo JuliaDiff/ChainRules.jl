@@ -1,5 +1,3 @@
-using SpecialFunctions
-
 @testset "SpecialFunctions" for x in (1.0, -1.0, 0.0, 0.5, 10.0, -17.1, 1.5 + 0.7im)
     test_scalar(SpecialFunctions.erf, x)
     test_scalar(SpecialFunctions.erfc, x)
@@ -50,7 +48,7 @@ end
             isreal(x) || continue
 
             Δx, x̄ = randn(2)
-            Δz = Composite{Tuple{Float64, DoesNotExist}}(randn(), Zero())
+            Δz = Composite{Tuple{Float64, DoesNotExist}}(randn(), randn())
 
             frule_test(SpecialFunctions.logabsgamma, (x, Δx))
             rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))

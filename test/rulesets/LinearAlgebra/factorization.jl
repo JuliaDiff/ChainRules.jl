@@ -100,7 +100,6 @@ end
             rrule_test(cholesky, ΔC, (D, Diagonal(randn(5))), (Val(false), nothing))
         end
 
-
         X = generate_well_conditioned_matrix(10)
         V = generate_well_conditioned_matrix(10)
         F, dX_pullback = rrule(cholesky, X, Val(false))
