@@ -53,16 +53,16 @@
         return Diagonal(conj.(sign.(Ui)))
     end
 
-    function _eigen_stable(A)
-        F = eigen(A)
-        rmul!(F.vectors, _eigvecs_stabilize_mat(F.vectors, A.uplo))
-        return F
-    end
-
     @testset "eigendecomposition" begin
         @testset "eigen/eigen!" begin
             # avoid implementing to_vec(::Eigen)
             asnt(E::Eigen) = (values=E.values, vectors=E.vectors)
+
+            function _eigen_stable(A)
+                F = eigen(A)
+                rmul!(F.vectors, _eigvecs_stabilize_mat(F.vectors, A.uplo))
+                return F
+            end
 
             n = 10
             @testset "eigen!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
@@ -109,7 +109,7 @@
 
                 @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                     ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
-                    ∂F_stable = CT(; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
+                    ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
                     :vectors in nzprops && rmul!(∂F_stable.vectors, C)
 
                     f_stable = function(x)
@@ -169,6 +169,61 @@
 
                 @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
             end
+        end
+    end
+
+    @testset "singular value decomposition" begin
+        # avoid implementing to_vec(::Eigen)
+        asnt(F::SVD) = (U=F.U, S=F.S, V=F.V, Vt=F.Vt)
+
+        function _svd_stable(A)
+            F = svd(A)
+            C = _eigvecs_stabilize_mat(F.U, A.uplo)
+            rmul!(F.U, C)
+            lmul!(C, F.Vt)
+            return F
+        end
+
+        n = 10
+        @testset "svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+            uplo in (:L, :U)
+
+            A, ΔU, ΔV, ΔVt = ntuple(_ -> randn(T, n, n), 4)
+            ΔS = randn(n)
+            symA = SymHerm(A, uplo)
+
+            F = svd(symA)
+            CT = Composite{typeof(F)}
+            ΔF = CT(; U=ΔU, V=ΔV, Vt=ΔVt, S=ΔS)
+            F_ad, back = @inferred rrule(svd, symA)
+            @test F_ad == F
+
+            C = _eigvecs_stabilize_mat(F.U, uplo)
+
+            @testset for nzprops in ([:U], [:S], [:V], [:Vt], [:U, :S, :V, :Vt])
+                ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
+                ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
+                :U in nzprops && rmul!(∂F_stable.U, C)
+                :Vt in nzprops && lmul!(C, ∂F_stable.Vt)
+                :V in nzprops && rmul!(∂F_stable.V, C)
+
+                f_stable = function(x)
+                    F_ = _svd_stable(SymHerm(x, uplo))
+                    return (; (s => getproperty(F_, s) for s in nzprops)...)
+                end
+
+                ∂self, ∂symA = @inferred back(∂F)
+                @test ∂self === NO_FIELDS
+                @test ∂symA isa typeof(symA)
+                @test ∂symA.uplo == symA.uplo
+                ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
+                ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
+                @test ∂A ≈ ∂A_fd
+            end
+
+            @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+            @test @inferred(back(CT())) == (NO_FIELDS, Zero())
         end
     end
 end
