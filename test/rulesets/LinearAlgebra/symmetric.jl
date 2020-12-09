@@ -75,7 +75,7 @@
                 ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
                 F = eigen!(copy(symA))
-                F_ad, ∂F_ad = frule((Zero(), copy(ΔsymA)), eigen!, copy(symA))
+                F_ad, ∂F_ad = @inferred frule((Zero(), copy(ΔsymA)), eigen!, copy(symA))
                 @test F_ad == F
                 @test ∂F_ad isa Composite{typeof(F)}
                 @test ∂F_ad.values isa typeof(F.values)
@@ -102,17 +102,15 @@
 
                 F = eigen(symA)
                 ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
-                F_ad, back = rrule(eigen, symA)
+                F_ad, back = @inferred rrule(eigen, symA)
                 @test F_ad == F
-                ∂self, ∂symA = back(ΔF)
+                ∂self, ∂symA = @inferred back(ΔF)
                 @test ∂self === NO_FIELDS
-                ∂symA = unthunk(∂symA)
                 @test ∂symA isa typeof(symA)
                 @test ∂symA.uplo == symA.uplo
 
                 # pull the cotangent back to A to test against finite differences
-                ∂A = unthunk(rrule(SymHerm, A, uplo)[2](∂symA)[2])
-                # adopt a deterministic sign convention to stabilize FD
+                ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 C = _eigvecs_stabilize_mat(F.vectors, uplo)
                 ΔF_stable = Composite{typeof(F)}(; values=Δλ, vectors=ΔU * C)
                 f = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
@@ -133,7 +131,7 @@
                 ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
                 λ = eigvals!(copy(symA))
-                λ_ad, ∂λ_ad = frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
+                λ_ad, ∂λ_ad = @inferred frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
                 @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                 @test ∂λ_ad isa typeof(λ)
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
@@ -148,9 +146,9 @@
                 symA = SymHerm(A, uplo)
 
                 λ = eigvals(symA)
-                λ_ad, back = rrule(eigvals, symA)
+                λ_ad, back = @inferred rrule(eigvals, symA)
                 @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
-                ∂self, ∂symA = back(Δλ)
+                ∂self, ∂symA = @inferred back(Δλ)
                 @test ∂self === NO_FIELDS
                 @test ∂symA isa typeof(symA)
                 @test ∂symA.uplo == symA.uplo
