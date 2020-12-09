@@ -135,7 +135,6 @@
                 λ = eigvals!(copy(symA))
                 λ_ad, ∂λ_ad = frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
                 @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
-                ∂λ_ad = unthunk(∂λ_ad)
                 @test ∂λ_ad isa typeof(λ)
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
             end
@@ -153,12 +152,11 @@
                 @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
                 ∂self, ∂symA = back(Δλ)
                 @test ∂self === NO_FIELDS
-                ∂symA = unthunk(∂symA)
                 @test ∂symA isa typeof(symA)
                 @test ∂symA.uplo == symA.uplo
 
                 # pull the cotangent back to A to test against finite differences
-                ∂A = unthunk(rrule(SymHerm, A, uplo)[2](∂symA)[2])
+                ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
             end
         end
