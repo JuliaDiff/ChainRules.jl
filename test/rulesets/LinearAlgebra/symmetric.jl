@@ -69,7 +69,7 @@
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
-                A, ΔA, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(T, n, n), randn(n)
+                A, ΔA = randn(T, n, n), randn(T, n, n)
                 symA = SymHerm(A, uplo)
                 ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
@@ -137,7 +137,7 @@
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
-                A, ΔA, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(T, n, n), randn(n)
+                A, ΔA = randn(T, n, n), randn(T, n, n)
                 symA = SymHerm(A, uplo)
                 ΔsymA = @inferred frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
@@ -152,7 +152,7 @@
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
-                A, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(n)
+                A, Δλ = randn(T, n, n), randn(n)
                 symA = SymHerm(A, uplo)
 
                 λ = eigvals(symA)
