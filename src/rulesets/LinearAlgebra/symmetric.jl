@@ -107,7 +107,8 @@ function rrule(
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
-        ∂A = eigen_rev!(A, λ, U, Δλ, copy(ΔU))
+        ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
+        ∂A = eigen_rev!(A, λ, U, Δλ, ΔU)
         return NO_FIELDS, ∂A
     end
     eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
@@ -116,7 +117,7 @@ end
 
 # ∂U is overwritten if not an `AbstractZero`
 function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
-    ∂λ isa AbstractZero && ∂λ isa AbstractZero && return (NO_FIELDS, ∂λ + ∂U)
+    ∂λ isa AbstractZero && ∂U isa AbstractZero && return ∂λ + ∂U
     ∂A = similar(A, eltype(U))
     tmp = ∂U
     if ∂U isa AbstractZero

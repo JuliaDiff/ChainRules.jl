@@ -75,6 +75,7 @@
                 ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
                 F = eigen!(copy(symA))
+                @test @inferred(frule((Zero(), Zero()), eigen!, copy(symA))) == (F, Zero())
                 F_ad, ∂F_ad = @inferred frule((Zero(), copy(ΔsymA)), eigen!, copy(symA))
                 @test F_ad == F
                 @test ∂F_ad isa Composite{typeof(F)}
@@ -104,18 +105,31 @@
                 ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
                 F_ad, back = @inferred rrule(eigen, symA)
                 @test F_ad == F
-                ∂self, ∂symA = @inferred back(ΔF)
-                @test ∂self === NO_FIELDS
-                @test ∂symA isa typeof(symA)
-                @test ∂symA.uplo == symA.uplo
 
-                # pull the cotangent back to A to test against finite differences
-                ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 C = _eigvecs_stabilize_mat(F.vectors, uplo)
-                ΔF_stable = Composite{typeof(F)}(; values=Δλ, vectors=ΔU * C)
-                f = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
-                ∂A_fd = j′vp(_fdm, f, ΔF_stable, A)[1]
-                @test ∂A ≈ ∂A_fd
+                CT = Composite{typeof(F)}
+
+                @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
+                    ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
+                    ∂F_stable = CT(; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
+                    :vectors in nzprops && rmul!(∂F_stable.vectors, C)
+
+                    f_stable = function(x)
+                        F_ = _eigen_stable(SymHerm(x, uplo))
+                        return (; (s => getproperty(F_, s) for s in nzprops)...)
+                    end
+
+                    ∂self, ∂symA = @inferred back(∂F)
+                    @test ∂self === NO_FIELDS
+                    @test ∂symA isa typeof(symA)
+                    @test ∂symA.uplo == symA.uplo
+                    ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
+                    ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
+                    @test ∂A ≈ ∂A_fd
+                end
+
+                @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+                @test @inferred(back(CT())) == (NO_FIELDS, Zero())
             end
         end
 
@@ -128,7 +142,7 @@
 
                 A, ΔA, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(T, n, n), randn(n)
                 symA = SymHerm(A, uplo)
-                ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
+                ΔsymA = @inferred frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
 
                 λ = eigvals!(copy(symA))
                 λ_ad, ∂λ_ad = @inferred frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
@@ -156,6 +170,8 @@
                 # pull the cotangent back to A to test against finite differences
                 ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
+
+                @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
             end
         end
     end
