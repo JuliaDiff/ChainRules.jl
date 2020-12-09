@@ -135,6 +135,15 @@
             _, pb = rrule(f, a)
             @test pb(ȳ_mat) == pb(ȳ_composite)
         end
+
+        @testset "$f(::Adjoint{$T, Vector{$T})" begin
+            a = randn(T, n)'
+            ā = randn(T, n)'
+            y = f(a)
+            ȳ = randn(T, n)
+
+            rrule_test(f, ȳ, (a, ā))
+        end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5

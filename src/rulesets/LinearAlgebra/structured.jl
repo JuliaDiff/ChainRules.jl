@@ -92,7 +92,7 @@ end
 
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Union{Real, Complex}})
     Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
-    Adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, adjoint(ȳ))
+    Adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return Adjoint(A), Adjoint_pullback
 end
 
@@ -104,13 +104,13 @@ end
 
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Union{Real, Complex}})
     adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
-    adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, adjoint(ȳ))
+    adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Union{Real, Complex}})
     adjoint_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
-    adjoint_pullback(ȳ) = (NO_FIELDS, vec(adjoint(ȳ)))
+    adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
     return adjoint(A), adjoint_pullback
 end
 
@@ -120,7 +120,7 @@ end
 
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Union{Real, Complex}})
     Transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
-    Transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, Transpose(ȳ))
+    Transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, Transpose(ȳ))
     return Transpose(A), Transpose_pullback
 end
 
@@ -132,7 +132,7 @@ end
 
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Union{Real, Complex}})
     transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
-    transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, transpose(ȳ))
+    transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, transpose(ȳ))
     return transpose(A), transpose_pullback
 end
 
