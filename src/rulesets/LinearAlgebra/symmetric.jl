@@ -81,9 +81,9 @@ function frule(
     (_, ΔA),
     ::typeof(eigen!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
-    sortby::Union{Function,Nothing}=nothing,
+    kwargs...,
 )
-    F = eigen!(A; sortby=sortby)
+    F = eigen!(A; kwargs...)
     ΔA isa AbstractZero && return F, ΔA
     λ, U = F.values, F.vectors
     tmp = U' * ΔA
@@ -101,9 +101,9 @@ end
 function rrule(
     ::typeof(eigen),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
-    sortby::Union{Function,Nothing}=nothing,
+    kwargs...,
 )
-    F = eigen(A; sortby=sortby)
+    F = eigen(A; kwargs...)
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
@@ -165,10 +165,10 @@ function frule(
     (_, ΔA),
     ::typeof(eigvals!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
-    sortby::Union{Function,Nothing}=nothing,
+    kwargs...,
 )
-    ΔA isa AbstractZero && return eigvals!(A; sortby=sortby), ΔA
-    F = eigen!(A; sortby=sortby)
+    ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
+    F = eigen!(A; kwargs...)
     λ, U = F.values, F.vectors
     tmp = ΔA * U
     # diag(U' * tmp) without computing matrix product
@@ -182,9 +182,9 @@ end
 function rrule(
     ::typeof(eigvals),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
-    sortby::Union{Function,Nothing}=nothing,
+    kwargs...,
 )
-    F = eigen(A; sortby=sortby)
+    F = eigen(A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
         U = F.vectors
@@ -238,10 +238,14 @@ end
 
 function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     # sorting doesn't affect the eigvals pullback, and it simplifies this rrule
-    λ, back = rrule(eigvals, A; sortby = x -> -abs2(x))
+    λ, back = rrule(eigvals, A)
     S = abs.(λ)
+    p = sortperm(S; rev=true)
+    permute!(S, p)
     function svdvals_pullback(ΔS)
-        ∂λ = ΔS .* S ./ ifelse.(iszero.(λ), one.(λ), λ)
+        ∂λ = real.(ΔS)
+        invpermute!(∂λ, p)
+        ∂λ .*= sign.(λ)
         _, ∂A = back(∂λ)
         return NO_FIELDS, unthunk(∂A)
     end
