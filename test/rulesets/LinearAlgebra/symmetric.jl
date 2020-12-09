@@ -213,7 +213,8 @@
                     return (; (s => getproperty(F_, s) for s in nzprops)...)
                 end
 
-                ∂self, ∂symA = @inferred back(∂F)
+                VERSION ≥ v"1.6.0-DEV.1686" && @inferred back(∂F)
+                ∂self, ∂symA = back(∂F)
                 @test ∂self === NO_FIELDS
                 @test ∂symA isa typeof(symA)
                 @test ∂symA.uplo == symA.uplo
