@@ -203,11 +203,15 @@ end
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
     function svd_pullback(ΔF::Composite{<:SVD})
-        U, Vt = F.U, F.Vt
-        c = _svd_eigvals_sign!(similar(F.S), U, Vt)
+        U, V = F.U, F.V
+        c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
-        ∂λ = ΔF.S .* c
-        ∂U = ΔF.U .+ (ΔF.Vt .+ ΔF.V') .* c'
+        ∂λ = ΔF.S isa AbstractZero ? ΔF.S : ΔF.S .* c
+        if all(x -> x isa AbstractZero, (ΔF.U, ΔF.V, ΔF.Vt))
+            ∂U = ΔF.U + ΔF.V + ΔF.Vt
+        else
+            ∂U = ΔF.U .+ (ΔF.V .+ ΔF.Vt') .* c'
+        end
         ∂A = eigen_rev!(A, λ, U, ∂λ, ∂U)
         return NO_FIELDS, ∂A
     end
@@ -216,14 +220,14 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.Bla
 end
 
 # given singular vectors, compute sign of eigenvalues corresponding to singular values
-function _svd_eigvals_sign!(c, U, Vt)
+function _svd_eigvals_sign!(c, U, V)
     n = size(U, 1)
     @inbounds broadcast!(c, eachindex(c)) do i
         u = @views U[:, i]
         # find element not close to zero
         # at least one element has abs2 ≥ 1/n > 1/(n + 1)
         k = findfirst(x -> (n + 1) * abs2(x) ≥ 1, u)
-        return sign(real(u[k]) * real(Vt[k, i]))
+        return sign(real(u[k]) * real(V[k, i]))
     end
     return c
 end
