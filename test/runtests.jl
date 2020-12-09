@@ -6,6 +6,7 @@ using ChainRulesTestUtils: rand_tangent, _fdm
 using Compat: only
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
+using SpecialFunctions
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
@@ -56,7 +57,11 @@ println("Testing ChainRules.jl")
 
         @testset "packages" begin
             include_test("rulesets/packages/NaNMath.jl")
-            include_test("rulesets/packages/SpecialFunctions.jl")
+            # Note: drop SpecialFunctions dependency in next breaking release
+            # https://github.com/JuliaDiff/ChainRules.jl/issues/319
+            if !isdefined(SpecialFunctions, :ChainRulesCore)
+                include_test("rulesets/packages/SpecialFunctions.jl")
+            end
         end
         println()
     end
