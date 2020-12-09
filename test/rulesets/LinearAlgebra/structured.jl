@@ -144,6 +144,15 @@
 
             rrule_test(f, ȳ, (a, ā))
         end
+
+        @testset "$f(::Transpose{$T, Vector{$T})" begin
+            a = transpose(randn(T, n))
+            ā = transpose(randn(T, n))
+            y = f(a)
+            ȳ = randn(T, n)
+
+            rrule_test(f, ȳ, (a, ā))
+        end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5
