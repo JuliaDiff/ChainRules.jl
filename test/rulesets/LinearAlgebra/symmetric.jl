@@ -185,7 +185,7 @@
         end
 
         n = 10
-        @testset "svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+        VERSION ≥ v"1.3.0" && @testset "svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
             T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
             uplo in (:L, :U)
 
