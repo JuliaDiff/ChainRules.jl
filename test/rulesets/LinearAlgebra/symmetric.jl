@@ -70,17 +70,22 @@
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
-                A, ΔA = SymHerm(randn(T, n, n), uplo), SymHerm(randn(T, n, n), uplo)
-                F = eigen!(copy(A))
-                F_ad, ∂F_ad = frule((Zero(), copy(ΔA)), eigen!, copy(A))
+                A, ΔA, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(T, n, n), randn(n)
+                symA = SymHerm(A, uplo)
+                ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
+
+                F = eigen!(copy(symA))
+                F_ad, ∂F_ad = frule((Zero(), copy(ΔsymA)), eigen!, copy(symA))
                 @test F_ad == F
                 @test ∂F_ad isa Composite{typeof(F)}
+                @test ∂F_ad.values isa typeof(F.values)
+                @test ∂F_ad.vectors isa typeof(F.vectors)
                 f = x -> asnt(eigen(SymHerm(x, uplo)))
-                f_stable = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
-                ∂F_fd = jvp(_fdm, f, (A.data, ΔA.data))
+                ∂F_fd = jvp(_fdm, f, (A, ΔA))
                 @test ∂F_ad.values ≈ ∂F_fd.values
+                f_stable = x -> asnt(_eigen_stable(SymHerm(x, uplo)))
                 F_stable = f_stable(A)
-                ∂F_stable_fd = jvp(_fdm, f_stable, (A.data, ΔA.data))
+                ∂F_stable_fd = jvp(_fdm, f_stable, (A, ΔA))
                 C = _eigvecs_stabilize_mat(F.vectors, uplo)
                 @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
             end
@@ -119,13 +124,16 @@
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
-                A, ΔA = SymHerm(randn(T, n, n), uplo), SymHerm(randn(T, n, n), uplo)
-                λ = eigvals!(copy(A))
-                λ_ad, ∂λ_ad = frule((Zero(), ΔA), eigvals!, copy(A))
+                A, ΔA, ΔU, Δλ = randn(T, n, n), randn(T, n, n), randn(T, n, n), randn(n)
+                symA = SymHerm(A, uplo)
+                ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
+
+                λ = eigvals!(copy(symA))
+                λ_ad, ∂λ_ad = frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
                 @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                 ∂λ_ad = unthunk(∂λ_ad)
                 @test ∂λ_ad isa typeof(λ)
-                @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A.data, ΔA.data))
+                @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
             end
 
             @testset "eigvals(::Hermitian{ComplexF64}) rrule" for SymHerm in
