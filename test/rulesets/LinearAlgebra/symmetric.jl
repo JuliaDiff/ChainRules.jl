@@ -225,5 +225,27 @@
             @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
             @test @inferred(back(CT())) == (NO_FIELDS, Zero())
         end
+
+        @testset "svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+            uplo in (:L, :U)
+
+            A, ΔS = randn(T, n, n), randn(n)
+            symA = SymHerm(A, uplo)
+
+            S = svdvals(symA)
+            S_ad, back = @inferred rrule(svdvals, symA)
+            @test S_ad ≈ S # inexact because rrule uses svd not svdvals
+            ∂self, ∂symA = @inferred back(ΔS)
+            @test ∂self === NO_FIELDS
+            @test ∂symA isa typeof(symA)
+            @test ∂symA.uplo == symA.uplo
+
+            # pull the cotangent back to A to test against finite differences
+            ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
+            @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
+
+            @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+        end
     end
 end
