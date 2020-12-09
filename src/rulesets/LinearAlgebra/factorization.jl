@@ -78,12 +78,9 @@ function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     return C, cholesky_pullback
 end
 
-function rrule(
-    ::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true,
-)
+function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
     function cholesky_pullback(ΔC::Composite)
-        check && !issuccess(C) && throw(PosDefException(C.info))
         Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
         return NO_FIELDS, Ā, DoesNotExist()
     end
@@ -126,7 +123,6 @@ function rrule(
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
-    issuccess(C) || throw(PosDefException(C.info))
     U = C.U
     Ū = ΔC.U
     Ā = similar(U.data)
