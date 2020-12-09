@@ -173,7 +173,7 @@
     end
 
     @testset "singular value decomposition" begin
-        # avoid implementing to_vec(::Eigen)
+        # avoid implementing to_vec(::SVD)
         asnt(F::SVD) = (U=F.U, S=F.S, V=F.V, Vt=F.Vt)
 
         function _svd_stable(A)
