@@ -242,8 +242,8 @@ function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS
     S = abs.(λ)
     function svdvals_pullback(ΔS)
         ∂λ = ΔS .* S ./ ifelse.(iszero.(λ), one.(λ), λ)
-        ∂A = back(∂λ)
-        return NO_FIELDS, ∂A
+        _, ∂A = back(∂λ)
+        return NO_FIELDS, unthunk(∂A)
     end
     svdvals_pullback(ΔS::AbstractZero) = (NO_FIELDS, ΔS)
     return S, svdvals_pullback
