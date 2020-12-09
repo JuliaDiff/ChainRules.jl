@@ -237,7 +237,6 @@ end
 #####
 
 function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
-    # sorting doesn't affect the eigvals pullback, and it simplifies this rrule
     λ, back = rrule(eigvals, A)
     S = abs.(λ)
     p = sortperm(S; rev=true)
