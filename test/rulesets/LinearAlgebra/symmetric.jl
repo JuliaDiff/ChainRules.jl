@@ -65,8 +65,7 @@
             asnt(E::Eigen) = (values=E.values, vectors=E.vectors)
 
             n = 10
-            @testset "eigen!(::Hermitian{ComplexF64}) frule" for SymHerm in
-                                                                (Symmetric, Hermitian),
+            @testset "eigen!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -93,8 +92,7 @@
                 @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
             end
 
-            @testset "eigen(::Hermitian{ComplexF64}) rrule" for SymHerm in
-                                                                (Symmetric, Hermitian),
+            @testset "eigen(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -135,8 +133,7 @@
 
         @testset "eigvals!/eigvals" begin
             n = 10
-            @testset "eigvals!(::Hermitian{ComplexF64}) frule" for SymHerm in
-                                                                (Symmetric, Hermitian),
+            @testset "eigvals!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -151,8 +148,7 @@
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
             end
 
-            @testset "eigvals(::Hermitian{ComplexF64}) rrule" for SymHerm in
-                                                                (Symmetric, Hermitian),
+            @testset "eigvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
