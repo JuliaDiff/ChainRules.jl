@@ -238,7 +238,7 @@ function _svd_eigvals_sign!(c, U, V)
     @inbounds broadcast!(c, eachindex(c)) do i
         u = @views U[:, i]
         # find element not close to zero
-        # at least one element has abs2 ≥ 1/n > 1/(n + 1)
+        # at least one element satisfies abs2(x) ≥ 1/n > 1/(n + 1)
         k = findfirst(x -> (n + 1) * abs2(x) ≥ 1, u)
         return sign(real(u[k]) * real(V[k, i]))
     end
