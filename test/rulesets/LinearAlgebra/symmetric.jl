@@ -129,6 +129,35 @@
                 @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
                 @test @inferred(back(CT())) == (NO_FIELDS, Zero())
             end
+
+            @testset "phase convention from low value" begin
+                @testset for min_val in [0, eps(), sqrt(eps()), cbrt(eps()), eps()^(1//4)],
+                    uplo in (:U, :L)
+
+                    U = randn(ComplexF64, n, n)
+                    U[uplo === :U ? n : 1] = min_val
+                    U = Matrix(qr(U).Q)
+                    λ = sort(randn(n))
+                    A = Hermitian(U * Diagonal(λ) * U')
+                    function f(A)
+                        V = eigen(A).vectors
+                        return V * V'
+                    end
+
+                    Ȧ = Hermitian(randn(eltype(A), size(A)))
+                    F, Ḟ_ad = frule((Zero(), copy(Ȧ)), eigen!, copy(A))
+                    V, V̇_ad = F.vectors, Ḟ_ad.vectors
+                    Ω̇_ad = V̇_ad' * V + V' * V̇_ad
+                    @test maximum(abs, Ω̇_ad) < sqrt(eps())
+
+                    Ω̄ = randn(eltype(A), (n, n))
+                    V̄ = V * (Ω̄ + Ω̄')
+                    F̄ = Composite{typeof(F)}(vectors = V̄)
+                    _, back = rrule(eigen, A)
+                    Ā = back(F̄)[2]
+                    @test maximum(abs, Ā) < sqrt(eps())
+                end
+            end
         end
 
         @testset "eigvals!/eigvals" begin

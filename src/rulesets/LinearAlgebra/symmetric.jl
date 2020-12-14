@@ -134,13 +134,22 @@ function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     return ∂A
 end
 
+# NOTE: for small vₖ, the derivative of sign(vₖ) explodes, causing the tangents to become
+# unstable even for phase-invariant programs. So for small vₖ we don't account for the phase
+# in the gradient. Then derivatives are accurate for phase-invariant programs but inaccurate
+# for phase-dependent programs that have low vₖ.
+
 _eigen_norm_phase_fwd!(∂V, ::Union{Symmetric{T,S},Hermitian{T,S}}, V) where {T<:Real,S} = ∂V
 function _eigen_norm_phase_fwd!(∂V, A::Hermitian{<:Complex}, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
+    ϵ = sqrt(eps(real(eltype(V))))
     @inbounds for i in axes(V, 2)
-        v, ∂v = @views V[:, i], ∂V[:, i]
-        vₖ, ∂vₖ = real(v[k]), ∂v[k]
-        ∂v .-= v .* (im * (imag(∂vₖ) / ifelse(iszero(vₖ), one(vₖ), vₖ)))
+        v = @view V[:, i]
+        vₖ = real(v[k])
+        if abs(vₖ) > ϵ
+            ∂v = @view ∂V[:, i]
+            ∂v .-= v .* (im * (imag(∂v[k]) / vₖ))
+        end
     end
     return ∂V
 end
@@ -148,11 +157,15 @@ end
 _eigen_norm_phase_rev!(∂V, ::Union{Symmetric{T,S},Hermitian{T,S}}, V) where {T<:Real,S} = ∂V
 function _eigen_norm_phase_rev!(∂V, A::Hermitian{<:Complex}, V)
     k = A.uplo === 'U' ? size(A, 1) : 1
+    ϵ = sqrt(eps(real(eltype(V))))
     @inbounds for i in axes(V, 2)
-        v, ∂v = @views V[:, i], ∂V[:, i]
+        v = @view V[:, i]
         vₖ = real(v[k])
-        ∂c = dot(v, ∂v)
-        ∂v[k] -= im * (imag(∂c) / ifelse(iszero(vₖ), one(vₖ), vₖ))
+        if abs(vₖ) > ϵ
+            ∂v = @view ∂V[:, i]
+            ∂c = dot(v, ∂v)
+            ∂v[k] -= im * (imag(∂c) / vₖ)
+        end
     end
     return ∂V
 end
