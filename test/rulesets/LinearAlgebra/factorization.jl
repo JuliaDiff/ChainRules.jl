@@ -213,7 +213,7 @@ end
                 end
 
                 @testset "eigen(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔU, Δλ = Hermitian(randn(T, n, n)), randn(T, n, n), randn(n)
+                    A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
 
                     F = eigen(A)
                     ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
