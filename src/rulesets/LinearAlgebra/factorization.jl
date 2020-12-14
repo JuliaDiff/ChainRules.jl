@@ -76,8 +76,12 @@ end
 # - support degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    if ΔA isa AbstractZero
+        F = eigen!(A; kwargs...)
+        return F, ΔA
+    end
+    ishermitian(A) && return frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); kwargs...)
     F = eigen!(A; kwargs...)
-    ΔA isa AbstractZero && return F, ΔA
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
     ∂K = tmp * V
@@ -92,21 +96,36 @@ function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where
 end
 
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    F = eigen(A; kwargs...)
+    # NOTE: this check for hermitian-ness occurs in `eigen!`. We here do it in the rrule for
+    # `eigen` so that this works for non-mutating AD
+    isherm = ishermitian(A)
+    if isherm
+        hermA, back_Hermitian = rrule(Hermitian, A, :U)
+        F, back_eigen = rrule(eigen, hermA; kwargs...)
+    else
+        F = eigen(A; kwargs...)
+    end
     function eigen_pullback(ΔF::Composite{<:Eigen})
-        λ, V = F.values, F.vectors
-        Δλ, ΔV = ΔF.values, ΔF.vectors
-        if ΔV isa AbstractZero
-            Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
-            ∂K = Diagonal(Δλ)
-            ∂A = V' \ ∂K * V'
+        if isherm
+            _, ∂hermA = back_eigen(ΔF)
+            ∂hermA isa AbstractZero && return (NO_FIELDS, ∂hermA)
+            _, ∂Atriu = back_Hermitian(∂hermA)
+            ∂A = triu!(∂Atriu.data)
         else
-            ∂V = copyto!(similar(ΔV), ΔV)
-            _eigen_norm_phase_rev!(∂V, A, V)
-            ∂K = V' * ∂V
-            ∂K ./= λ' .- conj.(λ)
-            ∂K[diagind(∂K)] .= Δλ
-            ∂A = mul!(∂K, V' \ ∂K, V')
+            λ, V = F.values, F.vectors
+            Δλ, ΔV = ΔF.values, ΔF.vectors
+            if ΔV isa AbstractZero
+                Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+                ∂K = Diagonal(Δλ)
+                ∂A = V' \ ∂K * V'
+            else
+                ∂V = copyto!(similar(ΔV), ΔV)
+                _eigen_norm_phase_rev!(∂V, A, V)
+                ∂K = V' * ∂V
+                ∂K ./= λ' .- conj.(λ)
+                ∂K[diagind(∂K)] .= Δλ
+                ∂A = mul!(∂K, V' \ ∂K, V')
+            end
         end
         return NO_FIELDS, T <: Real ? real(∂A) : ∂A
     end
