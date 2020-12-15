@@ -111,7 +111,8 @@ end
 
 function _normp_back_x(x, p, y, Δy)
     c = real(Δy) / y
-    ∂x = broadcast(x) do xi
+    ∂x = similar(x)
+    broadcast!(∂x, x) do xi
         a = norm(xi)
         ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
@@ -181,7 +182,11 @@ function rrule(
     return y, norm1_pullback
 end
 
-_norm1_back(x, y, Δy) = sign.(x) .* real(Δy)
+function _norm1_back(x, y, Δy)
+    ∂x = similar(x)
+    ∂x .= sign.(x) .* real(Δy)
+    return ∂x
+end
 
 #####
 ##### `norm2`
@@ -206,7 +211,11 @@ function _norm2_forward(x, Δx, y)
     ∂y = real(dot(x, Δx)) * pinv(y)
     return ∂y
 end
-_norm2_back(x, y, Δy) = x .* (real(Δy) * pinv(y))
+function _norm2_back(x, y, Δy)
+    ∂x = similar(x)
+    ∂x .= x .* (real(Δy) * pinv(y))
+    return ∂x
+end
 
 #####
 ##### `normalize`
