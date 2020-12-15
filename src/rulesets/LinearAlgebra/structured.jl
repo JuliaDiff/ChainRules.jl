@@ -9,7 +9,7 @@ function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatr
     Y = A / B
     function slash_pullback(Ȳ)
         ∂A = @thunk Ȳ / B'
-        ∂B = @thunk _unionallof(T)(-Y' * (Ȳ / B'))
+        ∂B = @thunk _unionall_wrapper(T)(-Y' * (Ȳ / B'))
         return (NO_FIELDS, ∂A, ∂B)
     end
     return Y, slash_pullback
@@ -18,7 +18,7 @@ end
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
     function backslash_pullback(Ȳ)
-        ∂A = @thunk _unionallof(T)(-(A' \ Ȳ) * Y')
+        ∂A = @thunk _unionall_wrapper(T)(-(A' \ Ȳ) * Y')
         ∂B = @thunk A' \ Ȳ
         return NO_FIELDS, ∂A, ∂B
     end

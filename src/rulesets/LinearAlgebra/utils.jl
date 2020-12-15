@@ -28,4 +28,18 @@ end
 
 _extract_imag(x) = complex(0, imag(x))
 
-_unionallof(::Type{T}) where {T} = T.name.wrapper
+"""
+    _unionall_wrapper(T::Type) -> UnionAll
+
+Return the most general `UnionAll` type union associated with the concrete type `T`.
+
+# Example
+```julia
+julia> _unionall_wrapper(typeof(Diagonal(1:3)))
+Diagonal
+
+julia> _unionall_wrapper(typeof(Symmetric(randn(3, 3))))
+Symmetric
+````
+"""
+_unionall_wrapper(::Type{T}) where {T} = T.name.wrapper
