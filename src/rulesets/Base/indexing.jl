@@ -20,7 +20,8 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
             @thunk(getindex_add!(zero(x))),
             getindex_add!
         )
-        return (NO_FIELDS, x̄, (DoesNotExist() for _ in inds)...)
+        īnds = broadcast(_ -> DoesNotExist(), inds)
+        return (NO_FIELDS, x̄, īnds...)
     end
 
     return y, getindex_pullback
