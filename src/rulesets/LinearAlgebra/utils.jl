@@ -27,3 +27,5 @@ function _eyesubx!(X::AbstractMatrix)
 end
 
 _extract_imag(x) = complex(0, imag(x))
+
+_unionallof(::Type{T}) where {T} = T.name.wrapper
