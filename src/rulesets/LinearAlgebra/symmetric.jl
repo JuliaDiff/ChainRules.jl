@@ -197,15 +197,13 @@ function rrule(
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     kwargs...,
 )
-    F = eigen(A; kwargs...)
+    F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        U = F.vectors
-        ∂A = similar(A)
-        mul!(∂A.data, U, real.(Δλ) .* U')
+        ∂F = Composite{typeof(F)}(values = Δλ)
+        _, ∂A = eigen_back(∂F)
         return NO_FIELDS, ∂A
     end
-    eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
 end
 
