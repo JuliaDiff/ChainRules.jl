@@ -187,15 +187,20 @@ end
 
 function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
-    F = eigen!(A; kwargs...)
-    λ, V = F.values, F.vectors
-    tmp = V \ ΔA
-    ∂λ = similar(λ)
-    # diag(tmp * V) without computing full matrix product
-    if eltype(∂λ) <: Real
-        broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+    if ishermitian(A)
+        λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
+        _sorteig!_fwd(∂λ, λ, get(kwargs, :sortby, nothing))
     else
-        broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        F = eigen!(A; kwargs...)
+        λ, V = F.values, F.vectors
+        tmp = V \ ΔA
+        ∂λ = similar(λ)
+        # diag(tmp * V) without computing full matrix product
+        if eltype(∂λ) <: Real
+            broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        else
+            broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        end
     end
     return λ, ∂λ
 end
@@ -210,6 +215,17 @@ function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Unio
     end
     eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
+end
+
+# adapted from LinearAlgebra.sorteig!
+function _sorteig!_fwd(Δλ, λ, sortby)
+    Δλ isa AbstractZero && return (sort!(λ; by=sortby), Δλ)
+    if sortby !== nothing
+        p = sortperm(λ; alg=QuickSort, by=sortby)
+        permute!(λ, p)
+        permute!(Δλ, p)
+    end
+    return (λ, Δλ)
 end
 
 #####
