@@ -206,14 +206,13 @@ function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) whe
 end
 
 function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    F = eigen(A; kwargs...)
+    F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        V = F.vectors
-        ∂A = V' \ Diagonal(Δλ) * V'
-        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+        ∂F = Composite{typeof(F)}(values = Δλ)
+        _, ∂A = eigen_back(∂F)
+        return NO_FIELDS, ∂A
     end
-    eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
 end
 
