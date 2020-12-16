@@ -280,6 +280,31 @@ end
                     @test eltype(X̄) <: Real
                 end
             end
+
+            # below tests adapted from /test/rulesets/LinearAlgebra/symmetric.jl
+            @testset "hermitian matrices" begin
+                n = 10
+                @testset "eigvals!(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    λ = eigvals!(copy(A))
+                    λ_ad, ∂λ_ad = frule((Zero(), copy(ΔA)), eigvals!, copy(A))
+                    @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
+                    @test ∂λ_ad isa typeof(λ)
+                    @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(Matrix(Hermitian(A))), (A, ΔA))
+                end
+
+                @testset "eigvals(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(n)
+                    λ = eigvals(A)
+                    λ_ad, back = rrule(eigvals, A)
+                    @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
+                    ∂self, ∂A = @inferred back(Δλ)
+                    @test ∂self === NO_FIELDS
+                    @test ∂A isa typeof(A)
+                    @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+                end
+            end
         end
     end
 
