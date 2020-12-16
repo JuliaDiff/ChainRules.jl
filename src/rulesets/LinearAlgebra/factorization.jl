@@ -78,7 +78,7 @@ end
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
     if ishermitian(A)
-        sortby = get(kwargs, :sortby, nothing)
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
         return if sortby === nothing
             frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
         else
@@ -189,7 +189,8 @@ function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) whe
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     if ishermitian(A)
         λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
-        _sorteig!_fwd(∂λ, λ, get(kwargs, :sortby, nothing))
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        _sorteig!_fwd(∂λ, λ, sortby)
     else
         F = eigen!(A; kwargs...)
         λ, V = F.values, F.vectors
