@@ -105,7 +105,7 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
         λ, V = F.values, F.vectors
         Δλ, ΔV = ΔF.values, ΔF.vectors
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
-        if ishermitian(A)
+        if eltype(λ) <: Real && ishermitian(A)
             hermA = Hermitian(A)
             ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
             ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
