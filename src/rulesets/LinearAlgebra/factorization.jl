@@ -76,11 +76,15 @@ end
 # - support degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
-    if ΔA isa AbstractZero
-        F = eigen!(A; kwargs...)
-        return F, ΔA
+    ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
+    if ishermitian(A)
+        sortby = get(kwargs, :sortby, nothing)
+        return if sortby === nothing
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
+        else
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
+        end
     end
-    ishermitian(A) && return frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); kwargs...)
     F = eigen!(A; kwargs...)
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
