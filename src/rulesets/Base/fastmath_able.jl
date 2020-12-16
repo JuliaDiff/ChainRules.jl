@@ -66,8 +66,8 @@ let
         ## abs
         function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
             Ω = abs(x)
-            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             return Ω, _realconjtimes(signx, Δx)
         end
 
@@ -108,7 +108,8 @@ let
         function frule((_, Δx), ::typeof(angle), x)
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
-            ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
+            n = ifelse(iszero(x), one(real(x)), abs2(x))
+            ∂Ω = _imagconjtimes(x, Δx) / n
             return Ω, ∂Ω
         end
 
@@ -127,8 +128,9 @@ let
             function angle_pullback(ΔΩ)
                 x,  y  = reim(z)
                 Δu, Δv = reim(ΔΩ)
-                return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
                 # `ifelse` is applied only to denominator to ensure type-stability.
+                n = ifelse(iszero(z), one(real(z)), abs2(z))
+                return (NO_FIELDS, (-y + im*x)*Δu/n)
             end
             return angle(z), angle_pullback
         end
@@ -185,14 +187,14 @@ let
         # `sign`
 
         function frule((_, Δx), ::typeof(sign), x)
-            n = ifelse(iszero(x), one(x), abs(x))
+            n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
             return Ω, ∂Ω
         end
 
         function rrule(::typeof(sign), x)
-            n = ifelse(iszero(x), one(x), abs(x))
+            n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
                 ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im

@@ -22,7 +22,6 @@ function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
             ∂X = Zero()
             ∂Y = Zero()
         else
-            ΔΩ = extern(ΔΩ)
             ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
             ∂Y = @thunk scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
         end
