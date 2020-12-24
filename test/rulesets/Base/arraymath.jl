@@ -6,8 +6,17 @@
         rrule_test(inv, randn(T, N, N), (B, randn(T, N, N)))
     end
 
-    @testset "*: $T" for T in (Float64, ComplexF64)
-        ⋆(a) = round.(5*randn(T, a))  # Helper to generate nice random values
+
+    @testset "*: eltype: $T" for T in (Float64, ComplexF64, Array{Float64})
+        function ⋆(a)  # Helper to generate nice random values
+            if T <: Array{Float64} # Need an array of arrays
+                egs = ([1. 2; 3 4], [-1. 9; 7 8], [6. -3; -3 -5], [1. 1; 1 1], [0. 0; 0 0])
+                return rand(egs, a)
+            else
+                return round.(5*randn(T, a))
+            end
+        end
+
         ⋆(a, b) = ⋆((a, b))  # matrix
         ⋆() = only(⋆(()))  # scalar
 
@@ -16,8 +25,14 @@
         ⋆₂() = ⋆₂(())  # scalar
 
         @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (2, 3, 4, 5))
-            rrule_test(*, ⋆(dims), ⋆₂(), ⋆₂(dims))
-            rrule_test(*, ⋆(dims), ⋆₂(dims), ⋆₂())
+            @testset "Real" begin
+                rrule_test(*, ⋆(dims), (2.3, 3.3), ⋆₂(dims))
+                rrule_test(*, ⋆(dims), ⋆₂(dims), (2.3, 3.3))
+            end
+            @testset "Complex" begin
+                rrule_test(*, (2.1+2im) * ⋆(dims), (2.3+im, 3.3+im), ⋆₂(dims))
+                rrule_test(*, (2.1+2im) * ⋆(dims), ⋆₂(dims), (2.3+im, 3.3+im))
+            end
         end
 
         @testset "AbstractMatrix-AbstractVector n=$n, m=$m" for n in (2, 3), m in (4, 5)

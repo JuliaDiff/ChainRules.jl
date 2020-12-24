@@ -19,10 +19,18 @@ end
 ##### `*`
 #####
 
+# Things act enough like numbers for matmal etc to apply to matrixes with this eltype
+# inparticular it also includes AbstractArrays, which can be a problem since operations on
+# AbstractArrays in general are often better left for the AD to decompose then to use a
+# High-level general-rule. f/rrules should only accept this with caution, but it is useful
+# for especially Zygote which stuggles to deal with generic code that might be mutating
+const MatMulField = Union{CommutativeMulNumber, AbstractArray{<:CommutativeMulNumber}}
+
+
 function rrule(
     ::typeof(*),
-    A::AbstractVecOrMat{<:CommutativeMulNumber},
-    B::AbstractVecOrMat{<:CommutativeMulNumber},
+    A::AbstractVecOrMat{<:MatMulField},
+    B::AbstractVecOrMat{<:MatMulField},
 )
     function times_pullback(Ȳ)
         return (
@@ -40,6 +48,9 @@ function rrule(
     return A * B, times_pullback
 end
 
+# Good inplacable version so longer as arrays of arrays are not involved
+# TODO: remove this after https://github.com/JuliaLang/julia/issues/38772
+# and make the above accept any MatMulField
 function rrule(
     ::typeof(*),
     A::AbstractVector{<:CommutativeMulNumber},
@@ -62,13 +73,30 @@ function rrule(
     return A * B, times_pullback
 end
 
+# Not inplace for if Arrays of Arrays are involved
+# TODO: remove this after https://github.com/JuliaLang/julia/issues/38772
+# and make the above accept any MatMulField
 function rrule(
-   ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
+    ::typeof(*),
+    A::AbstractVector{<:MatMulField},
+    B::AbstractMatrix{<:MatMulField},
+)
+    function times_pullback(Ȳ)
+        @assert size(B, 1) === 1   # otherwise primal would have failed.
+        return NO_FIELDS, @thunk(Ȳ * vec(B')), @thunk(A' * Ȳ)
+    end
+    return A * B, times_pullback
+end
+
+
+
+function rrule(
+   ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:MatMulField}
 )
     function times_pullback(Ȳ)
         return (
             NO_FIELDS,
-            @thunk(dot(Ȳ, B)'),
+            (dot(Ȳ, B)'),
             InplaceableThunk(
                 @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
@@ -79,7 +107,7 @@ function rrule(
 end
 
 function rrule(
-    ::typeof(*), B::AbstractArray{<:CommutativeMulNumber}, A::CommutativeMulNumber
+    ::typeof(*), B::AbstractArray{<:MatMulField}, A::CommutativeMulNumber
 )
     function times_pullback(Ȳ)
         return (
