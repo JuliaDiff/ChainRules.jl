@@ -36,6 +36,20 @@
             @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(fnorm, x)[2](Zero())[2] isa Zero
         end
+        ndims(x) > 1 && @testset "non-strided" begin
+            xp = if x isa Matrix
+                view(x, [1,2,3], 1:3)
+            elseif x isa Array{T,3}
+                PermutedDimsArray(x, (1,2,3))
+            end
+            @test !(xp isa StridedArray)
+            y = fnorm(x)
+            # ẋ = rand(T, size(xp)) # rand_tangent(xp)
+            x̄ = rand(T, size(xp)) # rand_tangent(xp)
+            ȳ = rand_tangent(y)
+            # frule_test(fnorm, (xp, ẋ))
+            rrule_test(fnorm, ȳ, (xp, x̄))
+        end
     end
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
@@ -61,6 +75,20 @@
             ȳ = rand_tangent(norm(x))
             @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(norm, x)[2](Zero())[2] isa Zero
+        end
+        ndims(x) > 1 && @testset "non-strided" begin
+            xp = if x isa Matrix
+                view(x, [1,2,3], 1:3)
+            elseif x isa Array{T,3}
+                PermutedDimsArray(x, (1,2,3))
+            end
+            @test !(xp isa StridedArray)
+            y = norm(x)
+            ẋ = rand(T, size(xp)) # rand_tangent(xp)
+            x̄ = rand(T, size(xp)) # rand_tangent(xp)
+            ȳ = rand_tangent(y)
+            frule_test(norm, (xp, ẋ))
+            rrule_test(norm, ȳ, (xp, x̄))
         end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
