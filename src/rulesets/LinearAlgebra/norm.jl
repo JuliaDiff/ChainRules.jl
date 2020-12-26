@@ -1,6 +1,3 @@
-
-rrule(f::Function, args...; kwargs...) = (@error "no rrule defined!" f args ; nothing)
-
 #####
 ##### `norm`
 #####
@@ -69,11 +66,7 @@ function rrule(::typeof(norm), x::AbstractArray)
     norm_pullback_2(::Zero) = (NO_FIELDS, Zero())
     return y, norm_pullback_2
 end
-function rrule(
-    ::typeof(norm),
-    x::Union{LinearAlgebra.TransposeAbsVec, LinearAlgebra.AdjointAbsVec},
-    p::Real,
-)
+function rrule(::typeof(norm), x::Union{LinearAlgebra.AdjOrTransAbsVec}, p::Real)
     y, inner_pullback = rrule(norm, parent(x), p)
     function norm_pullback(Δy)
         (∂self, ∂x′, ∂p) = inner_pullback(Δy)
