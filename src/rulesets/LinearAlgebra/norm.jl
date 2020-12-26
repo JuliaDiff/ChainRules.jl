@@ -108,8 +108,7 @@ end
 
 function _normp_back_x(x, p, y, Δy)
     c = real(Δy) / y
-    ∂x = similar(x)
-    broadcast!(∂x, x) do xi
+    ∂x = broadcast(x) do xi
         a = norm(xi)
         ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
@@ -174,8 +173,7 @@ function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
 end
 
 function _norm1_back(x, y, Δy)
-    ∂x = similar(x)
-    ∂x .= sign.(x) .* real(Δy)
+    ∂x = sign.(x) .* real(Δy)
     return ∂x
 end
 function _norm1_back!(∂x, x, y, Δy)
@@ -207,8 +205,7 @@ function _norm2_forward(x, Δx, y)
     return ∂y
 end
 function _norm2_back(x, y, Δy)
-    ∂x = similar(x)
-    ∂x .= x .* (real(Δy) * pinv(y))
+    ∂x = x .* (real(Δy) * pinv(y))
     return ∂x
 end
 function _norm2_back!(∂x, x, y, Δy)

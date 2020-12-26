@@ -50,6 +50,12 @@
             # frule_test(fnorm, (xp, ẋ))
             rrule_test(fnorm, ȳ, (xp, x̄))
         end
+        T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
+            x = [1,2,3]
+            _, int_back = rrule(fnorm, x)
+            _, float_back = rrule(fnorm, float(x))
+            @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
+        end
     end
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
@@ -127,6 +133,12 @@
         ȳ = rand_tangent(fnorm(x, p))
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
+        T == Float64 && sz == (3,) && @testset "Integer input, p=$p" begin
+            x = [1,2,3]
+            _, int_back = rrule(fnorm, x, p)
+            _, float_back = rrule(fnorm, float(x), p)
+            @test unthunk(unthunk(int_back(1.0)[2])) ≈ unthunk(unthunk(float_back(1.0)[2]))
+        end
     end
     @testset "norm($fdual(::Vector{$T}), p)" for
         T in (Float64, ComplexF64),
