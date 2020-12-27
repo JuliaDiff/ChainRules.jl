@@ -95,7 +95,7 @@ end
 ##### `normp`
 #####
 
-function rrule(::typeof(LinearAlgebra.normp),x::AbstractArray, p)
+function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray, p)
     y = LinearAlgebra.normp(x, p)
     function normp_pullback(Δy)
         ∂x = @thunk _normp_back_x(x, p, y, Δy)
@@ -110,7 +110,7 @@ function _normp_back_x(x, p, y, Δy)
     c = real(Δy) / y
     T = promote_type(eltype(x), typeof(c))
     ∂x = similar(x, T)  # same comment as _norm1_back about allocation and type-stability.
-    ∂x = broadcast!(∂x, x) do xi
+    map!(∂x, x) do xi
         a = norm(xi)
         ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
