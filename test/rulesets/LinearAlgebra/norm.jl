@@ -52,8 +52,9 @@
         end
         T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
             x = [1,2,3]
-            _, int_back = rrule(fnorm, x)
-            _, float_back = rrule(fnorm, float(x))
+            int_fwd, int_back = rrule(fnorm, x)
+            float_fwd, float_back = rrule(fnorm, float(x))
+            @test int_fwd ≈ float_fwd
             @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
         end
     end
@@ -135,8 +136,9 @@
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
         T == Float64 && sz == (3,) && @testset "Integer input, p=$p" begin
             x = [1,2,3]
-            _, int_back = rrule(fnorm, x, p)
-            _, float_back = rrule(fnorm, float(x), p)
+            int_fwd, int_back = rrule(fnorm, x, p)
+            float_fwd, float_back = rrule(fnorm, float(x), p)
+            @test int_fwd ≈ float_fwd
             @test unthunk(unthunk(int_back(1.0)[2])) ≈ unthunk(unthunk(float_back(1.0)[2]))
         end
     end
