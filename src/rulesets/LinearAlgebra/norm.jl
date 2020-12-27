@@ -173,7 +173,11 @@ function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
 end
 
 function _norm1_back(x, y, Δy)
-    ∂x = sign.(x) .* real(Δy)
+    T = promote_type(eltype(x), real(eltype(Δy)))
+    ∂x = similar(x, T)
+    # The reason not to let broadcast allocate ∂x is that NaN .* Diagonal(ones(3)) isa Matrix,
+    # while pi .* Diagonal(ones(3)) isa Diagonal, hence this would be type-unstable.
+    ∂x .= sign.(x) .* real(Δy)
     return ∂x
 end
 function _norm1_back!(∂x, x, y, Δy)
@@ -205,7 +209,9 @@ function _norm2_forward(x, Δx, y)
     return ∂y
 end
 function _norm2_back(x, y, Δy)
-    ∂x = x .* (real(Δy) * pinv(y))
+    T = typeof(one(eltype(x)) / one(real(eltype(Δy))))
+    ∂x = similar(x, T)  # same comment as _norm1_back about allocation and type-stability.
+    ∂x .= x .* (real(Δy) * pinv(y))
     return ∂x
 end
 function _norm2_back!(∂x, x, y, Δy)
