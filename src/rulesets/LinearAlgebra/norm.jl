@@ -108,7 +108,9 @@ end
 
 function _normp_back_x(x, p, y, Δy)
     c = real(Δy) / y
-    ∂x = broadcast(x) do xi
+    T = promote_type(eltype(x), typeof(c))
+    ∂x = similar(x, T)  # same comment as _norm1_back about allocation and type-stability.
+    ∂x = broadcast!(∂x, x) do xi
         a = norm(xi)
         ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
