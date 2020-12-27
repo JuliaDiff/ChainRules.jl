@@ -106,7 +106,7 @@ end
 
 function ∇prod(x, dy::Number=1, y::Number=prod(x))
     T = promote_type(eltype(x), eltype(dy))
-    dx = similar(x, T) .= zero(T)
+    dx = fill!(similar(x, T), zero(T))
     ∇prod!(dx, x, y, dy)
     return dx
 end
@@ -128,7 +128,7 @@ function ∇prod_one_zero!(dx, x, dy::Number=1)  # Assumes exactly one x is zero
     p_rest = one(promote_type(eltype(x), typeof(dy)))
     for i in eachindex(x)
         xi = @inbounds x[i]
-        p_rest *= ifelse(iszero(xi), one(eltype(x)), conj(xi))
+        p_rest *= ifelse(iszero(xi), one(xi), conj(xi))
         i_zero = ifelse(iszero(xi), i, i_zero)
     end
     dx[i_zero] += p_rest * dy

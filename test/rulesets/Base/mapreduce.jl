@@ -54,7 +54,7 @@
             @test prod(v) == 0
             vbar = randn(Float32, 4)
             @test unthunk(rrule(prod, v)[2](1f0)[2]) == zeros(4)
-            rrule_test(prod, 0f0, (v, vbar))
+            rrule_test(prod, rand(Float32), (v, vbar))
         end
     end # prod
 end
