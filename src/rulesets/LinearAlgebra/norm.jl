@@ -108,14 +108,21 @@ end
 
 function _normp_back_x(x, p, y, Δy)
     c = real(Δy) / y
-    T = promote_type(eltype(x), typeof(c))
-    ∂x = similar(x, T)  # same comment as _norm1_back about allocation and type-stability.
-    map!(∂x, x) do xi
+    ∂x = map(x) do xi
         a = norm(xi)
         ∂xi = xi * ((a / y)^(p - 2) * c)
         return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
     end
     return ∂x
+end
+function _normp_back_x(x::WithSomeZeros, p, y, Δy) # Diagonal, UpperTriangular, etc.
+    c = real(Δy) / y
+    ∂x_data = map(parent(x)) do xi
+        a = norm(xi)
+        ∂xi = xi * ((a / y)^(p - 2) * c)
+        return ifelse(isfinite(∂xi), ∂xi, zero(∂xi))
+    end
+    return withsomezeros_rewrap(x, ∂x_data)
 end
 
 function _normp_back_p(x, p, y, Δy)
@@ -175,12 +182,12 @@ function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray)
 end
 
 function _norm1_back(x, y, Δy)
-    T = promote_type(eltype(x), real(eltype(Δy)))
-    ∂x = similar(x, T)
-    # The reason not to let broadcast allocate ∂x is that NaN .* Diagonal(ones(3)) isa Matrix,
-    # while pi .* Diagonal(ones(3)) isa Diagonal, hence this would be type-unstable.
-    ∂x .= sign.(x) .* real(Δy)
+    ∂x = sign.(x) .* real(Δy)
     return ∂x
+end
+function _norm1_back(x::WithSomeZeros, y, Δy)
+    ∂x_data = sign.(parent(x)) .* real(Δy)
+    return withsomezeros_rewrap(x, ∂x_data)
 end
 function _norm1_back!(∂x, x, y, Δy)
     ∂x .+= sign.(x) .* real(Δy)
@@ -211,10 +218,13 @@ function _norm2_forward(x, Δx, y)
     return ∂y
 end
 function _norm2_back(x, y, Δy)
-    T = typeof(one(eltype(x)) / one(real(eltype(Δy))))
-    ∂x = similar(x, T)  # same comment as _norm1_back about allocation and type-stability.
-    ∂x .= x .* (real(Δy) * pinv(y))
+    ∂x = x .* (real(Δy) * pinv(y))
     return ∂x
+end
+function _norm2_back(x::WithSomeZeros, y, Δy)
+    T = typeof(one(eltype(x)) / one(real(eltype(Δy))))
+    ∂x_data = parent(x) .* (real(Δy) * pinv(y))
+    return withsomezeros_rewrap(x, ∂x_data)
 end
 function _norm2_back!(∂x, x, y, Δy)
     ∂x .+= x .* (real(Δy) * pinv(y))

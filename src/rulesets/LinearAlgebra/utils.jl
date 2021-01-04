@@ -43,3 +43,36 @@ Symmetric
 ````
 """
 _unionall_wrapper(::Type{T}) where {T} = T.name.wrapper
+
+"""
+    WithSomeZeros{T}
+
+This is a union of LinearAlgebra types, all of which are partly structral zeros,
+with a simple backing array given by `parent(x)`. All have methods of `_rewrap`
+to re-create.
+
+This exists to solve a type instability, as broadcasting for instance
+`λ .* Diagonal(rand(3))` gives a dense matrix when `x==Inf`.
+But `withsomezeros_rewrap(x, λ .* parent(x))` is type-stable.
+"""
+WithSomeZeros{T} = Union{
+    Diagonal{T},
+    UpperTriangular{T},
+    UnitUpperTriangular{T},
+    UpperHessenberg{T},
+    LowerTriangular{T},
+    UnitLowerTriangular{T},
+}
+for S in [
+    :Diagonal,
+    :UpperTriangular,
+    :UnitUpperTriangular,
+    :UpperHessenberg,
+    :LowerTriangular,
+    :UnitLowerTriangular,
+]
+    @eval withsomezeros_rewrap(::$S, x) = $S(x)
+end
+
+# Bidiagonal, Tridiagonal have more complicated storage.
+# AdjOrTransUpperOrUnitUpperTriangular would need adjoint(parent(parent()))
