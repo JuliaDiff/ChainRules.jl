@@ -116,12 +116,7 @@ end
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            df = λi -> frule((Zero(), One()), $func, λi)
-            λ, U = eigen(A)
-            fλ_df_dλ = df.(λ)
-            fλ = first.(fλ_df_dλ)
-            Y = _symhermfwd!(U * Diagonal(fλ) * U')
-            df_dλ = last.(unthunk.(fλ_df_dλ))
+            Y, λ, U, fλ, df_dλ = _matfun_symherm($func, A)
             ∂Λ = U' * ΔA * U
             U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
             ∂Y = _symhermlike!(U * U′∂YU * U', Y)
@@ -129,14 +124,9 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
         end
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            df = λi -> frule((Zero(), One()), $func, λi)
-            λ, U = eigen(A)
-            fλ_df_dλ = df.(λ)
-            fλ = first.(fλ_df_dλ)
-            Y = _symhermfwd!(U * Diagonal(fλ) * U')
+            Y, λ, U, fλ, df_dλ = _matfun_symherm($func, A)
             function $(Symbol("$(func)_pullback"))(ΔY)
                 ∂A = Thunk() do
-                    df_dλ = unthunk.(last.(fλ_df_dλ))
                     ∂fΛ = U' * _realifydiag(ΔY) * U
                     U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
                     return _hermitrizeback!(U * U′∂AU * U', A)
@@ -146,6 +136,17 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             return Y, $(Symbol("$(func)_pullback"))
         end
     end
+end
+
+# code shared by `frule`s and `rrule`s of matrix functions of Hermitian matrices
+function _matfun_shared(f, A::LinearAlgebra.RealHermSymComplexHerm)
+    λ, U = eigen(A)
+    fλ_df_dλ = map(λi -> frule((Zero(), One()), f, λi), λ)
+    T = Base.promote_eltype(λ, eltype(fλ_df_dλ))
+    fλ = T.(first.(fλ_df_dλ))
+    df_dλ = T(last.(unthunk.(fλ_df_dλ)))
+    Y = _symhermfwd!(U * Diagonal(fλ) * U')
+    return Y, λ, U, fλ, df_dλ
 end
 
 function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
