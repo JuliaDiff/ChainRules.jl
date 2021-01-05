@@ -77,6 +77,17 @@ end
 ##### `eigen!`/`eigen`
 #####
 
+# rule is old but the usual references are
+# real rules:
+# Giles M. B., An extended collection of matrix derivative results for forward and reverse
+# mode algorithmic differentiation.
+# https://people.maths.ox.ac.uk/gilesm/files/NA-08-01.pdf.
+# complex rules:
+# Boeddeker C., Hanebrink P., et al, On the Computation of Complex-valued Gradients with
+# Application to Statistically Optimum Beamforming. arXiv:1701.00392v2 [cs.NA]
+#
+# accounting for normalization convention appears in Boeddeker && Hanebrink.
+# account for phase convention is unpublished.
 function frule(
     (_, ΔA),
     ::typeof(eigen!),
@@ -211,6 +222,9 @@ end
 ##### `svd`
 #####
 
+# NOTE: rrule defined because the `svd` primal mutates after calling `eigen`.
+# otherwise, this rule just applies the chain rule and can be removed when mutation
+# is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
     function svd_pullback(ΔF::Composite{<:SVD})
@@ -247,6 +261,8 @@ end
 ##### `svdvals`
 #####
 
+# NOTE: rrule defined because `svdvals` calls mutating `svdvals!` internally.
+# can be removed when mutation is supported by reverse-mode AD packages
 function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     λ, back = rrule(eigvals, A)
     S = abs.(λ)
