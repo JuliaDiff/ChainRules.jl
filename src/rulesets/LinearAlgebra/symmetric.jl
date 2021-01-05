@@ -33,11 +33,6 @@ function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
 end
 rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
-# Get type (Symmetric or Hermitian) from type or matrix
-_symhermtype(::Type{<:Symmetric}) = Symmetric
-_symhermtype(::Type{<:Hermitian}) = Hermitian
-_symhermtype(A) = _symhermtype(typeof(A))
-
 # for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
 function _symherm_forward(A, ΔA)
     TA = _symhermtype(A)
@@ -93,9 +88,6 @@ _realifydiag(A::AbstractMatrix{<:Real}) = A
 
 _symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
 _symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
-
-_symhermtype(A::Symmetric) = Symmetric
-_symhermtype(A::Hermitian) = Hermitian
 
 function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
     _realifydiag!(A)
@@ -252,3 +244,12 @@ function _muldiffquotmat(λ, fλ, df_dλ, Δ)
     inds = eachindex(λ)
     return @inbounds _diffquot.(inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
 end
+
+#####
+##### utilities
+#####
+
+# Get type (Symmetric or Hermitian) from type or matrix
+_symhermtype(::Type{<:Symmetric}) = Symmetric
+_symhermtype(::Type{<:Hermitian}) = Hermitian
+_symhermtype(A) = _symhermtype(typeof(A))
