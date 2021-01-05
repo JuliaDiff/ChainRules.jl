@@ -8,9 +8,8 @@ const SquareMatrix{T} = Union{Diagonal{T}, AbstractTriangular{T}}
 function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
     Y = A / B
     function slash_pullback(Ȳ)
-        S = T.name.wrapper
         ∂A = @thunk Ȳ / B'
-        ∂B = @thunk S(-Y' * (Ȳ / B'))
+        ∂B = @thunk _unionall_wrapper(T)(-Y' * (Ȳ / B'))
         return (NO_FIELDS, ∂A, ∂B)
     end
     return Y, slash_pullback
@@ -19,8 +18,7 @@ end
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
     function backslash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk S(-(A' \ Ȳ) * Y')
+        ∂A = @thunk _unionall_wrapper(T)(-(A' \ Ȳ) * Y')
         ∂B = @thunk A' \ Ȳ
         return NO_FIELDS, ∂A, ∂B
     end
@@ -90,32 +88,27 @@ end
 ##### `Adjoint`
 #####
 
-# ✖️✖️✖️TODO: Deal with complex-valued arrays as well
-function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Real})
-    function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, adjoint(ȳ))
-    end
+function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
+    Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    Adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return Adjoint(A), Adjoint_pullback
 end
 
-function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Real})
-    function Adjoint_pullback(ȳ)
-        return (NO_FIELDS, vec(adjoint(ȳ)))
-    end
+function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
+    Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    Adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
     return Adjoint(A), Adjoint_pullback
 end
 
-function rrule(::typeof(adjoint), A::AbstractMatrix{<:Real})
-    function adjoint_pullback(ȳ)
-        return (NO_FIELDS, adjoint(ȳ))
-    end
+function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
+    adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return adjoint(A), adjoint_pullback
 end
 
-function rrule(::typeof(adjoint), A::AbstractVector{<:Real})
-    function adjoint_pullback(ȳ)
-        return (NO_FIELDS, vec(adjoint(ȳ)))
-    end
+function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
+    adjoint_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
     return adjoint(A), adjoint_pullback
 end
 
@@ -123,31 +116,27 @@ end
 ##### `Transpose`
 #####
 
-function rrule(::Type{<:Transpose}, A::AbstractMatrix)
-    function Transpose_pullback(ȳ)
-        return (NO_FIELDS, transpose(ȳ))
-    end
+function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
+    Transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    Transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, Transpose(ȳ))
     return Transpose(A), Transpose_pullback
 end
 
-function rrule(::Type{<:Transpose}, A::AbstractVector)
-    function Transpose_pullback(ȳ)
-        return (NO_FIELDS, vec(transpose(ȳ)))
-    end
+function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
+    Transpose_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    Transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(Transpose(ȳ)))
     return Transpose(A), Transpose_pullback
 end
 
-function rrule(::typeof(transpose), A::AbstractMatrix)
-    function transpose_pullback(ȳ)
-        return (NO_FIELDS, transpose(ȳ))
-    end
+function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
+    transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, transpose(ȳ))
     return transpose(A), transpose_pullback
 end
 
-function rrule(::typeof(transpose), A::AbstractVector)
-    function transpose_pullback(ȳ)
-        return (NO_FIELDS, vec(transpose(ȳ)))
-    end
+function rrule(::typeof(transpose), A::AbstractVector{<:Number})
+    transpose_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(transpose(ȳ)))
     return transpose(A), transpose_pullback
 end
 

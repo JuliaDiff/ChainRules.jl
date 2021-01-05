@@ -104,11 +104,55 @@
             end
         end
     end
-    @testset "$f" for f in (Adjoint, adjoint, Transpose, transpose)
+    @testset "$f, $T" for
+        f in (Adjoint, adjoint, Transpose, transpose),
+        T in (Float64, ComplexF64)
+
         n = 5
         m = 3
-        rrule_test(f, randn(m, n), (randn(n, m), randn(n, m)))
-        rrule_test(f, randn(1, n), (randn(n), randn(n)))
+        @testset "$f(::Matrix{$T})" begin
+            A = randn(T, n, m)
+            Ā = randn(T, n, m)
+            Y = f(A)
+            Ȳ_mat = randn(T, m, n)
+            Ȳ_composite = Composite{typeof(Y)}(parent=collect(f(Ȳ_mat)))
+
+            rrule_test(f, Ȳ_mat, (A, Ā))
+
+            _, pb = rrule(f, A)
+            @test pb(Ȳ_mat) == pb(Ȳ_composite)
+        end
+
+        @testset "$f(::Vector{$T})" begin
+            a = randn(T, n)
+            ā = randn(T, n)
+            y = f(a)
+            ȳ_mat = randn(T, 1, n)
+            ȳ_composite = Composite{typeof(y)}(parent=collect(f(ȳ_mat)))
+
+            rrule_test(f, ȳ_mat, (a, ā))
+
+            _, pb = rrule(f, a)
+            @test pb(ȳ_mat) == pb(ȳ_composite)
+        end
+
+        @testset "$f(::Adjoint{$T, Vector{$T})" begin
+            a = randn(T, n)'
+            ā = randn(T, n)'
+            y = f(a)
+            ȳ = randn(T, n)
+
+            rrule_test(f, ȳ, (a, ā))
+        end
+
+        @testset "$f(::Transpose{$T, Vector{$T})" begin
+            a = transpose(randn(T, n))
+            ā = transpose(randn(T, n))
+            y = f(a)
+            ȳ = randn(T, n)
+
+            rrule_test(f, ȳ, (a, ā))
+        end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5

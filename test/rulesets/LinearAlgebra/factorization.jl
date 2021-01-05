@@ -1,4 +1,15 @@
-using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblocked_rev
+function FiniteDifferences.to_vec(C::Cholesky)
+    C_vec, factors_from_vec = to_vec(C.factors)
+    function cholesky_from_vec(v)
+        return Cholesky(factors_from_vec(v), C.uplo, C.info)
+    end
+    return C_vec, cholesky_from_vec
+end
+
+function FiniteDifferences.to_vec(x::Val)
+    Val_from_vec(v) = x
+    return Bool[], Val_from_vec
+end
 
 @testset "Factorizations" begin
     @testset "svd" begin
@@ -73,69 +84,186 @@ using ChainRules: level2partition, level3partition, chol_blocked_rev, chol_unblo
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
         end
     end
-    @testset "cholesky" begin
-        @testset "the thing" begin
-            X = generate_well_conditioned_matrix(10)
-            V = generate_well_conditioned_matrix(10)
-            F, dX_pullback = rrule(cholesky, X)
-            for p in [:U, :L]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-                (dself, dF, dp) = dF_pullback(Ȳ)
-                @test dself === NO_FIELDS
-                @test dp === DoesNotExist()
 
-                # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-                # machinery from FiniteDifferences because that isn't set up to respect
-                # necessary special properties of the input. In the case of the Cholesky
-                # factorization, we need the input to be Hermitian.
-                ΔF = unthunk(dF)
-                _, dX = dX_pullback(ΔF)
-                X̄_ad = dot(unthunk(dX), V)
-                X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                    dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+    @testset "eigendecomposition" begin
+        @testset "eigen/eigen!" begin
+            # NOTE: eigen!/eigen are not type-stable, so neither are their frule/rrule
+
+            # avoid implementing to_vec(::Eigen)
+            f(E::Eigen) = (values=E.values, vectors=E.vectors)
+
+            # NOTE: for unstructured matrices, low enough n, and this specific seed, finite
+            # differences of eigen seems to be stable enough for direct comparison.
+            # This allows us to directly check differential of normalization/phase
+            # convention
+            n = 10
+
+            @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
+                X = randn(T, n, n)
+                Ẋ = rand_tangent(X)
+                F = eigen!(copy(X))
+                F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
+                @test F_fwd == F
+                @test Ḟ_ad isa Composite{typeof(F)}
+                Ḟ_fd = jvp(_fdm, f ∘ eigen! ∘ copy, (X, Ẋ))
+                @test Ḟ_ad.values ≈ Ḟ_fd.values
+                @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
+                @test frule((Zero(), Zero()), eigen!, copy(X)) == (F, Zero())
+
+                @testset "tangents are real when outputs are" begin
+                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
+                    X = Matrix(Hermitian(randn(T, n, n)))
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, Ḟ = frule((Zero(), Ẋ), eigen!, X)
+                    @test eltype(Ḟ.values) <: Real
+                    T <: Real && @test eltype(Ḟ.vectors) <: Real
                 end
-                @test X̄_ad ≈ X̄_fd rtol=1e-4
+            end
+
+            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
+                # NOTE: eigen is not type-stable, so neither are is its rrule
+                X = randn(T, n, n)
+                F = eigen(X)
+                V̄ = rand_tangent(F.vectors)
+                λ̄ = rand_tangent(F.values)
+                CT = Composite{typeof(F)}
+                F_rev, back = rrule(eigen, X)
+                @test F_rev == F
+                _, X̄_values_ad = @inferred back(CT(values = λ̄))
+                @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
+                _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
+                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                F̄ = CT(values = λ̄, vectors = V̄)
+                s̄elf, X̄_ad = @inferred back(F̄)
+                @test s̄elf === NO_FIELDS
+                X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
+                @test X̄_ad ≈ X̄_fd
+                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                F̄zero = CT(values = Zero(), vectors = Zero())
+                @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
+
+                T <: Real && @testset "cotangent is real when input is" begin
+                    X = randn(T, n, n)
+                    Ẋ = rand_tangent(X)
+
+                    F = eigen(X)
+                    V̄ = rand_tangent(F.vectors)
+                    λ̄ = rand_tangent(F.values)
+                    F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
+                    X̄ = rrule(eigen, X)[2](F̄)[2]
+                    @test eltype(X̄) <: Real
+                end
+            end
+
+            @testset "normalization/phase functions are idempotent" for T in (Float64,ComplexF64)
+                # this is as much a math check as a code check. because normalization when
+                # applied repeatedly is idempotent, repeated pushforward/pullback should
+                # leave the (co)tangent unchanged
+                X = randn(T, n, n)
+                Ẋ = rand_tangent(X)
+                F = eigen(X)
+
+                V̇ = rand_tangent(F.vectors)
+                V̇proj = ChainRules._eigen_norm_phase_fwd!(copy(V̇), X, F.vectors)
+                @test !isapprox(V̇, V̇proj)
+                V̇proj2 = ChainRules._eigen_norm_phase_fwd!(copy(V̇proj), X, F.vectors)
+                @test V̇proj2 ≈ V̇proj
+
+                V̄ = rand_tangent(F.vectors)
+                V̄proj = ChainRules._eigen_norm_phase_rev!(copy(V̄), X, F.vectors)
+                @test !isapprox(V̄, V̄proj)
+                V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
+                @test V̄proj2 ≈ V̄proj
             end
         end
-        @testset "helper functions" begin
-            A = randn(5, 5)
-            r, d, B2, c = level2partition(A, 4, false)
-            R, D, B3, C = level3partition(A, 4, 4, false)
-            @test all(r .== R')
-            @test all(d .== D)
-            @test B2[1] == B3[1]
-            @test all(c .== C)
 
-            # Check that level 2 partition with `upper == true` is consistent with `false`
-            rᵀ, dᵀ, B2ᵀ, cᵀ = level2partition(transpose(A), 4, true)
-            @test r == rᵀ
-            @test d == dᵀ
-            @test B2' == B2ᵀ
-            @test c == cᵀ
+        @testset "eigvals/eigvals!" begin
+            # NOTE: eigvals!/eigvals are not type-stable, so neither are their frule/rrule
+            @testset "eigvals!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
+                n = 10
+                X = randn(T, n, n)
+                λ = eigvals!(copy(X))
+                Ẋ = rand_tangent(X)
+                frule_test(eigvals!, (X, Ẋ))
+                @test frule((Zero(), Zero()), eigvals!, copy(X)) == (λ, Zero())
 
-            # Check that level 3 partition with `upper == true` is consistent with `false`
-            R, D, B3, C = level3partition(A, 2, 4, false)
-            Rᵀ, Dᵀ, B3ᵀ, Cᵀ = level3partition(transpose(A), 2, 4, true)
-            @test transpose(R) == Rᵀ
-            @test transpose(D) == Dᵀ
-            @test transpose(B3) == B3ᵀ
-            @test transpose(C) == Cᵀ
+                @testset "tangents are real when outputs are" begin
+                    # hermitian matrices have real eigenvalues
+                    X = Matrix(Hermitian(randn(T, n, n)))
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, λ̇ = frule((Zero(), Ẋ), eigvals!, X)
+                    @test eltype(λ̇) <: Real
+                end
+            end
 
-            A = Matrix(LowerTriangular(randn(10, 10)))
-            Ā = Matrix(LowerTriangular(randn(10, 10)))
-            # NOTE: BLAS gets angry if we don't materialize the Transpose objects first
-            B = Matrix(transpose(A))
-            B̄ = Matrix(transpose(Ā))
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 1, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 3, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 5, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ chol_blocked_rev(Ā, A, 10, false)
-            @test chol_unblocked_rev(Ā, A, false) ≈ transpose(chol_unblocked_rev(B̄, B, true))
+            @testset "eigvals(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
+                n = 10
+                X = randn(T, n, n)
+                X̄ = rand_tangent(X)
+                λ̄ = rand_tangent(eigvals(X))
+                rrule_test(eigvals, λ̄, (X, X̄))
+                back = rrule(eigvals, X)[2]
+                @inferred back(λ̄)
+                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
 
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 1, true)
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 5, true)
-            @test chol_unblocked_rev(B̄, B, true) ≈ chol_blocked_rev(B̄, B, 10, true)
+                T <: Real && @testset "cotangent is real when input is" begin
+                    X = randn(T, n, n)
+                    λ = eigvals(X)
+                    λ̄ = rand_tangent(λ)
+                    X̄ = rrule(eigvals, X)[2](λ̄)[2]
+                    @test eltype(X̄) <: Real
+                end
+            end
+        end
+    end
+
+    # These tests are generally a bit tricky to write because FiniteDifferences doesn't
+    # have fantastic support for this stuff at the minute.
+    @testset "cholesky" begin
+        @testset "Real" begin
+            C = cholesky(rand() + 0.1)
+            ΔC = Composite{typeof(C)}((factors=rand_tangent(C.factors)))
+            rrule_test(cholesky, ΔC, (rand() + 0.1, randn()))
+        end
+        @testset "Diagonal{<:Real}" begin
+            D = Diagonal(rand(5) .+ 0.1)
+            C = cholesky(D)
+            ΔC = Composite{typeof(C)}((factors=Diagonal(randn(5))))
+            rrule_test(cholesky, ΔC, (D, Diagonal(randn(5))), (Val(false), nothing))
+        end
+
+        X = generate_well_conditioned_matrix(10)
+        V = generate_well_conditioned_matrix(10)
+        F, dX_pullback = rrule(cholesky, X, Val(false))
+        @testset "uplo=$p" for p in [:U, :L]
+            Y, dF_pullback = rrule(getproperty, F, p)
+            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
+            (dself, dF, dp) = dF_pullback(Ȳ)
+            @test dself === NO_FIELDS
+            @test dp === DoesNotExist()
+
+            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
+            # machinery from FiniteDifferences because that isn't set up to respect
+            # necessary special properties of the input. In the case of the Cholesky
+            # factorization, we need the input to be Hermitian.
+            ΔF = unthunk(dF)
+            _, dX = dX_pullback(ΔF)
+            X̄_ad = dot(unthunk(dX), V)
+            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
+                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+            end
+            @test X̄_ad ≈ X̄_fd rtol=1e-4
+        end
+
+        # Ensure that cotangents of cholesky(::StridedMatrix) and
+        # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
+        @testset "Symmetric" begin
+            X_symmetric, sym_back = rrule(Symmetric, X, :U)
+            C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
+
+            Δ = Composite{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            ΔX_symmetric = chol_back_sym(Δ)[2]
+            @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
     end
 end
