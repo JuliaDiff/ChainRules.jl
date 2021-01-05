@@ -14,7 +14,8 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
     A_dims = size(A)
     function reshape_pullback(Ȳ)
         ∂A = reshape(Ȳ, A_dims)
-        return (NO_FIELDS, ∂A, fill(DoesNotExist(), length(dims))...)
+        ∂dims = broadcast(_ -> DoesNotExist(), dims)
+        return (NO_FIELDS, ∂A, ∂dims...)
     end
     return reshape(A, dims...), reshape_pullback
 end
