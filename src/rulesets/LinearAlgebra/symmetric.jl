@@ -140,7 +140,7 @@ function _matfun_shared(f, A::LinearAlgebra.RealHermSymComplexHerm)
     fλ_df_dλ = map(λi -> frule((Zero(), One()), f, λi), λ)
     T = Base.promote_eltype(λ, eltype(fλ_df_dλ))
     fλ = T.(first.(fλ_df_dλ))
-    df_dλ = T(last.(unthunk.(fλ_df_dλ)))
+    df_dλ = T.(last.(unthunk.(fλ_df_dλ)))
     Y = _symhermfwd!(U * Diagonal(fλ) * U')
     return Y, λ, U, fλ, df_dλ
 end
