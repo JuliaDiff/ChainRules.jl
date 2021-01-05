@@ -101,12 +101,10 @@ function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
     _realifydiag!(Y)
     Y = _symhermtype(A)(Y, :U)
     function pow_pullback(ΔY)
-        ∂A = Thunk() do
-            dλᵖ_dλ = p .* λ .^ (p - 1)
-            ∂Λᵖ = U' * _realifydiag(ΔY) * U
-            U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
-            return _hermitrizeback!(U * U′∂AU * U', A)
-        end
+        dλᵖ_dλ = p .* λ .^ (p - 1)
+        ∂Λᵖ = U' * _realifydiag(ΔY) * U
+        U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
+        ∂A = _hermitrizeback!(U * U′∂AU * U', A)
         return NO_FIELDS, ∂A, DoesNotExist()
     end
     return Y, pow_pullback
@@ -126,11 +124,9 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             Y, λ, U, fλ, df_dλ = _matfun_symherm($func, A)
             function $(Symbol("$(func)_pullback"))(ΔY)
-                ∂A = Thunk() do
-                    ∂fΛ = U' * _realifydiag(ΔY) * U
-                    U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
-                    return _hermitrizeback!(U * U′∂AU * U', A)
-                end
+                ∂fΛ = U' * _realifydiag(ΔY) * U
+                U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
+                ∂A = _hermitrizeback!(U * U′∂AU * U', A)
                 return NO_FIELDS, ∂A
             end
             return Y, $(Symbol("$(func)_pullback"))
@@ -171,16 +167,14 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     cosA = _symhermfwd!(U * Diagonal(cosλ) * U')
     sincosA = (sinA, cosA)
     function sincos_pullback(ΔsincosA)
-        ∂A = Thunk() do
-            ΔsinA, ΔcosA = ΔsincosA
-            ∂sinΛ, ∂cosΛ = U' * _realifydiag(ΔsinA) * U, U' * _realifydiag(ΔcosA) * U
-            inds = eachindex(λ)
-            U′∂AU = @inbounds begin
-                _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
-                _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
-            end
-            return _hermitrizeback!(U * U′∂AU * U', A)
+        ΔsinA, ΔcosA = ΔsincosA
+        ∂sinΛ, ∂cosΛ = U' * _realifydiag(ΔsinA) * U, U' * _realifydiag(ΔcosA) * U
+        inds = eachindex(λ)
+        U′∂AU = @inbounds begin
+            _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
+            _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
         end
+        ∂A = _hermitrizeback!(U * U′∂AU * U', A)
         return NO_FIELDS, ∂A
     end
     return sincosA, sincos_pullback
