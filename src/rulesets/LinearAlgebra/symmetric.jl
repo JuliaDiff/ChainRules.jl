@@ -73,49 +73,6 @@ function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
     end
 end
 
-_pureimag(x) = x - real(x)
-
-function _realifydiag!(A)
-    for i in axes(A, 1)
-        @inbounds A[i, i] = real(A[i, i])
-    end
-    return A
-end
-_realifydiag!(A::AbstractMatrix{<:Real}) = A
-
-_realifydiag(A) = A .- Diagonal(_pureimag.(diag(A)))
-_realifydiag(A::AbstractMatrix{<:Real}) = A
-
-_symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
-_symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
-
-function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
-    _realifydiag!(A)
-    return typeof(S)(A, S.uplo)
-end
-
-function _symhermfwd!(A, uplo = :U)
-    _realifydiag!(A)
-    return _symherm(A, uplo)
-end
-
-# pullback of hermitrization
-function _hermitrizeback!(∂A, A)
-    @inbounds for i in axes(∂A, 1)
-        for j in 1:(i - 1)
-            if A.uplo === 'U'
-                ∂A[j, i] = (∂A[j, i] + ∂A[i, j]') / 2
-            else
-                ∂A[i, j] = (∂A[i, j] + ∂A[j, i]') / 2
-            end
-        end
-        if eltype(∂A) <: Complex
-            ∂A[i, i] = real(∂A[i, i])
-        end
-    end
-    return typeof(A)(∂A, A.uplo)
-end
-
 #####
 ##### `Symmetric{<:Real}`/`Hermitian` power series functions
 #####
@@ -253,3 +210,46 @@ end
 _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
+
+_pureimag(x) = x - real(x)
+
+function _realifydiag!(A)
+    for i in axes(A, 1)
+        @inbounds A[i, i] = real(A[i, i])
+    end
+    return A
+end
+_realifydiag!(A::AbstractMatrix{<:Real}) = A
+
+_realifydiag(A) = A .- Diagonal(_pureimag.(diag(A)))
+_realifydiag(A::AbstractMatrix{<:Real}) = A
+
+_symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
+_symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
+
+function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
+    _realifydiag!(A)
+    return typeof(S)(A, S.uplo)
+end
+
+function _symhermfwd!(A, uplo = :U)
+    _realifydiag!(A)
+    return _symherm(A, uplo)
+end
+
+# pullback of hermitrization
+function _hermitrizeback!(∂A, A)
+    @inbounds for i in axes(∂A, 1)
+        for j in 1:(i - 1)
+            if A.uplo === 'U'
+                ∂A[j, i] = (∂A[j, i] + ∂A[i, j]') / 2
+            else
+                ∂A[i, j] = (∂A[i, j] + ∂A[j, i]') / 2
+            end
+        end
+        if eltype(∂A) <: Complex
+            ∂A[i, i] = real(∂A[i, i])
+        end
+    end
+    return typeof(A)(∂A, A.uplo)
+end
