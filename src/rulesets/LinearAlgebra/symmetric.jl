@@ -114,7 +114,7 @@ end
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            Y, λ, U, fλ, df_dλ = _matfun_symherm($func, A)
+            Y, λ, U, fλ, df_dλ = _matfun_shared($func, A)
             ∂Λ = U' * ΔA * U
             U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
             ∂Y = _symhermlike!(U * U′∂YU * U', Y)
@@ -122,7 +122,7 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
         end
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            Y, λ, U, fλ, df_dλ = _matfun_symherm($func, A)
+            Y, λ, U, fλ, df_dλ = _matfun_shared($func, A)
             function $(Symbol("$(func)_pullback"))(ΔY)
                 ∂fΛ = U' * _realifydiag(ΔY) * U
                 U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
