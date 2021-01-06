@@ -12,7 +12,6 @@ end
 @non_differentiable Random.randexp(::AbstractRNG)
 @non_differentiable Random.randstring(::AbstractRNG)
 
-@non_differentiable rand()
 @non_differentiable rand(::AbstractRNG)
 @non_differentiable rand(::AbstractRNG, ::Random.Sampler)
 @non_differentiable rand(::AbstractRNG, ::Integer...)
