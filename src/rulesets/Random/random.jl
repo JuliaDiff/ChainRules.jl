@@ -35,18 +35,11 @@ end
 @non_differentiable randexp!(::AbstractArray)
 @non_differentiable randexp!(::AbstractRNG, ::AbstractArray)
 
-@non_differentiable randn()
-@non_differentiable randn(::Any)
-@non_differentiable randn(::Any, ::Any)
-@non_differentiable randn(::Any, ::Any, ::Any)
-@non_differentiable randn(::Any, ::Any, ::Any, ::Any)
-@non_differentiable randn(::Any, ::Any, ::Any, ::Any, ::Any)
+@non_differentiable randn(::Any...)
 
 @non_differentiable randn!(::AbstractArray)
 @non_differentiable randn!(::AbstractRNG, ::AbstractArray)
 
-
-@non_differentiable randn(::AbstractRNG)
 @non_differentiable copy(::AbstractRNG)
 @non_differentiable copy!(::AbstractRNG, ::AbstractRNG)
 
