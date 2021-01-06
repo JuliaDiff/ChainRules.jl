@@ -26,11 +26,7 @@ end
 @non_differentiable rand!(::Any, ::Any)
 @non_differentiable rand!(::Any, ::Any, ::Any)
 
-@non_differentiable randexp(::Any)
-@non_differentiable randexp(::Any, ::Any)
-@non_differentiable randexp(::Any, ::Any, ::Any)
-@non_differentiable randexp(::Any, ::Any, ::Any, ::Any)
-@non_differentiable randexp(::Any, ::Any, ::Any, ::Any, ::Any)
+@non_differentiable randexp(::Any...)
 
 @non_differentiable randexp!(::AbstractArray)
 @non_differentiable randexp!(::AbstractRNG, ::AbstractArray)
