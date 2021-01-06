@@ -80,35 +80,6 @@ end
 # Currently only defined for series functions whose codomain is ℝ
 # These are type-stable and closed under `func`
 
-# The efficient way to do this is probably to AD Base.power_by_squaring
-function frule((_, ΔA, _), ::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
-    λ, U = eigen(A)
-    λᵖ = λ .^ p
-    Y = U * Diagonal(λᵖ) * U'
-    _realifydiag!(Y)
-    Y = _symhermtype(A)(Y, :U)
-    dλᵖ_dλ = p .* λ .^ (p - 1)
-    ∂Λ = U' * ΔA * U
-    U′∂YU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λ)
-    ∂Y = _symhermlike!(U * U′∂YU * U', Y)
-    return Y, ∂Y
-end
-
-function rrule(::typeof(^), A::LinearAlgebra.RealHermSymComplexHerm, p::Integer)
-    λ, U = eigen(A)
-    λᵖ = λ .^ p
-    Y = U * Diagonal(λᵖ) * U'
-    _realifydiag!(Y)
-    Y = _symhermtype(A)(Y, :U)
-    function pow_pullback(ΔY)
-        dλᵖ_dλ = p .* λ .^ (p - 1)
-        ∂Λᵖ = U' * _realifydiag(ΔY) * U
-        U′∂AU = _muldiffquotmat(λ, λᵖ, dλᵖ_dλ, ∂Λᵖ)
-        ∂A = _hermitrizeback!(U * U′∂AU * U', A)
-        return NO_FIELDS, ∂A, DoesNotExist()
-    end
-    return Y, pow_pullback
-end
 
 # TODO: support log, sqrt, acos, asin, and non-int pow, which are type-unstable
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
