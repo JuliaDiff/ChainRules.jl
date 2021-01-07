@@ -90,7 +90,7 @@ end
             # NOTE: eigen!/eigen are not type-stable, so neither are their frule/rrule
 
             # avoid implementing to_vec(::Eigen)
-            f(E::Eigen) = (values=E.values, vectors=E.vectors)
+            asnt(E::Eigen) = (values=E.values, vectors=E.vectors)
 
             # NOTE: for unstructured matrices, low enough n, and this specific seed, finite
             # differences of eigen seems to be stable enough for direct comparison.
@@ -105,7 +105,7 @@ end
                 F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
                 @test F_fwd == F
                 @test Ḟ_ad isa Composite{typeof(F)}
-                Ḟ_fd = jvp(_fdm, f ∘ eigen! ∘ copy, (X, Ẋ))
+                Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
                 @test Ḟ_ad.values ≈ Ḟ_fd.values
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
                 @test frule((Zero(), Zero()), eigen!, copy(X)) == (F, Zero())
@@ -136,7 +136,7 @@ end
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @inferred back(F̄)
                 @test s̄elf === NO_FIELDS
-                X̄_fd = j′vp(_fdm, f ∘ eigen, F̄, X)[1]
+                X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
                 @test X̄_ad ≈ X̄_fd
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
                 F̄zero = CT(values = Zero(), vectors = Zero())
@@ -175,6 +175,72 @@ end
                 V̄proj2 = ChainRules._eigen_norm_phase_rev!(copy(V̄proj), X, F.vectors)
                 @test V̄proj2 ≈ V̄proj
             end
+
+            # below tests adapted from /test/rulesets/LinearAlgebra/symmetric.jl
+            @testset "hermitian matrices" begin
+                function _eigvecs_stabilize_mat(vectors)
+                    Ui = @view(vectors[end, :])
+                    return Diagonal(conj.(sign.(Ui)))
+                end
+
+                function _eigen_stable(A)
+                    F = eigen(A)
+                    rmul!(F.vectors, _eigvecs_stabilize_mat(F.vectors))
+                    return F
+                end
+
+                n = 10
+                @testset "eigen!(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+
+                    F = eigen!(copy(A))
+                    @test frule((Zero(), Zero()), eigen!, copy(A)) == (F, Zero())
+                    F_ad, ∂F_ad = frule((Zero(), copy(ΔA)), eigen!, copy(A))
+                    @test F_ad == F
+                    @test ∂F_ad isa Composite{typeof(F)}
+                    @test ∂F_ad.values isa typeof(F.values)
+                    @test ∂F_ad.vectors isa typeof(F.vectors)
+
+                    f = x -> asnt(eigen(Matrix(Hermitian(x))))
+                    ∂F_fd = jvp(_fdm, f, (A, ΔA))
+                    @test ∂F_ad.values ≈ ∂F_fd.values
+
+                    f_stable = x -> asnt(_eigen_stable(Matrix(Hermitian(x))))
+                    F_stable = f_stable(A)
+                    ∂F_stable_fd = jvp(_fdm, f_stable, (A, ΔA))
+                    C = _eigvecs_stabilize_mat(F.vectors)
+                    @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
+                end
+
+                @testset "eigen(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
+
+                    F = eigen(A)
+                    ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
+                    F_ad, back = rrule(eigen, A)
+                    @test F_ad == F
+
+                    C = _eigvecs_stabilize_mat(F.vectors)
+                    CT = Composite{typeof(F)}
+
+                    @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
+                        ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
+                        ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
+                        :vectors in nzprops && rmul!(∂F_stable.vectors, C)
+
+                        f_stable = function(x)
+                            F_ = _eigen_stable(Matrix(Hermitian(x)))
+                            return (; (s => getproperty(F_, s) for s in nzprops)...)
+                        end
+
+                        ∂self, ∂A = @inferred back(∂F)
+                        @test ∂self === NO_FIELDS
+                        @test ∂A isa typeof(A)
+                        ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
+                        @test ∂A ≈ ∂A_fd
+                    end
+                end
+            end
         end
 
         @testset "eigvals/eigvals!" begin
@@ -212,6 +278,31 @@ end
                     λ̄ = rand_tangent(λ)
                     X̄ = rrule(eigvals, X)[2](λ̄)[2]
                     @test eltype(X̄) <: Real
+                end
+            end
+
+            # below tests adapted from /test/rulesets/LinearAlgebra/symmetric.jl
+            @testset "hermitian matrices" begin
+                n = 10
+                @testset "eigvals!(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    λ = eigvals!(copy(A))
+                    λ_ad, ∂λ_ad = frule((Zero(), copy(ΔA)), eigvals!, copy(A))
+                    @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
+                    @test ∂λ_ad isa typeof(λ)
+                    @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(Matrix(Hermitian(A))), (A, ΔA))
+                end
+
+                @testset "eigvals(::Matrix{$T})" for T in (Float64, ComplexF64)
+                    A, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(n)
+                    λ = eigvals(A)
+                    λ_ad, back = rrule(eigvals, A)
+                    @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
+                    ∂self, ∂A = @inferred back(Δλ)
+                    @test ∂self === NO_FIELDS
+                    @test ∂A isa typeof(A)
+                    @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
                 end
             end
         end
