@@ -76,8 +76,16 @@ end
 # - support degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
+    if ishermitian(A)
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        return if sortby === nothing
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
+        else
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
+        end
+    end
     F = eigen!(A; kwargs...)
-    ΔA isa AbstractZero && return F, ΔA
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
     ∂K = tmp * V
@@ -96,8 +104,14 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
     function eigen_pullback(ΔF::Composite{<:Eigen})
         λ, V = F.values, F.vectors
         Δλ, ΔV = ΔF.values, ΔF.vectors
-        if ΔV isa AbstractZero
-            Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+        ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+        if eltype(λ) <: Real && ishermitian(A)
+            hermA = Hermitian(A)
+            ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
+            ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
+            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, hermA.uplo)
+            ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
+        elseif ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
             ∂A = V' \ ∂K * V'
         else
@@ -173,29 +187,45 @@ end
 
 function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
-    F = eigen!(A; kwargs...)
-    λ, V = F.values, F.vectors
-    tmp = V \ ΔA
-    ∂λ = similar(λ)
-    # diag(tmp * V) without computing full matrix product
-    if eltype(∂λ) <: Real
-        broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+    if ishermitian(A)
+        λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        _sorteig!_fwd(∂λ, λ, sortby)
     else
-        broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        F = eigen!(A; kwargs...)
+        λ, V = F.values, F.vectors
+        tmp = V \ ΔA
+        ∂λ = similar(λ)
+        # diag(tmp * V) without computing full matrix product
+        if eltype(∂λ) <: Real
+            broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        else
+            broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        end
     end
     return λ, ∂λ
 end
 
 function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    F = eigen(A; kwargs...)
+    F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        V = F.vectors
-        ∂A = V' \ Diagonal(Δλ) * V'
-        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+        ∂F = Composite{typeof(F)}(values = Δλ)
+        _, ∂A = eigen_back(∂F)
+        return NO_FIELDS, ∂A
     end
-    eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
+end
+
+# adapted from LinearAlgebra.sorteig!
+function _sorteig!_fwd(Δλ, λ, sortby)
+    Δλ isa AbstractZero && return (sort!(λ; by=sortby), Δλ)
+    if sortby !== nothing
+        p = sortperm(λ; alg=QuickSort, by=sortby)
+        permute!(λ, p)
+        permute!(Δλ, p)
+    end
+    return (λ, Δλ)
 end
 
 #####
