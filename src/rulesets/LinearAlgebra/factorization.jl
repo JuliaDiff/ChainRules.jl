@@ -101,7 +101,7 @@ end
 
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite{<:Eigen})
+    function eigen_pullback(ΔF::Composite)
         λ, V = F.values, F.vectors
         Δλ, ΔV = ΔF.values, ΔF.vectors
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)

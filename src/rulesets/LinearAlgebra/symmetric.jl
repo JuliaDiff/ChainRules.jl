@@ -115,7 +115,7 @@ function rrule(
     kwargs...,
 )
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite{<:Eigen})
+    function eigen_pullback(ΔF::Composite)
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
@@ -227,7 +227,7 @@ end
 # is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
-    function svd_pullback(ΔF::Composite{<:SVD})
+    function svd_pullback(ΔF::Composite)
         U, V = F.U, F.V
         c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
