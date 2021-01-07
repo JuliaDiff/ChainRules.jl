@@ -65,7 +65,7 @@
             end
 
             n = 10
-            @testset "eigen!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            @testset "frule for eigen!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -92,7 +92,7 @@
                 @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
             end
 
-            @testset "eigen(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            @testset "rrule for eigen(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -162,7 +162,7 @@
 
         @testset "eigvals!/eigvals" begin
             n = 10
-            @testset "eigvals!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            @testset "frule for eigvals!(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -177,7 +177,7 @@
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
             end
 
-            @testset "eigvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+            @testset "rrule for eigvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
                 T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
                 uplo in (:L, :U)
 
@@ -214,7 +214,7 @@
         end
 
         n = 10
-        VERSION ≥ v"1.3.0" && @testset "svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+        VERSION ≥ v"1.3.0" && @testset "rrule for svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
             T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
             uplo in (:L, :U)
 
@@ -230,6 +230,7 @@
 
             C = _eigvecs_stabilize_mat(F.U, uplo)
 
+            # pull back different combination of non-Zero cotangents
             @testset for nzprops in ([:U], [:S], [:V], [:Vt], [:U, :S, :V, :Vt])
                 ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
                 ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
@@ -256,7 +257,7 @@
             @test @inferred(back(CT())) == (NO_FIELDS, Zero())
         end
 
-        @testset "svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+        @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
             T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
             uplo in (:L, :U)
 
