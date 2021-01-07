@@ -130,6 +130,10 @@
                 @test @inferred(back(CT())) == (NO_FIELDS, Zero())
             end
 
+            # when value used to determine phase convention is low, the usual derivatives
+            # become unstable, causing the rules to compose poorly in a program.
+            # this test set checks that the rules compose correctly for the function
+            # f(A) = I, using eigenvectors, where all sensitivities should cancel
             @testset "phase convention from low value" begin
                 @testset for min_val in [0, eps(), sqrt(eps()), cbrt(eps()), eps()^(1//4)],
                     uplo in (:U, :L)
