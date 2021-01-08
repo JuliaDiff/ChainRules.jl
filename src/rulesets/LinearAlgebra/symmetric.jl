@@ -394,30 +394,16 @@ _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
 
-_pureimag(x) = x - real(x)
-
 function _realifydiag!(A)
     for i in axes(A, 1)
         @inbounds A[i, i] = real(A[i, i])
     end
     return A
 end
-_realifydiag!(A::AbstractMatrix{<:Real}) = A
-
-_realifydiag(A) = A .- Diagonal(_pureimag.(diag(A)))
-_realifydiag(A::AbstractMatrix{<:Real}) = A
-
-_symherm(A::AbstractMatrix{<:Real}, uplo = :U) = Symmetric(A, uplo)
-_symherm(A::AbstractMatrix{<:Complex}, uplo = :U) = Hermitian(A, uplo)
 
 function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
     _realifydiag!(A)
     return typeof(S)(A, S.uplo)
-end
-
-function _symhermfwd!(A, uplo = :U)
-    _realifydiag!(A)
-    return _symherm(A, uplo)
 end
 
 # in-place hermitrize matrix
