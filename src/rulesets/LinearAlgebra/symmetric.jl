@@ -298,7 +298,7 @@ end
 # rules for `eigen`.
 
 # TODO: support log, sqrt, acos, and asin, which are type-unstable
-for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
+for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             ΔA isa AbstractZero && return $func(A), ΔA
