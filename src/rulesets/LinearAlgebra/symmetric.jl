@@ -301,19 +301,17 @@ end
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            Y, (λ, U, fλ, df_dλ) = _matfun($func, A)
-            ∂Λ = U' * ΔA * U
-            U′∂YU = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ)
-            ∂Y = _symhermlike!(U * U′∂YU * U', Y)
+            Y, cache = _matfun($func, A)
+            Ȳ = _matfun_frechet($func, A, Y, ΔA, cache)
+            ∂Y = _symhermlike!(Ȳ, Y)
             return Y, ∂Y
         end
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            Y, (λ, U, fλ, df_dλ) = _matfun($func, A)
+            Y, cache = _matfun($func, A)
             function $(Symbol("$(func)_pullback"))(ΔY)
-                ∂fΛ = U' * _realifydiag(ΔY) * U
-                U′∂AU = _muldiffquotmat(λ, fλ, df_dλ, ∂fΛ)
-                ∂A = _hermitrizeback!(U * U′∂AU * U', A)
+                Ā = _matfun_frechet($func, A, Y, ΔY', cache)
+                ∂A = _hermitrizeback!(Ā, A)
                 return NO_FIELDS, ∂A
             end
             return Y, $(Symbol("$(func)_pullback"))
@@ -342,6 +340,13 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     end
     cache = (λ, U, fλ, df_dλ)
     return Y, cache
+end
+
+# Fréchet derivative of matrix function f
+function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
+    ∂Λ = U' * ΔA * U
+    ∂fΛ = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ) # P .* ∂Λ
+    return U * ∂fΛ * U'
 end
 
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
