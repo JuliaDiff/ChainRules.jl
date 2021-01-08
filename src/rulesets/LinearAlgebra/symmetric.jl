@@ -314,12 +314,13 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
             $(Symbol("$(func)_pullback"))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
             function $(Symbol("$(func)_pullback"))(ΔY)
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
-                # effect is the same as applying _hermitrizeback! at the end
+                # effect is the same as applying _hermitrize! at the end
                 ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
                 # for matrix functions, the pullback is related to the pushforward by an adjoint
                 Ā = _matfun_frechet($func, A, Y, ∂Y', cache)
                 # the cotangent of Hermitian A should be Hermitian
-                ∂A = _hermitrizeback!(eltype(A) <: Real ? real(Ā) : Ā, A)
+                ∂A = typeof(A)(eltype(A) <: Real ? real(Ā) : Ā, A.uplo)
+                _hermitrize!(∂A.data)
                 return NO_FIELDS, ∂A
             end
             return Y, $(Symbol("$(func)_pullback"))
@@ -360,7 +361,8 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             _diffquot.(sin, λ, λ', sinλ, sinλ', cosλ, cosλ') .* ∂sinΛ .+
             _diffquot.(cos, λ, λ', cosλ, cosλ', nsinλ, nsinλ') .* ∂cosΛ
         )
-        ∂A = _hermitrizeback!(U * ∂Λ * U', A)
+        ∂A = typeof(A)(U * ∂Λ * U', A.uplo)
+        _hermitrize!(∂A.data)
         return NO_FIELDS, ∂A
     end
     return Y, sincos_pullback
@@ -452,21 +454,4 @@ function _hermitrize!(A)
         A[i, i] = real(A[i, i])
     end
     return A
-end
-
-# pullback of hermitrization
-function _hermitrizeback!(∂A, A)
-    @inbounds for i in axes(∂A, 1)
-        for j in 1:(i - 1)
-            if A.uplo === 'U'
-                ∂A[j, i] = (∂A[j, i] + ∂A[i, j]') / 2
-            else
-                ∂A[i, j] = (∂A[i, j] + ∂A[j, i]') / 2
-            end
-        end
-        if eltype(∂A) <: Complex
-            ∂A[i, i] = real(∂A[i, i])
-        end
-    end
-    return typeof(A)(∂A, A.uplo)
 end
