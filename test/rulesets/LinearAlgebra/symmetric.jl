@@ -440,9 +440,8 @@
                 end
             end
         end
-        @testset "sincos(::$TA{<:$T})" for f in
-            (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
-            TA in (Symmetric, Hermitian),
+
+        @testset "sincos(::$TA{<:$T})" for TA in (Symmetric, Hermitian),
             T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
 
             n = 10
