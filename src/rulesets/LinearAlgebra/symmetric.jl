@@ -409,7 +409,7 @@ function _diffquot(f, λi, λj, fλi, fλj, ∂fλi, ∂fλj)
     # and approximating f''(λᵢ) with forward difference (f'(λᵢ + Δλ) - f'(λᵢ)) / Δλ
     # so (f(λᵢ + Δλ) - f(λᵢ)) / Δλ = (f'(λᵢ + Δλ) + f'(λᵢ)) / 2 + O(Δλ^2)
     # total error on the order of f(λᵢ) * eps()^(2/3)
-    abs(Δλ) < cbrt(eps(real(T))) && return T((∂fλj + ∂fλi) / Δλ)
+    abs(Δλ) < cbrt(eps(real(T))) && return T((∂fλj + ∂fλi) / 2)
     Δfλ = fλj - fλi
     return T(Δfλ / Δλ)
 end
