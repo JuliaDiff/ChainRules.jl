@@ -289,35 +289,60 @@
     #   - degenerate matrices
     #   - singular matrices
     @testset "Symmetric/Hermitian matrix functions" begin
-        @testset "$(f)(::$T{<:Real})" for f in (
-                exp, cos, sin, tan, cosh, sinh, tanh, atan, asinh
-            ), T in (Symmetric, Hermitian)
+        @testset "$(f)(::$TA{<:$T})" for f in
+            (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
+            TA in (Symmetric, Hermitian),
+            T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
+
             n = 5
             @testset "frule" begin
                 @testset for uplo in (:L, :U)
-                    A, ΔA = T(randn(n, n), uplo), T(randn(n, n), uplo)
+                    A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    Y_ad, ∂Y_ad = frule((Zero(), ΔA), f, A)
+                    if typeof(Y) === typeof(A) # type-stable
+                        Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
+                    else
+                        TY = T∂Y = if T <: Real
+                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                        else
+                            Union{Matrix{T},Hermitian{T}}
+                        end
+                        Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((Zero(), ΔA), f, A)
+                    end
                     @test Y_ad == Y
-                    ∂Y_ad = unthunk(∂Y_ad)
                     @test ∂Y_ad isa typeof(Y)
-                    @test ∂Y_ad.uplo == Y.uplo
-                    @test ∂Y_ad.data ≈ jvp(_fdm, x -> f(T(x, uplo)).data, (A.data, ΔA.data))
+                    hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
+                    @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
                 end
             end
 
             @testset "rrule" begin
                 @testset for uplo in (:L, :U)
-                    A, ΔY = T(randn(n, n), uplo), T(randn(n, n), uplo)
+                    A = TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    Y_ad, back = rrule(f, A)
+                    ΔY = if Y isa Matrix
+                        randn(eltype(Y), n, n)
+                    else
+                        typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
+                    end
+                    if typeof(Y) === typeof(A) # type-stable
+                        Y_ad, back = @inferred rrule(f, A)
+                    else
+                        TY = if T <: Real
+                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                        else
+                            Union{Matrix{T},Hermitian{T}}
+                        end
+                        Y_ad, back = @inferred Tuple{TY,Any} rrule(f, A)
+                    end
+                    ∂self, ∂A = @inferred back(ΔY)
                     @test Y_ad == Y
-                    ∂self, ∂A = back(ΔY)
                     @test ∂self === NO_FIELDS
-                    ∂A = unthunk(∂A)
                     @test ∂A isa typeof(A)
                     @test ∂A.uplo == A.uplo
-                    @test ∂A.data ≈ only(j′vp(_fdm, A -> f(T(A, uplo)).data, ΔY, A.data))
+                    # check pullback composes correctly
+                    ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
+                    @test ∂data ≈ only(j′vp(_fdm, A -> parent(f(TA(A, uplo))), ΔY, A.data))
                 end
             end
         end
