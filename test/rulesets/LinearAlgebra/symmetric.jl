@@ -452,14 +452,19 @@
                     sinA, cosA = Y
                     Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), sincos, A)
                     @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    @test Y_ad[1].uplo === Y[1].uplo
+                    @test Y_ad[2].uplo === Y[2].uplo
+
                     @test ∂Y_ad isa Composite{typeof(Y)}
-                    ∂sinA, ∂cosA = ∂Y_ad
-                    @test typeof(∂sinA) === typeof(sinA)
-                    @test ∂sinA.uplo == sinA.uplo
-                    @test typeof(∂cosA) === typeof(cosA)
-                    @test ∂cosA.uplo == cosA.uplo
-                    @test ∂sinA.data ≈ jvp(_fdm, x -> sin(TA(x, uplo)).data, (A.data, ΔA.data))
-                    @test ∂cosA.data ≈ jvp(_fdm, x -> cos(TA(x, uplo)).data, (A.data, ΔA.data))
+                    ∂Y_ad2 = Composite{typeof(Y)}(
+                        frule((Zero(), ΔA), sin, A)[2],
+                        frule((Zero(), ΔA), cos, A)[2],
+                    )
+                    # not exact because evaluated in a more efficient way
+                    @test ∂Y_ad ≈ ∂Y_ad2
+
+                    @test @inferred(frule((Zero(), Zero()), sincos, A)) == (Y, Zero())
                 end
             end
 
@@ -470,23 +475,27 @@
                     sinA, cosA = Y
                     ΔsinA = typeof(sinA)(randn(T, n, n), sinA.uplo)
                     ΔcosA = typeof(cosA)(randn(T, n, n), cosA.uplo)
-                    ΔY = Composite{typeof(Y)}(ΔsinA, ΔcosA)
                     Y_ad, back = @inferred rrule(sincos, A)
                     @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    @test Y_ad[1].uplo === Y[1].uplo
+                    @test Y_ad[2].uplo === Y[2].uplo
+
+                    ΔY = Composite{typeof(Y)}(ΔsinA, ΔcosA)
                     ∂self, ∂A = @inferred back(ΔY)
                     @test ∂self === NO_FIELDS
-                    @test ∂A isa typeof(A)
-                    @test ∂A.uplo == A.uplo
-                    # check pullback composes correctly
-                    ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
-                    @test ∂data ≈ j′vp(_fdm, A -> sincos(TA(A, uplo)), ΔY, A.data)[1]
+                    @test ∂A ≈ rrule(sin, A)[2](ΔsinA)[2] + rrule(cos, A)[2](ΔcosA)[2]
 
                     ΔY2 = Composite{typeof(Y)}(Zero(), Zero())
-                    @test back(ΔY2) === (NO_FIELDS, Zero())
+                    @test @inferred(back(ΔY2)) === (NO_FIELDS, Zero())
+
+                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+
                     ΔY3 = Composite{typeof(Y)}(ΔsinA, Zero())
-                    @test back(ΔY3) == rrule(sin, A)[2](ΔsinA)
+                    @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
+
                     ΔY4 = Composite{typeof(Y)}(Zero(), ΔcosA)
-                    @test back(ΔY4) == rrule(cos, A)[2](ΔcosA)
+                    @test @inferred(back(ΔY4)) == rrule(cos, A)[2](ΔcosA)
                 end
             end
         end
