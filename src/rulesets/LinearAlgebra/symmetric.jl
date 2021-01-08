@@ -304,7 +304,12 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             ΔA isa AbstractZero && return $func(A), ΔA
             Y, cache = _matfun($func, A)
             Ȳ = _matfun_frechet($func, A, Y, ΔA, cache)
-            ∂Y = _symhermlike!(Ȳ, Y)
+            # If ΔA was hermitian, then ∂Y has the same structure as Y
+            ∂Y = if ishermitian(ΔA) && (isa(Y, Symmetric) || isa(Y, Hermitian))
+                _symhermlike!(Ȳ, Y)
+            else
+                Ȳ
+            end
             return Y, ∂Y
         end
 
@@ -312,8 +317,13 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
             Y, cache = _matfun($func, A)
             $(Symbol("$(func)_pullback"))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
             function $(Symbol("$(func)_pullback"))(ΔY)
-                Ā = _matfun_frechet($func, A, Y, ΔY', cache)
-                ∂A = _hermitrizeback!(Ā, A)
+                # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
+                # effect is the same as applying _hermitrizeback! at the end
+                ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
+                # for matrix functions, the pullback is related to the pushforward by an adjoint
+                Ā = _matfun_frechet($func, A, Y, ∂Y', cache)
+                # the cotangent of Hermitian A should be Hermitian
+                ∂A = _hermitrizeback!(eltype(A) <: Real ? real(Ā) : Ā, A)
                 return NO_FIELDS, ∂A
             end
             return Y, $(Symbol("$(func)_pullback"))
