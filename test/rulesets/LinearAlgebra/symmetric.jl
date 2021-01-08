@@ -284,10 +284,6 @@
         end
     end
 
-    # TODO: add tests for
-    #   - atanh
-    #   - degenerate matrices
-    #   - singular matrices
     @testset "Symmetric/Hermitian matrix functions" begin
         # generate random matrices of type TA in the domain of f
         function rand_matfun_input(f, TA, T, uplo, n, hermout)

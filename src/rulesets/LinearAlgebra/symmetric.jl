@@ -283,9 +283,6 @@ end
 ##### `Symmetric{<:Real}`/`Hermitian` matrix functions
 #####
 
-# Rules currently only defined for functions f: ℝ → ℝ
-# These are type-stable and produce Hermitian outputs.
-
 # Formula comes from so-called Daleckiĭ-Kreĭn theorem originally due to
 # Ju. L. Daleckiĭ and S. G. Kreĭn. Integration and differentiation of functions of Hermitian
 # operators and applications to the theory of perturbations.
@@ -297,7 +294,6 @@ end
 # These rules are more stable for degenerate matrices than applying the chain rule to the
 # rules for `eigen`.
 
-# TODO: support log, sqrt, acos, and asin, which are type-unstable
 for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
