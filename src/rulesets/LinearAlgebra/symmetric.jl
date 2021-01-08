@@ -322,41 +322,6 @@ function _matfun_shared(f, A::LinearAlgebra.RealHermSymComplexHerm)
     return Y, λ, U, fλ, df_dλ
 end
 
-function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
-    λ, U = eigen(A)
-    sinλ, cosλ = sin.(λ), cos.(λ)
-    sinA = _symhermfwd!(U * Diagonal(sinλ) * U')
-    cosA = _symhermfwd!(U * Diagonal(cosλ) * U')
-    sincosA = (sinA, cosA)
-    ∂Λ = U' * ΔA * U
-    U′∂sinAU = _muldiffquotmat(λ, sinλ, cosλ, ∂Λ)
-    ∂sinA = _symhermlike!(U * U′∂sinAU * U', sinA)
-    U′∂cosAU = _muldiffquotmat(λ, cosλ, -sinλ, ∂Λ)
-    ∂cosA = _symhermlike!(U * U′∂cosAU * U', cosA)
-    ∂sincosA = Composite{typeof(sincosA)}(∂sinA, ∂cosA)
-    return sincosA, ∂sincosA
-end
-
-function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
-    λ, U = eigen(A)
-    sinλ, cosλ = sin.(λ), cos.(λ)
-    sinA = _symhermfwd!(U * Diagonal(sinλ) * U')
-    cosA = _symhermfwd!(U * Diagonal(cosλ) * U')
-    sincosA = (sinA, cosA)
-    function sincos_pullback(ΔsincosA)
-        ΔsinA, ΔcosA = ΔsincosA
-        ∂sinΛ, ∂cosΛ = U' * _realifydiag(ΔsinA) * U, U' * _realifydiag(ΔcosA) * U
-        inds = eachindex(λ)
-        U′∂AU = @inbounds begin
-            _diffquot.(inds, inds', Ref(λ), Ref(sinλ), Ref(cosλ)) .* ∂sinΛ .+
-            _diffquot.(inds, inds', Ref(λ), Ref(cosλ), Ref(-sinλ)) .* ∂cosΛ
-        end
-        ∂A = _hermitrizeback!(U * U′∂AU * U', A)
-        return NO_FIELDS, ∂A
-    end
-    return sincosA, sincos_pullback
-end
-
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
 Base.@propagate_inbounds function _diffquot(i, j, λ, fλ, df_dλ)
     T = typeof(zero(eltype(fλ)) / one(eltype(λ)) + zero(eltype(df_dλ)))
