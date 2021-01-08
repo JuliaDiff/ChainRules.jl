@@ -289,40 +289,6 @@
     #   - degenerate matrices
     #   - singular matrices
     @testset "Symmetric/Hermitian matrix functions" begin
-        @testset "^(::$T{<:Real}, $p::Integer)" for T in (Symmetric, Hermitian), p in -3:3
-            n = 5
-            @testset "frule" begin
-                @testset for uplo in (:L, :U)
-                    A, ΔA = T(randn(n, n), uplo), T(randn(n, n), uplo)
-                    Y = A^p
-                    Y_ad, ∂Y_ad = frule((Zero(), ΔA, Zero()), ^, A, p)
-                    @test Y_ad ≈ Y # inexact because frule uses eigen not Base.power_by_squaring
-                    ∂Y_ad = unthunk(∂Y_ad)
-                    @test ∂Y_ad isa typeof(Y)
-                    @test ∂Y_ad.uplo == Y.uplo
-                    # lower tolerance because ∂A=0 for p=0 and numbers are large for p=±3
-                    @test ∂Y_ad.data ≈ jvp(_fdm, x -> (T(x, uplo)^p).data, (A.data, ΔA.data)) rtol=1e-8 atol=1e-10
-                end
-            end
-
-            @testset "rrule" begin
-                @testset for uplo in (:L, :U)
-                    A, ΔY = T(randn(n, n), uplo), T(randn(n, n), uplo)
-                    Y = A^p
-                    Y_ad, back = rrule(^, A, p)
-                    @test Y_ad ≈ Y # inexact because rrule uses eigen not Base.power_by_squaring
-                    ∂self, ∂A, ∂p = back(ΔY)
-                    @test ∂self === NO_FIELDS
-                    @test ∂p === DoesNotExist()
-                    ∂A = unthunk(∂A)
-                    @test ∂A isa typeof(A)
-                    @test ∂A.uplo == A.uplo
-                    # lower tolerance because ∂A=0 for p=0 and numbers are large for p=±3
-                    @test ∂A.data ≈ only(j′vp(_fdm, A -> (T(A, uplo)^p).data, ΔY, A.data)) rtol=1e-8 atol=1e-10
-                end
-            end
-        end
-
         @testset "$(f)(::$T{<:Real})" for f in (
                 exp, cos, sin, tan, cosh, sinh, tanh, atan, asinh
             ), T in (Symmetric, Hermitian)
