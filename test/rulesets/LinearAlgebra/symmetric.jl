@@ -401,14 +401,14 @@
                     @test ∂A.uplo == A.uplo
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
-                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data))
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data)[1]
 
                     # check works correctly even when cotangent is different type than Y
                     @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
                     ΔY2 = randn(Complex{real(T)}, n, n)
                     _, ∂A2 = back(ΔY2)
                     ∂data2 = rrule(Hermitian, A.data, uplo)[2](∂A2)[2]
-                    @test ∂data2 ≈ only(j′vp(_fdm, x -> Matrix{Complex{real(T)}}(f(TA(x, uplo))), ΔY2, A.data))
+                    @test ∂data2 ≈ j′vp(_fdm, x -> Matrix{Complex{real(T)}}(f(TA(x, uplo))), ΔY2, A.data)[1]
                 end
 
                 @testset "stable for (almost-)singular input" begin
@@ -419,14 +419,14 @@
                     ΔY = TA(randn(T, n, n))
                     ∂A = rrule(f, A)[2](ΔY)[2]
                     ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
-                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data))
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data)[1]
 
                     λ[1:m] .= λ[m+1:2m]
                     A2 = TA(U * Diagonal(λ) * U')
                     ΔY2 = TA(randn(T, n, n))
                     ∂A2 = rrule(f, A2)[2](ΔY2)[2]
                     ∂data2 = rrule(Hermitian, A2.data, :U)[2](∂A2)[2]
-                    @test ∂data2 ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY2, A2.data))
+                    @test ∂data2 ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY2, A2.data)[1]
                 end
 
                 f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
@@ -436,7 +436,7 @@
                     ΔY = TA(randn(T, n, n))
                     ∂A = rrule(f, A)[2](ΔY)[2]
                     ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
-                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data))
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data)[1]
                 end
             end
         end
@@ -480,7 +480,7 @@
                     @test ∂A.uplo == A.uplo
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
-                    @test ∂data ≈ only(j′vp(_fdm, A -> sincos(TA(A, uplo)), ΔY, A.data))
+                    @test ∂data ≈ j′vp(_fdm, A -> sincos(TA(A, uplo)), ΔY, A.data)[1]
                 end
             end
         end
