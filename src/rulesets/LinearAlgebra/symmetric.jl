@@ -357,8 +357,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
         end
         tmp = ∂sinA * U
         ∂sinΛ = U' * tmp
-        mul!(tmp, ∂cosA, U)
-        ∂cosΛ = U' * tmp
+        ∂cosΛ = U' * mul!(tmp, ∂cosA, U)
         ∂Λ = _muldiffquotmat!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
         ∂Λ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
         Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
