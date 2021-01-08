@@ -332,11 +332,12 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     ΔA isa AbstractZero && return sincos(A), ΔA
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
-    ∂Λ = U' * ΔA * U
-    ∂sinΛ = _muldiffquotmat(sin, λ, sinλ, cosλ, ∂Λ)
-    ∂sinA = _symhermlike!(U * ∂sinΛ * U', sinA)
-    ∂cosΛ = _muldiffquotmat(cos, λ, cosλ, -sinλ, ∂Λ)
-    ∂cosA = _symhermlike!(U * ∂cosΛ * U', cosA)
+    tmp = ΔA * U
+    ∂Λ = U' * tmp
+    ∂sinΛ = _muldiffquotmat!(similar(∂Λ), sin, λ, sinλ, cosλ, ∂Λ)
+    ∂cosΛ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂Λ)
+    ∂sinA = _symhermlike!(mul!(∂sinΛ, U, mul!(tmp, ∂sinΛ, U')), sinA)
+    ∂cosA = _symhermlike!(mul!(∂cosΛ, U, mul!(tmp, ∂cosΛ, U')), cosA)
     Y = (sinA, cosA)
     ∂Y = Composite{typeof(Y)}(∂sinA, ∂cosA)
     return Y, ∂Y
@@ -354,15 +355,15 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
         else
             ∂sinA, ∂cosA = ΔsinA, ΔcosA
         end
-        ∂sinΛ = U' * ∂sinA * U
-        ∂cosΛ = U' * ∂cosA * U
-        nsinλ = -sinλ
-        ∂Λ = (
-            _diffquot.(sin, λ, λ', sinλ, sinλ', cosλ, cosλ') .* ∂sinΛ .+
-            _diffquot.(cos, λ, λ', cosλ, cosλ', nsinλ, nsinλ') .* ∂cosΛ
-        )
-        ∂A = typeof(A)(U * ∂Λ * U', A.uplo)
-        _hermitrize!(∂A.data)
+        tmp = ∂sinA * U
+        ∂sinΛ = U' * tmp
+        mul!(tmp, ∂cosA, U)
+        ∂cosΛ = U' * tmp
+        ∂Λ = _muldiffquotmat!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
+        ∂Λ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
+        Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
+        _hermitrize!(Ā)
+        ∂A = typeof(A)(Ā, A.uplo)
         return NO_FIELDS, ∂A
     end
     return Y, sincos_pullback
@@ -392,10 +393,19 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
 end
 
 # Fréchet derivative of matrix function f
+# Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
-    ∂Λ = U' * ΔA * U
-    ∂fΛ = _muldiffquotmat(f, λ, fλ, df_dλ, ∂Λ) # P .* ∂Λ
-    return U * ∂fΛ * U'
+    tmp = ΔA * U
+    ∂Λ = U' * tmp
+    ∂fΛ = _muldiffquotmat!(∂Λ, f, λ, fλ, df_dλ, ∂Λ)
+    # reuse intermediate if possible
+    if eltype(tmp) <: Real && eltype(∂fΛ) <: Complex
+        tmp2 = ∂fΛ * U'
+    else
+        tmp2 = mul!(tmp, ∂fΛ, U')
+    end
+    ∂Y = mul!(∂fΛ, U, tmp2)
+    return ∂Y
 end
 
 # difference quotient, i.e. Pᵢⱼ = (f(λⱼ) - f(λᵢ)) / (λⱼ - λᵢ), with f'(λᵢ) when λᵢ=λⱼ
@@ -412,9 +422,16 @@ function _diffquot(f, λi, λj, fλi, fλj, ∂fλi, ∂fλj)
     return T(Δfλ / Δλ)
 end
 
-# multiply Δ by the matrix of difference quotients
-function _muldiffquotmat(f, λ, fλ, ∂fλ, Δ)
-    return _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
+# broadcast multiply Δ by the matrix of difference quotients P, storing the result in PΔ.
+# If β is is nonzero, then @. PΔ = β*PΔ + P*Δ
+# if type of PΔ is incompatible with result, new matrix is allocated
+function _muldiffquotmat!(PΔ, f, λ, fλ, ∂fλ, Δ, β = false)
+    if eltype(PΔ) <: Real && eltype(fλ) <: Complex
+        return β .* PΔ .+ _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
+    else
+        PΔ .= β .* PΔ .+ _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
+        return PΔ
+    end
 end
 
 _isindomain(f, x) = true
