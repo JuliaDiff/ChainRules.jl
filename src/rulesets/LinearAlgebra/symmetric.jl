@@ -420,7 +420,7 @@ function _muldiffquotmat(f, λ, fλ, ∂fλ, Δ)
 end
 
 _isindomain(f, x) = true
-_isindomain(::Union{typeof(acos),typeof(asin),typeof(atanh)}, x::Real) = -1 ≤ x ≤ 1
+_isindomain(::Union{typeof(acos),typeof(asin)}, x::Real) = -1 ≤ x ≤ 1
 _isindomain(::typeof(acosh), x::Real) = x ≥ 1
 _isindomain(::Union{typeof(log),typeof(sqrt)}, x::Real) = x ≥ 0
 
