@@ -481,6 +481,13 @@
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
                     @test ∂data ≈ j′vp(_fdm, A -> sincos(TA(A, uplo)), ΔY, A.data)[1]
+
+                    ΔY2 = Composite{typeof(Y)}(Zero(), Zero())
+                    @test back(ΔY2) === (NO_FIELDS, Zero())
+                    ΔY3 = Composite{typeof(Y)}(ΔsinA, Zero())
+                    @test back(ΔY3) == rrule(sin, A)[2](ΔsinA)
+                    ΔY4 = Composite{typeof(Y)}(Zero(), ΔcosA)
+                    @test back(ΔY4) == rrule(cos, A)[2](ΔcosA)
                 end
             end
         end
