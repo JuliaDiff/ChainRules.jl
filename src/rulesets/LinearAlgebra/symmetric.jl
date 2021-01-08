@@ -280,7 +280,7 @@ function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS
 end
 
 #####
-##### `Symmetric{<:Real}`/`Hermitian` matrix functions
+##### matrix functions
 #####
 
 # Formula comes from so-called Daleckiĭ-Kreĭn theorem originally due to
