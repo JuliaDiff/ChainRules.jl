@@ -335,14 +335,58 @@
                         end
                         Y_ad, back = @inferred Tuple{TY,Any} rrule(f, A)
                     end
-                    ∂self, ∂A = @inferred back(ΔY)
                     @test Y_ad == Y
+                    ∂self, ∂A = @inferred back(ΔY)
                     @test ∂self === NO_FIELDS
                     @test ∂A isa typeof(A)
                     @test ∂A.uplo == A.uplo
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
                     @test ∂data ≈ only(j′vp(_fdm, A -> parent(f(TA(A, uplo))), ΔY, A.data))
+                end
+            end
+        end
+        @testset "sincos(::$TA{<:$T})" for f in
+            (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
+            TA in (Symmetric, Hermitian),
+            T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
+
+            n = 5
+            @testset "frule" begin
+                @testset for uplo in (:L, :U)
+                    A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
+                    Y = sincos(A)
+                    sinA, cosA = Y
+                    Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), sincos, A)
+                    @test Y_ad == Y
+                    @test ∂Y_ad isa Composite{typeof(Y)}
+                    ∂sinA, ∂cosA = ∂Y_ad
+                    @test typeof(∂sinA) === typeof(sinA)
+                    @test ∂sinA.uplo == sinA.uplo
+                    @test typeof(∂cosA) === typeof(cosA)
+                    @test ∂cosA.uplo == cosA.uplo
+                    @test ∂sinA.data ≈ jvp(_fdm, x -> sin(TA(x, uplo)).data, (A.data, ΔA.data))
+                    @test ∂cosA.data ≈ jvp(_fdm, x -> cos(TA(x, uplo)).data, (A.data, ΔA.data))
+                end
+            end
+
+            @testset "rrule" begin
+                @testset for uplo in (:L, :U)
+                    A = TA(randn(T, n, n), uplo)
+                    Y = sincos(A)
+                    sinA, cosA = Y
+                    ΔsinA = typeof(sinA)(randn(T, n, n), sinA.uplo)
+                    ΔcosA = typeof(cosA)(randn(T, n, n), cosA.uplo)
+                    ΔY = Composite{typeof(Y)}(ΔsinA, ΔcosA)
+                    Y_ad, back = @inferred rrule(sincos, A)
+                    @test Y_ad == Y
+                    ∂self, ∂A = @inferred back(ΔY)
+                    @test ∂self === NO_FIELDS
+                    @test ∂A isa typeof(A)
+                    @test ∂A.uplo == A.uplo
+                    # check pullback composes correctly
+                    ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
+                    @test ∂data ≈ only(j′vp(_fdm, A -> sincos(TA(A, uplo)), ΔY, A.data))
                 end
             end
         end

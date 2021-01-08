@@ -331,6 +331,45 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     end
 end
 
+function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    ΔA isa AbstractZero && return sincos(A), ΔA
+    sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
+    cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
+    ∂Λ = U' * ΔA * U
+    ∂sinΛ = _muldiffquotmat(sin, λ, sinλ, cosλ, ∂Λ)
+    ∂sinA = _symhermlike!(U * ∂sinΛ * U', sinA)
+    ∂cosΛ = _muldiffquotmat(cos, λ, cosλ, -sinλ, ∂Λ)
+    ∂cosA = _symhermlike!(U * ∂cosΛ * U', cosA)
+    Y = (sinA, cosA)
+    ∂Y = Composite{typeof(Y)}(∂sinA, ∂cosA)
+    return Y, ∂Y
+end
+
+function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
+    cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
+    Y = (sinA, cosA)
+    sincos_pullback(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
+    function sincos_pullback(ΔY::Composite)
+        ΔsinA, ΔcosA = ΔY
+        if eltype(A) <: Real
+            ∂sinA, ∂cosA = real(ΔsinA), real(ΔcosA)
+        else
+            ∂sinA, ∂cosA = ΔsinA, ΔcosA
+        end
+        ∂sinΛ = U' * ∂sinA * U
+        ∂cosΛ = U' * ∂cosA * U
+        nsinλ = -sinλ
+        ∂Λ = (
+            _diffquot.(sin, λ, λ', sinλ, sinλ', cosλ, cosλ') .* ∂sinΛ .+
+            _diffquot.(cos, λ, λ', cosλ, cosλ', nsinλ, nsinλ') .* ∂cosΛ
+        )
+        ∂A = _hermitrizeback!(U * ∂Λ * U', A)
+        return NO_FIELDS, ∂A
+    end
+    return Y, sincos_pullback
+end
+
 # compute the matrix function f(A), returning also a cache of intermediates for computing
 # the pushforward or pullback.
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
