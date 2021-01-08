@@ -337,7 +337,7 @@
                     end
                     @test Y_ad == Y
                     @test ∂Y_ad isa typeof(Y)
-                    hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
+                    :uplo in propertynames(∂Y_ad) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
 
                     @test frule((Zero(), Zero()), f, A) == (Y, Zero())
