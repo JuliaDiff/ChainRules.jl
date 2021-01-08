@@ -349,6 +349,11 @@ function _muldiffquotmat(λ, fλ, df_dλ, Δ)
     return @inbounds _diffquot.(inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
 end
 
+_isindomain(f, x) = true
+_isindomain(::Union{typeof(acos),typeof(asin),typeof(atanh)}, x::Real) = -1 ≤ x ≤ 1
+_isindomain(::typeof(acosh), x::Real) = x ≥ 1
+_isindomain(::Union{typeof(log),typeof(sqrt)}, x::Real) = x ≥ 0
+
 #####
 ##### utilities
 #####
