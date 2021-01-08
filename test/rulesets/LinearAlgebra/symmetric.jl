@@ -288,7 +288,7 @@
     #   - atanh
     #   - degenerate matrices
     #   - singular matrices
-    @testset "Symmetric/Hermitian power series functions" begin
+    @testset "Symmetric/Hermitian matrix functions" begin
         @testset "^(::$T{<:Real}, $p::Integer)" for T in (Symmetric, Hermitian), p in -3:3
             n = 5
             @testset "frule" begin

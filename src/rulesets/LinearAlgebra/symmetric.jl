@@ -280,7 +280,7 @@ function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS
 end
 
 #####
-##### `Symmetric{<:Real}`/`Hermitian` power series functions
+##### `Symmetric{<:Real}`/`Hermitian` matrix functions
 #####
 
 # Currently only defined for series functions whose codomain is ℝ
