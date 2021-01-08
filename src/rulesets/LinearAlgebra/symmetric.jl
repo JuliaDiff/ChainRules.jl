@@ -283,11 +283,21 @@ end
 ##### `Symmetric{<:Real}`/`Hermitian` matrix functions
 #####
 
-# Currently only defined for series functions whose codomain is ℝ
-# These are type-stable and closed under `func`
+# Rules currently only defined for functions f: ℝ → ℝ
+# These are type-stable and produce Hermitian outputs.
 
+# Formula comes from so-called Daleckiĭ-Kreĭn theorem originally due to
+# Ju. L. Daleckiĭ and S. G. Kreĭn. Integration and differentiation of functions of Hermitian
+# operators and applications to the theory of perturbations.
+# Amer. Math. Soc. Transl., Series 2, 47:1–30, 1965.
+# Stabilization for almost-degenerate matrices due to
+# S. D. Axen, 2020. Representing Ensembles of Molecules.
+# Appendix D: Automatic differentation rules for power series functions of diagonalizable matrices
+# https://escholarship.org/uc/item/6s62d8pw
+# These rules are more stable for degenerate matrices than applying the chain rule to the
+# rules for `eigen`.
 
-# TODO: support log, sqrt, acos, asin, and non-int pow, which are type-unstable
+# TODO: support log, sqrt, acos, and asin, which are type-unstable
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
