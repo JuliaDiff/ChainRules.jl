@@ -301,6 +301,7 @@ end
 for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+            ΔA isa AbstractZero && return $func(A), ΔA
             Y, cache = _matfun($func, A)
             Ȳ = _matfun_frechet($func, A, Y, ΔA, cache)
             ∂Y = _symhermlike!(Ȳ, Y)
@@ -309,6 +310,7 @@ for func in (:exp, :cos, :sin, :tan, :cosh, :sinh, :tanh, :atan, :asinh, :atanh)
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             Y, cache = _matfun($func, A)
+            $(Symbol("$(func)_pullback"))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
             function $(Symbol("$(func)_pullback"))(ΔY)
                 Ā = _matfun_frechet($func, A, Y, ΔY', cache)
                 ∂A = _hermitrizeback!(Ā, A)
