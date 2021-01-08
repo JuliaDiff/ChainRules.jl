@@ -345,25 +345,24 @@ end
 # Fréchet derivative of matrix function f
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
     ∂Λ = U' * ΔA * U
-    ∂fΛ = _muldiffquotmat(λ, fλ, df_dλ, ∂Λ) # P .* ∂Λ
+    ∂fΛ = _muldiffquotmat(f, λ, fλ, df_dλ, ∂Λ) # P .* ∂Λ
     return U * ∂fΛ * U'
 end
 
 # difference quotient, i.e. Pᵢⱼ = (f(λᵢ) - f(λⱼ)) / (λᵢ - λⱼ), with f'(λᵢ) when i==j
-Base.@propagate_inbounds function _diffquot(i, j, λ, fλ, df_dλ)
-    T = typeof(zero(eltype(fλ)) / one(eltype(λ)) + zero(eltype(df_dλ)))
-    i == j && return T(df_dλ[i])
-    Δλ = λ[i] - λ[j]
+function _diffquot(f, λi, λj, fλi, fλj, ∂fλi, ∂fλj)
+    T = Base.promote_typeof(λi, λj, fλi, fλj, ∂fλi, ∂fλj)
+    Δλ = λi - λj
+    iszero(Δλ) && return T(∂fλi)
     # handle round-off error by taylor expanding Δfλ / Δλ as Δλ → 0
     # total error on the order of eps()^(2/3)
-    abs(Δλ) < cbrt(eps(real(T))) && return T((df_dλ[i] + df_dλ[j]) / 2)
-    return T((fλ[i] - fλ[j]) / Δλ)
+    abs(Δλ) < cbrt(eps(real(T))) && return T((∂fλi + ∂fλj) / 2)
+    return T((fλi - fλj) / Δλ)
 end
 
-# multiply Δ by the matrix of difference quotients P
-function _muldiffquotmat(λ, fλ, df_dλ, Δ)
-    inds = eachindex(λ)
-    return @inbounds _diffquot.(inds, inds', Ref(λ), Ref(fλ), Ref(df_dλ)) .* Δ
+# multiply Δ by the matrix of difference quotients
+function _muldiffquotmat(f, λ, fλ, df_dλ, Δ)
+    return _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(df_dλ)) .* Δ
 end
 
 _isindomain(f, x) = true
