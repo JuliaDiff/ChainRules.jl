@@ -401,8 +401,8 @@ function _realifydiag!(A)
     return A
 end
 
-function _symhermlike!(A, S::LinearAlgebra.RealHermSymComplexHerm)
-    _realifydiag!(A)
+function _symhermlike!(A, S::Union{Symmetric,Hermitian})
+    A isa Hermitian{<:Complex} && _realifydiag!(A)
     return typeof(S)(A, S.uplo)
 end
 
