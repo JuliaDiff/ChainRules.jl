@@ -336,6 +336,8 @@
                         Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((Zero(), ΔA), f, A)
                     end
                     @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    :uplo in propertynames(Y) && @test Y_ad.uplo == Y.uplo
                     @test ∂Y_ad isa typeof(Y)
                     :uplo in propertynames(∂Y_ad) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
@@ -395,6 +397,8 @@
                         Y_ad, back = @inferred Tuple{TY,Any} rrule(f, A)
                     end
                     @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    :uplo in propertynames(Y) && @test Y_ad.uplo == Y.uplo
                     ∂self, ∂A = @inferred back(ΔY)
                     @test ∂self === NO_FIELDS
                     @test ∂A isa typeof(A)
