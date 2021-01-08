@@ -344,6 +344,31 @@
                     hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
                 end
+
+                @testset "stable for (almost-)singular input" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    m = div(n, 2)
+                    λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔA = TA(randn(T, n, n))
+                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A.data, ΔA.data))
+
+                    λ[1:m] .= λ[m+1:2m]
+                    A2 = TA(U * Diagonal(λ) * U')
+                    ΔA2 = TA(randn(T, n, n))
+                    _, ∂Y2 = frule((Zero(), ΔA2), f, A2)
+                    @test parent(∂Y2) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A2.data, ΔA2.data))
+                end
+
+                f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    λ[2:n] .= 0
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔA = TA(randn(T, n, n))
+                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A.data, ΔA.data))
+                end
             end
 
             @testset "rrule" begin
@@ -378,7 +403,35 @@
                     @test ∂A.uplo == A.uplo
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
-                    @test ∂data ≈ only(j′vp(_fdm, A -> parent(f(TA(A, uplo))), ΔY, A.data))
+                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data))
+                end
+
+                @testset "stable for (almost-)singular input" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    m = div(n, 2)
+                    λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔY = TA(randn(T, n, n))
+                    ∂A = rrule(f, A)[2](ΔY)[2]
+                    ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
+                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data))
+
+                    λ[1:m] .= λ[m+1:2m]
+                    A2 = TA(U * Diagonal(λ) * U')
+                    ΔY2 = TA(randn(T, n, n))
+                    ∂A2 = rrule(f, A2)[2](ΔY2)[2]
+                    ∂data2 = rrule(Hermitian, A2.data, :U)[2](∂A2)[2]
+                    @test ∂data2 ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY2, A2.data))
+                end
+
+                f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    λ[2:n] .= 0
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔY = TA(randn(T, n, n))
+                    ∂A = rrule(f, A)[2](ΔY)[2]
+                    ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
+                    @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data))
                 end
             end
         end
