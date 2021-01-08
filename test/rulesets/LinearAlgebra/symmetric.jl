@@ -339,6 +339,8 @@
                     @test ∂Y_ad isa typeof(Y)
                     hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
+
+                    @test frule((Zero(), Zero()), f, A) == (Y, Zero())
                 end
 
                 @testset "stable for (almost-)singular input" begin
@@ -400,6 +402,13 @@
                     # check pullback composes correctly
                     ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
                     @test ∂data ≈ only(j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data))
+
+                    # check works correctly even when cotangent is different type than Y
+                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                    ΔY2 = randn(Complex{real(T)}, n, n)
+                    _, ∂A2 = back(ΔY2)
+                    ∂data2 = rrule(Hermitian, A.data, uplo)[2](∂A2)[2]
+                    @test ∂data2 ≈ only(j′vp(_fdm, x -> Matrix{Complex{real(T)}}(f(TA(x, uplo))), ΔY2, A.data))
                 end
 
                 @testset "stable for (almost-)singular input" begin
