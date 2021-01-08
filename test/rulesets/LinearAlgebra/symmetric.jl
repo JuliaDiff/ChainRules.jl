@@ -289,17 +289,47 @@
     #   - degenerate matrices
     #   - singular matrices
     @testset "Symmetric/Hermitian matrix functions" begin
+        # generate random matrices of type TA in the domain of f
+        function rand_matfun_input(f, TA, T, uplo, n, hermout)
+            U = Matrix(qr(randn(T, n, n)).Q)
+            if hermout # f(A) will also be a TA
+                λ = if f in (acos, asin, atanh)
+                    2 .* rand(real(T), n) .- 1
+                elseif f in (log,sqrt)
+                    abs.(randn(real(T), n))
+                elseif f === acosh
+                    1 .+ abs.(randn(real(T), n))
+                else
+                    randn(real(T), n)
+                end
+            else
+                λ = randn(real(T), n)
+                λ = if f === atanh
+                    2 .* rand(real(T), n) .- 1
+                else
+                    randn(real(T), n)
+                end
+            end
+            return TA(U * Diagonal(λ) * U', uplo)
+        end
+
         @testset "$(f)(::$TA{<:$T})" for f in
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
             TA in (Symmetric, Hermitian),
             T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
 
-            n = 5
+            n = 10
             @testset "frule" begin
-                @testset for uplo in (:L, :U)
-                    A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
+                @testset for uplo in (:L, :U), hermout in (true, false)
+                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    if typeof(Y) === typeof(A) # type-stable
+                    istypestable = try
+                        @inferred f(A)
+                        true
+                    catch ErrorException
+                        false
+                    end
+                    if istypestable
                         Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
@@ -317,15 +347,21 @@
             end
 
             @testset "rrule" begin
-                @testset for uplo in (:L, :U)
-                    A = TA(randn(T, n, n), uplo)
+                @testset for uplo in (:L, :U), hermout in (true, false)
+                    A = rand_matfun_input(f, TA, T, uplo, n, hermout)
                     Y = f(A)
+                    istypestable = try
+                        @inferred f(A)
+                        true
+                    catch ErrorException
+                        false
+                    end
                     ΔY = if Y isa Matrix
                         randn(eltype(Y), n, n)
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if typeof(Y) === typeof(A) # type-stable
+                    if istypestable
                         Y_ad, back = @inferred rrule(f, A)
                     else
                         TY = if T <: Real
@@ -351,7 +387,7 @@
             TA in (Symmetric, Hermitian),
             T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
 
-            n = 5
+            n = 10
             @testset "frule" begin
                 @testset for uplo in (:L, :U)
                     A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
