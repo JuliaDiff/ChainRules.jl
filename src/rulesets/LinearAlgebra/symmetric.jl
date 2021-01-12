@@ -129,19 +129,19 @@ end
 # ∂U is overwritten if not an `AbstractZero`
 function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     ∂λ isa AbstractZero && ∂U isa AbstractZero && return ∂λ + ∂U
-    ∂A = similar(A, eltype(U))
+    Ā = similar(parent(A), eltype(U))
     tmp = ∂U
     if ∂U isa AbstractZero
-        mul!(∂A.data, U, real.(∂λ) .* U')
+        mul!(Ā, U, real.(∂λ) .* U')
     else
         _eigen_norm_phase_rev!(∂U, A, U)
-        ∂K = mul!(∂A.data, U', ∂U)
+        ∂K = mul!(Ā, U', ∂U)
         ∂K ./= λ' .- λ
         ∂K[diagind(∂K)] .= real.(∂λ)
         mul!(tmp, ∂K, U')
-        mul!(∂A.data, U, tmp)
-        @inbounds _hermitrize!(∂A.data)
+        mul!(Ā, U, tmp)
     end
+    ∂A = _hermitrizelike!(Ā, A)
     return ∂A
 end
 
@@ -314,13 +314,12 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
             $(Symbol(func, :_pullback))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
             function $(Symbol(func, :_pullback))(ΔY)
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
-                # effect is the same as applying _hermitrize! at the end
+                # effect is the same as applying _hermitrizelike! at the end
                 ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
                 # for matrix functions, the pullback is related to the pushforward by an adjoint
                 Ā = _matfun_frechet($func, A, Y, ∂Y', intermediates)
                 # the cotangent of Hermitian A should be Hermitian
-                ∂A = typeof(A)(eltype(A) <: Real ? real(Ā) : Ā, A.uplo)
-                _hermitrize!(∂A.data)
+                ∂A = _hermitrizelike!(Ā, A)
                 return NO_FIELDS, ∂A
             end
             return Y, $(Symbol("$(func)_pullback"))
@@ -367,8 +366,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             ∂Λ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
             Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
         end
-        _hermitrize!(Ā)
-        ∂A = typeof(A)(Ā, A.uplo)
+        ∂A = _hermitrizelike!(Ā, A)
         return NO_FIELDS, ∂A
     end
     return Y, sincos_pullback
@@ -469,7 +467,8 @@ function _symhermlike!(A, S::Union{Symmetric,Hermitian})
 end
 
 # in-place hermitrize matrix
-function _hermitrize!(A)
+function _hermitrizelike!(A_, S::LinearAlgebra.RealHermSymComplexHerm)
+    A = eltype(S) <: Real ? real(A_) : A_
     n = size(A, 1)
     for i in 1:n
         for j in (i + 1):n
@@ -478,5 +477,5 @@ function _hermitrize!(A)
         end
         A[i, i] = real(A[i, i])
     end
-    return A
+    return _symhermtype(S)(A, Symbol(S.uplo))
 end
