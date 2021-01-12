@@ -345,7 +345,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
         end
         if ΔcosA isa AbstractZero
             Ā = _matfun_frechet(sin, A, sinA, ΔsinA, (λ, U, sinλ, cosλ))
-        elseif ΔsinA isa Zero
+        elseif ΔsinA isa AbstractZero
             Ā = _matfun_frechet(cos, A, cosA, ΔcosA, (λ, U, cosλ, -sinλ))
         else
             # we will overwrite tmp with various temporary values during this computation
