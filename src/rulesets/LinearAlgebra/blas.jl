@@ -155,7 +155,7 @@ end
 ##### `BLAS.gemm`
 #####
 
-@inline function rrule(
+function rrule(
     ::typeof(gemm), tA::Char, tB::Char, α::T, A::AbstractMatrix{T}, B::AbstractMatrix{T}
 ) where T<:BlasFloat
     C = gemm(tA, tB, α, A, B)
