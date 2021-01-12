@@ -362,9 +362,14 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     return Y, sincos_pullback
 end
 
-# compute the matrix function f(A), returning also a cache of intermediates for computing
-# the pushforward or pullback.
-# Note any function `f` used with this **must** have a `frule` defined on it.
+"""
+    _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
+
+Compute the matrix function `f(A)` for real or complex hermitian `A`.
+The function returns a tuple containing the result and a tuple of intermediates to be
+reused by `_matfun_frechet` to compute the Fréchet derivative.
+Note any function `f` used with this **must** have a `frule` defined on it.
+"""
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     if all(λi -> _isindomain(f, λi), λ)
@@ -386,8 +391,13 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     return Y, intermediates
 end
 
-# Fréchet derivative of matrix function f
 # Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations
+"""
+    _matfun_frechet(f, A::RealHermSymComplexHerm, Y, ΔA, intermediates)
+
+Compute the Fréchet derivative of the matrix function `Y=f(A)`, where the Fréchet derivative
+of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun`.
+"""
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
     # We will overwrite tmp matrix several times to hold different values
     tmp = mul!(similar(U, Base.promote_eltype(U, ΔA)), ΔA, U)
