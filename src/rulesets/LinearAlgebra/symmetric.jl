@@ -298,8 +298,8 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             ΔA isa AbstractZero && return $func(A), ΔA
-            Y, cache = _matfun($func, A)
-            Ȳ = _matfun_frechet($func, A, Y, ΔA, cache)
+            Y, intermediates = _matfun($func, A)
+            Ȳ = _matfun_frechet($func, A, Y, ΔA, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
             ∂Y = if ishermitian(ΔA) && (isa(Y, Symmetric) || isa(Y, Hermitian))
                 _symhermlike!(Ȳ, Y)
@@ -310,14 +310,14 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
         end
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            Y, cache = _matfun($func, A)
-            $(Symbol("$(func)_pullback"))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
-            function $(Symbol("$(func)_pullback"))(ΔY)
+            Y, intermediates = _matfun($func, A)
+            $(Symbol(func, :_pullback))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
+            function $(Symbol(func, :_pullback))(ΔY)
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
                 # effect is the same as applying _hermitrize! at the end
                 ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
                 # for matrix functions, the pullback is related to the pushforward by an adjoint
-                Ā = _matfun_frechet($func, A, Y, ∂Y', cache)
+                Ā = _matfun_frechet($func, A, Y, ∂Y', intermediates)
                 # the cotangent of Hermitian A should be Hermitian
                 ∂A = typeof(A)(eltype(A) <: Real ? real(Ā) : Ā, A.uplo)
                 _hermitrize!(∂A.data)
@@ -332,7 +332,7 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     ΔA isa AbstractZero && return sincos(A), ΔA
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
-    tmp = ΔA * U
+    tmp = ΔA * U  # We will overwrite this matrix several times to hold different values
     ∂Λ = U' * tmp
     ∂sinΛ = _muldiffquotmat!(similar(∂Λ), sin, λ, sinλ, cosλ, ∂Λ)
     ∂cosΛ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂Λ)
@@ -348,20 +348,19 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
     sincos_pullback(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
-    function sincos_pullback(ΔY::Composite)
-        ΔsinA, ΔcosA = ΔY
+    function sincos_pullback((ΔsinA, ΔcosA)::Composite)
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
         if eltype(A) <: Real
             ∂sinA, ∂cosA = real(ΔsinA), real(ΔcosA)
         else
             ∂sinA, ∂cosA = ΔsinA, ΔcosA
         end
-        if ∂cosA isa Zero
+        if ∂cosA isa AbstractZero
             Ā = _matfun_frechet(sin, A, sinA, ∂sinA, (λ, U, sinλ, cosλ))
         elseif ∂sinA isa Zero
             Ā = _matfun_frechet(cos, A, cosA, ∂cosA, (λ, U, cosλ, -sinλ))
         else
-            tmp = ∂sinA * U
+            tmp = ∂sinA * U  # we will overwrite this with various temporary values during this computation
             ∂sinΛ = U' * tmp
             ∂cosΛ = U' * mul!(tmp, ∂cosA, U)
             ∂Λ = _muldiffquotmat!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
@@ -377,11 +376,12 @@ end
 
 # compute the matrix function f(A), returning also a cache of intermediates for computing
 # the pushforward or pullback.
+# Note any function `f` used with this **must** have a `frule` defined on it.
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     if all(λi -> _isindomain(f, λi), λ)
         fλ_df_dλ = map(λi -> frule((Zero(), One()), f, λi), λ)
-    else # promote to complex if necessary
+    else  # promote to complex if necessary
         fλ_df_dλ = map(λi -> frule((Zero(), One()), f, complex(λi)), λ)
     end
     fλ = first.(fλ_df_dλ)
@@ -394,8 +394,8 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     else
         Hermitian(fA)
     end
-    cache = (λ, U, fλ, df_dλ)
-    return Y, cache
+    intermediates = (λ, U, fλ, df_dλ)
+    return Y, intermediates
 end
 
 # Fréchet derivative of matrix function f

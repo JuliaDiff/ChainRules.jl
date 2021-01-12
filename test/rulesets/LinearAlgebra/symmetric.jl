@@ -291,7 +291,7 @@
             if hermout # f(A) will also be a TA
                 λ = if f in (acos, asin, atanh)
                     2 .* rand(real(T), n) .- 1
-                elseif f in (log,sqrt)
+                elseif f in (log, sqrt)
                     abs.(randn(real(T), n))
                 elseif f === acosh
                     1 .+ abs.(randn(real(T), n))
