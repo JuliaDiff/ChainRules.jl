@@ -351,18 +351,16 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     function sincos_pullback((ΔsinA, ΔcosA)::Composite)
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
         if eltype(A) <: Real
-            ∂sinA, ∂cosA = real(ΔsinA), real(ΔcosA)
-        else
-            ∂sinA, ∂cosA = ΔsinA, ΔcosA
+            ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
         end
-        if ∂cosA isa AbstractZero
-            Ā = _matfun_frechet(sin, A, sinA, ∂sinA, (λ, U, sinλ, cosλ))
-        elseif ∂sinA isa Zero
-            Ā = _matfun_frechet(cos, A, cosA, ∂cosA, (λ, U, cosλ, -sinλ))
+        if ΔcosA isa AbstractZero
+            Ā = _matfun_frechet(sin, A, sinA, ΔsinA, (λ, U, sinλ, cosλ))
+        elseif ΔsinA isa Zero
+            Ā = _matfun_frechet(cos, A, cosA, ΔcosA, (λ, U, cosλ, -sinλ))
         else
-            tmp = ∂sinA * U  # we will overwrite this with various temporary values during this computation
+            tmp = ΔsinA * U  # we will overwrite this with various temporary values during this computation
             ∂sinΛ = U' * tmp
-            ∂cosΛ = U' * mul!(tmp, ∂cosA, U)
+            ∂cosΛ = U' * mul!(tmp, ΔcosA, U)
             ∂Λ = _muldiffquotmat!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
             ∂Λ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
             Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
