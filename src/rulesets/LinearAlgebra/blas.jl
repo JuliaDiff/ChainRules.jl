@@ -155,11 +155,11 @@ end
 ##### `BLAS.gemm`
 #####
 
-function rrule(
+@inline function rrule(
     ::typeof(gemm), tA::Char, tB::Char, α::T, A::AbstractMatrix{T}, B::AbstractMatrix{T}
 ) where T<:BlasFloat
     C = gemm(tA, tB, α, A, B)
-    function gemv_pullback(C̄)
+    function gemm_pullback(C̄)
         β = one(T)
         if uppercase(tA) === 'N'
             if uppercase(tB) === 'N'
@@ -251,7 +251,7 @@ function rrule(
         end
         return (NO_FIELDS, DoesNotExist(), DoesNotExist(), @thunk(dot(C, C̄) / α'), ∂A, ∂B)
     end
-    return C, gemv_pullback
+    return C, gemm_pullback
 end
 
 function rrule(
