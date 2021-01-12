@@ -297,7 +297,6 @@ end
 for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
-            ΔA isa AbstractZero && return $func(A), ΔA
             Y, intermediates = _matfun($func, A)
             Ȳ = _matfun_frechet($func, A, Y, ΔA, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
@@ -311,7 +310,6 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
 
         function rrule(::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             Y, intermediates = _matfun($func, A)
-            $(Symbol(func, :_pullback))(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
             function $(Symbol(func, :_pullback))(ΔY)
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
                 # effect is the same as applying _hermitrizelike! at the end
@@ -328,7 +326,6 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
 end
 
 function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
-    ΔA isa AbstractZero && return sincos(A), ΔA
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
     # We will overwrite tmp matrix several times to hold different values
@@ -347,7 +344,6 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
-    sincos_pullback(ΔY::AbstractZero) = (NO_FIELDS, ΔY)
     function sincos_pullback((ΔsinA, ΔcosA)::Composite)
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
         if eltype(A) <: Real

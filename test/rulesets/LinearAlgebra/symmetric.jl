@@ -341,8 +341,6 @@
                     @test ∂Y_ad isa typeof(Y)
                     :uplo in propertynames(∂Y_ad) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
-
-                    @test frule((Zero(), Zero()), f, A) == (Y, Zero())
                 end
 
                 @testset "stable for (almost-)singular input" begin
@@ -408,7 +406,6 @@
                     @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data)[1]
 
                     # check works correctly even when cotangent is different type than Y
-                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
                     ΔY2 = randn(Complex{real(T)}, n, n)
                     _, ∂A2 = back(ΔY2)
                     ∂data2 = rrule(Hermitian, A.data, uplo)[2](∂A2)[2]
@@ -467,8 +464,6 @@
                     )
                     # not exact because evaluated in a more efficient way
                     @test ∂Y_ad ≈ ∂Y_ad2
-
-                    @test @inferred(frule((Zero(), Zero()), sincos, A)) == (Y, Zero())
                 end
             end
 
@@ -492,8 +487,6 @@
 
                     ΔY2 = Composite{typeof(Y)}(Zero(), Zero())
                     @test @inferred(back(ΔY2)) === (NO_FIELDS, Zero())
-
-                    @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
 
                     ΔY3 = Composite{typeof(Y)}(ΔsinA, Zero())
                     @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
