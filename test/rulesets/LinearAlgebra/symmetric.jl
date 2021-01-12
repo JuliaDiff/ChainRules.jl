@@ -337,9 +337,9 @@
                     end
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
-                    :uplo in propertynames(Y) && @test Y_ad.uplo == Y.uplo
+                    hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
                     @test ∂Y_ad isa typeof(Y)
-                    :uplo in propertynames(∂Y_ad) && @test ∂Y_ad.uplo == Y.uplo
+                    hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
                     @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
                 end
 
@@ -396,7 +396,7 @@
                     end
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
-                    :uplo in propertynames(Y) && @test Y_ad.uplo == Y.uplo
+                    hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
                     ∂self, ∂A = @inferred back(ΔY)
                     @test ∂self === NO_FIELDS
                     @test ∂A isa typeof(A)
