@@ -332,8 +332,9 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     ΔA isa AbstractZero && return sincos(A), ΔA
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
-    tmp = ΔA * U  # We will overwrite this matrix several times to hold different values
-    ∂Λ = U' * tmp
+    # We will overwrite tmp matrix several times to hold different values
+    tmp = mul!(similar(U, Base.promote_eltype(ΔA, U)), ΔA, U)
+    ∂Λ = mul!(similar(U), U', tmp)
     ∂sinΛ = _muldiffquotmat!!(similar(∂Λ), sin, λ, sinλ, cosλ, ∂Λ)
     ∂cosΛ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂Λ)
     ∂sinA = _symhermlike!(mul!(∂sinΛ, U, mul!(tmp, ∂sinΛ, U')), sinA)
@@ -358,8 +359,9 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
         elseif ΔsinA isa Zero
             Ā = _matfun_frechet(cos, A, cosA, ΔcosA, (λ, U, cosλ, -sinλ))
         else
-            tmp = ΔsinA * U  # we will overwrite this with various temporary values during this computation
-            ∂sinΛ = U' * tmp
+            # we will overwrite tmp with various temporary values during this computation
+            tmp = mul!(similar(U, Base.promote_eltype(U, ΔsinA, ΔcosA)), ΔsinA, U)
+            ∂sinΛ = mul!(similar(tmp), U', tmp)
             ∂cosΛ = U' * mul!(tmp, ΔcosA, U)
             ∂Λ = _muldiffquotmat!!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
             ∂Λ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
@@ -399,8 +401,9 @@ end
 # Fréchet derivative of matrix function f
 # Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
-    tmp = ΔA * U
-    ∂Λ = U' * tmp
+    # We will overwrite tmp matrix several times to hold different values
+    tmp = mul!(similar(U, Base.promote_eltype(U, ΔA)), ΔA, U)
+    ∂Λ = mul!(similar(tmp), U', tmp)
     ∂fΛ = _muldiffquotmat!!(∂Λ, f, λ, fλ, df_dλ, ∂Λ)
     # reuse intermediate if possible
     if eltype(tmp) <: Real && eltype(∂fΛ) <: Complex
@@ -431,7 +434,8 @@ end
 # if type of PΔ is incompatible with result, new matrix is allocated
 function _muldiffquotmat!!(PΔ, f, λ, fλ, ∂fλ, Δ, β = false)
     if eltype(PΔ) <: Real && eltype(fλ) <: Complex
-        return β .* PΔ .+ _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
+        PΔ2 = similar(PΔ, complex(eltype(PΔ)))
+        return _muldiffquotmat!!(PΔ2, f, λ, fλ, ∂fλ, Δ, β)
     else
         PΔ .= β .* PΔ .+ _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
         return PΔ
