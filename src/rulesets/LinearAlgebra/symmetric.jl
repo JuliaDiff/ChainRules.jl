@@ -283,16 +283,10 @@ end
 ##### matrix functions
 #####
 
-# Formula comes from so-called Daleckiĭ-Kreĭn theorem originally due to
-# Ju. L. Daleckiĭ and S. G. Kreĭn. Integration and differentiation of functions of Hermitian
-# operators and applications to the theory of perturbations.
-# Amer. Math. Soc. Transl., Series 2, 47:1–30, 1965.
-# Stabilization for almost-degenerate matrices due to
-# S. D. Axen, 2020. Representing Ensembles of Molecules.
-# Appendix D: Automatic differentation rules for power series functions of diagonalizable matrices
-# https://escholarship.org/uc/item/6s62d8pw
-# These rules are more stable for degenerate matrices than applying the chain rule to the
-# rules for `eigen`.
+# Formula for frule (Fréchet derivative) from Daleckiĭ-Kreĭn theorem given in Theorem 3.11 of
+# Higham N.J. Functions of Matrices: Theory and Computation. 2008. ISBN: 978-0-898716-46-7.
+# rrule is derived from frule. These rules are more stable for degenerate matrices than
+# applying the chain rule to the rules for `eigen`.
 
 for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
