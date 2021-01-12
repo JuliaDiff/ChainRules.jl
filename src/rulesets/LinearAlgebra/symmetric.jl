@@ -334,8 +334,8 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
     tmp = ΔA * U  # We will overwrite this matrix several times to hold different values
     ∂Λ = U' * tmp
-    ∂sinΛ = _muldiffquotmat!(similar(∂Λ), sin, λ, sinλ, cosλ, ∂Λ)
-    ∂cosΛ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂Λ)
+    ∂sinΛ = _muldiffquotmat!!(similar(∂Λ), sin, λ, sinλ, cosλ, ∂Λ)
+    ∂cosΛ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂Λ)
     ∂sinA = _symhermlike!(mul!(∂sinΛ, U, mul!(tmp, ∂sinΛ, U')), sinA)
     ∂cosA = _symhermlike!(mul!(∂cosΛ, U, mul!(tmp, ∂cosΛ, U')), cosA)
     Y = (sinA, cosA)
@@ -361,8 +361,8 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             tmp = ΔsinA * U  # we will overwrite this with various temporary values during this computation
             ∂sinΛ = U' * tmp
             ∂cosΛ = U' * mul!(tmp, ΔcosA, U)
-            ∂Λ = _muldiffquotmat!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
-            ∂Λ = _muldiffquotmat!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
+            ∂Λ = _muldiffquotmat!!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
+            ∂Λ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
             Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
         end
         _hermitrize!(Ā)
@@ -401,7 +401,7 @@ end
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
     tmp = ΔA * U
     ∂Λ = U' * tmp
-    ∂fΛ = _muldiffquotmat!(∂Λ, f, λ, fλ, df_dλ, ∂Λ)
+    ∂fΛ = _muldiffquotmat!!(∂Λ, f, λ, fλ, df_dλ, ∂Λ)
     # reuse intermediate if possible
     if eltype(tmp) <: Real && eltype(∂fΛ) <: Complex
         tmp2 = ∂fΛ * U'
@@ -429,7 +429,7 @@ end
 # broadcast multiply Δ by the matrix of difference quotients P, storing the result in PΔ.
 # If β is is nonzero, then @. PΔ = β*PΔ + P*Δ
 # if type of PΔ is incompatible with result, new matrix is allocated
-function _muldiffquotmat!(PΔ, f, λ, fλ, ∂fλ, Δ, β = false)
+function _muldiffquotmat!!(PΔ, f, λ, fλ, ∂fλ, Δ, β = false)
     if eltype(PΔ) <: Real && eltype(fλ) <: Complex
         return β .* PΔ .+ _diffquot.(f, λ, λ', fλ, transpose(fλ), ∂fλ, transpose(∂fλ)) .* Δ
     else
