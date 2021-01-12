@@ -455,8 +455,8 @@ _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
 
 function _realifydiag!(A)
-    for i in axes(A, 1)
-        @inbounds A[i, i] = real(A[i, i])
+    for i in diagind(A)
+        @inbounds A[i] = real(A[i])
     end
     return A
 end
