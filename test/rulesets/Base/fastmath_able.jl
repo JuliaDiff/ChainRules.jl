@@ -60,7 +60,7 @@ const FASTABLE_AST = quote
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
                 x, Δx, x̄ = randn(T, 3)
-                Δz = (randn(T), randn(T))
+                Δz = Composite{Tuple{T,T}}(randn(T), randn(T))
 
                 frule_test(sincos, (x, Δx))
                 rrule_test(sincos, Δz, (x, x̄))
