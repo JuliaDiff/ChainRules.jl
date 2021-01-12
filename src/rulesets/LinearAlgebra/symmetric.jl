@@ -320,7 +320,7 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
                 ∂A = _hermitrizelike!(Ā, A)
                 return NO_FIELDS, ∂A
             end
-            return Y, $(Symbol("$(func)_pullback"))
+            return Y, $(Symbol(func, :_pullback))
         end
     end
 end
