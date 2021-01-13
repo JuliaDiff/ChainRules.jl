@@ -16,14 +16,24 @@
             @test ∂Ω_ad ≈ ∂Ω_fd
         end
         @testset "rrule" begin
+            # on old versions of julia this combination doesn't infer but we don't care as
+            # it infers fine on modern versions.
+            check_inferred = !(VERSION <= v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
+
             x = randn(T, N, N)
             ∂x = randn(T, N, N)
             ΔΩ = randn(T, N, N)
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
-                rrule_test(SymHerm, MT(ΔΩ), (x, ∂x), (uplo, nothing))
+                rrule_test(
+                    SymHerm, MT(ΔΩ), (x, ∂x), (uplo, nothing);
+                    check_inferred = check_inferred
+                )
             end
             @testset "back(::Diagonal)" begin
-                rrule_test(SymHerm, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing))
+                rrule_test(
+                    SymHerm, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing);
+                    check_inferred = check_inferred
+                )
             end
         end
     end
