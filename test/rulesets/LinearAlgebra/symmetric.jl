@@ -329,13 +329,7 @@
                 @testset for uplo in (:L, :U), hermout in (true, false)
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    istypestable = try
-                        @inferred f(A)
-                        true
-                    catch ErrorException
-                        false
-                    end
-                    if istypestable
+                    if ChainRulesTestUtils._is_inferrable(f, A)
                         Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
@@ -383,18 +377,12 @@
                 @testset for uplo in (:L, :U), hermout in (true, false)
                     A = rand_matfun_input(f, TA, T, uplo, n, hermout)
                     Y = f(A)
-                    istypestable = try
-                        @inferred f(A)
-                        true
-                    catch ErrorException
-                        false
-                    end
                     ΔY = if Y isa Matrix
                         randn(eltype(Y), n, n)
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if istypestable
+                    if ChainRulesTestUtils._is_inferrable(f, A)
                         Y_ad, back = @inferred rrule(f, A)
                     else
                         TY = if T <: Real
