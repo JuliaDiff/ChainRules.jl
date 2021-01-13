@@ -97,7 +97,11 @@
 
         rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); kwargs...)
         x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-            rrule_test(fnorm, ȳ, (MT(x), MT(x̄)), (p, p̄); kwargs...)
+            rrule_test(
+                fnorm, ȳ, (MT(x), MT(x̄)), (p, p̄);
+                #Don't check inference on old julia, what matters is that works on new
+                check_inferred=VERSION>=v"1.5", kwargs...
+            )
         end
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
