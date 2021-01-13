@@ -94,7 +94,8 @@
                 (tB, nothing),
                 (α, randn(T)),
                 (A, randn(T, size(A))),
-                (B, randn(T, size(B))),
+                (B, randn(T, size(B)));
+                check_inferred=false,
             )
 
             rrule_test(
@@ -103,7 +104,8 @@
                 (tA, nothing),
                 (tB, nothing),
                 (A, randn(T, size(A))),
-                (B, randn(T, size(B))),
+                (B, randn(T, size(B)));
+                check_inferred=false,
             )
         end
     end
@@ -121,7 +123,8 @@
                 (t, nothing),
                 (α, randn(T)),
                 (A, randn(T, size(A))),
-                (x, randn(T, size(x))),
+                (x, randn(T, size(x)));
+                check_inferred=false,
             )
         end
     end
