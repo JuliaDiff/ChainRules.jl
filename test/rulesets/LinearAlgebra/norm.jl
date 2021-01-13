@@ -58,7 +58,9 @@
         @testset "rrule" begin
             rrule_test(norm, ȳ, (x, x̄))
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-                rrule_test(norm, ȳ, (MT(x), MT(x̄)))
+                # we don't check inference on older julia versions. Improvements to
+                # inference mean on 1.5+ it works, and that is good enough
+                rrule_test(norm, ȳ, (MT(x), MT(x̄)); check_inferred=VERSION>=v"1.5")
             end
             @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(norm, x)[2](Zero())[2] isa Zero
