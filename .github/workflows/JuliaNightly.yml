@@ -1,5 +1,6 @@
 # CI for Julia nightly, separate workflow to avoid failing CI badge on nightly fail
-name: 🌃JuliaNightly
+# We still call it CI because it is (even though it is in anohter workflow) and to make emoji line up
+name: CI
 on:
   push:
     branches: [master]
@@ -10,7 +11,7 @@ on:
 
 jobs:
   test:
-    name: ${{ matrix.os }} - ${{ matrix.arch }}
+    name: 🌙 ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
