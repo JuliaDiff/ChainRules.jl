@@ -319,6 +319,16 @@
             return TA(U * Diagonal(λ) * U', uplo)
         end
 
+        # Adapted From ChainRulesTestUtils._is_inferrable
+        function is_inferrable(f, A)
+            try
+                @inferred f(A)
+                return true
+            catch ErrorException
+                return false
+            end
+        end
+
         @testset "$(f)(::$TA{<:$T})" for f in
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
             TA in (Symmetric, Hermitian),
@@ -330,7 +340,7 @@
                 @testset for uplo in (:L, :U), hermout in (true, false)
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    if ChainRulesTestUtils._is_inferrable(f, A)
+                    if is_inferrable(f, A)
                         Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
@@ -383,7 +393,7 @@
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if ChainRulesTestUtils._is_inferrable(f, A)
+                    if is_inferrable(f, A)
                         Y_ad, back = @inferred rrule(f, A)
                     else
                         TY = if T <: Real
