@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    name: ${{ matrix.version.icon }}Julia ${{ matrix.version.number }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: ${{ matrix.version.icon }} Julia ${{ matrix.version.number }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -68,7 +68,7 @@ jobs:
           parallel-finished: true
 
   slack:
-    name: 🔊Notify Slack Failure
+    name: 🔊 Notify Slack Failure
     needs: test
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'schedule'
