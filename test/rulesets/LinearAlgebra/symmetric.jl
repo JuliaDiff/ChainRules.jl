@@ -323,6 +323,7 @@
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
             TA in (Symmetric, Hermitian),
             T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
+            TC = Complex{real(T)}
 
             n = 10
             @testset "frule" begin
@@ -344,7 +345,7 @@
                     hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
                     @test ∂Y_ad isa typeof(Y)
                     hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
-                    @test parent(∂Y_ad) ≈ jvp(_fdm, x -> parent(f(TA(x, uplo))), (A.data, ΔA.data))
+                    @test parent(∂Y_ad) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x, uplo)))), (A.data, ΔA.data))
                 end
 
                 @testset "stable for (almost-)singular input" begin
@@ -354,13 +355,13 @@
                     A = TA(U * Diagonal(λ) * U')
                     ΔA = TA(randn(T, n, n))
                     _, ∂Y = frule((Zero(), ΔA), f, A)
-                    @test parent(∂Y) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A.data, ΔA.data))
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
 
                     λ[1:m] .= λ[m+1:2m]
                     A2 = TA(U * Diagonal(λ) * U')
                     ΔA2 = TA(randn(T, n, n))
                     _, ∂Y2 = frule((Zero(), ΔA2), f, A2)
-                    @test parent(∂Y2) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A2.data, ΔA2.data))
+                    @test parent(∂Y2) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A2.data, ΔA2.data))
                 end
 
                 f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
@@ -369,7 +370,7 @@
                     A = TA(U * Diagonal(λ) * U')
                     ΔA = TA(randn(T, n, n))
                     _, ∂Y = frule((Zero(), ΔA), f, A)
-                    @test parent(∂Y) ≈ jvp(_fdm, x -> parent(f(TA(x))), (A.data, ΔA.data))
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
                 end
             end
 
