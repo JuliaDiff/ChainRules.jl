@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - {number: '1.0', icon: '🧓🏼'}
+          - {number: '1.0', icon: '🏛️'}
           - {number: '1', icon: '🟣'}
         os:
           - ubuntu-latest
