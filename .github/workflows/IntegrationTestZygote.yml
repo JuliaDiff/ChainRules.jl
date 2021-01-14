@@ -1,4 +1,4 @@
-name: 🧩IntegrationTestZygote 
+name: 🧩 IntegrationTestZygote 
 on:
   push:
     branches: [master]
