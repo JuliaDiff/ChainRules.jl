@@ -293,4 +293,217 @@
             @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
         end
     end
+
+    @testset "Symmetric/Hermitian matrix functions" begin
+        # generate random matrices of type TA in the domain of f
+        function rand_matfun_input(f, TA, T, uplo, n, hermout)
+            U = Matrix(qr(randn(T, n, n)).Q)
+            if hermout # f(A) will also be a TA
+                λ = if f in (acos, asin, atanh)
+                    2 .* rand(real(T), n) .- 1
+                elseif f in (log, sqrt)
+                    abs.(randn(real(T), n))
+                elseif f === acosh
+                    1 .+ abs.(randn(real(T), n))
+                else
+                    randn(real(T), n)
+                end
+            else
+                λ = randn(real(T), n)
+                λ = if f === atanh
+                    2 .* rand(real(T), n) .- 1
+                else
+                    randn(real(T), n)
+                end
+            end
+            return TA(U * Diagonal(λ) * U', uplo)
+        end
+
+        # Adapted From ChainRulesTestUtils._is_inferrable
+        function is_inferrable(f, A)
+            try
+                @inferred f(A)
+                return true
+            catch ErrorException
+                return false
+            end
+        end
+
+        @testset "$(f)(::$TA{<:$T})" for f in
+            (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
+            TA in (Symmetric, Hermitian),
+            T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
+            TC = Complex{real(T)}
+
+            n = 10
+            @testset "frule" begin
+                @testset for uplo in (:L, :U), hermout in (true, false)
+                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
+                    Y = f(A)
+                    if is_inferrable(f, A)
+                        Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
+                    else
+                        TY = T∂Y = if T <: Real
+                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                        else
+                            Union{Matrix{T},Hermitian{T}}
+                        end
+                        Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((Zero(), ΔA), f, A)
+                    end
+                    @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
+                    @test ∂Y_ad isa typeof(Y)
+                    hasproperty(∂Y_ad, :uplo) && @test ∂Y_ad.uplo == Y.uplo
+                    @test parent(∂Y_ad) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x, uplo)))), (A.data, ΔA.data))
+                end
+
+                @testset "stable for (almost-)singular input" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    m = div(n, 2)
+                    λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔA = TA(randn(T, n, n))
+                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
+
+                    λ[1:m] .= λ[m+1:2m]
+                    A2 = TA(U * Diagonal(λ) * U')
+                    ΔA2 = TA(randn(T, n, n))
+                    _, ∂Y2 = frule((Zero(), ΔA2), f, A2)
+                    @test parent(∂Y2) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A2.data, ΔA2.data))
+                end
+
+                f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    λ[2:n] .= 0
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔA = TA(randn(T, n, n))
+                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
+                end
+            end
+
+            @testset "rrule" begin
+                @testset for uplo in (:L, :U), hermout in (true, false)
+                    A = rand_matfun_input(f, TA, T, uplo, n, hermout)
+                    Y = f(A)
+                    ΔY = if Y isa Matrix
+                        randn(eltype(Y), n, n)
+                    else
+                        typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
+                    end
+                    if is_inferrable(f, A)
+                        Y_ad, back = @inferred rrule(f, A)
+                    else
+                        TY = if T <: Real
+                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                        else
+                            Union{Matrix{T},Hermitian{T}}
+                        end
+                        Y_ad, back = @inferred Tuple{TY,Any} rrule(f, A)
+                    end
+                    @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
+                    ∂self, ∂A = @inferred back(ΔY)
+                    @test ∂self === NO_FIELDS
+                    @test ∂A isa typeof(A)
+                    @test ∂A.uplo == A.uplo
+                    # check pullback composes correctly
+                    ∂data = rrule(Hermitian, A.data, uplo)[2](∂A)[2]
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x, uplo))), ΔY, A.data)[1]
+
+                    # check works correctly even when cotangent is different type than Y
+                    ΔY2 = randn(Complex{real(T)}, n, n)
+                    _, ∂A2 = back(ΔY2)
+                    ∂data2 = rrule(Hermitian, A.data, uplo)[2](∂A2)[2]
+                    @test ∂data2 ≈ j′vp(_fdm, x -> Matrix{Complex{real(T)}}(f(TA(x, uplo))), ΔY2, A.data)[1]
+                end
+
+                @testset "stable for (almost-)singular input" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    m = div(n, 2)
+                    λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔY = TA(randn(T, n, n))
+                    ∂A = rrule(f, A)[2](ΔY)[2]
+                    ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data)[1]
+
+                    λ[1:m] .= λ[m+1:2m]
+                    A2 = TA(U * Diagonal(λ) * U')
+                    ΔY2 = TA(randn(T, n, n))
+                    ∂A2 = rrule(f, A2)[2](ΔY2)[2]
+                    ∂data2 = rrule(Hermitian, A2.data, :U)[2](∂A2)[2]
+                    @test ∂data2 ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY2, A2.data)[1]
+                end
+
+                f ∉ (log,sqrt,acosh) && @testset "low-rank matrix" begin
+                    λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
+                    λ[2:n] .= 0
+                    A = TA(U * Diagonal(λ) * U')
+                    ΔY = TA(randn(T, n, n))
+                    ∂A = rrule(f, A)[2](ΔY)[2]
+                    ∂data = rrule(Hermitian, A.data, :U)[2](∂A)[2]
+                    @test ∂data ≈ j′vp(_fdm, x -> parent(f(TA(x))), ΔY, A.data)[1]
+                end
+            end
+        end
+
+        @testset "sincos(::$TA{<:$T})" for TA in (Symmetric, Hermitian),
+            T in (TA <: Symmetric ? (Float64,) : (Float64, ComplexF64))
+
+            n = 10
+            @testset "frule" begin
+                @testset for uplo in (:L, :U)
+                    A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
+                    Y = sincos(A)
+                    sinA, cosA = Y
+                    Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), sincos, A)
+                    @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    @test Y_ad[1].uplo === Y[1].uplo
+                    @test Y_ad[2].uplo === Y[2].uplo
+
+                    @test ∂Y_ad isa Composite{typeof(Y)}
+                    ∂Y_ad2 = Composite{typeof(Y)}(
+                        frule((Zero(), ΔA), sin, A)[2],
+                        frule((Zero(), ΔA), cos, A)[2],
+                    )
+                    # not exact because evaluated in a more efficient way
+                    @test ∂Y_ad ≈ ∂Y_ad2
+                end
+            end
+
+            @testset "rrule" begin
+                @testset for uplo in (:L, :U)
+                    A = TA(randn(T, n, n), uplo)
+                    Y = sincos(A)
+                    sinA, cosA = Y
+                    ΔsinA = typeof(sinA)(randn(T, n, n), sinA.uplo)
+                    ΔcosA = typeof(cosA)(randn(T, n, n), cosA.uplo)
+                    Y_ad, back = @inferred rrule(sincos, A)
+                    @test Y_ad == Y
+                    @test typeof(Y_ad) === typeof(Y)
+                    @test Y_ad[1].uplo === Y[1].uplo
+                    @test Y_ad[2].uplo === Y[2].uplo
+
+                    ΔY = Composite{typeof(Y)}(ΔsinA, ΔcosA)
+                    ∂self, ∂A = @inferred back(ΔY)
+                    @test ∂self === NO_FIELDS
+                    @test ∂A ≈ rrule(sin, A)[2](ΔsinA)[2] + rrule(cos, A)[2](ΔcosA)[2]
+
+                    ΔY2 = Composite{typeof(Y)}(Zero(), Zero())
+                    @test @inferred(back(ΔY2)) === (NO_FIELDS, Zero())
+
+                    ΔY3 = Composite{typeof(Y)}(ΔsinA, Zero())
+                    @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
+
+                    ΔY4 = Composite{typeof(Y)}(Zero(), ΔcosA)
+                    @test @inferred(back(ΔY4)) == rrule(cos, A)[2](ΔcosA)
+                end
+            end
+        end
+    end
 end
