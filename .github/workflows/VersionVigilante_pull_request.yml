@@ -1,0 +1,31 @@
+name: VersionVigilante
+
+on: pull_request
+
+jobs:
+  VersionVigilante:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1.0.0
+      - uses: julia-actions/setup-julia@latest
+      - name: VersionVigilante.main
+        id: versionvigilante_main
+        run: |
+          julia -e 'using Pkg; Pkg.add("VersionVigilante")'
+          julia -e 'using VersionVigilante; VersionVigilante.main("https://github.com/${{ github.repository }}")'
+      - name: ✅ Un-Labeller (if success)
+        if: (steps.versionvigilante_main.outputs.compare_versions == 'success') && (success() || failure())
+        continue-on-error: true
+        uses: actions/github-script@0.3.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.removeLabel({...context.issue, name: 'needs version bump'})
+      - name: ❌ Labeller (if failure)
+        if: (steps.versionvigilante_main.outputs.compare_versions == 'failure') && (success() || failure())
+        continue-on-error: true
+        uses: actions/github-script@0.3.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.addLabels({...context.issue, labels: ['needs version bump']})
