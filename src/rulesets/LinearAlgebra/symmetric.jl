@@ -392,12 +392,6 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
 end
 
 # Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations
-"""
-    _matfun_frechet(f, A::RealHermSymComplexHerm, Y, ΔA, intermediates)
-
-Compute the Fréchet derivative of the matrix function `Y=f(A)`, where the Fréchet derivative
-of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun`.
-"""
 function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
     # We will overwrite tmp matrix several times to hold different values
     tmp = mul!(similar(U, Base.promote_eltype(U, ΔA)), ΔA, U)
