@@ -88,7 +88,7 @@ end
 ## Adapted from LinearAlgebra.exp! with return of intermediates
 function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
     n = LinearAlgebra.checksquare(A)
-    ilo, ihi, scale = LAPACK.gebal!('B', A)    # modifies A
+    ilo, ihi, scale = LAPACK.gebal!('B', A)  # modifies A
     nA = opnorm(A, 1)
     Inn = Matrix{T}(I, n, n)
     ## For sufficiently small nA, use lower order Padé-Approximations
@@ -131,7 +131,7 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
             182.0,
             1.0,
         ]
-        s = log2(nA / 5.4)               # power of 2 later reversed by squaring
+        s = log2(nA / 5.4)  # power of 2 later reversed by squaring
         si = ceil(Int, s)
     end
 
@@ -153,10 +153,10 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
     end
     U = A * W
     X = V + U
-    F = lu!(V - U) # NOTE: use lu! instead of LAPACK.gesv! so we can reuse factorization
+    F = lu!(V - U)  # NOTE: use lu! instead of LAPACK.gesv! so we can reuse factorization
     ldiv!(F, X)
     Xpows = typeof(X)[X]
-    if si > 0            # squaring to reverse dividing by power of 2
+    if si > 0  # squaring to reverse dividing by power of 2
         for t in 1:si
             X *= X
             push!(Xpows, X)
@@ -174,12 +174,12 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
         end
     end
 
-    if ilo > 1       # apply lower permutations in reverse order
+    if ilo > 1  # apply lower permutations in reverse order
         for j in (ilo - 1):-1:1
             LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
     end
-    if ihi < n       # apply upper permutations in forward order
+    if ihi < n  # apply upper permutations in forward order
         for j in (ihi + 1):n
             LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
@@ -247,12 +247,12 @@ function _matfun_frechet!(
         end
     end
 
-    if ilo > 1       # apply lower permutations in reverse order
+    if ilo > 1  # apply lower permutations in reverse order
         for j in (ilo - 1):-1:1
             LinearAlgebra.rcswap!(j, Int(scale[j]), ∂X)
         end
     end
-    if ihi < n       # apply upper permutations in forward order
+    if ihi < n  # apply upper permutations in forward order
         for j in (ihi + 1):n
             LinearAlgebra.rcswap!(j, Int(scale[j]), ∂X)
         end
