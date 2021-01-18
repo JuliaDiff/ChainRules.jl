@@ -163,27 +163,7 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
         end
     end
 
-    # Undo the balancing
-    for j in ilo:ihi
-        scj = scale[j]
-        for i in 1:n
-            X[j, i] *= scj
-        end
-        for i in 1:n
-            X[i, j] /= scj
-        end
-    end
-
-    if ilo > 1  # apply lower permutations in reverse order
-        for j in (ilo - 1):-1:1
-            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
-        end
-    end
-    if ihi < n  # apply upper permutations in forward order
-        for j in (ihi + 1):n
-            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
-        end
-    end
+    _unbalance!(X, ilo, ihi, scale, n)
     return X, (ilo, ihi, scale, C, si, Apows, W, F, Xpows)
 end
 
@@ -196,15 +176,7 @@ function _matfun_frechet!(
     ::typeof(exp), A::StridedMatrix{T}, X, ΔA, (ilo, ihi, scale, C, si, Apows, W, F, Xpows)
 ) where {T<:BlasFloat}
     n = LinearAlgebra.checksquare(A)
-    for j in ilo:ihi
-        scj = scale[j]
-        for i in 1:n
-            ΔA[j, i] /= scj
-        end
-        for i in 1:n
-            ΔA[i, j] *= scj
-        end
-    end
+    _balance!(ΔA, ilo, ihi, scale, n)
 
     if si > 0
         ΔA ./= convert(T, 2^si)
@@ -237,25 +209,62 @@ function _matfun_frechet!(
         end
     end
 
+    _unbalance!(∂X, ilo, ihi, scale, n)
+    return ∂X
+end
+
+#####
+##### utils
+#####
+
+# Given (ilo, ihi, iscale) returned by LAPACK.gebal!('B', A), apply same balancing to X
+function _balance!(X, ilo, ihi, scale, n)
+    n = size(X, 1)
+    if ihi < n
+        for j in (ihi + 1):n
+            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
+        end
+    end
+    if ilo > 1
+        for j in (ilo - 1):-1:1
+            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
+        end
+    end
+
+    # Undo the balancing
     for j in ilo:ihi
         scj = scale[j]
         for i in 1:n
-            ∂X[j, i] *= scj
+            X[j, i] /= scj
         end
         for i in 1:n
-            ∂X[i, j] /= scj
+            X[i, j] *= scj
+        end
+    end
+    return X
+end
+
+# Reverse of _balance!
+function _unbalance!(X, ilo, ihi, scale, n)
+    for j in ilo:ihi
+        scj = scale[j]
+        for i in 1:n
+            X[j, i] *= scj
+        end
+        for i in 1:n
+            X[i, j] /= scj
         end
     end
 
     if ilo > 1  # apply lower permutations in reverse order
         for j in (ilo - 1):-1:1
-            LinearAlgebra.rcswap!(j, Int(scale[j]), ∂X)
+            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
     end
     if ihi < n  # apply upper permutations in forward order
         for j in (ihi + 1):n
-            LinearAlgebra.rcswap!(j, Int(scale[j]), ∂X)
+            LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
     end
-    return ∂X
+    return X
 end
