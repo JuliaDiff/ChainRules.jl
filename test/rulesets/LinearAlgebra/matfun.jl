@@ -9,6 +9,11 @@ nrm in (0.01, 0.1, 0.5, 1.5, 3.0, 6.0, 12.0)
             A *= nrm / opnorm(A, 1)
             frule_test(LinearAlgebra.exp!, (A, ΔA))
         end
+        @testset "imbalanced A" begin
+            A = Float64[0 10 0 0; -1 0 0 0; 0 0 0 0; -2 0 0 0]
+            ΔA = rand_tangent(A)
+            frule_test(LinearAlgebra.exp!, (A, ΔA))
+        end
         @testset "hermitian A" begin
             A, ΔA = Matrix(Hermitian(randn(ComplexF64, n, n))), randn(ComplexF64, n, n)
             frule_test(LinearAlgebra.exp!, (A, Matrix(Hermitian(ΔA))))
@@ -29,6 +34,12 @@ nrm in (0.01, 0.1, 0.5, 1.5, 3.0, 6.0, 12.0)
             rrule_test(exp, ΔY, (A, ΔA); check_inferred=false)
             Y, back = rrule(exp, A)
             @inferred back(ΔY)
+        end
+        @testset "imbalanced A" begin
+            A = Float64[0 10 0 0; -1 0 0 0; 0 0 0 0; -2 0 0 0]
+            ΔA = rand_tangent(A)
+            ΔY = rand_tangent(exp(A))
+            rrule_test(exp, ΔY, (A, ΔA); check_inferred=false)
         end
         @testset "hermitian A" begin
             A, ΔA = Matrix(Hermitian(randn(ComplexF64, n, n))), randn(ComplexF64, n, n)
