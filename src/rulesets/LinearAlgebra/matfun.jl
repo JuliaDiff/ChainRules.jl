@@ -165,6 +165,11 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where T<:BlasFloat
     return X, (ilo, ihi, scale, C, si, Apows, W, F, Xpows)
 end
 
+# Application of the chain rule to exp!, also Algorithm 6.4 from
+# Al-Mohy, Awad H. and Higham, Nicholas J. (2009).
+# Computing the Fréchet Derivative of the Matrix Exponential, with an application to
+# Condition Number Estimation", SIAM. 30 (4). pp. 1639-1657.
+# http://eprints.maths.manchester.ac.uk/id/eprint/1218
 function _matfun_frechet!(
     ::typeof(exp),
     A::StridedMatrix{T},
