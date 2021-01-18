@@ -123,7 +123,6 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where T<:BlasFloat
         W += C[k2 + 2] * P
         V += C[k2 + 1] * P
     end
-    pop!(Apows)
     U = A * W
     X = V + U
     F = lu!(V-U) # NOTE: use lu! instead of LAPACK.gesv! so we can reuse factorization
@@ -134,7 +133,6 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where T<:BlasFloat
             X *= X
             push!(Xpows, X)
         end
-        pop!(Xpows)
     end
 
     # Undo the balancing
@@ -186,7 +184,7 @@ function _matfun_frechet!(
     ∂P = copy(∂A2)
     ∂W = C[4] * ∂P
     ∂V = C[3] * ∂P
-    for k in 2:length(Apows)
+    for k in 2:(length(Apows)-1)
         k2 = 2 * k
         P = Apows[k - 1]
         ∂P, ∂temp = mul!(mul!(∂temp, ∂P, A2), P, ∂A2, true, true), ∂P
@@ -200,7 +198,7 @@ function _matfun_frechet!(
     ldiv!(F, ∂X)
 
     if si > 0
-        for t = eachindex(Xpows)
+        for t = 1:(length(Xpows)-1)
             X = Xpows[t]
             ∂X, ∂temp = mul!(mul!(∂temp, X, ∂X), ∂X, X, true, true), ∂X
         end
