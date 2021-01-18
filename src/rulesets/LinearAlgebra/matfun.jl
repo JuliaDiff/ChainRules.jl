@@ -34,7 +34,7 @@ _matfun_frechet
 """
     _matfun_frechet!(f, A, Y, ΔA, intermediates)
 
-Similar to `_matfun_frechet!`, but where `ΔA` may be overwritten.
+Similar to [`_matfun_frechet`](@ref), but where `ΔA` may be overwritten.
 """
 _matfun_frechet!
 
