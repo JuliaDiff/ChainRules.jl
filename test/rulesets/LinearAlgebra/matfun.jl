@@ -8,8 +8,7 @@
             frule_test(LinearAlgebra.exp!, (A, ΔA))
         end
         @testset "hermitian A" begin
-            A, ΔA = randn(ComplexF64, n, n), randn(ComplexF64, n, n)
-            A = Matrix(Hermitian(A))
+            A, ΔA = Matrix(Hermitian(randn(ComplexF64, n, n))), randn(ComplexF64, n, n)
             frule_test(LinearAlgebra.exp!, (A, Matrix(Hermitian(ΔA))))
             frule_test(LinearAlgebra.exp!, (A, ΔA))
         end
