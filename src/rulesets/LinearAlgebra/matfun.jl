@@ -1,5 +1,11 @@
 # matrix functions of dense matrices
 
+# NOTE: for matrix functions whose power series representation has real coefficients,
+# the pullback and pushforward are related by an adjoint.
+# Specifically, if the pushforward of f(A) is (f_*)_A(ΔA), then the pullback at Y=f(A) is
+# (f^*)_Y(ΔY) = (f_*)_{A'}(ΔY) = ((f_*)_A(ΔY'))'
+# So we reuse the code from the pushforward to implement the pullback.
+
 """
     _matfun(f, A) -> (Y, intermediates)
 
