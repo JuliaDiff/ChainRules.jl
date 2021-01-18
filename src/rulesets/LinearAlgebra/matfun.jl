@@ -53,11 +53,11 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
     if ishermitian(A0)
         # call _matfun instead of the rrule to avoid hermitrizing ∂A in the pullback
         hermA = Hermitian(A0)
-        hermX, intermediates = _matfun(exp, hermA)
+        hermX, hermX_intermediates = _matfun(exp, hermA)
         function exp_pullback_hermitian(ΔX)
-            ∂hermA = _matfun_frechet(exp, hermA, hermX, ΔX, intermediates)
-            ∂A = ∂hermA isa LinearAlgebra.RealHermSymComplexHerm ? parent(∂hermA) : ∂hermA
-            return NO_FIELDS, ∂A
+            ∂hermA = _matfun_frechet(exp, hermA, hermX, ΔX, hermX_intermediates)
+            ∂hermA isa LinearAlgebra.RealHermSymComplexHerm || return NO_FIELDS, ∂hermA
+            return NO_FIELDS, parent(∂hermA)
         end
         return LinearAlgebra.copytri!(parent(hermX), 'U', true), exp_pullback_hermitian
     else
