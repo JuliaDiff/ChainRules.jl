@@ -38,6 +38,10 @@ Similar to `_matfun_frechet!`, but where `ΔA` may be overwritten.
 """
 _matfun_frechet!
 
+#####
+##### `exp`/`exp!`
+#####
+
 function frule((_, ΔA), ::typeof(LinearAlgebra.exp!), A::StridedMatrix{<:BlasFloat})
     if ishermitian(A)
         hermX, ∂hermX = frule((Zero(), ΔA), exp, Hermitian(A))
