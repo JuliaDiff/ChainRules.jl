@@ -36,20 +36,15 @@ jobs:
           using Pkg
           try
             # force it to use this PR's version of the package
-            Pkg.develop(PackageSpec(path="."))
+            Pkg.develop(PackageSpec(path="."))  # resolver may fail with main deps
             Pkg.update()
+            Pkg.test()  # resolver may fail with test time deps 
           catch err
             err isa Pkg.Resolve.ResolverError || rethrow()
             # If we can't resolve that means this is incompatible by SemVer and this is fine
             # It means we marked this as a breaking change, so we don't need to worry about
             # Mistakenly introducing a breaking change, as we have intentionally made one
 
-            # Note: this doesn't solve all resolver errors, e.g. might be a mutual dependency
-            # of this package and a test only dependency of the downstream packagem that are
-            # incompatible. And this check only catches resolution failures with main dependencies
-            # (plus this package itself) with this package
-
             @info "Not compatible with this release. No problem." exception=err
-            exit(0)  #  Exit immediately, as a success
+            exit(0)  # Exit immediately, as a success
           end
-          Pkg.test()
