@@ -29,6 +29,10 @@ _matfun!
 
 Compute the Fréchet derivative of the matrix function `Y=f(A)`, where the Fréchet derivative
 of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun`.
+The Fréchet derivative is defined as
+```math
+L(ΔA) = \\lim_{t → 0} \\frac{f(A + t ΔA) - f(A)}{t}
+```
 """
 _matfun_frechet
 
