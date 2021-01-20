@@ -44,6 +44,43 @@ Similar to [`_matfun_frechet`](@ref), but where `E` may be overwritten.
 """
 _matfun_frechet!
 
+"""
+    _matfun_frechet_adjoint(f, E, A, Y, intermediates)
+
+Compute the adjoint of the Fréchet derivative of the matrix function ``Y = f(A)`` at ``A``
+in the direction of ``E``, where `intermediates` is the second argument returned by
+[`_matfun`](@ref).
+
+Given the Fréchet ``L_f(A, E)`` computed by [`_matfun_frechet`](@ref), then its adjoint
+``L_f^⋆(A, E)`` is defined by the identity
+```math
+\\langle B, L_f(A, C) \\rangle = \\langle L_f^⋆(A, B), C \\rangle.
+```
+This identity is satisfied by ``L_f^⋆(A, E) = L_f(A, E')'``.
+"""
+function _matfun_frechet_adjoint(f, E, A, Y, intermediates)
+    E′ = E'
+    # avoid passing an Adjoint to _matfun_frechet in case it can't handle it
+    E′ = E′ isa Adjoint ? copy(E′) : E′
+    LE = adjoint(_matfun_frechet(f, E′, A, Y, intermediates))
+    # avoid returning an Adjoint
+    return LE isa Adjoint ? copy(LE) : LE
+end
+
+"""
+    _matfun_frechet_adjoint!(f, E, A, Y, intermediates)
+
+Similar to [`_matfun_frechet_adjoint`](@ref), but where `E` may be overwritten.
+"""
+function _matfun_frechet_adjoint!(f, E, A, Y, intermediates)
+    E′ = E'
+    # avoid passing an Adjoint to _matfun_frechet in case it can't handle it
+    E′ = E′ isa Adjoint ? copy(E′) : E′
+    LE = adjoint(_matfun_frechet!(f, E′, A, Y, intermediates))
+    # avoid returning an Adjoint
+    return LE isa Adjoint ? copy(LE) : LE
+end
+
 #####
 ##### `exp`/`exp!`
 #####
@@ -71,18 +108,16 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
         hermA = Hermitian(A0)
         hermX, hermX_intermediates = _matfun(exp, hermA)
         function exp_pullback_hermitian(ΔX)
-            ∂hermA = _matfun_frechet(exp, hermA, hermX, ΔX, hermX_intermediates)
             ∂hermA isa LinearAlgebra.RealHermSymComplexHerm || return NO_FIELDS, ∂hermA
             return NO_FIELDS, parent(∂hermA)
+            ∂hermA = _matfun_frechet_adjoint(exp, ΔX, hermA, hermX, hermX_intermediates)
         end
         return LinearAlgebra.copytri!(parent(hermX), 'U', true), exp_pullback_hermitian
     else
         A = copy(A0)
         X, intermediates = _matfun!(exp, A)
         function exp_pullback(ΔX)
-            ΔX′ = copy(adjoint(ΔX))
-            ∂A′ = _matfun_frechet!(exp, A, X, ΔX′, intermediates)
-            ∂A = copy(adjoint(∂A′))
+            ∂A = _matfun_frechet_adjoint!(exp, ΔX, A, X, intermediates)
             return NO_FIELDS, ∂A
         end
         return X, exp_pullback
