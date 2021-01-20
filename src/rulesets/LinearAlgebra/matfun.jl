@@ -129,7 +129,7 @@ end
 ## Destructive matrix exponential using algorithm from Higham, 2008,
 ## "Functions of Matrices: Theory and Computation", SIAM
 ## Adapted from LinearAlgebra.exp! with return of intermediates
-## https://github.com/JuliaLang/julia/blob/f613b551009a7a9dbe46235929099f2ecd28bed1/stdlib/LinearAlgebra/src/dense.jl#L583-L666
+## https://github.com/JuliaLang/julia/blob/f613b55/stdlib/LinearAlgebra/src/dense.jl#L583-L666
 function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
     n = LinearAlgebra.checksquare(A)
     ilo, ihi, scale = LAPACK.gebal!('B', A)  # modifies A
