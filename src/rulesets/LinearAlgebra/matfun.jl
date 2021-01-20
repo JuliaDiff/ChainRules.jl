@@ -25,21 +25,22 @@ Similar to [`_matfun`](@ref), but where `A` may be overwritten.
 _matfun!
 
 """
-    _matfun_frechet(f, ΔA, A, Y, intermediates)
+    _matfun_frechet(f, E, A, Y, intermediates)
 
-Compute the Fréchet derivative of the matrix function `Y=f(A)`, where the Fréchet derivative
-of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun`.
-The Fréchet derivative is defined as
+Compute the Fréchet derivative of the matrix function ``Y = f(A)`` at ``A`` in the direction
+of ``E``, where `intermediates` is the second argument returned by [`_matfun`](@ref).
+
+The Fréchet derivative is the unique linear map ``L_f \\colon E → L_f(A, E)``, such that
 ```math
-L(ΔA) = \\lim_{t → 0} \\frac{f(A + t ΔA) - f(A)}{t}
+L_f(A, E) = f(A + E) - f(A) + o(\\lVert E \\rVert).
 ```
 """
 _matfun_frechet
 
 """
-    _matfun_frechet!(f, ΔA, A, Y, intermediates)
+    _matfun_frechet!(f, E, A, Y, intermediates)
 
-Similar to [`_matfun_frechet`](@ref), but where `ΔA` may be overwritten.
+Similar to [`_matfun_frechet`](@ref), but where `E` may be overwritten.
 """
 _matfun_frechet!
 
