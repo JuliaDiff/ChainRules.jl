@@ -11,7 +11,9 @@
 # (f^*)_Y(ΔY) = (f_*)_{A'}(ΔY)
 # So we reuse the code from the pushforward to implement the pullback.
 
-# interface function definitions
+#####
+##### interface function definitions
+#####
 
 """
     _matfun(f, A) -> (Y, intermediates)
