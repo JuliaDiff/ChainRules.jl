@@ -275,7 +275,6 @@ function _balance!(X, ilo, ihi, scale, n)
         end
     end
 
-    # Undo the balancing
     for j in ilo:ihi
         scj = scale[j]
         for i in 1:n
@@ -300,12 +299,12 @@ function _unbalance!(X, ilo, ihi, scale, n)
         end
     end
 
-    if ilo > 1  # apply lower permutations in reverse order
+    if ilo > 1
         for j in (ilo - 1):-1:1
             LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
     end
-    if ihi < n  # apply upper permutations in forward order
+    if ihi < n
         for j in (ihi + 1):n
             LinearAlgebra.rcswap!(j, Int(scale[j]), X)
         end
