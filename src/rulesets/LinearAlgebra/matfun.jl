@@ -3,9 +3,9 @@
 
 # NOTE: for a matrix function f, the pushforward and pullback can be computed using the
 # Fréchet derivative and its adjoint, respectively.
-# The pushforwards and pullbacks are related by matrix adjoints.
-# Specifically, if the pushforward of f(A) at A is (f_*)_A(ΔA), then the pullback at A is
-# (f^*)_A(ΔY) = ((f_*)_A(ΔY'))'.
+# https://en.wikipedia.org/wiki/Fréchet_derivative
+# The pushforwards and pullbacks are related by matrix adjoints. If the pushforward of f(A)
+# at A is (f_*)_A(ΔA), then the pullback at A is (f^*)_A(ΔY) = ((f_*)_A(ΔY'))'.
 # If f has a power series representation with real coefficients, then this simplifies to
 # (f^*)_Y(ΔY) = (f_*)_{A'}(ΔY)
 # So we reuse the code from the pushforward to implement the pullback.
