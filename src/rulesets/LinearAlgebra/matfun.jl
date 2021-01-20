@@ -1,11 +1,16 @@
 # matrix functions of dense matrices
 # https://en.wikipedia.org/wiki/Matrix_function
 
-# NOTE: for matrix functions whose power series representation has real coefficients,
-# the pullback and pushforward are related by an adjoint.
-# Specifically, if the pushforward of f(A) is (f_*)_A(ΔA), then the pullback at Y=f(A) is
-# (f^*)_Y(ΔY) = (f_*)_{A'}(ΔY) = ((f_*)_A(ΔY'))'
+# NOTE: for a matrix function f, the pushforward and pullback can be computed using the
+# Fréchet derivative and its adjoint, respectively.
+# The pushforwards and pullbacks are related by matrix adjoints.
+# Specifically, if the pushforward of f(A) at A is (f_*)_A(ΔA), then the pullback at A is
+# (f^*)_A(ΔY) = ((f_*)_A(ΔY'))'.
+# If f has a power series representation with real coefficients, then this simplifies to
+# (f^*)_Y(ΔY) = (f_*)_{A'}(ΔY)
 # So we reuse the code from the pushforward to implement the pullback.
+
+# interface function definitions
 
 """
     _matfun(f, A) -> (Y, intermediates)
