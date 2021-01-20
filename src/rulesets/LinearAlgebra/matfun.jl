@@ -4,6 +4,7 @@
 # NOTE: for a matrix function f, the pushforward and pullback can be computed using the
 # Fréchet derivative and its adjoint, respectively.
 # https://en.wikipedia.org/wiki/Fréchet_derivative
+
 # The pushforwards and pullbacks are related by matrix adjoints. If the pushforward of f(A)
 # at A is (f_*)_A(ΔA), then the pullback at A is (f^*)_A(ΔY) = ((f_*)_A(ΔY'))'.
 # If f has a power series representation with real coefficients, then this simplifies to
@@ -18,7 +19,6 @@
 Compute the matrix function `Y=f(A)` for matrix `A`.
 The function returns a tuple containing the result and a tuple of intermediates to be
 reused by [`_matfun_frechet`](@ref) to compute the Fréchet derivative.
-Note that any function `f` used with this **must** have a `frule` defined on it.
 """
 _matfun
 
@@ -39,6 +39,10 @@ The Fréchet derivative is the unique linear map ``L_f \\colon E → L_f(A, E)``
 ```math
 L_f(A, E) = f(A + E) - f(A) + o(\\lVert E \\rVert).
 ```
+
+[^Higham08]:
+    > Higham, Nicholas J. Chapter 3: Conditioning. Functions of Matrices. 2008, 55-70.
+    > doi: 10.1137/1.9780898717778.ch3
 """
 _matfun_frechet
 
@@ -62,6 +66,10 @@ Given the Fréchet ``L_f(A, E)`` computed by [`_matfun_frechet`](@ref), then its
 \\langle B, L_f(A, C) \\rangle = \\langle L_f^⋆(A, B), C \\rangle.
 ```
 This identity is satisfied by ``L_f^⋆(A, E) = L_f(A, E')'``.
+
+[^Higham08]:
+    > Higham, Nicholas J. Chapter 3: Conditioning. Functions of Matrices. 2008, 55-70.
+    > doi: 10.1137/1.9780898717778.ch3
 """
 function _matfun_frechet_adjoint(f, E, A, Y, intermediates)
     E′ = E'

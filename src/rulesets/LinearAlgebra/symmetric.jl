@@ -366,7 +366,8 @@ end
 
 Compute the matrix function `f(A)` for real or complex hermitian `A`.
 The function returns a tuple containing the result and a tuple of intermediates to be
-reused by `_matfun_frechet` to compute the Fréchet derivative.
+reused by [`_matfun_frechet`](@ref) to compute the Fréchet derivative.
+
 Note any function `f` used with this **must** have a `frule` defined on it.
 """
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
