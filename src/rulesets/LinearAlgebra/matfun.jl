@@ -87,13 +87,11 @@ end
 
 function frule((_, ΔA), ::typeof(LinearAlgebra.exp!), A::StridedMatrix{<:BlasFloat})
     if ishermitian(A)
-        hermX, ∂hermX = frule((Zero(), ΔA), exp, Hermitian(A))
-        X = LinearAlgebra.copytri!(parent(hermX), 'U', true)
-        if ∂hermX isa LinearAlgebra.RealHermSymComplexHerm
-            ∂X = LinearAlgebra.copytri!(parent(∂hermX), 'U', true)
-        else
-            ∂X = ∂hermX
-        end
+        hermA = Hermitian(A)
+        hermX, intermediates = _matfun(exp, hermA)
+        ∂hermX = _matfun_frechet(exp, ΔA, hermA, hermX, intermediates)
+        X = Matrix(hermX)
+        ∂X = Matrix(∂hermX)
     else
         X, intermediates = _matfun!(exp, A)
         ∂X = _matfun_frechet!(exp, ΔA, A, X, intermediates)
@@ -108,11 +106,10 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
         hermA = Hermitian(A0)
         hermX, hermX_intermediates = _matfun(exp, hermA)
         function exp_pullback_hermitian(ΔX)
-            ∂hermA isa LinearAlgebra.RealHermSymComplexHerm || return NO_FIELDS, ∂hermA
-            return NO_FIELDS, parent(∂hermA)
             ∂hermA = _matfun_frechet_adjoint(exp, ΔX, hermA, hermX, hermX_intermediates)
+            return NO_FIELDS, Matrix(∂hermA)
         end
-        return LinearAlgebra.copytri!(parent(hermX), 'U', true), exp_pullback_hermitian
+        return Matrix(hermX), exp_pullback_hermitian
     else
         A = copy(A0)
         X, intermediates = _matfun!(exp, A)
