@@ -1,8 +1,8 @@
 @testset "matrix functions" begin
     @testset "LinearAlgebra.exp!(A::Matrix) frule" begin
         n = 10
+        # each normalization hits a specific branch
         @testset "A::Matrix{$T}, opnorm(A,1)=$nrm" for T in (Float64, ComplexF64),
-            # choose normalization to hit specific branch
             nrm in (0.01, 0.1, 0.5, 1.5, 3.0, 6.0, 12.0)
 
             A, ΔA = randn(ComplexF64, n, n), randn(ComplexF64, n, n)
@@ -24,8 +24,8 @@
 
     @testset "exp(A::Matrix) rrule" begin
         n = 10
+        # each normalization hits a specific branch
         @testset "A::Matrix{$T}, opnorm(A,1)=$nrm" for T in (Float64, ComplexF64),
-            # choose normalization to hit specific branch
             nrm in (0.01, 0.1, 0.5, 1.5, 3.0, 6.0, 12.0)
 
             A, ΔA = randn(ComplexF64, n, n), randn(ComplexF64, n, n)
