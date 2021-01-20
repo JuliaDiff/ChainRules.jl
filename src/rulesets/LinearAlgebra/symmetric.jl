@@ -292,7 +292,7 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             Y, intermediates = _matfun($func, A)
-            Ȳ = _matfun_frechet($func, A, Y, ΔA, intermediates)
+            Ȳ = _matfun_frechet($func, ΔA, A, Y, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
             ∂Y = if ishermitian(ΔA) && (isa(Y, Symmetric) || isa(Y, Hermitian))
                 _symhermlike!(Ȳ, Y)
@@ -308,8 +308,7 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
                 # effect is the same as applying _hermitrizelike! at the end
                 ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
-                # for matrix functions, the pullback is related to the pushforward by an adjoint
-                Ā = _matfun_frechet($func, A, Y, ∂Y', intermediates)
+                Ā = _matfun_frechet_adjoint($func, ∂Y, A, Y, intermediates)
                 # the cotangent of Hermitian A should be Hermitian
                 ∂A = _hermitrizelike!(Ā, A)
                 return NO_FIELDS, ∂A
@@ -344,9 +343,9 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
         end
         if ΔcosA isa AbstractZero
-            Ā = _matfun_frechet(sin, A, sinA, ΔsinA, (λ, U, sinλ, cosλ))
+            Ā = _matfun_frechet_adjoint(sin, ΔsinA, A, sinA, (λ, U, sinλ, cosλ))
         elseif ΔsinA isa AbstractZero
-            Ā = _matfun_frechet(cos, A, cosA, ΔcosA, (λ, U, cosλ, -sinλ))
+            Ā = _matfun_frechet_adjoint(cos, ΔcosA, A, cosA, (λ, U, cosλ, -sinλ))
         else
             # we will overwrite tmp with various temporary values during this computation
             tmp = mul!(similar(U, Base.promote_eltype(U, ΔsinA, ΔcosA)), ΔsinA, U)
@@ -392,7 +391,7 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
 end
 
 # Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations
-function _matfun_frechet(f, A::LinearAlgebra.RealHermSymComplexHerm, Y, ΔA, (λ, U, fλ, df_dλ))
+function _matfun_frechet(f, ΔA, A::LinearAlgebra.RealHermSymComplexHerm, Y, (λ, U, fλ, df_dλ))
     # We will overwrite tmp matrix several times to hold different values
     tmp = mul!(similar(U, Base.promote_eltype(U, ΔA)), ΔA, U)
     ∂Λ = mul!(similar(tmp), U', tmp)

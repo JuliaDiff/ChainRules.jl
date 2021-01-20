@@ -25,7 +25,7 @@ Similar to [`_matfun`](@ref), but where `A` may be overwritten.
 _matfun!
 
 """
-    _matfun_frechet(f, A, Y, ΔA, intermediates)
+    _matfun_frechet(f, ΔA, A, Y, intermediates)
 
 Compute the Fréchet derivative of the matrix function `Y=f(A)`, where the Fréchet derivative
 of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun`.
@@ -33,7 +33,7 @@ of `A` is `ΔA`, and `intermediates` is the second argument returned by `_matfun
 _matfun_frechet
 
 """
-    _matfun_frechet!(f, A, Y, ΔA, intermediates)
+    _matfun_frechet!(f, ΔA, A, Y, intermediates)
 
 Similar to [`_matfun_frechet`](@ref), but where `ΔA` may be overwritten.
 """
@@ -54,7 +54,7 @@ function frule((_, ΔA), ::typeof(LinearAlgebra.exp!), A::StridedMatrix{<:BlasFl
         end
     else
         X, intermediates = _matfun!(exp, A)
-        ∂X = _matfun_frechet!(exp, A, X, ΔA, intermediates)
+        ∂X = _matfun_frechet!(exp, ΔA, A, X, intermediates)
     end
     return X, ∂X
 end
@@ -175,7 +175,7 @@ end
 # Condition Number Estimation", SIAM. 30 (4). pp. 1639-1657.
 # http://eprints.maths.manchester.ac.uk/id/eprint/1218
 function _matfun_frechet!(
-    ::typeof(exp), A::StridedMatrix{T}, X, ΔA, (ilo, ihi, scale, C, si, Apows, W, F, Xpows)
+    ::typeof(exp), ΔA, A::StridedMatrix{T}, X, (ilo, ihi, scale, C, si, Apows, W, F, Xpows)
 ) where {T<:BlasFloat}
     n = LinearAlgebra.checksquare(A)
     _balance!(ΔA, ilo, ihi, scale, n)
