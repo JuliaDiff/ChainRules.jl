@@ -8,7 +8,8 @@
             A = randn(T, n, n)
             ΔA = randn(T, n, n)
             A *= nrm / opnorm(A, 1)
-            frule_test(LinearAlgebra.exp!, (A, ΔA))
+            tols = nrm == 0.1 ? (atol=1e-8, rtol=1e-8) : NamedTuple()
+            frule_test(LinearAlgebra.exp!, (A, ΔA); tols...)
         end
         @testset "imbalanced A" begin
             A = Float64[0 10 0 0; -1 0 0 0; 0 0 0 0; -2 0 0 0]
@@ -34,7 +35,8 @@
             ΔY = randn(T, n, n)
             A *= nrm / opnorm(A, 1)
             # rrule is not inferrable, but pullback should be
-            rrule_test(exp, ΔY, (A, ΔA); check_inferred=false)
+            tols = nrm == 0.1 ? (atol=1e-8, rtol=1e-8) : NamedTuple()
+            rrule_test(exp, ΔY, (A, ΔA); check_inferred=false, tols...)
             Y, back = rrule(exp, A)
             @inferred back(ΔY)
         end
