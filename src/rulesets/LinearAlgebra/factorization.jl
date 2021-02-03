@@ -24,8 +24,8 @@ function frule(
         # ∂L = L * tril(L \ (P * ΔA) / U, -1)
         # ∂U = triu(L \ (P * ΔA) / U) * U
         # ∂factors = ∂L + ∂U
-        L = UnitLowerTriangular(F.L)
-        U = UpperTriangular(F.U)
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
         rdiv!(∂factors, U)
         ldiv!(L, ∂factors)
         ∂L = tril(∂factors, -1)
