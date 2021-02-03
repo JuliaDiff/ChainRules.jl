@@ -2,6 +2,78 @@ using LinearAlgebra: checksquare
 using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 #####
+##### `lu`
+#####
+
+# These rules are necessary because the primals call LAPACK functions
+
+# frule for square matrix was introduced in Eq. 3.6 of
+# de Hoog, F.R., Anderssen, R.S. and Lukas, M.A. (2011)
+# Differentiation of matrix functionals using triangular factorization.
+# Mathematics of Computation, 80 (275). p. 1585.
+# doi: http://doi.org/10.1090/S0025-5718-2011-02451-8
+function frule(
+    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu!(A, pivot; kwargs...)
+    ∂factors = pivot === Val(true) ? ΔA[F.p, :] : ΔA
+    m, n = size(∂factors)
+    q = min(m, n)
+    if m == n  # square A
+        # minimal allocation computation of
+        # ∂L = L * tril(L \ (P * ΔA) / U, -1)
+        # ∂U = triu(L \ (P * ΔA) / U) * U
+        # ∂factors = ∂L + ∂U
+        L = UnitLowerTriangular(F.L)
+        U = UpperTriangular(F.U)
+        rdiv!(∂factors, U)
+        ldiv!(L, ∂factors)
+        ∂L = tril(∂factors, -1)
+        rmul!(UpperTriangular(∂factors), U)
+        lmul!(L, ∂L)
+        ∂factors .+= ∂L
+        ∂U = triu(∂factors)
+    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        L = UnitLowerTriangular(F.L)
+        U = F.U
+        @views begin
+            ∂factors1 = ∂factors[:, 1:q]
+            ∂factors2 = ∂factors[:, (q + 1):n]
+            U1 = UpperTriangular(U[:, 1:q])
+            U2 = U[:, (q + 1):n]
+        end
+        ldiv!(L, ∂factors)
+        rdiv!(∂factors1, U1)
+        ∂L = tril(∂factors1, -1)
+        rmul!(UpperTriangular(∂factors1), U1)
+        mul!(∂factors2, ∂L, U2, -1, 1)
+        lmul!(L, ∂L)
+        ∂factors1 .+= ∂L
+        ∂U = triu(∂factors)
+    else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+        L = F.L
+        U = UpperTriangular(F.U)
+        @views begin
+            ∂factors1 = ∂factors[1:q, :]
+            ∂factors2 = ∂factors[(q + 1):m, :]
+            L1 = UnitLowerTriangular(L[1:q, :])
+            L2 = L[(q + 1):m, :]
+        end
+        rdiv!(∂factors, U)
+        ldiv!(L1, ∂factors1)
+        mul!(∂factors2, L2, UpperTriangular(∂factors1), -1, 1)
+        ∂L = tril(∂factors, -1)
+        ∂L1 = @views LowerTriangular(∂L[1:q, :])
+        rmul!(UpperTriangular(∂factors1), U)
+        lmul!(L1, ∂L1)
+        ∂factors1 .+= ∂L1
+        ∂U = triu(∂factors1)
+    end
+    ∂F = Composite{typeof(F)}(; L=∂L, U=∂U, factors=∂factors)
+    return F, ∂F
+end
+
+#####
 ##### `svd`
 #####
 

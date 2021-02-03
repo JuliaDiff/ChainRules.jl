@@ -12,6 +12,39 @@ function FiniteDifferences.to_vec(x::Val)
 end
 
 @testset "Factorizations" begin
+    @testset "lu decomposition" begin
+        # avoid implementing to_vec(::LU)
+        asnt(F::LU) = (U=F.U, L=F.L, factors=F.factors)
+        n = 10
+        @testset "lu! frule" begin
+            @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
+                T in (Float64, ComplexF64),
+                pivot in (Val(true), Val(false)),
+                m in (7, 10, 13)
+
+                A = randn(T, m, n)
+                ΔA = rand_tangent(A)
+                F = lu!(copy(A), pivot)
+                ∂F_fd = jvp(_fdm, A -> asnt(lu!(copy(A), pivot)), (A, ΔA))
+                F_ad, ∂F_ad = @inferred frule(
+                    (Zero(), copy(ΔA), DoesNotExist()), lu!, copy(A), pivot
+                )
+                @test F_ad == F
+                @test ∂F_ad isa Composite{typeof(F)}
+                @test ∂F_ad.L ≈ ∂F_fd.L
+                @test ∂F_ad.U ≈ ∂F_fd.U
+                @test ∂F_ad.factors ≈ ∂F_fd.factors
+            end
+            @testset "check=false passed to primal function" begin
+                Asingular = zeros(n, n)
+                ΔAsingular = rand_tangent(Asingular)
+                @test_throws SingularException frule(
+                    (Zero(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
+                )
+                frule((Zero(), ΔAsingular), lu!, Asingular, Val(true); check=false)
+            end
+        end
+    end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(n, m)
