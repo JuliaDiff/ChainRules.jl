@@ -73,6 +73,77 @@ function frule(
     return F, ∂F
 end
 
+function rrule(
+    ::typeof(lu), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu(A, pivot; kwargs...)
+    function lu_pullback(ΔF::Composite)
+        ∂L = ΔF.L
+        ∂U = ΔF.U
+        ∂L isa AbstractZero && ∂U isa AbstractZero && return (NO_FIELDS, ∂L + ∂U)
+        factors = F.factors
+        if eltype(A) <: Real
+            ∂L = real(∂L)
+            ∂U = real(∂U)
+        end
+        ∂A = similar(factors)
+        m, n = size(A)
+        q = min(m, n)
+        if m == n  # square A
+            # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
+            L = UnitLowerTriangular(factors)
+            U = UpperTriangular(factors)
+            ∂L isa AbstractZero ? fill!(∂A, 0) : mul!(∂A, L', ∂L)
+            ∂L isa AbstractZero || copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+            rdiv!(∂A, U')
+            ldiv!(L', ∂A)
+        elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+            @views begin
+                L = UnitLowerTriangular(factors[:, 1:q])
+                U1 = UpperTriangular(factors[:, 1:q])
+                U2 = factors[:, (q + 1):n]
+                ∂A1 = ∂A[:, 1:q]
+                ∂A2 = ∂A[:, (q + 1):n]
+            end
+            ∂U isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂U)
+            triu!(rmul!(∂A1, U1'))
+            ∂tmp = ∂A2 * U2'
+            if ∂L isa AbstractZero
+                rmul!(∂tmp, -1)
+            else
+                mul!(∂tmp, L', LowerTriangular(∂L), 1, -1)
+            end
+            ∂A1 .+= LowerTriangular(tril!(∂tmp, -1))
+            rdiv!(∂A1, U1')
+            ldiv!(L', ∂A)
+        else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+            @views begin
+                U = UpperTriangular(factors[1:q, :])
+                L1 = UnitLowerTriangular(factors[1:q, :])
+                L2 = factors[(q + 1):m, :]
+                ∂A1 = ∂A[1:q, :]
+                ∂A2 = ∂A[(q + 1):m, :]
+            end
+            ∂L isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂L)
+            lmul!(L1', ∂A1)
+            ∂tmp = L2' * ∂A2
+            if ∂U isa AbstractZero
+                rmul!(∂tmp, -1)
+            else
+                mul!(∂tmp, UpperTriangular(∂U), U', 1, -1)
+            end
+            copyto!(UpperTriangular(∂A1), UpperTriangular(∂tmp))
+            ldiv!(L1', ∂A1)
+            rdiv!(∂A, U')
+        end
+        if pivot === Val(true)
+            ∂A = ∂A[invperm(F.p), :]
+        end
+        return NO_FIELDS, ∂A, DoesNotExist()
+    end
+    return F, lu_pullback
+end
+
 #####
 ##### `svd`
 #####

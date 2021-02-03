@@ -15,6 +15,7 @@ end
     @testset "lu decomposition" begin
         # avoid implementing to_vec(::LU)
         asnt(F::LU) = (U=F.U, L=F.L, factors=F.factors)
+        asnt2(F::LU) = (U=F.U, L=F.L)
         n = 10
         @testset "lu! frule" begin
             @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
@@ -42,6 +43,29 @@ end
                     (Zero(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
                 )
                 frule((Zero(), ΔAsingular), lu!, Asingular, Val(true); check=false)
+            end
+        end
+        @testset "lu rrule" begin
+            @testset "lu(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
+                T in (Float64, ComplexF64),
+                pivot in (Val(true), Val(false)),
+                m in (7, 10, 13)
+
+                A = randn(T, m, n)
+                F = lu(A, pivot)
+                ΔL = rand_tangent(F.L)
+                ΔU = rand_tangent(F.U)
+                # ∂fields = (k => (k in ks ? rand_tangent(getproperty(F, k)) : Zero()) for k in (:L, :U))
+                ∂fields = (:U => ΔU, :L => ΔL)
+                ΔF = Composite{typeof(F)}(; ∂fields...)
+                ΔF_fd = Composite{typeof((U = F.U, L = F.L))}(; ∂fields...)
+                ∂A_fd = only(j′vp(_fdm, A -> asnt2(lu(A, pivot)), ΔF_fd, A))
+                F_ad, back = @inferred rrule(lu, A, pivot)
+                @test F_ad == F
+                ∂self, ∂A_ad, ∂pivot_ad = @inferred back(ΔF)
+                @test ∂self === NO_FIELDS
+                @test ∂pivot_ad === DoesNotExist()
+                @test ∂A_ad ≈ ∂A_fd
             end
         end
     end
