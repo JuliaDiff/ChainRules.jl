@@ -178,6 +178,41 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
     return getproperty(F, x), getproperty_LU_pullback
 end
 
+# these rules are needed because the primal calls a LAPACK function
+
+function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatrix})
+    # factors must be square if the primal did not error
+    L = UnitLowerTriangular(F.factors)
+    U = UpperTriangular(F.factors)
+    # compute ∂Y = -(U \ (L \ ∂L + ∂U / U) / L) * P while minimizing allocations
+    ∂Y = ldiv!(L, ΔF.L)
+    ∂Y .+= rdiv!(UpperTriangular(ΔF.U), U)
+    ldiv!(U, ∂Y)
+    rdiv!(∂Y, L)
+    rmul!(∂Y, -1)
+    return LinearAlgebra.inv!(F), ∂Y[:, invperm(F.p)]
+end
+
+function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
+    function inv_LU_pullback(ΔY)
+        # factors must be square if the primal did not error
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
+        # compute the following while minimizing allocations
+        # ∂U = - triu((U' \ ∂Y * P' / L') / U')
+        # ∂L = - tril(L' \ (U' \ ∂Y * P' / L'), -1)
+        ∂factors = ΔY[:, F.p]
+        ldiv!(U', ∂factors)
+        rdiv!(∂factors, L')
+        rmul!(∂factors, -1)
+        ∂L = @thunk(LowerTriangular(tril!(L' \ ∂factors, -1)))
+        ∂U = @thunk(UpperTriangular(∂factors / U'))
+        ∂F = Composite{typeof(F)}(; L=∂L, U=∂U)
+        return NO_FIELDS, ∂F
+    end
+    return inv(F), inv_LU_pullback
+end
+
 #####
 ##### `svd`
 #####

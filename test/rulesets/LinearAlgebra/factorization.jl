@@ -107,6 +107,36 @@ end
                     @test ∂A_ad ≈ ∂A_fd
                 end
             end
+            @testset "matrix inverse using LU" begin
+                @testset "LinearAlgebra.inv!(::LU) frule" begin
+                    @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
+                        A = randn(T, n, n)
+                        ΔA = rand_tangent(A)
+                        F, ΔF = frule((Zero(), copy(ΔA)), lu!, copy(A), Val(true))
+                        Y = inv(F)
+                        ∂Y_fd = jvp(_fdm, inv, (A, ΔA))
+                        Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔF), LinearAlgebra.inv!, F)
+                        @test Y_ad == Y
+                        @test ∂Y_ad ≈ ∂Y_fd
+                    end
+                end
+                @testset "inv(::LU) rrule" begin
+                    @testset "inv(::LU{$T,<:StridedMatrix})" for T in (Float64,ComplexF64)
+                        A = randn(T, n, n)
+                        F = lu(A, Val(true))
+                        Y = inv(F)
+                        ΔY = rand_tangent(Y)
+                        Y_ad, back = @inferred rrule(inv, F)
+                        @test Y_ad == Y
+                        ∂self, ∂F_fd = @inferred back(ΔY)
+                        @test ∂self === NO_FIELDS
+                        @test ∂F_fd isa Composite{typeof(F)}
+                        ∂A_fd = only(j′vp(_fdm, inv, ΔY, A))
+                        ∂A_ad = rrule(lu, A, Val(true))[2](∂F_fd)[2]
+                        @test ∂A_ad ≈ ∂A_fd
+                    end
+                end
+            end
         end
     end
     @testset "svd" begin
