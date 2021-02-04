@@ -1,11 +1,6 @@
 @testset "reshape" begin
-    x = rand(4, 5)
-    x̄ = rand(4, 5)
-
-    ȳ = rand(2, 10)
-
-    rrule_test(reshape, ȳ, (x, x̄), ((2, 10), nothing))
-    rrule_test(reshape, ȳ, (x, x̄), (2, nothing), (10, nothing))
+    test_rrule(reshape, rand(4, 5), (2, 10) ⊢ nothing)
+    test_rrule(reshape, rand(4, 5), 2 ⊢ nothing, 10 ⊢ nothing)
 end
 
 @testset "hcat" begin
