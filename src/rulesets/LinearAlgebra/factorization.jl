@@ -80,7 +80,9 @@ function rrule(
     function lu_pullback(ΔF::Composite)
         ∂L = ΔF.L
         ∂U = ΔF.U
-        ∂L isa AbstractZero && ∂U isa AbstractZero && return (NO_FIELDS, ∂L + ∂U)
+        if ∂L isa AbstractZero && ∂U isa AbstractZero
+            return (NO_FIELDS, ∂L + ∂U, DoesNotExist())
+        end
         factors = F.factors
         if eltype(A) <: Real
             ∂L = real(∂L)
@@ -94,7 +96,11 @@ function rrule(
             L = UnitLowerTriangular(factors)
             U = UpperTriangular(factors)
             ∂L isa AbstractZero ? fill!(∂A, 0) : mul!(∂A, L', ∂L)
-            ∂L isa AbstractZero || copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+            if ∂U isa AbstractZero
+                fill!(UpperTriangular(∂A), 0)
+            else
+                copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+            end
             rdiv!(∂A, U')
             ldiv!(L', ∂A)
         elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]

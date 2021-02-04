@@ -53,19 +53,27 @@ end
 
                 A = randn(T, m, n)
                 F = lu(A, pivot)
+                F_fd = asnt2(lu(A, pivot))
                 ΔL = rand_tangent(F.L)
                 ΔU = rand_tangent(F.U)
-                # ∂fields = (k => (k in ks ? rand_tangent(getproperty(F, k)) : Zero()) for k in (:L, :U))
-                ∂fields = (:U => ΔU, :L => ΔL)
-                ΔF = Composite{typeof(F)}(; ∂fields...)
-                ΔF_fd = Composite{typeof((U = F.U, L = F.L))}(; ∂fields...)
-                ∂A_fd = only(j′vp(_fdm, A -> asnt2(lu(A, pivot)), ΔF_fd, A))
-                F_ad, back = @inferred rrule(lu, A, pivot)
-                @test F_ad == F
-                ∂self, ∂A_ad, ∂pivot_ad = @inferred back(ΔF)
-                @test ∂self === NO_FIELDS
-                @test ∂pivot_ad === DoesNotExist()
-                @test ∂A_ad ≈ ∂A_fd
+                ΔF = Composite{typeof(F)}(; U=ΔU, L=ΔL)
+                @testset "Composite with nonzero fields: $ks" for ks in ((), (:L, :U), (:L,), (:U,))
+                    ΔF_ad = Composite{typeof(F)}(; (k => getproperty(ΔF, k) for k in ks)...)
+                    # work around FD not accepting Zero arguments
+                    ΔF_fd = Composite{typeof(F_fd)}(; U = copy(ΔF.U), L = copy(ΔF.L))
+                    for k in (:L, :U)
+                        if k ∉ ks
+                            fill!(getproperty(ΔF_fd, k), 0)
+                        end
+                    end
+                    ∂A_fd = only(j′vp(_fdm, A -> asnt2(lu(A, pivot)), ΔF_fd, A))
+                    F_ad, back = @inferred rrule(lu, A, pivot)
+                    @test F_ad == F
+                    ∂self, ∂A_ad, ∂pivot_ad = @inferred back(ΔF_ad)
+                    @test ∂self === NO_FIELDS
+                    @test ∂pivot_ad === DoesNotExist()
+                    @test ∂A_ad ≈ ∂A_fd
+                end
             end
         end
     end
