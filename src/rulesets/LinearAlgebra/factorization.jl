@@ -151,6 +151,34 @@ function rrule(
 end
 
 #####
+##### functions of `LU`
+#####
+
+# this rule standardizes the cotangent of LU to have property names :L and :U, which don't
+# have corresponding fields in LU.
+
+function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:StridedMatrix{T}}}
+    function getproperty_LU_pullback(ΔY)
+        C = Composite{TF}
+        ∂F = if x === :L
+            C(; L=tril(ΔY, -1))
+        elseif x === :U
+            C(; U=triu(ΔY))
+        elseif x === :factors
+            m, n = size(F.factors)
+            q = min(m, n)
+            ∂L = tril(n == q ? ΔY : view(ΔY, :, 1:q), -1)
+            ∂U = triu(m == q ? ΔY : view(ΔY, 1:q, :))
+            C(; L=∂L, U=∂U)
+        else
+            DoesNotExist()
+        end
+        return NO_FIELDS, ∂F, DoesNotExist()
+    end
+    return getproperty(F, x), getproperty_LU_pullback
+end
+
+#####
 ##### `svd`
 #####
 

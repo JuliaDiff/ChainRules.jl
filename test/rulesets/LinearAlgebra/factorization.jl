@@ -84,6 +84,30 @@ end
                 back(ΔF)
             end
         end
+        @testset "LU" begin
+            @testset "getproperty(::LU, k) rrule" begin
+                # test that the getproperty rrule composes correctly with the lu rrule
+                @testset "getproperty(lu(A::Matrix), :$k) for size(A)=($m, $n)" for
+                    k in (:U, :L, :factors),
+                    m in (7, 10, 13)
+
+                    A = randn(m, n)
+                    F = lu(A)
+                    X = getproperty(F, k)
+                    ΔX = rand_tangent(X)
+                    # don't test inferrability, because primal is not inferrable
+                    X_ad, back = rrule(getproperty, F, k)
+                    @test X_ad == X
+                    ∂self, ∂F_ad, ∂k = back(ΔX)
+                    @test ∂self === NO_FIELDS
+                    @test ∂k === DoesNotExist()
+                    @test ∂F_ad isa Composite{typeof(F)}
+                    ∂A_fd = only(j′vp(_fdm, A -> getproperty(lu(A), k), ΔX, A))
+                    ∂A_ad = rrule(lu, A, Val(true))[2](∂F_ad)[2]
+                    @test ∂A_ad ≈ ∂A_fd
+                end
+            end
+        end
     end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
