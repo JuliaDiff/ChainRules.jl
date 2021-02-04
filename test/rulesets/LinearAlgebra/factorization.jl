@@ -75,6 +75,14 @@ end
                     @test ∂A_ad ≈ ∂A_fd
                 end
             end
+            @testset "check=false passed to primal function" begin
+                Asingular = zeros(n, n)
+                F = lu(Asingular, Val(true); check=false)
+                ΔF = Composite{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
+                @test_throws SingularException rrule(lu, Asingular, Val(true))
+                _, back = rrule(lu, Asingular, Val(true); check=false)
+                back(ΔF)
+            end
         end
     end
     @testset "svd" begin
