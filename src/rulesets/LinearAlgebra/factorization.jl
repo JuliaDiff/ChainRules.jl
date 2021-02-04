@@ -28,11 +28,9 @@ function frule(
         U = UpperTriangular(F.factors)
         rdiv!(∂factors, U)
         ldiv!(L, ∂factors)
-        ∂L = tril(∂factors, -1)
-        rmul!(UpperTriangular(∂factors), U)
-        lmul!(L, ∂L)
-        ∂factors .+= ∂L
-        ∂U = triu(∂factors)
+        ∂L = lmul!(L, tril(∂factors, -1))
+        ∂U = rmul!(triu(∂factors), U)
+        ∂factors .= ∂L .+ ∂U
     elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
         L = UnitLowerTriangular(F.L)
         U = F.U
@@ -45,9 +43,9 @@ function frule(
         ldiv!(L, ∂factors)
         rdiv!(∂factors1, U1)
         ∂L = tril(∂factors1, -1)
-        rmul!(UpperTriangular(∂factors1), U1)
         mul!(∂factors2, ∂L, U2, -1, 1)
         lmul!(L, ∂L)
+        rmul!(triu!(∂factors1), U1)
         ∂factors1 .+= ∂L
         ∂U = triu(∂factors)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
@@ -61,13 +59,12 @@ function frule(
         end
         rdiv!(∂factors, U)
         ldiv!(L1, ∂factors1)
-        mul!(∂factors2, L2, UpperTriangular(∂factors1), -1, 1)
-        ∂L = tril(∂factors, -1)
-        ∂L1 = @views LowerTriangular(∂L[1:q, :])
-        rmul!(UpperTriangular(∂factors1), U)
-        lmul!(L1, ∂L1)
-        ∂factors1 .+= ∂L1
         ∂U = triu(∂factors1)
+        mul!(∂factors2, L2, ∂U, -1, 1)
+        rmul!(∂U, U)
+        lmul!(L1, tril!(∂factors1, -1))
+        ∂factors1 .+= ∂U
+        ∂L = tril(∂factors, -1)
     end
     ∂F = Composite{typeof(F)}(; L=∂L, U=∂U, factors=∂factors)
     return F, ∂F
