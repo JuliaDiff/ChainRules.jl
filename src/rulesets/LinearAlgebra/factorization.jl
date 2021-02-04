@@ -182,8 +182,8 @@ function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatr
     L = UnitLowerTriangular(F.factors)
     U = UpperTriangular(F.factors)
     # compute ∂Y = -(U \ (L \ ∂L + ∂U / U) / L) * P while minimizing allocations
-    ∂Y = ldiv!(L, ΔF.L)
-    ∂Y .+= rdiv!(UpperTriangular(ΔF.U), U)
+    ∂Y = ldiv!(L, tril!(ΔF.L, -1))
+    ∂Y .+= rdiv!(triu!(ΔF.U), U)
     ldiv!(U, ∂Y)
     rdiv!(∂Y, L)
     rmul!(∂Y, -1)
