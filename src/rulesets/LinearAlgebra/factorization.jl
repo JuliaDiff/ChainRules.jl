@@ -102,40 +102,40 @@ function rrule(
             ldiv!(L', ∂A)
         elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
             @views begin
-                L = UnitLowerTriangular(factors[:, 1:q])
-                U1 = UpperTriangular(factors[:, 1:q])
+                factors1 = factors[:, 1:q]
                 U2 = factors[:, (q + 1):n]
                 ∂A1 = ∂A[:, 1:q]
                 ∂A2 = ∂A[:, (q + 1):n]
             end
+            L = UnitLowerTriangular(factors1)
+            U1 = UpperTriangular(factors1)
             ∂U isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂U)
             triu!(rmul!(∂A1, U1'))
             ∂tmp = ∂A2 * U2'
             if ∂L isa AbstractZero
-                rmul!(∂tmp, -1)
+                ∂A1 .-= tril!(∂tmp, -1)
             else
-                mul!(∂tmp, L', LowerTriangular(∂L), 1, -1)
+                ∂A1 .+= tril!(mul!(∂tmp, L', LowerTriangular(∂L), 1, -1), -1)
             end
-            ∂A1 .+= LowerTriangular(tril!(∂tmp, -1))
             rdiv!(∂A1, U1')
             ldiv!(L', ∂A)
         else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
             @views begin
-                U = UpperTriangular(factors[1:q, :])
-                L1 = UnitLowerTriangular(factors[1:q, :])
+                factors1 = factors[1:q, :]
                 L2 = factors[(q + 1):m, :]
                 ∂A1 = ∂A[1:q, :]
                 ∂A2 = ∂A[(q + 1):m, :]
             end
+            U = UpperTriangular(factors1)
+            L1 = UnitLowerTriangular(factors1)
             ∂L isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂L)
-            lmul!(L1', ∂A1)
+            tril!(lmul!(L1', ∂A1), -1)
             ∂tmp = L2' * ∂A2
             if ∂U isa AbstractZero
-                rmul!(∂tmp, -1)
+                ∂A1 .-= triu!(∂tmp)
             else
-                mul!(∂tmp, UpperTriangular(∂U), U', 1, -1)
+                ∂A1 .+= triu!(mul!(∂tmp, UpperTriangular(∂U), U', 1, -1))
             end
-            copyto!(UpperTriangular(∂A1), UpperTriangular(∂tmp))
             ldiv!(L1', ∂A1)
             rdiv!(∂A, U')
         end
