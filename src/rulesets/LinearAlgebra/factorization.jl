@@ -12,6 +12,9 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # Differentiation of matrix functionals using triangular factorization.
 # Mathematics of Computation, 80 (275). p. 1585.
 # doi: http://doi.org/10.1090/S0025-5718-2011-02451-8
+# for derivations for wide and tall matrices, see
+# https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
+
 function frule(
     (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
 )
