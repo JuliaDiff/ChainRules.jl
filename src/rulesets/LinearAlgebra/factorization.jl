@@ -51,7 +51,6 @@ function frule(
         lmul!(L, ∂L)
         rmul!(triu!(∂factors1), U1)
         ∂factors1 .+= ∂L
-        ∂U = triu(∂factors)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         L = F.L
         U = UpperTriangular(F.U)
@@ -68,9 +67,8 @@ function frule(
         rmul!(∂U, U)
         lmul!(L1, tril!(∂factors1, -1))
         ∂factors1 .+= ∂U
-        ∂L = tril(∂factors, -1)
     end
-    ∂F = Composite{typeof(F)}(; L=∂L, U=∂U, factors=∂factors)
+    ∂F = Composite{typeof(F)}(; factors=∂factors)
     return F, ∂F
 end
 
@@ -79,16 +77,10 @@ function rrule(
 )
     F = lu(A, pivot; kwargs...)
     function lu_pullback(ΔF::Composite)
-        ΔL = ΔF.L
-        ΔU = ΔF.U
-        if ΔL isa AbstractZero && ΔU isa AbstractZero
-            return (NO_FIELDS, ΔL + ΔU, DoesNotExist())
-        end
+        Δfactors = ΔF.factors
+        Δfactors isa AbstractZero && return (NO_FIELDS, Δfactors, DoesNotExist())
         factors = F.factors
-        if eltype(A) <: Real
-            ∂L = real(ΔL)
-            ∂U = real(ΔU)
-        end
+        ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
         ∂A = similar(factors)
         m, n = size(A)
         q = min(m, n)
@@ -96,50 +88,41 @@ function rrule(
             # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
             L = UnitLowerTriangular(factors)
             U = UpperTriangular(factors)
-            ∂L isa AbstractZero ? fill!(∂A, 0) : mul!(∂A, L', ∂L)
-            if ∂U isa AbstractZero
-                fill!(UpperTriangular(∂A), 0)
-            else
-                copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
-            end
+            ∂U = UpperTriangular(∂factors)
+            ∂A = similar(∂factors)
+            tril!(copyto!(∂A, ∂factors), -1)
+            ∂A = lmul!(L', ∂A)
+            copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
             rdiv!(∂A, U')
             ldiv!(L', ∂A)
         elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+            ∂A = triu(∂factors)
             @views begin
                 factors1 = factors[:, 1:q]
                 U2 = factors[:, (q + 1):end]
                 ∂A1 = ∂A[:, 1:q]
                 ∂A2 = ∂A[:, (q + 1):end]
+                ∂L = tril(∂factors[:, 1:q], -1)
             end
             L = UnitLowerTriangular(factors1)
             U1 = UpperTriangular(factors1)
-            ∂U isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂U)
             triu!(rmul!(∂A1, U1'))
-            ∂tmp = ∂A2 * U2'
-            if ∂L isa AbstractZero
-                ∂A1 .-= tril!(∂tmp, -1)
-            else
-                ∂A1 .+= tril!(mul!(∂tmp, L', LowerTriangular(∂L), 1, -1), -1)
-            end
+            ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
             rdiv!(∂A1, U1')
             ldiv!(L', ∂A)
         else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+            ∂A = tril(∂factors, -1)
             @views begin
                 factors1 = factors[1:q, :]
                 L2 = factors[(q + 1):end, :]
                 ∂A1 = ∂A[1:q, :]
                 ∂A2 = ∂A[(q + 1):end, :]
+                ∂U = triu(∂factors[1:q, :])
             end
             U = UpperTriangular(factors1)
             L1 = UnitLowerTriangular(factors1)
-            ∂L isa AbstractZero ? fill!(∂A, 0) : copyto!(∂A, ∂L)
             tril!(lmul!(L1', ∂A1), -1)
-            ∂tmp = L2' * ∂A2
-            if ∂U isa AbstractZero
-                ∂A1 .-= triu!(∂tmp)
-            else
-                ∂A1 .+= triu!(mul!(∂tmp, UpperTriangular(∂U), U', 1, -1))
-            end
+            ∂A1 .+= triu!(mul!(rmul!(∂U, U'), L2', ∂A2, -1, 1))
             ldiv!(L1', ∂A1)
             rdiv!(∂A, U')
         end
@@ -155,25 +138,22 @@ end
 ##### functions of `LU`
 #####
 
-# this rule standardizes the cotangent of LU to have property names :L and :U, which don't
-# have corresponding fields in LU.
+# this rrule is necessary because the primal mutates
 
 function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:StridedMatrix{T}}}
     function getproperty_LU_pullback(ΔY)
-        C = Composite{TF}
-        ∂F = if x === :L
-            C(; L=tril(ΔY, -1))
-        elseif x === :U
-            C(; U=triu(ΔY))
-        elseif x === :factors
+        ∂factors = if x === :L
             m, n = size(F.factors)
-            q = min(m, n)
-            ∂L = tril(n === q ? ΔY : view(ΔY, :, 1:q), -1)
-            ∂U = triu(m === q ? ΔY : view(ΔY, 1:q, :))
-            C(; L=∂L, U=∂U)
+            m ≥ n ? tril(ΔY, -1) : tril!([ΔY zeros(m, n - m)], -1)
+        elseif x === :U
+            m, n = size(F.factors)
+            m ≤ n ? triu(ΔY) : triu!([ΔY; zeros(m - n, n)])
+        elseif x === :factors
+            ΔY
         else
-            DoesNotExist()
+            return (NO_FIELDS, DoesNotExist(), DoesNotExist())
         end
+        ∂F = Composite{TF}(; factors=∂factors)
         return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_LU_pullback
@@ -186,8 +166,12 @@ function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatr
     L = UnitLowerTriangular(F.factors)
     U = UpperTriangular(F.factors)
     # compute ∂Y = -(U \ (L \ ∂L + ∂U / U) / L) * P while minimizing allocations
-    ∂Y = ldiv!(L, tril!(ΔF.L, -1))
-    ∂Y .+= rdiv!(triu!(ΔF.U), U)
+    m, n = size(F.factors)
+    q = min(m, n)
+    ∂L = tril(m ≥ n ? ΔF.factors : view(ΔF.factors, :, 1:q), -1)
+    ∂U = triu(m ≤ n ? ΔF.factors : view(ΔF.factors, 1:q, :))
+    ∂Y = ldiv!(L, ∂L)
+    ∂Y .+= rdiv!(∂U, U)
     ldiv!(U, ∂Y)
     rdiv!(∂Y, L)
     rmul!(∂Y, -1)
@@ -206,9 +190,10 @@ function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
         ldiv!(U', ∂factors)
         rdiv!(∂factors, L')
         rmul!(∂factors, -1)
-        ∂L = @thunk(LowerTriangular(tril!(L' \ ∂factors, -1)))
-        ∂U = @thunk(UpperTriangular(∂factors / U'))
-        ∂F = Composite{typeof(F)}(; L=∂L, U=∂U)
+        ∂L = tril!(L' \ ∂factors, -1)
+        triu!(rdiv!(∂factors, U'))
+        ∂factors .+= ∂L
+        ∂F = Composite{typeof(F)}(; factors=∂factors)
         return NO_FIELDS, ∂F
     end
     return inv(F), inv_LU_pullback
