@@ -31,16 +31,7 @@ end
 
                 A = randn(T, m, n)
                 ΔA = rand_tangent(A)
-                F = lu!(copy(A), pivot)
-                ∂F_fd = jvp(_fdm, A -> asnt(lu!(copy(A), pivot)), (A, ΔA))
-                F_ad, ∂F_ad = @inferred frule(
-                    (Zero(), copy(ΔA), DoesNotExist()), lu!, copy(A), pivot
-                )
-                check_equal(F_ad, F)
-                @test ∂F_ad isa Composite{typeof(F)}
-                check_equal(∂F_ad.L, ∂F_fd.L)
-                check_equal(∂F_ad.U, ∂F_fd.U)
-                check_equal(∂F_ad.factors, ∂F_fd.factors)
+                frule_test(lu!, (A, ΔA), (pivot, nothing))
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -58,28 +49,11 @@ end
                 m in (7, 10, 13)
 
                 A = randn(T, m, n)
+                ΔA = rand_tangent(A)
                 F = lu(A, pivot)
-                F_fd = asnt2(lu(A, pivot))
-                ΔL = rand_tangent(F.L)
-                ΔU = rand_tangent(F.U)
-                ΔF = Composite{typeof(F)}(; U=ΔU, L=ΔL)
-                @testset "Composite with nonzero fields: $ks" for ks in ((), (:L, :U), (:L,), (:U,))
-                    ΔF_ad = Composite{typeof(F)}(; (k => getproperty(ΔF, k) for k in ks)...)
-                    # work around FD not accepting Zero arguments
-                    ΔF_fd = Composite{typeof(F_fd)}(; U = copy(ΔF.U), L = copy(ΔF.L))
-                    for k in (:L, :U)
-                        if k ∉ ks
-                            fill!(getproperty(ΔF_fd, k), 0)
-                        end
-                    end
-                    ∂A_fd = only(j′vp(_fdm, A -> asnt2(lu(A, pivot)), ΔF_fd, A))
-                    F_ad, back = @inferred rrule(lu, A, pivot)
-                    check_equal(F_ad, F)
-                    ∂self, ∂A_ad, ∂pivot_ad = @inferred back(ΔF_ad)
-                    check_equal(∂self, NO_FIELDS)
-                    check_equal(∂pivot_ad, DoesNotExist())
-                    check_equal(∂A_ad, ∂A_fd)
-                end
+                Δfactors = rand_tangent(F.factors)
+                ΔF = Composite{typeof(F)}(; factors=Δfactors)
+                rrule_test(lu, ΔF, (A, ΔA), (pivot, nothing))
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -100,46 +74,28 @@ end
                     A = randn(m, n)
                     F = lu(A)
                     X = getproperty(F, k)
+                    ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
                     ΔX = rand_tangent(X)
-                    # don't test inferrability, because primal is not inferrable
-                    X_ad, back = rrule(getproperty, F, k)
-                    check_equal(X_ad, X)
-                    ∂self, ∂F_ad, ∂k = back(ΔX)
-                    check_equal(∂self, NO_FIELDS)
-                    check_equal(∂k, DoesNotExist())
-                    @test ∂F_ad isa Composite{typeof(F)}
-                    ∂A_fd = only(j′vp(_fdm, A -> getproperty(lu(A), k), ΔX, A))
-                    ∂A_ad = rrule(lu, A, Val(true))[2](∂F_ad)[2]
-                    check_equal(∂A_ad, ∂A_fd)
+                    rrule_test(getproperty, ΔX, (F, ΔF), (k, nothing); check_inferred=false)
                 end
             end
             @testset "matrix inverse using LU" begin
                 @testset "LinearAlgebra.inv!(::LU) frule" begin
                     @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
                         A = randn(T, n, n)
-                        ΔA = rand_tangent(A)
-                        F, ΔF = frule((Zero(), copy(ΔA)), lu!, copy(A), Val(true))
-                        Y = inv(F)
-                        ∂Y_fd = jvp(_fdm, inv, (A, ΔA))
-                        Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔF), LinearAlgebra.inv!, F)
-                        check_equal(Y_ad, Y)
-                        check_equal(∂Y_ad, ∂Y_fd)
+                        F = lu(A, Val(true))
+                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
+                        frule_test(LinearAlgebra.inv!, (F, ΔF))
                     end
                 end
                 @testset "inv(::LU) rrule" begin
                     @testset "inv(::LU{$T,<:StridedMatrix})" for T in (Float64,ComplexF64)
                         A = randn(T, n, n)
                         F = lu(A, Val(true))
-                        Y = inv(F)
+                        Y = inv(A)
+                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
                         ΔY = rand_tangent(Y)
-                        Y_ad, back = @inferred rrule(inv, F)
-                        check_equal(Y_ad, Y)
-                        ∂self, ∂F_fd = @inferred back(ΔY)
-                        check_equal(∂self, NO_FIELDS)
-                        @test ∂F_fd isa Composite{typeof(F)}
-                        ∂A_fd = only(j′vp(_fdm, inv, ΔY, A))
-                        ∂A_ad = rrule(lu, A, Val(true))[2](∂F_fd)[2]
-                        check_equal(∂A_ad, ∂A_fd)
+                        rrule_test(inv, ΔY, (F, ΔF))
                     end
                 end
             end
