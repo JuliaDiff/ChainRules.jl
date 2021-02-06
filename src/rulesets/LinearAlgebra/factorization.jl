@@ -145,12 +145,14 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
     function getproperty_LU_pullback(ΔY)
         ∂factors = if x === :L
             m, n = size(F.factors)
-            m ≥ n ? tril(ΔY, -1) : tril!([ΔY zeros(m, n - m)], -1)
+            T = eltype(ΔY)
+            tril!([ΔY zeros(T, m, max(0, n - m))], -1)
         elseif x === :U
             m, n = size(F.factors)
-            m ≤ n ? triu(ΔY) : triu!([ΔY; zeros(m - n, n)])
+            T = eltype(ΔY)
+            triu!([ΔY; zeros(T, max(0, m - n), n)])
         elseif x === :factors
-            ΔY
+            Matrix(ΔY)
         else
             return (NO_FIELDS, DoesNotExist(), DoesNotExist())
         end
