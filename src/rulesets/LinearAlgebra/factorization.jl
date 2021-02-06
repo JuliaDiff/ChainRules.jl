@@ -60,6 +60,7 @@ function frule(
             L1 = UnitLowerTriangular(L[1:q, :])
             L2 = L[(q + 1):end, :]
         end
+        # Here we manipulate ∂factors both directly and via views: ∂factors1 and  ∂factors2
         rdiv!(∂factors, U)
         ldiv!(L1, ∂factors1)
         ∂U = triu(∂factors1)
