@@ -92,7 +92,7 @@ function rrule(
             ∂U = UpperTriangular(∂factors)
             ∂A = similar(∂factors)
             tril!(copyto!(∂A, ∂factors), -1)
-            ∂A = lmul!(L', ∂A)
+            lmul!(L', ∂A)
             copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
             rdiv!(∂A, U')
             ldiv!(L', ∂A)
