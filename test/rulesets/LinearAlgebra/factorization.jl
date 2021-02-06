@@ -1,3 +1,12 @@
+# TODO: move this to FiniteDifferences
+function FiniteDifferences.to_vec(X::LU)
+    x_vec, back = to_vec(Matrix(X.factors))
+    function LU_from_vec(x_vec)
+        return LU(back(x_vec), X.ipiv, X.info)
+    end
+    return x_vec, LU_from_vec
+end
+
 function FiniteDifferences.to_vec(C::Cholesky)
     C_vec, factors_from_vec = to_vec(C.factors)
     function cholesky_from_vec(v)
@@ -13,9 +22,6 @@ end
 
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
-        # avoid implementing to_vec(::LU)
-        asnt(F::LU) = (U=F.U, L=F.L, factors=F.factors)
-        asnt2(F::LU) = (U=F.U, L=F.L)
         n = 10
         @testset "lu! frule" begin
             @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
