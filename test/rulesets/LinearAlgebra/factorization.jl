@@ -30,11 +30,11 @@ end
                 F_ad, ∂F_ad = @inferred frule(
                     (Zero(), copy(ΔA), DoesNotExist()), lu!, copy(A), pivot
                 )
-                @test F_ad == F
+                check_equal(F_ad, F)
                 @test ∂F_ad isa Composite{typeof(F)}
                 check_equal(∂F_ad.L, ∂F_fd.L)
-                @test ∂F_ad.U ≈ ∂F_fd.U
-                @test ∂F_ad.factors ≈ ∂F_fd.factors
+                check_equal(∂F_ad.U, ∂F_fd.U)
+                check_equal(∂F_ad.factors, ∂F_fd.factors)
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -68,11 +68,11 @@ end
                     end
                     ∂A_fd = only(j′vp(_fdm, A -> asnt2(lu(A, pivot)), ΔF_fd, A))
                     F_ad, back = @inferred rrule(lu, A, pivot)
-                    @test F_ad == F
+                    check_equal(F_ad, F)
                     ∂self, ∂A_ad, ∂pivot_ad = @inferred back(ΔF_ad)
-                    @test ∂self === NO_FIELDS
-                    @test ∂pivot_ad === DoesNotExist()
-                    @test ∂A_ad ≈ ∂A_fd
+                    check_equal(∂self, NO_FIELDS)
+                    check_equal(∂pivot_ad, DoesNotExist())
+                    check_equal(∂A_ad, ∂A_fd)
                 end
             end
             @testset "check=false passed to primal function" begin
@@ -97,14 +97,14 @@ end
                     ΔX = rand_tangent(X)
                     # don't test inferrability, because primal is not inferrable
                     X_ad, back = rrule(getproperty, F, k)
-                    @test X_ad == X
+                    check_equal(X_ad, X)
                     ∂self, ∂F_ad, ∂k = back(ΔX)
-                    @test ∂self === NO_FIELDS
-                    @test ∂k === DoesNotExist()
+                    check_equal(∂self, NO_FIELDS)
+                    check_equal(∂k, DoesNotExist())
                     @test ∂F_ad isa Composite{typeof(F)}
                     ∂A_fd = only(j′vp(_fdm, A -> getproperty(lu(A), k), ΔX, A))
                     ∂A_ad = rrule(lu, A, Val(true))[2](∂F_ad)[2]
-                    @test ∂A_ad ≈ ∂A_fd
+                    check_equal(∂A_ad, ∂A_fd)
                 end
             end
             @testset "matrix inverse using LU" begin
@@ -116,8 +116,8 @@ end
                         Y = inv(F)
                         ∂Y_fd = jvp(_fdm, inv, (A, ΔA))
                         Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔF), LinearAlgebra.inv!, F)
-                        @test Y_ad == Y
-                        @test ∂Y_ad ≈ ∂Y_fd
+                        check_equal(Y_ad, Y)
+                        check_equal(∂Y_ad, ∂Y_fd)
                     end
                 end
                 @testset "inv(::LU) rrule" begin
@@ -127,13 +127,13 @@ end
                         Y = inv(F)
                         ΔY = rand_tangent(Y)
                         Y_ad, back = @inferred rrule(inv, F)
-                        @test Y_ad == Y
+                        check_equal(Y_ad, Y)
                         ∂self, ∂F_fd = @inferred back(ΔY)
-                        @test ∂self === NO_FIELDS
+                        check_equal(∂self, NO_FIELDS)
                         @test ∂F_fd isa Composite{typeof(F)}
                         ∂A_fd = only(j′vp(_fdm, inv, ΔY, A))
                         ∂A_ad = rrule(lu, A, Val(true))[2](∂F_fd)[2]
-                        @test ∂A_ad ≈ ∂A_fd
+                        check_equal(∂A_ad, ∂A_fd)
                     end
                 end
             end
