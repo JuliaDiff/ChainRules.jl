@@ -39,10 +39,11 @@ function frule(
         U = F.U
         @views begin
             ∂factors1 = ∂factors[:, 1:q]
-            ∂factors2 = ∂factors[:, (q + 1):n]
+            ∂factors2 = ∂factors[:, (q + 1):end]
             U1 = UpperTriangular(U[:, 1:q])
-            U2 = U[:, (q + 1):n]
+            U2 = U[:, (q + 1):end]
         end
+        # Here we manipulate ∂factors both directly and via views: ∂factors1 and  ∂factors2
         ldiv!(L, ∂factors)
         rdiv!(∂factors1, U1)
         ∂L = tril(∂factors1, -1)
@@ -56,9 +57,9 @@ function frule(
         U = UpperTriangular(F.U)
         @views begin
             ∂factors1 = ∂factors[1:q, :]
-            ∂factors2 = ∂factors[(q + 1):m, :]
+            ∂factors2 = ∂factors[(q + 1):end, :]
             L1 = UnitLowerTriangular(L[1:q, :])
-            L2 = L[(q + 1):m, :]
+            L2 = L[(q + 1):end, :]
         end
         rdiv!(∂factors, U)
         ldiv!(L1, ∂factors1)
@@ -106,9 +107,9 @@ function rrule(
         elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
             @views begin
                 factors1 = factors[:, 1:q]
-                U2 = factors[:, (q + 1):n]
+                U2 = factors[:, (q + 1):end]
                 ∂A1 = ∂A[:, 1:q]
-                ∂A2 = ∂A[:, (q + 1):n]
+                ∂A2 = ∂A[:, (q + 1):end]
             end
             L = UnitLowerTriangular(factors1)
             U1 = UpperTriangular(factors1)
@@ -125,9 +126,9 @@ function rrule(
         else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
             @views begin
                 factors1 = factors[1:q, :]
-                L2 = factors[(q + 1):m, :]
+                L2 = factors[(q + 1):end, :]
                 ∂A1 = ∂A[1:q, :]
-                ∂A2 = ∂A[(q + 1):m, :]
+                ∂A2 = ∂A[(q + 1):end, :]
             end
             U = UpperTriangular(factors1)
             L1 = UnitLowerTriangular(factors1)
@@ -167,8 +168,8 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
         elseif x === :factors
             m, n = size(F.factors)
             q = min(m, n)
-            ∂L = tril(n == q ? ΔY : view(ΔY, :, 1:q), -1)
-            ∂U = triu(m == q ? ΔY : view(ΔY, 1:q, :))
+            ∂L = tril(n === q ? ΔY : view(ΔY, :, 1:q), -1)
+            ∂U = triu(m === q ? ΔY : view(ΔY, 1:q, :))
             C(; L=∂L, U=∂U)
         else
             DoesNotExist()

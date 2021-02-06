@@ -32,7 +32,7 @@ end
                 )
                 @test F_ad == F
                 @test ∂F_ad isa Composite{typeof(F)}
-                @test ∂F_ad.L ≈ ∂F_fd.L
+                check_equal(∂F_ad.L, ∂F_fd.L)
                 @test ∂F_ad.U ≈ ∂F_fd.U
                 @test ∂F_ad.factors ≈ ∂F_fd.factors
             end
