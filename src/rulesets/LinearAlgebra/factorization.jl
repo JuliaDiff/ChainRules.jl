@@ -88,14 +88,13 @@ function rrule(
             L = UnitLowerTriangular(factors)
             U = UpperTriangular(factors)
             ∂U = UpperTriangular(∂factors)
-            ∂A = similar(∂factors)
             tril!(copyto!(∂A, ∂factors), -1)
             lmul!(L', ∂A)
             copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
             rdiv!(∂A, U')
             ldiv!(L', ∂A)
         elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
-            ∂A = triu(∂factors)
+            triu!(copyto!(∂A, ∂factors))
             @views begin
                 factors1 = factors[:, 1:q]
                 U2 = factors[:, (q + 1):end]
@@ -110,7 +109,7 @@ function rrule(
             rdiv!(∂A1, U1')
             ldiv!(L', ∂A)
         else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
-            ∂A = tril(∂factors, -1)
+            tril!(copyto!(∂A, ∂factors), -1)
             @views begin
                 factors1 = factors[1:q, :]
                 L2 = factors[(q + 1):end, :]
