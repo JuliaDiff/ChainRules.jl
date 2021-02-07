@@ -37,14 +37,13 @@ function frule(
     elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
         L = UnitLowerTriangular(F.L)
         U = F.U
+        ldiv!(L, ∂factors)
         @views begin
             ∂factors1 = ∂factors[:, 1:q]
             ∂factors2 = ∂factors[:, (q + 1):end]
             U1 = UpperTriangular(U[:, 1:q])
             U2 = U[:, (q + 1):end]
         end
-        # Here we manipulate ∂factors both directly and via views: ∂factors1 and  ∂factors2
-        ldiv!(L, ∂factors)
         rdiv!(∂factors1, U1)
         ∂L = tril(∂factors1, -1)
         mul!(∂factors2, ∂L, U2, -1, 1)
@@ -54,14 +53,13 @@ function frule(
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         L = F.L
         U = UpperTriangular(F.U)
+        rdiv!(∂factors, U)
         @views begin
             ∂factors1 = ∂factors[1:q, :]
             ∂factors2 = ∂factors[(q + 1):end, :]
             L1 = UnitLowerTriangular(L[1:q, :])
             L2 = L[(q + 1):end, :]
         end
-        # Here we manipulate ∂factors both directly and via views: ∂factors1 and  ∂factors2
-        rdiv!(∂factors, U)
         ldiv!(L1, ∂factors1)
         ∂U = triu(∂factors1)
         mul!(∂factors2, L2, ∂U, -1, 1)
