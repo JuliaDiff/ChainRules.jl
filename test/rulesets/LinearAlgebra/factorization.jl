@@ -1,3 +1,12 @@
+# TODO: move this to FiniteDifferences
+function FiniteDifferences.to_vec(X::LU)
+    x_vec, back = to_vec(Matrix(X.factors))
+    function LU_from_vec(x_vec)
+        return LU(back(x_vec), X.ipiv, X.info)
+    end
+    return x_vec, LU_from_vec
+end
+
 function FiniteDifferences.to_vec(C::Cholesky)
     C_vec, factors_from_vec = to_vec(C.factors)
     function cholesky_from_vec(v)
@@ -12,6 +21,86 @@ function FiniteDifferences.to_vec(x::Val)
 end
 
 @testset "Factorizations" begin
+    @testset "lu decomposition" begin
+        n = 10
+        @testset "lu! frule" begin
+            @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
+                T in (Float64, ComplexF64),
+                pivot in (Val(true), Val(false)),
+                m in (7, 10, 13)
+
+                A = randn(T, m, n)
+                ΔA = rand_tangent(A)
+                frule_test(lu!, (A, ΔA), (pivot, nothing))
+            end
+            @testset "check=false passed to primal function" begin
+                Asingular = zeros(n, n)
+                ΔAsingular = rand_tangent(Asingular)
+                @test_throws SingularException frule(
+                    (Zero(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
+                )
+                frule((Zero(), ΔAsingular), lu!, Asingular, Val(true); check=false)
+            end
+        end
+        @testset "lu rrule" begin
+            @testset "lu(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
+                T in (Float64, ComplexF64),
+                pivot in (Val(true), Val(false)),
+                m in (7, 10, 13)
+
+                A = randn(T, m, n)
+                ΔA = rand_tangent(A)
+                F = lu(A, pivot)
+                Δfactors = rand_tangent(F.factors)
+                ΔF = Composite{typeof(F)}(; factors=Δfactors)
+                rrule_test(lu, ΔF, (A, ΔA), (pivot, nothing))
+            end
+            @testset "check=false passed to primal function" begin
+                Asingular = zeros(n, n)
+                F = lu(Asingular, Val(true); check=false)
+                ΔF = Composite{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
+                @test_throws SingularException rrule(lu, Asingular, Val(true))
+                _, back = rrule(lu, Asingular, Val(true); check=false)
+                back(ΔF)
+            end
+        end
+        @testset "LU" begin
+            @testset "getproperty(::LU, k) rrule" begin
+                # test that the getproperty rrule composes correctly with the lu rrule
+                @testset "getproperty(lu(A::Matrix), :$k) for size(A)=($m, $n)" for
+                    k in (:U, :L, :factors),
+                    m in (7, 10, 13)
+
+                    A = randn(m, n)
+                    F = lu(A)
+                    X = getproperty(F, k)
+                    ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
+                    ΔX = rand_tangent(X)
+                    rrule_test(getproperty, ΔX, (F, ΔF), (k, nothing); check_inferred=false)
+                end
+            end
+            @testset "matrix inverse using LU" begin
+                @testset "LinearAlgebra.inv!(::LU) frule" begin
+                    @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
+                        A = randn(T, n, n)
+                        F = lu(A, Val(true))
+                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
+                        frule_test(LinearAlgebra.inv!, (F, ΔF))
+                    end
+                end
+                @testset "inv(::LU) rrule" begin
+                    @testset "inv(::LU{$T,<:StridedMatrix})" for T in (Float64,ComplexF64)
+                        A = randn(T, n, n)
+                        F = lu(A, Val(true))
+                        Y = inv(A)
+                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
+                        ΔY = rand_tangent(Y)
+                        rrule_test(inv, ΔY, (F, ΔF))
+                    end
+                end
+            end
+        end
+    end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(n, m)
