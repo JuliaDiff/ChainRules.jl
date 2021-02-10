@@ -28,6 +28,11 @@ jobs:
           # 32-bit Julia binaries are not available on macOS
           - os: macOS-latest
             arch: x86
+        include:
+          # Julia Nightly
+          - os: ubuntu-latest
+            version: "nightly"
+            arch: x64
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
