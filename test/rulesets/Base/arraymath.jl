@@ -34,7 +34,7 @@
                 end
 
                 @testset "SubArray - $indexname" for (indexname, m_index) in (
-                    ("fast", :), ("slow", Ref(m:-1:1))
+                    ("fast", :), ("slow", m:-1:1)
                 )
                     test_rrule(*, view(n⋆m, :, m_index), view(m⋆p, m_index, :))
                     test_rrule(*, n⋆m, view(m⋆p, m_index, :))
@@ -42,14 +42,14 @@
                 end
 
                 @testset "Adjoints and Transposes" begin
-                    test_rrule(*, Transpose(m⋆n), Transpose(p⋆m))
-                    test_rrule(*, Adjoint(m⋆n), Adjoint(p⋆m))
+                    test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), Transpose(p⋆m) ⊢ Transpose(p⋆m))
+                    test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
 
-                    test_rrule(*, Transpose(m⋆n), (m⋆p))
-                    test_rrule(*, Adjoint(m⋆n), (m⋆p))
+                    test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), (m⋆p))
+                    test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), (m⋆p))
 
-                    test_rrule(*, (n⋆m), Transpose(p⋆m))
-                    test_rrule(*, (n⋆m), Adjoint(p⋆m))
+                    test_rrule(*, (n⋆m), Transpose(p⋆m) ⊢ Transpose(p⋆m))
+                    test_rrule(*, (n⋆m), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
                 end
             end
         end
@@ -57,7 +57,7 @@
         @testset "Covector * Vector n=$n" for n in (3, 5)
             @testset "$f" for f in (adjoint, transpose)
                 # This should be same as dot product and give a scalar
-                test_rrule(*, f(⋆(n)), ⋆(n))
+                test_rrule(*, f(⋆(n)) ⊢ f(⋆(n)), ⋆(n))
             end
         end
     end
@@ -85,7 +85,7 @@
             @testset "Vector $f Matrix" begin
                 x = randn(10)
                 Y = randn(10, 4)
-                test_rrule(f, x, Y)
+                test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
             end
         end
     end
