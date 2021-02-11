@@ -3,8 +3,7 @@
         sizes = (3, 4, 7)
         @testset "dims = $dims" for dims in (:, 1)
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
-                s = sizes[1:N]
-                x = randn(T, s...)
+                x = randn(T, sizes[1:N]...)
                 test_frule(sum, x; fkwargs=(;dims=dims))
                 test_rrule(sum, x; fkwargs=(;dims=dims))
             end
@@ -15,8 +14,7 @@
         sizes = (3, 4, 7)
         @testset "dims = $dims" for dims in (:, 1)
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
-                s = sizes[1:N]
-                x = randn(T, s...)
+                x = randn(T, sizes[1:N]...)
                 test_frule(sum, abs2, x; fkwargs=(;dims=dims))
                 test_rrule(sum, abs2 ⊢ nothing, x; fkwargs=(;dims=dims))
             end
