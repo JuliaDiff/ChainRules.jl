@@ -46,12 +46,8 @@ end
 
         if isdefined(SpecialFunctions, :logabsgamma)
             isreal(x) || continue
-
-            Δx, x̄ = randn(2)
-            Δz = Composite{Tuple{Float64, DoesNotExist}}(randn(), randn())
-
-            frule_test(SpecialFunctions.logabsgamma, (x, Δx))
-            rrule_test(SpecialFunctions.logabsgamma, Δz, (x, x̄))
+            test_frule(logabsgamma, x)
+            test_rrule(logabsgamma, x; output_tangent=(randn(), randn()))
         end
     end
 end
