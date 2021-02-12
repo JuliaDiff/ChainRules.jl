@@ -24,7 +24,7 @@
         end
     end
 
-    @testset "cross"
+    @testset "cross" begin
         test_frule(cross, randn(3), randn(3))
         test_frule(cross, randn(ComplexF64, 3), randn(ComplexF64, 3))
         test_rrule(cross, randn(3), randn(3))
@@ -47,28 +47,31 @@
             @test frule((Zero(), ẋ), pinv, x)[2] isa typeof(pinv(x))
             @test rrule(pinv, x)[2](Δy)[2] isa typeof(x)
         end
-        #TODO Everything after this point
+
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
+            test_frule(pinv, F(randn(T, 3)) ⊢ F(randn(T, 3)))
+            test_rrule(pinv, F(randn(T, 3)))
+
+            # Check types.
+            # TODO: Do we need this still?
             x, ẋ, x̄ = F(randn(T, 3)), F(randn(T, 3)), F(randn(T, 3))
             y = pinv(x)
             Δy = copyto!(similar(y), randn(T, 3))
-            test_frule(pinv, (x, ẋ))
+
             y_fwd, ∂y_fwd = frule((Zero(),  ẋ), pinv, x)
             @test y_fwd isa typeof(y)
             @test ∂y_fwd isa typeof(y)
-            test_rrule(pinv, Δy, (x, x̄))
+
             y_rev, back = rrule(pinv, x)
             @test y_rev isa typeof(y)
             @test back(Δy)[2] isa typeof(x)
         end
-        @testset "Matrix{$T} with size ($m,$3)" for T in (Float64, ComplexF64),
+        @testset "Matrix{$T} with size ($m,$n)" for T in (Float64, ComplexF64),
             m in 1:3,
-            3 in 1:3
+            n in 1:3
 
-            X, Ẋ, X̄ = randn(T, m, 3), randn(T, m, 3), randn(T, m, 3)
-            ΔY = randn(T, size(pinv(X))...)
-            test_frule(pinv, (X, Ẋ))
-            test_rrule(pinv, ΔY, (X, X̄))
+            test_frule(pinv, randn(T, m, n))
+            test_rrule(pinv, randn(T, m, n))
         end
     end
     @testset "$f" for f in (det, logdet)
@@ -77,27 +80,26 @@
             test_scalar(f, b)
         end
         @testset "$f(::Matrix{$T})" for T in (Float64, ComplexF64)
-            if f === logdet && float(T) <: Float32
-                kwargs = (atol=1e-5, rtol=1e-5)
-            else
-                kwargs = NamedTuple()
-            end
             B = generate_well_conditioned_matrix(T, 4)
-            test_frule(f, (B, randn(T, 4, 4)); kwargs...)
-            test_rrule(f, randn(T), (B, randn(T, 4, 4)); kwargs...)
+            if f === logdet && float(T) <: Float32
+                test_frule(f, B; atol=1e-5, rtol=1e-5)
+                test_rrule(f, B; atol=1e-5, rtol=1e-5)
+            else
+                test_frule(f, B)
+                test_rrule(f, B)
+            end
         end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = randn(T, 4, 4)
-        test_frule(logabsdet, (B, randn(T, 4, 4)))
-        test_rrule(logabsdet, (randn(), randn(T)), (B, randn(T, 4, 4)))
+        test_frule(logabsdet, B)
+        test_rrule(logabsdet, B)
         # test for opposite sign of determinant
-        test_frule(logabsdet, (-B, randn(T, 4, 4)))
-        test_rrule(logabsdet, (randn(), randn(T)), (-B, randn(T, 4, 4)))
+        test_frule(logabsdet, -B)
+        test_rrule(logabsdet, -B)
     end
     @testset "tr" begin
-        test_frule(tr, (randn(4, 4), randn(4, 4)))
-        test_rrule(tr, randn(), (randn(4, 4), randn(4, 4)))
+        test_frule(tr, randn(4, 4))
+        test_rrule(tr, randn(4, 4))
     end
-    ==#
 end
