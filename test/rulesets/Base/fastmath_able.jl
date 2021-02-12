@@ -59,11 +59,11 @@ const FASTABLE_AST = quote
         end
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
-                x, Δx, x̄ = randn(T, 3)
+                x = randn(T)
                 Δz = Composite{Tuple{T,T}}(randn(T), randn(T))
 
-                frule_test(sincos, (x, Δx))
-                rrule_test(sincos, Δz, (x, x̄))
+                test_frule(sincos, x)
+                test_rrule(sincos, x; output_tangent=Δz)
             end
         end
     end
@@ -126,21 +126,19 @@ const FASTABLE_AST = quote
 
     @testset "binary functions" begin
         @testset "$f(x, y)" for f in (atan, rem, max, min)
-            x, Δx, x̄ = 100rand(3)
-            y, Δy, ȳ = 10rand(3)
-            Δz = rand()
+            x = 100rand()
+            y = 10rand()
 
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            test_frule(f, x, y)
+            test_rrule(f, x, y)
         end
 
         @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
-            x, Δx, x̄ = 10rand(T, 3)
-            y, Δy, ȳ = rand(T, 3)
-            Δz = randn(typeof(f(x, y)))
+            x = 10rand(T)
+            y = rand(T)
 
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            test_frule(f, x, y)
+            test_rrule(f, x, y)
         end
 
         @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
@@ -171,8 +169,8 @@ const FASTABLE_AST = quote
             y, Δy, ȳ = rand(T, 3) .+ 3
             Δz = rand(T)
 
-            frule_test(^, (x, Δx), (y, Δy))
-            rrule_test(^, Δz, (x, x̄), (y, ȳ))
+            test_frule(^, x, y)
+            test_rrule(^, x, y)
 
             T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
                 # finite differences doesn't work for x < 0, so we check manually
