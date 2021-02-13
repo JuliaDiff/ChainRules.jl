@@ -18,7 +18,7 @@
         @testset "rrule" begin
             # on old versions of julia this combination doesn't infer but we don't care as
             # it infers fine on modern versions.
-            check_inferred = !(VERSION <= v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
+            check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
 
             x = randn(T, N, N)
             ∂x = randn(T, N, N)
@@ -26,14 +26,26 @@
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
                 rrule_test(
                     SymHerm, MT(ΔΩ), (x, ∂x), (uplo, nothing);
-                    check_inferred = check_inferred
+                    # type stability here critically relies on uplo being constant propagated,
+                    # so we need to test this more carefully below
+                    check_inferred=false,
                 )
+                if check_inferred
+                    @inferred (function (SymHerm, x, ΔΩ, ::Val{uplo}) where {uplo}
+                        return rrule(SymHerm, x, uplo)[2](ΔΩ)
+                    end)(SymHerm, x, MT(ΔΩ), Val(uplo))
+                end
             end
             @testset "back(::Diagonal)" begin
                 rrule_test(
                     SymHerm, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing);
-                    check_inferred = check_inferred
+                    check_inferred=false,
                 )
+                if check_inferred
+                    @inferred (function (SymHerm, x, ΔΩ, ::Val{uplo}) where {uplo}
+                        return rrule(SymHerm, x, uplo)[2](ΔΩ)
+                    end)(SymHerm, x, Diagonal(ΔΩ), Val(uplo))
+                end
             end
         end
     end

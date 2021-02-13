@@ -307,7 +307,7 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
             hermA = Hermitian(A)
             ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
             ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
-            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, hermA.uplo)
+            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
             ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
         elseif ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)

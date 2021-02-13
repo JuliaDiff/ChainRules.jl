@@ -8,8 +8,8 @@ end
 
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
-    function HermOrSym_pullback(ΔΩ)
-        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, Ω.uplo), DoesNotExist())
+    @inline function HermOrSym_pullback(ΔΩ)
+        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), DoesNotExist())
     end
     return Ω, HermOrSym_pullback
 end
@@ -26,7 +26,7 @@ function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
         TA = _symhermtype(A)
         T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
         uplo = A.uplo
-        ∂A = T∂A(_symherm_back(A, ΔΩ, uplo), uplo)
+        ∂A = T∂A(_symherm_back(typeof(A), ΔΩ, Symbol(uplo)), uplo)
         return NO_FIELDS, ∂A
     end
     return TM(A), Matrix_pullback
@@ -44,33 +44,46 @@ function _symherm_forward(A, ΔA)
 end
 
 # for Ω = HermOrSym(A, uplo), pull back ΔΩ to get ∂A
-_symherm_back(::Type{<:Symmetric}, ΔΩ, uplo) = _symmetric_back(ΔΩ, uplo)
-function _symherm_back(::Type{<:Hermitian}, ΔΩ::AbstractMatrix{<:Real}, uplo)
-    return _symmetric_back(ΔΩ, uplo)
-end
-_symherm_back(::Type{<:Hermitian}, ΔΩ, uplo) = _hermitian_back(ΔΩ, uplo)
-_symherm_back(Ω, ΔΩ, uplo) = _symherm_back(typeof(Ω), ΔΩ, uplo)
-
-function _symmetric_back(ΔΩ, uplo)
-    L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
-    return uplo == 'U' ? U .+ transpose(L) - D : L .+ transpose(U) - D
-end
-_symmetric_back(ΔΩ::Diagonal, uplo) = ΔΩ
-_symmetric_back(ΔΩ::UpperTriangular, uplo) = Matrix(uplo == 'U' ? ΔΩ : transpose(ΔΩ))
-_symmetric_back(ΔΩ::LowerTriangular, uplo) = Matrix(uplo == 'U' ? transpose(ΔΩ) : ΔΩ)
-
-function _hermitian_back(ΔΩ, uplo)
-    L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
-    return uplo == 'U' ? U .+ L' - rD : L .+ U' - rD
-end
-_hermitian_back(ΔΩ::Diagonal, uplo) = real.(ΔΩ)
-function _hermitian_back(ΔΩ::LinearAlgebra.AbstractTriangular, uplo)
-    ∂UL = ΔΩ .- Diagonal(_extract_imag.(diag(ΔΩ)))
-    return if istriu(ΔΩ)
-        return Matrix(uplo == 'U' ? ∂UL : ∂UL')
-    else
-        return Matrix(uplo == 'U' ? ∂UL' : ∂UL)
+@inline function _symherm_back(::Type{T}, ΔΩ, uplo::Symbol) where {T}
+    if T <: Symmetric
+        return _symmetric_back(ΔΩ, uplo)
+    elseif T <: Hermitian
+        if ΔΩ isa AbstractMatrix{<:Real}
+            return _symmetric_back(ΔΩ, uplo)
+        else
+            return _hermitian_back(ΔΩ, uplo)
+        end
     end
+    error()
+end
+
+@inline function _symmetric_back(ΔΩ, uplo::Symbol)
+    if ΔΩ isa Diagonal
+        return ΔΩ
+    elseif ΔΩ isa LinearAlgebra.AbstractTriangular
+        if istriu(ΔΩ)
+            return Matrix(uplo === :U ? ΔΩ : transpose(ΔΩ))
+        else
+            return Matrix(uplo === :U ? transpose(ΔΩ) : ΔΩ)
+        end
+    end
+    L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
+    return uplo === :U ? U .+ transpose(L) - D : L .+ transpose(U) - D
+end
+
+@inline function _hermitian_back(ΔΩ, uplo::Symbol)
+    if ΔΩ isa Diagonal
+        return real.(ΔΩ)
+    elseif ΔΩ isa LinearAlgebra.AbstractTriangular
+        ∂UL = ΔΩ .- Diagonal(_extract_imag.(diag(ΔΩ)))
+        if istriu(ΔΩ)
+            return Matrix(uplo === :U ? ∂UL : ∂UL')
+        else
+            return Matrix(uplo === :U ? ∂UL' : ∂UL)
+        end
+    end
+    L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
+    return uplo === :U ? U .+ L' - rD : L .+ U' - rD
 end
 
 #####
