@@ -18,7 +18,7 @@
         @testset "rrule" begin
             # on old versions of julia this combination doesn't infer but we don't care as
             # it infers fine on modern versions.
-            check_inferred = true#!(VERSION <= v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
+            check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
 
             x = randn(T, N, N)
             ∂x = randn(T, N, N)
