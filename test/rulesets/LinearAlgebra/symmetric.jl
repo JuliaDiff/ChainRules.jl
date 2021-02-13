@@ -24,9 +24,10 @@
             ∂x = randn(T, N, N)
             ΔΩ = randn(T, N, N)
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
-                _ΔΩ = MT(ΔΩ)
                 rrule_test(
-                    SymHerm, _ΔΩ, (x, ∂x), (uplo, nothing);
+                    SymHerm, MT(ΔΩ), (x, ∂x), (uplo, nothing);
+                    # type stability here critically relies on uplo being constant propagated,
+                    # so we need to test this more carefully below
                     check_inferred=false,
                 )
                 if check_inferred
