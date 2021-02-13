@@ -311,9 +311,21 @@ VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable readuntil(::IO, ::AbstractChar)
 @non_differentiable readuntil(::IO, ::AbstractString)
 @non_differentiable realpath(::AbstractString)
-@non_differentiable redirect_stderr(::Union{IOStream, Base.LibuvStream})
-@non_differentiable redirect_stdin(::Union{IOStream, Base.LibuvStream})
-@non_differentiable redirect_stdout(::Union{IOStream, Base.LibuvStream})
+if isdefined(Base, :redirect_stdio)
+    @non_differentiable (::Base.redirect_stdio)(
+        ::Union{IOStream, Base.LibuvStream, Base.DevNull, Base.AbstractPipe},
+    )
+else
+    @non_differentiable redirect_stderr(
+        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
+    )
+    @non_differentiable redirect_stdin(
+        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
+    )
+    @non_differentiable redirect_stdout(
+        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
+    )
+end
 @non_differentiable relpath(::AbstractString, ::AbstractString)
 @non_differentiable relpath(::String)
 @non_differentiable repr(::Any)
