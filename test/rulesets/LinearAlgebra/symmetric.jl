@@ -4,45 +4,39 @@
         T in (Float64, ComplexF64),
         uplo in (:U, :L)
 
-        N = 3
         @testset "frule" begin
-            x = randn(T, N, N)
-            Δx = randn(T, N, N)
-            # can't use frule_test here because it doesn't yet ignore nothing tangents
-            Ω = SymHerm(x, uplo)
-            Ω_ad, ∂Ω_ad = frule((Zero(), Δx, Zero()), SymHerm, x, uplo)
-            @test Ω_ad == Ω
-            ∂Ω_fd = jvp(_fdm, z -> SymHerm(z, uplo), (x, Δx))
-            @test ∂Ω_ad ≈ ∂Ω_fd
+            test_frule(SymHerm, rand(T, 3, 3), uplo ⊢ nothing)
         end
         @testset "rrule" begin
             # on old versions of julia this combination doesn't infer but we don't care as
             # it infers fine on modern versions.
             check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
 
-            x = randn(T, N, N)
-            ∂x = randn(T, N, N)
-            ΔΩ = randn(T, N, N)
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
-                rrule_test(
-                    SymHerm, MT(ΔΩ), (x, ∂x), (uplo, nothing);
+                x = randn(T, 3, 3)
+                ΔΩ = MT(randn(T, 3, 3))
+                test_rrule(
+                    SymHerm, x, uplo ⊢ nothing;
+                    output_tangent = ΔΩ,
                     # type stability here critically relies on uplo being constant propagated,
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
                 if check_inferred
-                    @inferred (function (SymHerm, x, ΔΩ, ::Val{uplo}) where {uplo}
+                    @inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
-                    end)(SymHerm, x, MT(ΔΩ), Val(uplo))
+                    end)(SymHerm, x, ΔΩ, Val(uplo))
                 end
             end
             @testset "back(::Diagonal)" begin
-                rrule_test(
+                x = randn(T, 3, 3)
+                ΔΩ = Diagonal(randn(T, 3, 3))
+                test_rrule(
                     SymHerm, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing);
                     check_inferred=false,
                 )
                 if check_inferred
-                    @inferred (function (SymHerm, x, ΔΩ, ::Val{uplo}) where {uplo}
+                    @inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, Diagonal(ΔΩ), Val(uplo))
                 end
@@ -53,15 +47,13 @@
         SymHerm in (Symmetric, Hermitian),
         T in (Float64, ComplexF64),
         uplo in (:U, :L)
-
-        N = 3
-        x = SymHerm(randn(T, N, N), uplo)
-        Δx = randn(T, N, N)
-        ∂x = SymHerm(randn(T, N, N), uplo)
-        ΔΩ = f(SymHerm(randn(T, N, N), uplo))
-        frule_test(f, (x, Δx))
-        frule_test(f, (x, SymHerm(Δx, uplo)))
-        rrule_test(f, ΔΩ, (x, ∂x))
+        x = SymHerm(randn(T, 3, 3), uplo)
+        Δx = randn(T, 3, 3)
+        ∂x = SymHerm(randn(T, 3, 3), uplo)
+        ΔΩ = f(SymHerm(randn(T, 3, 3), uplo))
+        test_frule(f, (x, Δx))
+        test_frule(f, (x, SymHerm(Δx, uplo)))
+        test_rrule(f, ΔΩ, (x, ∂x))
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention
