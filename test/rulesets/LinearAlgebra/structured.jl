@@ -7,15 +7,15 @@
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(\, LHS, y = randn(10))
-            test_rrule(\, LHS, y = randn(10, 10))
+            test_rrule(\, LHS, randn(10))
+            test_rrule(\, LHS, randn(10, 10))
         end
     end
 
     @testset "Diagonal" begin
         N = 3
-        test_rrule(Diagonal, randn(N))
-        D = Diagonal(randn( N))
+        test_rrule(Diagonal, randn(N); output_tangent=randn(N, N))
+        D = Diagonal(randn(N))
         test_rrule(Diagonal, randn(N); output_tangent=D)
         # Concrete type instead of UnionAll
         test_rrule(typeof(D), randn(N); output_tangent=D)
@@ -29,33 +29,23 @@
     end
     @testset "dot(x, ::Diagonal, y)" begin
         N = 4
-        x, d, y = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
-        x̄, d̄, ȳ = randn(ComplexF64, N), randn(ComplexF64, N), randn(ComplexF64, N)
-        D = Diagonal(d)
-        D̄ = Diagonal(d̄)
-        rrule_test(dot, rand(ComplexF64), (x, x̄), (D, D̄), (y, ȳ))
+        test_rrule(dot, randn(ComplexF64, N), Diagonal(randn(ComplexF64, N)), randn(ComplexF64, N))
     end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
-        rrule_test(
-            *,
-            randn(N),
-            (Diagonal(randn(N)), Diagonal(randn(N))),
-            (randn(N), randn(N)),
-        )
+        test_rrule(*, Diagonal(randn(N)), randn(N))
     end
     @testset "diag" begin
         N = 7
-        rrule_test(diag, randn(N), (randn(N, N), randn(N, N)))
-        rrule_test(diag, randn(N), (Diagonal(randn(N)), randn(N, N)))
-        rrule_test(diag, randn(N), (randn(N, N), Diagonal(randn(N))))
-        rrule_test(diag, randn(N), (Diagonal(randn(N)), Diagonal(randn(N))))
+        test_rrule(diag, randn(N, N))
+        test_rrule(diag, Diagonal(randn(N)))
+        test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
+        test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
         VERSION ≥ v"1.3" && @testset "k=$k" for k in (-1, 0, 2)
-            M = N - abs(k)
-            rrule_test(diag, randn(M), (randn(N, N), randn(N, N)), (k, nothing))
+            test_rrule(diag, randn(N, N), k ⊢ nothing)
         end
     end
-    @testset "diagm" begin
+    @testset "diagm" begin # TODO review testset
         @testset "without size" begin
             M, N = 7, 9
             s = (8, 8)
@@ -106,12 +96,11 @@
         m = 3
         @testset "$f(::Matrix{$T})" begin
             A = randn(T, n, m)
-            Ā = randn(T, n, m)
             Y = f(A)
             Ȳ_mat = randn(T, m, n)
             Ȳ_composite = Composite{typeof(Y)}(parent=collect(f(Ȳ_mat)))
 
-            rrule_test(f, Ȳ_mat, (A, Ā))
+            test_rrule(f, A; output_tangent=Ȳ_mat)
 
             _, pb = rrule(f, A)
             @test pb(Ȳ_mat) == pb(Ȳ_composite)
@@ -119,12 +108,11 @@
 
         @testset "$f(::Vector{$T})" begin
             a = randn(T, n)
-            ā = randn(T, n)
             y = f(a)
             ȳ_mat = randn(T, 1, n)
             ȳ_composite = Composite{typeof(y)}(parent=collect(f(ȳ_mat)))
 
-            rrule_test(f, ȳ_mat, (a, ā))
+            test_rrule(f, a; output_tangent=ȳ_mat)
 
             _, pb = rrule(f, a)
             @test pb(ȳ_mat) == pb(ȳ_composite)
@@ -136,7 +124,7 @@
             y = f(a)
             ȳ = randn(T, n)
 
-            rrule_test(f, ȳ, (a, ā))
+            test_rrule(f, a ⊢ ā; output_tangent=ȳ)
         end
 
         @testset "$f(::Transpose{$T, Vector{$T})" begin
@@ -145,18 +133,18 @@
             y = f(a)
             ȳ = randn(T, n)
 
-            rrule_test(f, ȳ, (a, ā))
+            test_rrule(f, a ⊢ ā; output_tangent=ȳ)
         end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
         n = 5
-        rrule_test(T, T(randn(n, n)), (randn(n, n), randn(n, n)))
+        test_rrule(T, randn(n, n); output_tangent=T(randn(n, n)))
     end
     @testset "$Op" for Op in (triu, tril)
         n = 7
-        rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)))
+        test_rrule(Op, randn(n, n))
         @testset "k=$k" for k in -2:2
-            rrule_test(Op, randn(n, n), (randn(n, n), randn(n, n)), (k, nothing))
+            test_rrule(Op, randn(n, n), k ⊢ nothing)
         end
     end
 
@@ -167,7 +155,7 @@
                 # rand (not randn) so det will be postive, so logdet will be defined
                 X = S(3*rand(T, (n, n)) .+ 1)
                 X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
-                rrule_test(op, rand(T), (X, X̄_acc))
+                test_rrule(op, X ⊢ X̄_acc)
             end
             @testset "return type" begin
                 X = S(3*rand(6, 6) .+ 1)
