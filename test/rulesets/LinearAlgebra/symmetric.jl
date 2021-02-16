@@ -32,28 +32,30 @@
                 x = randn(T, 3, 3)
                 ΔΩ = Diagonal(randn(T, 3, 3))
                 test_rrule(
-                    SymHerm, Diagonal(ΔΩ), (x, Diagonal(∂x)), (uplo, nothing);
+                    SymHerm, x ⊢ Diagonal(randn(T, 3)), uplo ⊢ nothing;
                     check_inferred=false,
+                    output_tangent = ΔΩ,
                 )
                 if check_inferred
                     @inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
-                    end)(SymHerm, x, Diagonal(ΔΩ), Val(uplo))
+                    end)(SymHerm, x, ΔΩ, Val(uplo))
                 end
             end
         end
     end
+    # constructing a `Matrix`/`Array` from `SymHerm`
     @testset "$(f)(::$(SymHerm){$T}) with uplo=:$uplo" for f in (Matrix, Array),
         SymHerm in (Symmetric, Hermitian),
         T in (Float64, ComplexF64),
         uplo in (:U, :L)
+
         x = SymHerm(randn(T, 3, 3), uplo)
-        Δx = randn(T, 3, 3)
-        ∂x = SymHerm(randn(T, 3, 3), uplo)
-        ΔΩ = f(SymHerm(randn(T, 3, 3), uplo))
-        test_frule(f, (x, Δx))
-        test_frule(f, (x, SymHerm(Δx, uplo)))
-        test_rrule(f, ΔΩ, (x, ∂x))
+        test_rrule(f, x)
+
+        # intentionally specifying tangents here to test both Matrix and SymHerm tangents
+        test_frule(f, x ⊢ randn(T, 3, 3))
+        test_frule(f, x ⊢ SymHerm(randn(T, 3, 3), uplo))
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention
@@ -61,7 +63,6 @@
     # in the eigenvector. This is unstable for finite differences, but using the convention
     # v = v * sign(vₖ)' seems to be more stable, the (co)tangents are related as
     # ∂v_ad = sign(real(vₖ)) * ∂v_fd
-
     function _eigvecs_stabilize_mat(vectors, uplo)
         Ui = Symbol(uplo) === :U ? @view(vectors[end, :]) : @view(vectors[1, :])
         return Diagonal(conj.(sign.(Ui)))
