@@ -64,7 +64,7 @@
     end
 
     @testset "gemm" begin
-        for m in dims, n in 3:5, p in 3:5, tA in ('N', 'C', 'T'), tB in ('N', 'C', 'T'), T in (Float64, ComplexF64)
+        for m in 3:5, n in 3:5, p in 3:5, tA in ('N', 'C', 'T'), tB in ('N', 'C', 'T'), T in (Float64, ComplexF64)
             A = randn(T, tA === 'N' ? (m, n) : (n, m))
             B = randn(T, tB === 'N' ? (n, p) : (p, n))
             test_rrule(gemm, tA ⊢ nothing, tB ⊢ nothing, A, B; check_inferred=false)
