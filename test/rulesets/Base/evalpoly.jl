@@ -18,10 +18,8 @@ VERSION ≥ v"1.4" && @testset "evalpoly" begin
         # skip x::Matrix, pi::Number case, which is not supported by evalpoly
         isempty(np) && !isempty(nx) && continue
         m = 5
-        sx = (nx..., nx...)
-        sp = (np..., np...)
-        x = randn(T, sx...)
-        p = [randn(T, sp...) for _ in 1:m]
+        x = randn(T, nx..., nx...)
+        p = [randn(T, np..., np...) for _ in 1:m]
         test_frule(evalpoly, x, p)
         test_frule(evalpoly, x, Tuple(p))
         test_rrule(evalpoly, x, p)
