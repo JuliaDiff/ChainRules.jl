@@ -68,72 +68,57 @@
     @testset "Complex" begin
         test_scalar(Complex, randn())
         test_scalar(Complex, randn(ComplexF64))
-        x, ẋ, x̄ = randn(3)
-        y, ẏ, ȳ = randn(3)
-        Δz = randn(ComplexF64)
-        frule_test(Complex, (x, ẋ), (y, ẏ))
-        rrule_test(Complex, Δz, (x, x̄), (y, ȳ))
+
+        test_frule(Complex, randn(), randn())
+        test_rrule(Complex, randn(), randn())
     end
 
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
-        @testset "($x) * ($y); (perturbed by: $perturb)" for
-            x in test_points, y in test_points, perturb in test_points
+        @testset "($x) * ($y)" for
+            x in test_points, y in test_points
 
             # ensure all complex if any complex for FiniteDifferences
-            x, y, perturb = Base.promote(x, y, perturb)
+            x, y = Base.promote(x, y)
 
-            # give small off-set so as can't slip in symmetry
-            x̄ = ẋ = 0.5 + perturb
-            ȳ = ẏ = 0.6 + perturb
-            Δz = perturb
-
-            frule_test(*, (x, ẋ), (y, ẏ))
-            rrule_test(*, Δz, (x, x̄), (y, ȳ))
+            test_frule(*, x, y)
+            test_rrule(*, x, y)
         end
     end
 
     @testset "ldexp" begin
-        x, Δx, x̄ = 10rand(3)
-        Δz = rand()
-
         for n in (0,1,20)
-            # TODO: Forward test does not work when parameter is Integer
-            # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
-            #frule_test(ldexp, (x, Δx), (n, nothing))
-            rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+            test_frule(ldexp, 10rand(), n ⊢ nothing)
+            test_rrule(ldexp, 10rand(), n ⊢ nothing)
         end
     end
 
     @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
-        x, ẋ, x̄, y, ẏ, ȳ, Δz = randn(T, 7)
-        frule_test(*, (x, ẋ), (y, ẏ))
-        rrule_test(*, Δz, (x, x̄), (y, ȳ))
+        test_frule(*, randn(T), randn(T))
+        test_rrule(*, randn(T), randn(T))
     end
 
     @testset "mod" begin
-        x, Δx, x̄ = 10rand(3)
-        y, Δy, ȳ = rand(3)
-        Δz = rand()
-
-        frule_test(mod, (x, Δx), (y, Δy))
-        rrule_test(mod, Δz, (x, x̄), (y, ȳ))
+        test_frule(mod, 10rand(), rand())
+        test_rrule(mod, 10rand(), rand())
     end
 
     @testset "identity" for T in (Float64, ComplexF64)
-        frule_test(identity, (randn(T), randn(T)))
-        frule_test(identity, (randn(T, 4), randn(T, 4)))
-        frule_test(
+        test_frule(identity, randn(T))
+        test_frule(identity, randn(T, 4))
+        test_frule(
             identity,
-            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
+            #Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...)
+            Tuple(randn(T, 3))
         )
 
-        rrule_test(identity, randn(T), (randn(T), randn(T)))
-        rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
-        rrule_test(
-            identity, Composite{Tuple{T, T, T}}(randn(T, 3)...),
-            (Tuple(randn(T, 3)), Composite{Tuple{T, T, T}}(randn(T, 3)...))
+        test_rrule(identity, randn(T))
+        test_rrule(identity, randn(T, 4))
+        test_rrule(
+            identity,
+            Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...);
+            output_tangent = Composite{Tuple{T, T, T}}(randn(T, 3)...)
         )
     end
 
@@ -143,41 +128,27 @@
     end
 
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        x, Δx, x̄ = 10randn(T, 3)
-        y, Δy, ȳ = randn(T, 3)
-        z, Δz, z̄ = randn(T, 3)
-        Δk = randn(T)
-
-        frule_test(muladd, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(muladd, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        test_frule(muladd, 10randn(), randn(), randn())
+        test_rrule(muladd, 10randn(), randn(), randn())
     end
 
     @testset "fma" begin
-        x, Δx, x̄ = 10randn(3)
-        y, Δy, ȳ = randn(3)
-        z, Δz, z̄ = randn(3)
-        Δk = randn()
-
-        frule_test(fma, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(fma, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        test_frule(fma, 10randn(), randn(), randn())
+        test_rrule(fma, 10randn(), randn(), randn())
     end
 
     @testset "clamp"  begin
-        x̄, ȳ, z̄    = randn(3)
-        Δx, Δy, Δz = randn(3)
-        Δk = randn()
+        # to left
+        test_frule(clamp, 1., 2., 3.)
+        test_rrule(clamp, 1., 2., 3.)
 
-        x, y, z = 1., 2., 3.  # to left
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        # in the middle
+        test_frule(clamp, 2.5, 2., 3.)
+        test_rrule(clamp, 2.5, 2., 3.)
 
-        x, y, z = 2.5, 2., 3.  # in the middle
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
-
-        x, y, z = 4., 2., 3.  # to right
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        # to right
+        test_frule(clamp, 4., 2., 3.)
+        test_rrule(clamp, 4., 2., 3.)
     end
 
     @testset "rounding" begin
