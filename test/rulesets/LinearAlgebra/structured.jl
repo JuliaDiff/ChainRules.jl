@@ -2,29 +2,23 @@
     @testset "/ and \\ on Square Matrixes" begin
         @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            Y = randn(5, 10)
-            Ȳ = randn(size(/(Y, RHS))...)
-            rrule_test(/, Ȳ, (Y, randn(size(Y))), (RHS, randn(size(RHS))))
+            test_rrule(/, randn(5, 10), RHS)
         end
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            y = randn(10)
-            ȳ = randn(size(\(LHS, y))...)
-            rrule_test(\, ȳ, (LHS, randn(size(LHS))), (y, randn(10)))
-            Y = randn(10, 10)
-            Ȳ = randn(10, 10)
-            rrule_test(\, Ȳ, (LHS, randn(size(LHS))), (Y, randn(size(Y))))
+            test_rrule(\, LHS, y = randn(10))
+            test_rrule(\, LHS, y = randn(10, 10))
         end
     end
 
     @testset "Diagonal" begin
         N = 3
-        rrule_test(Diagonal, randn(N, N), (randn(N), randn(N)))
+        test_rrule(Diagonal, randn(N))
         D = Diagonal(randn( N))
-        rrule_test(Diagonal, D, (randn(N), randn(N)))
+        test_rrule(Diagonal, randn(N); output_tangent=D)
         # Concrete type instead of UnionAll
-        rrule_test(typeof(D), D, (randn(N), randn(N)))
+        test_rrule(typeof(D), randn(N); output_tangent=D)
 
         # TODO: replace this with a `rrule_test` once we have that working
         # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
