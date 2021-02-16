@@ -45,7 +45,7 @@
             test_rrule(diag, randn(N, N), k ⊢ nothing)
         end
     end
-    @testset "diagm" begin # TODO review testset
+    @testset "diagm" begin
         @testset "without size" begin
             M, N = 7, 9
             s = (8, 8)
