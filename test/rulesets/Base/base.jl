@@ -68,9 +68,9 @@
     @testset "Complex" begin
         test_scalar(Complex, randn())
         test_scalar(Complex, randn(ComplexF64))
-        x, y = randn(2)
-        test_frule(Complex, x, y)
-        test_rrule(Complex, x, y)
+
+        test_frule(Complex, randn(), randn())
+        test_rrule(Complex, randn(), randn())
     end
 
     @testset "*(x, y) (scalar)" begin
@@ -88,26 +88,20 @@
     end
 
     @testset "ldexp" begin
-        x = 10rand()
-
         for n in (0,1,20)
-            test_frule(ldexp, x, n ⊢ nothing)
-            test_rrule(ldexp, x, n ⊢ nothing)
+            test_frule(ldexp, 10rand(), n ⊢ nothing)
+            test_rrule(ldexp, 10rand(), n ⊢ nothing)
         end
     end
 
     @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
-        x, y = randn(T, 2)
-        test_frule(*, x, y)
-        test_rrule(*, x, y)
+        test_frule(*, randn(T), randn(T))
+        test_rrule(*, randn(T), randn(T))
     end
 
     @testset "mod" begin
-        x = 10rand()
-        y = rand()
-
-        test_frule(mod, x, y)
-        test_rrule(mod, x, y)
+        test_frule(mod, 10rand(), rand())
+        test_rrule(mod, 10rand(), rand())
     end
 
     @testset "identity" for T in (Float64, ComplexF64)
@@ -115,7 +109,8 @@
         test_frule(identity, randn(T, 4))
         test_frule(
             identity,
-            Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...)
+            #Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...)
+            Tuple(randn(T, 3))
         )
 
         test_rrule(identity, randn(T))
@@ -133,35 +128,27 @@
     end
 
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        x = 10randn(T)
-        y = randn(T)
-        z = randn(T)
-
-        test_frule(muladd, x, y, z)
-        test_rrule(muladd, x, y, z)
+        test_frule(muladd, 10randn(), randn(), randn())
+        test_rrule(muladd, 10randn(), randn(), randn())
     end
 
     @testset "fma" begin
-        x = 10randn()
-        y = randn()
-        z = randn()
-
-        test_frule(fma, x, y, z)
-        test_rrule(fma, x, y, z)
+        test_frule(fma, 10randn(), randn(), randn())
+        test_rrule(fma, 10randn(), randn(), randn())
     end
 
     @testset "clamp"  begin
-        x, y, z = 1., 2., 3.  # to left
-        test_frule(clamp, x, y, z)
-        test_rrule(clamp, x, y, z)
+        # to left
+        test_frule(clamp, 1., 2., 3.)
+        test_rrule(clamp, 1., 2., 3.)
 
-        x, y, z = 2.5, 2., 3.  # in the middle
-        test_frule(clamp, x, y, z)
-        test_rrule(clamp, x, y, z)
+        # in the middle
+        test_frule(clamp, 2.5, 2., 3.)
+        test_rrule(clamp, 2.5, 2., 3.)
 
-        x, y, z = 4., 2., 3.  # to right
-        test_frule(clamp, x, y, z)
-        test_rrule(clamp, x, y, z)
+        # to right
+        test_frule(clamp, 4., 2., 3.)
+        test_rrule(clamp, 4., 2., 3.)
     end
 
     @testset "rounding" begin
