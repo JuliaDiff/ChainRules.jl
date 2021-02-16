@@ -96,32 +96,27 @@
             )
         end
 
-        ȳ = rand_tangent(fnorm(x))
+        ȳ = rand_tangent(fnorm(x, p))
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
     @testset "norm($fdual(::Vector{$T}), p)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
+
+        x = fdual(randn(T, 3))
         p = 2.5
-        n = 3
-        x = fdual(randn(T, n))
-        y = norm(x, p)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        p̄ = rand_tangent(p)
-        test_rrule(norm, ȳ, (x, x̄), (p, p̄))
+
+        test_rrule(norm, x, p)
+        ȳ = rand_tangent(norm(x, p))
         @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 2.0, 2.5)
-            x = randn(T)
-            y = norm(x, p)
-            ẋ, ṗ = rand_tangent.((x, p))
-            x̄, p̄, ȳ = rand_tangent.((x, p, y))
-            test_frule(norm, (x, ẋ), (p, ṗ))
-            test_rrule(norm, ȳ, (x, x̄), (p, p̄))
-            _, back = rrule(norm, x, p)
+            test_frule(norm, randn(T), p)
+            test_rrule(norm, randn(T), p)
+
+            _, back = rrule(norm, randn(T), p)
             @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
         end
         @testset "p = 0" begin
@@ -143,23 +138,14 @@ end
 
 @testset "normalize" begin
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
-        n = 3
-        x = randn(T, n)
-        y = normalize(x)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        test_rrule(normalize, ȳ, (x, x̄))
+        x = randn(T, 3)
+        test_rrule(normalize, x)
         @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
         p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
-        n = 3
-        x = randn(T, n)
-        y = normalize(x, p)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        p̄ = rand_tangent(p)
-        test_rrule(normalize, ȳ, (x, x̄), (p, p̄))
+        x = randn(T, 3)
+        test_rrule(normalize, x, p)
         @test rrule(normalize, x, p)[2](Zero()) === (NO_FIELDS, Zero(), Zero())
     end
 end
