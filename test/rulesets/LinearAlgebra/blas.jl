@@ -37,12 +37,7 @@
                 s = (dims[1] * incx, dims[2:N]...)
                 n = div(prod(s), incx)
                 test_rrule(
-                    BLAS.nrm2,
-                    n ⊢ nothing,
-                    randn(T, s),
-                    incx ⊢ nothing;
-                    atol=0,
-                    rtol=1e-5,
+                    BLAS.nrm2, n ⊢ nothing, randn(T, s), incx ⊢ nothing; atol=0, rtol=1e-5,
                 )
             end
         end
