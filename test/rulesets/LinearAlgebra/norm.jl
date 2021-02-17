@@ -23,19 +23,16 @@
             kwargs = NamedTuple()
         end
 
-        y = fnorm(x)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-
         fnorm === LinearAlgebra.norm2 && @testset "frule" begin
-            ẋ = rand_tangent(x)
-            frule_test(fnorm, (x, ẋ))
+            test_frule(fnorm, x)
         end
         @testset "rrule" begin
-            rrule_test(fnorm, ȳ, (x, x̄); kwargs...)
+            test_rrule(fnorm, x; kwargs...)
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-                rrule_test(fnorm, ȳ, (MT(x), MT(x̄)); kwargs...)
+                test_rrule(fnorm, MT(x); kwargs...)
             end
+
+            ȳ = rand_tangent(fnorm(x))
             @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(fnorm, x)[2](Zero())[2] isa Zero
         end
@@ -45,23 +42,23 @@
         sz in [(0,), (3,), (3, 3), (3, 2, 1)]
 
         x = randn(T, sz)
-        y = norm(x)
-        ẋ = rand_tangent(x)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
 
         @testset "frule" begin
-            frule_test(norm, (x, ẋ))
+            test_frule(norm, x)
             @test frule((Zero(), Zero()), norm, x)[2] isa Zero
+
+            ẋ = rand_tangent(x)
             @test iszero(frule((Zero(), ẋ), norm, zero(x))[2])
         end
         @testset "rrule" begin
-            rrule_test(norm, ȳ, (x, x̄))
+            test_rrule(norm, x)
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
                 # we don't check inference on older julia versions. Improvements to
                 # inference mean on 1.5+ it works, and that is good enough
-                rrule_test(norm, ȳ, (MT(x), MT(x̄)); check_inferred=VERSION>=v"1.5")
+                test_rrule(norm, MT(x); check_inferred=VERSION>=v"1.5")
             end
+
+            ȳ = rand_tangent(norm(x))
             @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(norm, x)[2](Zero())[2] isa Zero
         end
@@ -90,44 +87,36 @@
             kwargs = NamedTuple()
         end
 
-        y = fnorm(x, p)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        p̄ = rand_tangent(p)
 
-        rrule_test(fnorm, ȳ, (x, x̄), (p, p̄); kwargs...)
+        test_rrule(fnorm, x, p; kwargs...)
         x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-            rrule_test(
-                fnorm, ȳ, (MT(x), MT(x̄)), (p, p̄);
+            test_rrule(fnorm, MT(x), p;
                 #Don't check inference on old julia, what matters is that works on new
                 check_inferred=VERSION>=v"1.5", kwargs...
             )
         end
+
+        ȳ = rand_tangent(fnorm(x, p))
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
     end
     @testset "norm($fdual(::Vector{$T}), p)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
+
+        x = fdual(randn(T, 3))
         p = 2.5
-        n = 3
-        x = fdual(randn(T, n))
-        y = norm(x, p)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        p̄ = rand_tangent(p)
-        rrule_test(norm, ȳ, (x, x̄), (p, p̄))
+
+        test_rrule(norm, x, p)
+        ȳ = rand_tangent(norm(x, p))
         @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 2.0, 2.5)
-            x = randn(T)
-            y = norm(x, p)
-            ẋ, ṗ = rand_tangent.((x, p))
-            x̄, p̄, ȳ = rand_tangent.((x, p, y))
-            frule_test(norm, (x, ẋ), (p, ṗ))
-            rrule_test(norm, ȳ, (x, x̄), (p, p̄))
-            _, back = rrule(norm, x, p)
+            test_frule(norm, randn(T), p)
+            test_rrule(norm, randn(T), p)
+
+            _, back = rrule(norm, randn(T), p)
             @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
         end
         @testset "p = 0" begin
@@ -149,23 +138,14 @@ end
 
 @testset "normalize" begin
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
-        n = 3
-        x = randn(T, n)
-        y = normalize(x)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        rrule_test(normalize, ȳ, (x, x̄))
+        x = randn(T, 3)
+        test_rrule(normalize, x)
         @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
         p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
-        n = 3
-        x = randn(T, n)
-        y = normalize(x, p)
-        x̄ = rand_tangent(x)
-        ȳ = rand_tangent(y)
-        p̄ = rand_tangent(p)
-        rrule_test(normalize, ȳ, (x, x̄), (p, p̄))
+        x = randn(T, 3)
+        test_rrule(normalize, x, p)
         @test rrule(normalize, x, p)[2](Zero()) === (NO_FIELDS, Zero(), Zero())
     end
 end
