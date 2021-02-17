@@ -165,7 +165,9 @@ end
             n = 10
 
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
-                X = randn(T, n, n)
+
+                # get a bit away from zero so don't have finite differencing woes
+                X = randn(T, n, n) .+ 5.0
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
@@ -186,9 +188,11 @@ end
                 end
             end
 
-            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
+            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64, ComplexF64)
                 # NOTE: eigen is not type-stable, so neither are is its rrule
-                X = randn(T, n, n)
+
+                # get a bit away from zero so don't have finite differencing woes
+                X = randn(T, n, n) .+ 5.0
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
@@ -314,10 +318,8 @@ end
             @testset "eigvals!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
                 n = 10
                 X = randn(T, n, n)
-                λ = eigvals!(copy(X))
-                Ẋ = rand_tangent(X)
-                test_frule(eigvals!, (X, Ẋ))
-                @test frule((Zero(), Zero()), eigvals!, copy(X)) == (λ, Zero())
+                test_frule(eigvals!, X)
+                @test frule((Zero(), Zero()), eigvals!, copy(X))[2] == Zero()
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues
@@ -330,19 +332,13 @@ end
 
             @testset "eigvals(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
                 n = 10
-                X = randn(T, n, n)
-                X̄ = rand_tangent(X)
-                λ̄ = rand_tangent(eigvals(X))
-                test_rrule(eigvals, λ̄, (X, X̄))
-                back = rrule(eigvals, X)[2]
-                @inferred back(λ̄)
+                test_rrule(eigvals, randn(T, n, n))
+
+                λ, back = rrule(eigvals, randn(T, n, n))
+                _, X̄ = @inferred back(rand_tangent(λ))
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
 
                 T <: Real && @testset "cotangent is real when input is" begin
-                    X = randn(T, n, n)
-                    λ = eigvals(X)
-                    λ̄ = rand_tangent(λ)
-                    X̄ = rrule(eigvals, X)[2](λ̄)[2]
                     @test eltype(X̄) <: Real
                 end
             end
@@ -424,4 +420,5 @@ end
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
     end
+end
 end
