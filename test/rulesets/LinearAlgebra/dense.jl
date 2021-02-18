@@ -1,63 +1,34 @@
 @testset "dense" begin
     @testset "dot" begin
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
-            M = 3
-            x, y = randn(T, M), randn(T, M)
-            ẋ, ẏ = randn(T, M), randn(T, M)
-            x̄, ȳ = randn(T, M), randn(T, M)
-            frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
+            test_frule(dot, randn(T, 3), randn(T, 3))
+            test_rrule(dot, randn(T, 3), randn(T, 3))
         end
         @testset "Matrix{$T}" for T in (Float64, ComplexF64)
-            M, N = 3, 4
-            x, y = randn(T, M, N), randn(T, M, N)
-            ẋ, ẏ = randn(T, M, N), randn(T, M, N)
-            x̄, ȳ = randn(T, M, N), randn(T, M, N)
-            frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
+            test_frule(dot, randn(T, 3, 4), randn(T, 3, 4))
+            test_rrule(dot, randn(T, 3, 4), randn(T, 3, 4))
         end
         @testset "Array{$T, 3}" for T in (Float64, ComplexF64)
-            M, N, P = 3, 4, 5
-            x, y = randn(T, M, N, P), randn(T, M, N, P)
-            ẋ, ẏ = randn(T, M, N, P), randn(T, M, N, P)
-            x̄, ȳ = randn(T, M, N, P), randn(T, M, N, P)
-            frule_test(dot, (x, ẋ), (y, ẏ))
-            rrule_test(dot, randn(T), (x, x̄), (y, ȳ))
+            test_frule(dot, randn(T, 3, 4, 5), randn(T, 3, 4, 5))
+            test_rrule(dot, randn(T, 3, 4, 5), randn(T, 3, 4, 5))
         end
         @testset "3-arg dot, Array{$T}" for T in (Float64, ComplexF64)
-            M, N = 3, 4
-            x, A, y = randn(T, M), randn(T, M, N), randn(T, N)
-            ẋ, Adot, ẏ = randn(T, M), randn(T, M, N), randn(T, N)
-            x̄, Abar, ȳ = randn(T, M), randn(T, M, N), randn(T, N)
-            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ))
-            rrule_test(dot, randn(T), (x, x̄), (A, Abar), (y, ȳ))
+            test_frule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
+            test_rrule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
         end
         permuteddimsarray(A) = PermutedDimsArray(A, (2,1))
         @testset "3-arg dot, $F{$T}" for T in (Float32, ComplexF32), F in (adjoint, permuteddimsarray)
-            M, N = 3, 4
-            x, A, y = rand(T, M), F(rand(T, N, M)), rand(T, N)
-            ẋ, Adot, ẏ = rand(T, M), F(rand(T, N, M)), rand(T, N)
-            x̄, Abar, ȳ = rand(T, M), F(rand(T, N, M)), rand(T, N)
-            frule_test(dot, (x, ẋ), (A, Adot), (y, ẏ); rtol=1f-3)
-            rrule_test(dot, float(rand(T)), (x, x̄), (A, Abar), (y, ȳ); rtol=1f-3)
+            A = F(rand(T, 4, 3)) ⊢ F(rand(T, 4, 3))
+            test_frule(dot, rand(T, 3), A, rand(T, 4); rtol=1f-3)
+            test_rrule(dot, rand(T, 3), A, rand(T, 4); rtol=1f-3)
         end
     end
+
     @testset "cross" begin
-        @testset "frule" begin
-            @testset "$T" for T in (Float64, ComplexF64)
-                n = 3
-                x, y = randn(T, n), randn(T, n)
-                ẋ, ẏ = randn(T, n), randn(T, n)
-                frule_test(cross, (x, ẋ), (y, ẏ))
-            end
-        end
-        @testset "rrule" begin
-            n = 3
-            x, y = randn(n), randn(n)
-            x̄, ȳ = randn(n), randn(n)
-            ΔΩ = randn(n)
-            rrule_test(cross, ΔΩ, (x, x̄), (y, ȳ))
-        end
+        test_frule(cross, randn(3), randn(3))
+        test_frule(cross, randn(ComplexF64, 3), randn(ComplexF64, 3))
+        test_rrule(cross, randn(3), randn(3))
+        # No complex support for rrule(cross,...
     end
     @testset "pinv" begin
         @testset "$T" for T in (Float64, ComplexF64)
@@ -66,25 +37,31 @@
             @test rrule(pinv, zero(T))[2](randn(T))[2] ≈ zero(T)
         end
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
-            n = 3
-            x, ẋ, x̄ = randn(T, n), randn(T, n), randn(T, n)
-            tol, ṫol, t̄ol = 0.0, randn(), randn()
-            Δy = copyto!(similar(pinv(x)), randn(T, n))
-            frule_test(pinv, (x, ẋ), (tol, ṫol))
+            test_frule(pinv, randn(T, 3), 0.0)
+            test_frule(pinv, randn(T, 3), 0.0)
+
+            # Checking types. TODO do we still need this?
+            x = randn(T, 3)
+            ẋ = randn(T, 3)
+            Δy = copyto!(similar(pinv(x)), randn(T, 3))
             @test frule((Zero(), ẋ), pinv, x)[2] isa typeof(pinv(x))
-            rrule_test(pinv, Δy, (x, x̄), (tol, t̄ol))
             @test rrule(pinv, x)[2](Δy)[2] isa typeof(x)
         end
+
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
-            n = 3
-            x, ẋ, x̄ = F(randn(T, n)), F(randn(T, n)), F(randn(T, n))
+            test_frule(pinv, F(randn(T, 3)) ⊢ F(randn(T, 3)))
+            test_rrule(pinv, F(randn(T, 3)))
+
+            # Check types.
+            # TODO: Do we need this still?
+            x, ẋ, x̄ = F(randn(T, 3)), F(randn(T, 3)), F(randn(T, 3))
             y = pinv(x)
-            Δy = copyto!(similar(y), randn(T, n))
-            frule_test(pinv, (x, ẋ))
+            Δy = copyto!(similar(y), randn(T, 3))
+
             y_fwd, ∂y_fwd = frule((Zero(),  ẋ), pinv, x)
             @test y_fwd isa typeof(y)
             @test ∂y_fwd isa typeof(y)
-            rrule_test(pinv, Δy, (x, x̄))
+
             y_rev, back = rrule(pinv, x)
             @test y_rev isa typeof(y)
             @test back(Δy)[2] isa typeof(x)
@@ -93,10 +70,8 @@
             m in 1:3,
             n in 1:3
 
-            X, Ẋ, X̄ = randn(T, m, n), randn(T, m, n), randn(T, m, n)
-            ΔY = randn(T, size(pinv(X))...)
-            frule_test(pinv, (X, Ẋ))
-            rrule_test(pinv, ΔY, (X, X̄))
+            test_frule(pinv, randn(T, m, n))
+            test_rrule(pinv, randn(T, m, n))
         end
     end
     @testset "$f" for f in (det, logdet)
@@ -105,29 +80,26 @@
             test_scalar(f, b)
         end
         @testset "$f(::Matrix{$T})" for T in (Float64, ComplexF64)
+            B = generate_well_conditioned_matrix(T, 4)
             if f === logdet && float(T) <: Float32
-                kwargs = (atol=1e-5, rtol=1e-5)
+                test_frule(f, B; atol=1e-5, rtol=1e-5)
+                test_rrule(f, B; atol=1e-5, rtol=1e-5)
             else
-                kwargs = NamedTuple()
+                test_frule(f, B)
+                test_rrule(f, B)
             end
-            N = 3
-            B = generate_well_conditioned_matrix(T, N)
-            frule_test(f, (B, randn(T, N, N)); kwargs...)
-            rrule_test(f, randn(T), (B, randn(T, N, N)); kwargs...)
         end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
-        N = 3
-        B = randn(T, N, N)
-        frule_test(logabsdet, (B, randn(T, N, N)))
-        rrule_test(logabsdet, (randn(), randn(T)), (B, randn(T, N, N)))
+        B = randn(T, 4, 4)
+        test_frule(logabsdet, B)
+        test_rrule(logabsdet, B)
         # test for opposite sign of determinant
-        frule_test(logabsdet, (-B, randn(T, N, N)))
-        rrule_test(logabsdet, (randn(), randn(T)), (-B, randn(T, N, N)))
+        test_frule(logabsdet, -B)
+        test_rrule(logabsdet, -B)
     end
     @testset "tr" begin
-        N = 4
-        frule_test(tr, (randn(N, N), randn(N, N)))
-        rrule_test(tr, randn(), (randn(N, N), randn(N, N)))
+        test_frule(tr, randn(4, 4))
+        test_rrule(tr, randn(4, 4))
     end
 end
