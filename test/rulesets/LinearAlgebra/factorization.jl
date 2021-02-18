@@ -167,7 +167,7 @@ end
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
 
                 # get a bit away from zero so don't have finite differencing woes
-                X = randn(T, n, n) .+ 5.0
+                X = 10 .* (rand(T, n, n) .+ 5.0)
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
