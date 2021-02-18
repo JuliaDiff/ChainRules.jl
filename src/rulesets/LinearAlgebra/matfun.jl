@@ -129,7 +129,10 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
         A = copy(A0)
         X, intermediates = _matfun!(exp, A)
         function exp_pullback(ΔX)
-            ∂A = _matfun_frechet_adjoint!(exp, ΔX, A, X, intermediates)
+            # Ensures ∂X is mutable. The outer `adjoint` is unwrapped without copy by
+            # the default _matfun_frechet_adjoint!
+            ∂X = Matrix(ΔX')'
+            ∂A = _matfun_frechet_adjoint!(exp, ∂X, A, X, intermediates)
             return NO_FIELDS, ∂A
         end
         return X, exp_pullback
