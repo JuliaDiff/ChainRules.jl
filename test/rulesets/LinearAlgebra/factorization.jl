@@ -192,7 +192,7 @@ end
                 # NOTE: eigen is not type-stable, so neither are is its rrule
 
                 # get a bit away from zero so don't have finite differencing woes
-                X = randn(T, n, n) .+ 5.0
+                X = 10 .* (rand(T, n, n) .+ 5.0)
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
