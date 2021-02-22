@@ -29,9 +29,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                A = randn(T, m, n)
-                ΔA = rand_tangent(A)
-                frule_test(lu!, (A, ΔA), (pivot, nothing))
+                test_frule(lu!, randn(T, m, n), pivot ⊢ nothing)
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -40,6 +38,7 @@ end
                     (Zero(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
                 )
                 frule((Zero(), ΔAsingular), lu!, Asingular, Val(true); check=false)
+                @test true  # above line would have errored if this was not working right
             end
         end
         @testset "lu rrule" begin
@@ -48,12 +47,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                A = randn(T, m, n)
-                ΔA = rand_tangent(A)
-                F = lu(A, pivot)
-                Δfactors = rand_tangent(F.factors)
-                ΔF = Composite{typeof(F)}(; factors=Δfactors)
-                rrule_test(lu, ΔF, (A, ΔA), (pivot, nothing))
+                test_rrule(lu, randn(T, m, n), pivot ⊢ nothing)
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -62,6 +56,7 @@ end
                 @test_throws SingularException rrule(lu, Asingular, Val(true))
                 _, back = rrule(lu, Asingular, Val(true); check=false)
                 back(ΔF)
+                @test true  # above line would have errored if this was not working right
             end
         end
         @testset "LU" begin
@@ -71,32 +66,14 @@ end
                     k in (:U, :L, :factors),
                     m in (7, 10, 13)
 
-                    A = randn(m, n)
-                    F = lu(A)
-                    X = getproperty(F, k)
-                    ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
-                    ΔX = rand_tangent(X)
-                    rrule_test(getproperty, ΔX, (F, ΔF), (k, nothing); check_inferred=false)
+                    F = lu(randn(m, n))
+                    test_rrule(getproperty, F, k ⊢ nothing ; check_inferred=false)
                 end
             end
             @testset "matrix inverse using LU" begin
-                @testset "LinearAlgebra.inv!(::LU) frule" begin
-                    @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
-                        A = randn(T, n, n)
-                        F = lu(A, Val(true))
-                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
-                        frule_test(LinearAlgebra.inv!, (F, ΔF))
-                    end
-                end
-                @testset "inv(::LU) rrule" begin
-                    @testset "inv(::LU{$T,<:StridedMatrix})" for T in (Float64,ComplexF64)
-                        A = randn(T, n, n)
-                        F = lu(A, Val(true))
-                        Y = inv(A)
-                        ΔF = Composite{typeof(F)}(; factors=rand_tangent(F.factors))
-                        ΔY = rand_tangent(Y)
-                        rrule_test(inv, ΔY, (F, ΔF))
-                    end
+                @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
+                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), Val(true)))
+                    test_rrule(inv, lu(randn(T, n, n), Val(true)))
                 end
             end
         end
@@ -188,7 +165,9 @@ end
             n = 10
 
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
-                X = randn(T, n, n)
+                # get a bit away from zero so don't have finite differencing woes
+                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
+                X = 10 .* (rand(T, n, n) .+ 5.0)
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
@@ -209,24 +188,28 @@ end
                 end
             end
 
-            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
-                # NOTE: eigen is not type-stable, so neither are is its rrule
-                X = randn(T, n, n)
+            @testset "eigen(::Matrix{$T}) rrule" for T in (Float64, ComplexF64)
+                # get a bit away from zero so don't have finite differencing woes
+                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
+                Random.seed!(1)
+                X = 10 .* (rand(T, n, n) .+ 5.0)
+
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
                 CT = Composite{typeof(F)}
                 F_rev, back = rrule(eigen, X)
                 @test F_rev == F
+                # NOTE: eigen is not type-stable, so neither are is its rrule
                 _, X̄_values_ad = @inferred back(CT(values = λ̄))
                 @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
                 _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
-                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1] rtol=1e-4
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @inferred back(F̄)
                 @test s̄elf === NO_FIELDS
                 X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
-                @test X̄_ad ≈ X̄_fd
+                @test X̄_ad ≈ X̄_fd rtol=1e-4
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
                 F̄zero = CT(values = Zero(), vectors = Zero())
                 @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
@@ -337,10 +320,8 @@ end
             @testset "eigvals!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
                 n = 10
                 X = randn(T, n, n)
-                λ = eigvals!(copy(X))
-                Ẋ = rand_tangent(X)
-                frule_test(eigvals!, (X, Ẋ))
-                @test frule((Zero(), Zero()), eigvals!, copy(X)) == (λ, Zero())
+                test_frule(eigvals!, X)
+                @test frule((Zero(), Zero()), eigvals!, copy(X))[2] == Zero()
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues
@@ -353,19 +334,13 @@ end
 
             @testset "eigvals(::Matrix{$T}) rrule" for T in (Float64,ComplexF64)
                 n = 10
-                X = randn(T, n, n)
-                X̄ = rand_tangent(X)
-                λ̄ = rand_tangent(eigvals(X))
-                rrule_test(eigvals, λ̄, (X, X̄))
-                back = rrule(eigvals, X)[2]
-                @inferred back(λ̄)
+                test_rrule(eigvals, randn(T, n, n))
+
+                λ, back = rrule(eigvals, randn(T, n, n))
+                _, X̄ = @inferred back(rand_tangent(λ))
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
 
                 T <: Real && @testset "cotangent is real when input is" begin
-                    X = randn(T, n, n)
-                    λ = eigvals(X)
-                    λ̄ = rand_tangent(λ)
-                    X̄ = rrule(eigvals, X)[2](λ̄)[2]
                     @test eltype(X̄) <: Real
                 end
             end
@@ -399,17 +374,18 @@ end
 
     # These tests are generally a bit tricky to write because FiniteDifferences doesn't
     # have fantastic support for this stuff at the minute.
+    # also we might be missing some overloads for different tangent-types in the rules
     @testset "cholesky" begin
         @testset "Real" begin
-            C = cholesky(rand() + 0.1)
-            ΔC = Composite{typeof(C)}((factors=rand_tangent(C.factors)))
-            rrule_test(cholesky, ΔC, (rand() + 0.1, randn()))
+            test_rrule(cholesky, 0.8)
         end
         @testset "Diagonal{<:Real}" begin
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
-            ΔC = Composite{typeof(C)}((factors=Diagonal(randn(5))))
-            rrule_test(cholesky, ΔC, (D, Diagonal(randn(5))), (Val(false), nothing))
+            test_rrule(
+                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ nothing;
+                output_tangent=Composite{typeof(C)}(factors=Diagonal(randn(5)))
+            )
         end
 
         X = generate_well_conditioned_matrix(10)
