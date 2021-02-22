@@ -165,8 +165,8 @@ end
             n = 10
 
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
-
                 # get a bit away from zero so don't have finite differencing woes
+                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
                 X = 10 .* (rand(T, n, n) .+ 5.0)
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
@@ -189,26 +189,27 @@ end
             end
 
             @testset "eigen(::Matrix{$T}) rrule" for T in (Float64, ComplexF64)
-                # NOTE: eigen is not type-stable, so neither are is its rrule
-
                 # get a bit away from zero so don't have finite differencing woes
+                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
                 Random.seed!(1)
                 X = 10 .* (rand(T, n, n) .+ 5.0)
+
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
                 CT = Composite{typeof(F)}
                 F_rev, back = rrule(eigen, X)
                 @test F_rev == F
+                # NOTE: eigen is not type-stable, so neither are is its rrule
                 _, X̄_values_ad = @inferred back(CT(values = λ̄))
                 @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
                 _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
-                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1]
+                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1] rtol=1e-4
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @inferred back(F̄)
                 @test s̄elf === NO_FIELDS
                 X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
-                @test X̄_ad ≈ X̄_fd
+                @test X̄_ad ≈ X̄_fd rtol=1e-4
                 @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
                 F̄zero = CT(values = Zero(), vectors = Zero())
                 @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
