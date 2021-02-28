@@ -116,4 +116,18 @@
             end
         end
     end
+    @testset "lyap" begin
+        n = 3
+        @testset "Float64" for T in (Float64, ComplexF64)
+            A = randn(T, n, n)
+            C = randn(T, n, n)
+            Y = lyap(A, C)
+            test_frule(lyap, A, C)
+            test_rrule(lyap, A, C)
+            @testset "overflowing (co)tangent correctly handled" begin
+                test_frule(lyap, A, C ⊢ 1e295 * rand_tangent(C))
+                test_rrule(lyap, A, C; output_tangent=1e295 * rand_tangent(Y))
+            end
+        end
+    end
 end
