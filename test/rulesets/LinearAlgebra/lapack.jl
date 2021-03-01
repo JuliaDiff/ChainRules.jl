@@ -15,7 +15,6 @@
             C = randn(T, m, n)
             ΔA = rand_tangent(A) .* (!iszero).(A)
             ΔB = rand_tangent(B) .* (!iszero).(B)
-            ΔC = rand_tangent(C)
 
             test_frule(
                 LAPACK.trsyl!,
@@ -26,17 +25,6 @@
                 C,
                 isgn ⊢ nothing,
             )
-            @testset "overflowing (co)tangent correctly handled" begin
-                test_frule(
-                    LAPACK.trsyl!,
-                    transa ⊢ nothing,
-                    transb ⊢ nothing,
-                    A ⊢ ΔA,
-                    B ⊢ ΔB,
-                    C ⊢ (1e295 * ΔC),
-                    isgn ⊢ nothing,
-                )
-            end
         end
     end
 end
