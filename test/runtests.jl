@@ -48,6 +48,7 @@ println("Testing ChainRules.jl")
             include_test("rulesets/LinearAlgebra/symmetric.jl")
             include_test("rulesets/LinearAlgebra/factorization.jl")
             include_test("rulesets/LinearAlgebra/blas.jl")
+            include_test("rulesets/LinearAlgebra/lapack.jl")
         end
         println()
 

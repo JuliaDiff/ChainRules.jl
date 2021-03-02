@@ -42,6 +42,7 @@ include("rulesets/Statistics/statistics.jl")
 
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
+include("rulesets/LinearAlgebra/lapack.jl")
 include("rulesets/LinearAlgebra/dense.jl")
 include("rulesets/LinearAlgebra/norm.jl")
 include("rulesets/LinearAlgebra/matfun.jl")

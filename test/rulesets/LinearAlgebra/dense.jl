@@ -102,4 +102,22 @@
         test_frule(tr, randn(4, 4))
         test_rrule(tr, randn(4, 4))
     end
+    @testset "sylvester" begin
+        @testset "T=$T, m=$m, n=$n" for T in (Float64, ComplexF64), m in (2, 3), n in (1, 3)
+            A = randn(T, m, m)
+            B = randn(T, n, n)
+            C = randn(T, m, n)
+            test_frule(sylvester, A, B, C)
+            test_rrule(sylvester, A, B, C)
+        end
+    end
+    @testset "lyap" begin
+        n = 3
+        @testset "Float64" for T in (Float64, ComplexF64)
+            A = randn(T, n, n)
+            C = randn(T, n, n)
+            test_frule(lyap, A, C)
+            test_rrule(lyap, A, C)
+        end
+    end
 end
