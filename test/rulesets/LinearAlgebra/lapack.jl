@@ -13,15 +13,12 @@
             A = schur(randn(T, m, m)).T
             B = schur(randn(T, n, n)).T
             C = randn(T, m, n)
-            ΔA = rand_tangent(A) .* (!iszero).(A)
-            ΔB = rand_tangent(B) .* (!iszero).(B)
-
             test_frule(
                 LAPACK.trsyl!,
                 transa ⊢ nothing,
                 transb ⊢ nothing,
-                A ⊢ ΔA,
-                B ⊢ ΔB,
+                A ⊢ rand_tangent(A) .* (!iszero).(A),  # Match sparsity pattern
+                B ⊢ rand_tangent(B) .* (!iszero).(B),
                 C,
                 isgn ⊢ nothing,
             )
