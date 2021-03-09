@@ -20,4 +20,11 @@
             end
         end
     end  # sum abs2
+
+    @testset "prod" begin
+        test_rrule(prod, randn(5))
+        test_rrule(prod, randn(5, 6))
+        test_rrule(prod, randn(5, 6); fkwargs=(;dims=2))
+        test_rrule(prod, randn(5, 6); fkwargs=(;dims=1))
+    end
 end

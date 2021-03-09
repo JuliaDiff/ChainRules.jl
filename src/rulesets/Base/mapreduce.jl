@@ -48,3 +48,17 @@ function rrule(
     end
     return y, sum_abs2_pullback
 end
+
+####
+#### prod
+####
+
+function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
+    y = prod(x; dims=dims)
+    function prod_pullback(ȳ)
+        # broadcasting the two works out the size no-matter `dims`
+        x̄ = y .* ȳ ./ x
+        return (NO_FIELDS, x̄)
+    end
+    return y, prod_pullback
+end
