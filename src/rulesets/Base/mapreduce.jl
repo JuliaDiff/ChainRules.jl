@@ -79,7 +79,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 dx -> dx .+= y ./ conj.(x) .* conj.(dy)
             )
         end
-        (NO_FIELDS, x_thunk)
+        return (NO_FIELDS, x_thunk)
     end
     return y, prod_pullback
 end
@@ -112,7 +112,7 @@ function ∇prod(x, dy::Number=1, y::Number=prod(x))
 end
 
 function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
-    numzero = count(iszero, x)
+    numzero = iszero(y) ? count(iszero, x) : 0
     if numzero == 0  # This can happen while y==0, if there are several small xs
         dx .+= y ./ conj.(x) .* conj.(dy)
     elseif numzero > 1
