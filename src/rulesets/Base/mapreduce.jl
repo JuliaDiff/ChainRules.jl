@@ -100,9 +100,9 @@ function ∇prod_dims!(dx, dims, x, dy, y)
     return dx
 end
 
-# To opt out of this mapslices thing, and accept NaN instead, you could define:
-# ∇prod_dims!(dx, dims, x::CuArray, dy, y) = dx .+= y ./ x .* dy
-# and similarly ∇prod!(dx, x::CuArray, dy, y)
+# To opt out of the mapslices path, and accept NaN instead, you could define for instance:
+# ∇prod_dims!(dx, dims, x::CuArray, dy, y) = dx .+= y ./ conj.(x) .* conj.(dy)
+#            ∇prod!(dx, x::CuArray, dy, y) = dx .+= y ./ conj.(x) .* conj.(dy)
 
 function ∇prod(x, dy::Number=1, y::Number=prod(x))
     T = promote_type(eltype(x), eltype(dy))
@@ -115,10 +115,10 @@ function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
     numzero = iszero(y) ? count(iszero, x) : 0
     if numzero == 0  # This can happen while y==0, if there are several small xs
         dx .+= y ./ conj.(x) .* conj.(dy)
-    elseif numzero > 1
-        dx
-    else
+    elseif numzero == 1
         ∇prod_one_zero!(dx, x, dy)
+    else  # numzero > 1, then all first derivatives are zero
+        dx
     end
     return dx
 end
