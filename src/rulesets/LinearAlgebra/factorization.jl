@@ -269,7 +269,6 @@ end
 #####
 
 # TODO:
-# - support correct differential of phase convention when A is hermitian
 # - simplify when A is diagonal
 # - support almost-degenerate matrices (see #144)
 
