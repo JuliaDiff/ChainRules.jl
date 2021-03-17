@@ -101,6 +101,11 @@ end
 #
 # accounting for normalization convention appears in Boeddeker && Hanebrink.
 # account for phase convention is unpublished.
+
+# workaround for exactly degenerate matrices inspired by
+# Kasim M.F. Derivatives of partial eigendecomposition of a real symmetric matrix for
+# degenerate cases. 2020. arXiv:2011.04366v1 [math.NA]
+
 function frule(
     (_, ΔA),
     ::typeof(eigen!),
