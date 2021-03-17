@@ -271,7 +271,7 @@ end
 # TODO:
 # - support correct differential of phase convention when A is hermitian
 # - simplify when A is diagonal
-# - support degenerate matrices (see #144)
+# - support almost-degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
