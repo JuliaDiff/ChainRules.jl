@@ -79,6 +79,18 @@ end
         end
     end
     @testset "svd" begin
+        @testset "canonicalize" begin
+            composite = Composite{SVD{Float64,Float64,Array{Float64,2}}}(
+                V = [0.6662838804680036 -0.5008780874375076; 0.729969913633919 0.228331721577141],
+            )
+            canonicalized_composite = Composite{SVD{Float64,Float64,Array{Float64,2}}}(
+                U = Zero(),
+                S = Zero(),
+                V = [0.6662838804680036 -0.5008780874375076; 0.729969913633919 0.228331721577141]
+            )
+            @test composite == canonicalized_composite
+        end
+
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(n, m)
             F, dX_pullback = rrule(svd, X)
