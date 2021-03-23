@@ -203,6 +203,18 @@ end
 ##### `svd`
 #####
 
+function canonicalize(comp::Composite{P, <:NamedTuple{L}}) where {P<:SVD, L}
+    nil = (U = Zero(), S = Zero(), V = Zero())
+    combined = merge(nil, ChainRulesCore.backing(comp))
+    if length(combined) !== fieldcount(P)
+        throw(ArgumentError(
+            "Composite fields do not match primal fields.\n" *
+            "Composite fields: $L. Primal ($P) fields: $(fieldnames(P))"
+        ))
+    end
+    return Composite{P, typeof(combined)}(combined)
+end
+
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)

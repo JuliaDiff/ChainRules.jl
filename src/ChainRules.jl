@@ -13,8 +13,7 @@ using Statistics
 
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
-import ChainRulesCore: rrule, frule
-
+import ChainRulesCore: rrule, frule, canonicalize
 
 if VERSION < v"1.3.0-DEV.142"
     # In prior versions, the BLAS submodule also exported `dot`, which caused a conflict
