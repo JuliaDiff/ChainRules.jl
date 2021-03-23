@@ -82,7 +82,7 @@ end
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(n, m)
             F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V]
+            for p in [:U, :S, :V, :Vt]
                 Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = randn(size(Y)...)
 
@@ -96,24 +96,20 @@ end
                 X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
                 @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
             end
-            @testset "Vt" begin
-                Y, dF_pullback = rrule(getproperty, F, :Vt)
-                Ȳ = randn(size(Y)...)
-                @test_throws ArgumentError dF_pullback(Ȳ)
-            end
         end
 
         @testset "Thunked inputs" begin
             X = randn(4, 3)
             F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V]
+            for p in [:U, :S, :V, :Vt]
                 Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = randn(size(Y)...)
 
                 _, dF_unthunked, _ = dF_pullback(Ȳ)
 
                 # helper to let us check how things are stored.
-                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p)
+                p_access = p == :V ? :Vt : p
+                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p_access)
                 @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
 
                 dF_thunked = map(f->Thunk(()->f), dF_unthunked)
@@ -130,7 +126,7 @@ end
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             F, dX_pullback = rrule(svd, X)
             X̄ = Composite{typeof(F)}(U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
-            for p in [:U, :S, :V]
+            for p in [:U, :S, :V, :Vt]
                 Y, dF_pullback = rrule(getproperty, F, p)
                 Ȳ = ones(size(Y)...)
                 dself, dF, dp = dF_pullback(Ȳ)
@@ -140,7 +136,7 @@ end
             end
             @test X̄.U ≈ ones(3, 2) atol=1e-6
             @test X̄.S ≈ ones(2) atol=1e-6
-            @test X̄.V ≈ ones(2, 2) atol=1e-6
+            @test X̄.Vt ≈ 2 * ones(2, 2) atol=1e-6 # * 2 because V and Vt both accumulate to Vt
         end
 
         @testset "Helper functions" begin
