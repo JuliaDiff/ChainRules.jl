@@ -80,26 +80,30 @@ end
     end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
-            X = randn(n, m)
-            F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(size(Y)...)
+            for T in (Float64, ComplexF64)
+                X = randn(T, n, m)
+                F, dX_pullback = rrule(svd, X)
+                @show n, T
+                for p in [:U, :S, :V]
+                    Y, dF_pullback = rrule(getproperty, F, p)
+                    Ȳ = randn(T, size(Y)...)
 
-                dself1, dF, dp = dF_pullback(Ȳ)
-                @test dself1 === NO_FIELDS
-                @test dp === DoesNotExist()
+                    dself1, dF, dp = dF_pullback(Ȳ)
+                    @test dself1 === NO_FIELDS
+                    @test dp === DoesNotExist()
 
-                dself2, dX = dX_pullback(dF)
-                @test dself2 === NO_FIELDS
-                X̄_ad = unthunk(dX)
-                X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
-                @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
-            end
-            @testset "Vt" begin
-                Y, dF_pullback = rrule(getproperty, F, :Vt)
-                Ȳ = randn(size(Y)...)
-                @test_throws ArgumentError dF_pullback(Ȳ)
+                    dself2, dX = dX_pullback(dF)
+                    @test dself2 === NO_FIELDS
+                    X̄_ad = unthunk(dX)
+                    X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
+                    @show X̄_ad X̄_fd 
+                    @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
+                end
+                @testset "Vt" begin
+                    Y, dF_pullback = rrule(getproperty, F, :Vt)
+                    Ȳ = randn(T, size(Y)...)
+                    @test_throws ArgumentError dF_pullback(Ȳ)
+                end
             end
         end
 
