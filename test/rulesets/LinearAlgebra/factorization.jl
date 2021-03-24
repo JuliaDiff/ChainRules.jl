@@ -81,20 +81,15 @@ end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
             X = randn(n, m)
-            F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V, :Vt]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(size(Y)...)
-
-                dself1, dF, dp = dF_pullback(Ȳ)
-                @test dself1 === NO_FIELDS
-                @test dp === DoesNotExist()
-
-                dself2, dX = dX_pullback(dF)
-                @test dself2 === NO_FIELDS
-                X̄_ad = unthunk(dX)
-                X̄_fd = only(j′vp(central_fdm(5, 1), X->getproperty(svd(X), p), Ȳ, X))
-                @test all(isapprox.(X̄_ad, X̄_fd; rtol=1e-6, atol=1e-6))
+            @testset "($n by $m) svd" begin
+                test_rrule(svd, X)
+            end
+            @testset "($n by $m) getproperty" begin
+                F = svd(X)
+                test_rrule(getproperty, F, :U; check_inferred=false)
+                test_rrule(getproperty, F, :S; check_inferred=false)
+                test_rrule(getproperty, F, :Vt; check_inferred=false)
+                test_rrule(getproperty, F, :V; check_inferred=false, output_tangent=adjoint(rand(n, m)))
             end
         end
 
@@ -120,23 +115,6 @@ end
                 @test dself_thunked == dself_unthunked
                 @test dX_thunked == dX_unthunked
             end
-        end
-
-        @testset "+" begin
-            X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
-            F, dX_pullback = rrule(svd, X)
-            X̄ = Composite{typeof(F)}(U=zeros(3, 2), S=zeros(2), V=zeros(2, 2))
-            for p in [:U, :S, :V, :Vt]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = ones(size(Y)...)
-                dself, dF, dp = dF_pullback(Ȳ)
-                @test dself === NO_FIELDS
-                @test dp === DoesNotExist()
-                X̄ += dF
-            end
-            @test X̄.U ≈ ones(3, 2) atol=1e-6
-            @test X̄.S ≈ ones(2) atol=1e-6
-            @test X̄.Vt ≈ 2 * ones(2, 2) atol=1e-6 # * 2 because V and Vt both accumulate to Vt
         end
 
         @testset "Helper functions" begin
