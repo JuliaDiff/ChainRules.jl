@@ -79,15 +79,16 @@ end
         end
     end
     @testset "svd" begin
-        for n in [4, 6, 10], m in [3, 5, 10]
-            @testset "svd" begin
+        for n in [4, 6, 10], m in [3, 5, 9]
+            @testset "($n x $m) svd" begin
                 X = randn(n, m)
-                test_rrule(svd, X; atol=1e-6, rtol=1e-6)
+                @show X
+                test_rrule(svd, X)
             end
         end
 
         for n in [4, 6, 10], m in [3, 5, 10]
-            @testset "getproperty" begin
+            @testset "($n x $m) getproperty" begin
                 X = randn(n, m)
                 F = svd(X)
                 rand_adj = adjoint(rand(reverse(size(F.V))...))
