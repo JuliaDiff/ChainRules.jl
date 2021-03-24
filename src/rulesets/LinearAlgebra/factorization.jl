@@ -203,7 +203,7 @@ end
 ##### `svd`
 #####
 
-function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
+function rrule(::typeof(svd), X::AbstractMatrix{<:Union{Real, Complex}})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)
         # `getproperty` on `Composite`s ensures we have no thunks.
@@ -231,8 +231,18 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     return getproperty(F, x), getproperty_svd_pullback
 end
 
+@inline function safe_inv(x::T) where T<:Real
+    if x == 0
+        return inv(eps(T))
+    elseif abs(x) < eps(T)
+        return inv(sign(x)*eps(x))
+    else
+        return inv(x)
+    end
+end
+
 # When not `Zero`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
-function svd_rev(USV::SVD, Ū, s̄, V̄)
+function svd_rev(USV::SVD{T}, Ū, s̄, V̄) where T<:Real
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U
     s = USV.S
@@ -240,8 +250,7 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
     Vt = USV.Vt
 
     k = length(s)
-    T = eltype(s)
-    F = T[i == j ? 1 : inv(@inbounds s[j]^2 - s[i]^2) for i = 1:k, j = 1:k]
+    F = T[i == j ? 1 : safe_inv(@inbounds s[j]^2 - s[i]^2) for i = 1:k, j = 1:k]
 
     # We do a lot of matrix operations here, so we'll try to be memory-friendly and do
     # as many of the computations in-place as possible. Benchmarking shows that the in-
@@ -262,6 +271,47 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
     Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
 
     return Ā
+end
+
+#References:
+#   https://j-towns.github.io/papers/svd-derivative.pdf
+#   https://giggleliu.github.io/2019/04/02/einsumbp.html
+#   https://arxiv.org/abs/1909.02659
+function svd_rev(USV::SVD{T}, dU, dS, dV; η::Real=1e-40) where {FT,T<:Complex{FT}}
+    U, S, V = USV
+    all(x -> x isa AbstractZero, (dU, dS, dV)) && return Zero()
+    η = FT(η)
+    NS = length(S)
+    S2 = S .^ 2
+    Sinv = @. S/(S2+η)
+    F = S2' .- S2
+    F ./= (F .^ 2 .+ η)
+
+    res = Zero()
+    if !(dU isa AbstractZero)
+        UdU = U'*dU
+        J = F.*(UdU)
+        res += (J+J')*LinearAlgebra.Diagonal(S) + LinearAlgebra.Diagonal(1im*imag(LinearAlgebra.diag(UdU)) .* Sinv)
+    end
+    if !(dV isa AbstractZero)
+        VdV = V'*dV
+        K = F.*(VdV)
+        res += LinearAlgebra.Diagonal(S) * (K+K')
+    end
+    if !(dS isa AbstractZero)
+        res += LinearAlgebra.Diagonal(dS)
+    end
+
+    res = U * res * V'
+
+    if !(dU isa AbstractZero) && size(U, 1) != size(U, 2)
+        res += (dU - U* (U'*dU)) * LinearAlgebra.Diagonal(Sinv) * V'
+    end
+
+    if !(dV isa AbstractZero) && size(V, 1) != size(V, 2)
+        res = res + U * LinearAlgebra.Diagonal(Sinv) * (dV' - (dV'*V)*V')
+    end
+    res
 end
 
 #####
