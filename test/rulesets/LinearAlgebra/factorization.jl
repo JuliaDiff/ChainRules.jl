@@ -82,7 +82,7 @@ end
         for n in [4, 6, 10], m in [3, 5, 10]
             @testset "svd" begin
                 X = randn(n, m)
-                test_rrule(svd, X)
+                test_rrule(svd, X; atol=1e-6, rtol=1e-6)
             end
         end
 
