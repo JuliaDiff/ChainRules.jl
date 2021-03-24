@@ -80,16 +80,22 @@ end
     end
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 10]
-            X = randn(n, m)
-            @testset "($n by $m) svd" begin
+            @testset "svd" begin
+                X = randn(n, m)
                 test_rrule(svd, X)
             end
-            @testset "($n by $m) getproperty" begin
+        end
+
+        for n in [4, 6, 10], m in [3, 5, 10]
+            @testset "getproperty" begin
+                X = randn(n, m)
                 F = svd(X)
-                test_rrule(getproperty, F, :U; check_inferred=false)
-                test_rrule(getproperty, F, :S; check_inferred=false)
-                test_rrule(getproperty, F, :Vt; check_inferred=false)
-                test_rrule(getproperty, F, :V; check_inferred=false, output_tangent=adjoint(rand(n, m)))
+                rand_adj = adjoint(rand(reverse(size(F.V))...))
+
+                test_rrule(getproperty, F, :U ⊢ nothing; check_inferred=false)
+                test_rrule(getproperty, F, :S ⊢ nothing; check_inferred=false)
+                test_rrule(getproperty, F, :Vt ⊢ nothing; check_inferred=false)
+                test_rrule(getproperty, F, :V ⊢ nothing; check_inferred=false, output_tangent=rand_adj)
             end
         end
 
