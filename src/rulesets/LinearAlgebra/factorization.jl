@@ -207,7 +207,7 @@ function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)
         # `getproperty` on `Composite`s ensures we have no thunks.
-        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
+        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
@@ -221,10 +221,9 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
         elseif x === :S
             C(S=Ȳ,)
         elseif x === :V
-            C(V=Ȳ,)
+            C(Vt=Ȳ',)
         elseif x === :Vt
-            # TODO: https://github.com/JuliaDiff/ChainRules.jl/issues/106
-            throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
+            C(Vt=Ȳ,)
         end
         return NO_FIELDS, ∂F, DoesNotExist()
     end
