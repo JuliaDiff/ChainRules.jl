@@ -68,7 +68,7 @@ end
         end
     end
     L, U, D = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), Diagonal(ΔΩ)
-    return uplo === :U ? U .+ transpose(L) - D : L .+ transpose(U) - D
+    return Matrix(uplo === :U ? U .+ transpose(L) - D : L .+ transpose(U) - D)
 end
 
 @inline function _hermitian_back(ΔΩ, uplo::Symbol)
@@ -83,7 +83,7 @@ end
         end
     end
     L, U, rD = LowerTriangular(ΔΩ), UpperTriangular(ΔΩ), real.(Diagonal(ΔΩ))
-    return uplo === :U ? U .+ L' - rD : L .+ U' - rD
+    return Matrix(uplo === :U ? U .+ L' - rD : L .+ U' - rD)
 end
 
 #####
