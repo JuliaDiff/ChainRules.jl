@@ -41,8 +41,6 @@
 @non_differentiable getindex(::AbstractArray{Bool}, ::Any...)
 @non_differentiable hcat(::AbstractArray{Bool}...)
 @non_differentiable hvcat(::Any, ::AbstractArray{Bool}...)
-VERSION >= v"1.6" && @non_differentiable insorted(::Any, ::AbstractVector)
-VERSION >= v"1.6" && @non_differentiable insorted(::Any, ::AbstractRange)
 @non_differentiable isperm(::AbstractArray{Bool})
 @non_differentiable invperm(::AbstractArray{Bool})
 @non_differentiable invpermute!(::Any, ::AbstractArray{Bool})
