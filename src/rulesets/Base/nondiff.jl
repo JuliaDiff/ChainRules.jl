@@ -360,6 +360,7 @@ end
 @non_differentiable sort!(::AbstractVector)
 @non_differentiable sortperm(::AbstractVector{Any})
 @non_differentiable sortperm!(::AbstractVector{<:Integer}, ::AbstractVector)
+@non_differentiable sortslices(A::AbstractArray)
 @non_differentiable split(::AbstractString)
 @non_differentiable split(::AbstractString, ::AbstractChar)
 @non_differentiable splitdir(::AbstractString)
