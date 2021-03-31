@@ -291,6 +291,8 @@ VERSION >= v"1.3" && @non_differentiable istaskfailed(::Task)
 VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable open(::Any)
 
+@non_differentiable partialsort(::AbstractVector, ::Union{Integer,OrdinalRange})
+@non_differentiable partialsort!(::AbstractVector, ::Union{Integer,OrdinalRange})
 @non_differentiable partialsortperm(::AbstractVector{Any}, ::Union{Integer, OrdinalRange})
 @non_differentiable partialsortperm!(::AbstractVector{<:Integer}, ::AbstractVector{Any}, ::Union{Integer, OrdinalRange})
 @non_differentiable pointer(::Any)
