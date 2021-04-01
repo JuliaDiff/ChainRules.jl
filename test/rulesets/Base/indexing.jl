@@ -1,4 +1,4 @@
-@testset "getindex" begin
+@testset "indexing.jl" begin
     @testset "getindex(::Matrix{<:Number},...)" begin
         x = [1.0 2.0 3.0; 10.0 20.0 30.0]
 
@@ -46,5 +46,33 @@
             test_rrule(getindex, x, [2, 2, 2] ⊢ nothing)
             test_rrule(getindex, x, [2,2] ⊢ nothing, [3,3] ⊢ nothing)
         end
+    end
+
+    @testset "getindex(::Matrix{Not a Number},...)" begin
+        rrule_test(  # Vector of Vectors
+            getindex, [[2.3,],], ([[1.0,],[2.0]], [[2.1,],[310]]), (2, nothing)
+        )
+        rrule_test( # Vector of Vectors of different sizes
+            getindex, [[2.3, 1.1],], ([[1.0,],[2.0,3.0]], [[2.1,],[3.2, 2.1]]), (2, nothing)
+        )
+
+        # shorthand constructor for Composite with primal matching backing
+        Compo(x...) = Composite{typeof(x)}(x...)
+        rrule_test( # Vector of Tuples
+            getindex,
+            [Compo(2.5, 4.1),],
+            (
+                [(1.1, 2.3), (1.3, 2.5)], [Compo(2.5, 4.1), Compo(2.5, 4.1)]
+            ),
+            (2, nothing)
+        )
+        rrule_test( # Vector of Tuples of different sizes
+            getindex,
+            [Compo(2.5, 4.1),],
+            (
+                [(1.1, 2.3), (1.3, 2.5)], [Compo(2.5, 4.1), Compo(2.5, 4.1)]
+            ),
+            (2, nothing)
+        )
     end
 end

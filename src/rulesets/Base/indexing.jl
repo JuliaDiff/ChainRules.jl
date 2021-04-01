@@ -7,6 +7,8 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     # leaving us just with a tuple of Int, Arrays of Int and Ranges of Int
     plain_inds = Base.to_indices(x, inds)
     y = getindex(x, plain_inds...)
+    x_shape = size(x)
+    x_eltype = eltype(x)
     function getindex_pullback(ȳ)
         function getindex_add!(Δ)
             # this a optimizes away for simple cases
@@ -17,7 +19,15 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
         end
 
         x̄ = InplaceableThunk(
-            @thunk(getindex_add!(zero(x))),
+            Thunk() do
+                z = if x_eltype <: Number && isconcretetype(x_eltype)
+                    zeros(x_eltype, x_shape)
+                else
+                    # TODO this can probably be optimized to something more concrete
+                    Array{Any}(undef, x_shape) .= Zero()
+                end
+                getindex_add!(z)
+            end,
             getindex_add!
         )
         īnds = broadcast(_ -> DoesNotExist(), inds)
