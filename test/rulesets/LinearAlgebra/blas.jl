@@ -12,11 +12,11 @@
             incy = 3
             test_rrule(
                 BLAS.dot,
-                n ⊢ nothing,
+                n,
                 randn(n * incx),
-                incx ⊢ nothing,
+                incx,
                 randn(n * incy),
-                incy ⊢ nothing,
+                incy,
             )
         end
     end
@@ -37,7 +37,7 @@
                 s = (dims[1] * incx, dims[2:N]...)
                 n = div(prod(s), incx)
                 test_rrule(
-                    BLAS.nrm2, n ⊢ nothing, randn(T, s), incx ⊢ nothing; atol=0, rtol=1e-5,
+                    BLAS.nrm2, n, randn(T, s), incx; atol=0, rtol=1e-5,
                 )
             end
         end
@@ -58,7 +58,7 @@
             @testset "Array{$T,$N}" for N in eachindex(dims), T in (Float64, ComplexF64)
                 s = (dims[1] * incx, dims[2:N]...)
                 n = div(prod(s), incx)
-                test_rrule( BLAS.asum, n ⊢ nothing, randn(T, s), incx ⊢ nothing)
+                test_rrule( BLAS.asum, n, randn(T, s), incx)
             end
         end
     end
@@ -67,9 +67,9 @@
         for m in 3:5, n in 3:5, p in 3:5, tA in ('N', 'C', 'T'), tB in ('N', 'C', 'T'), T in (Float64, ComplexF64)
             A = randn(T, tA === 'N' ? (m, n) : (n, m))
             B = randn(T, tB === 'N' ? (n, p) : (p, n))
-            test_rrule(gemm, tA ⊢ nothing, tB ⊢ nothing, A, B; check_inferred=false)
+            test_rrule(gemm, tA, tB, A, B; check_inferred=false)
             test_rrule(  # 5 arg version with scaling scalar
-                gemm, tA ⊢ nothing, tB ⊢ nothing, randn(T), A, B; check_inferred=false,
+                gemm, tA, tB, randn(T), A, B; check_inferred=false,
             )
         end
     end
@@ -77,7 +77,7 @@
     @testset "gemv" begin
         for n in 3:5, m in 3:5, t in ('N', 'C', 'T'), T in (Float64, ComplexF64)
             x = randn(T, t === 'N' ? n : m)
-            test_rrule(gemv, t ⊢ nothing, randn(T), randn(T, m, n), x; check_inferred=false)
+            test_rrule(gemv, t, randn(T), randn(T, m, n), x; check_inferred=false)
         end
     end
 end

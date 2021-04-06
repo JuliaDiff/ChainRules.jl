@@ -5,7 +5,7 @@
         uplo in (:U, :L)
 
         @testset "frule" begin
-            test_frule(SymHerm, rand(T, 3, 3), uplo ⊢ nothing)
+            test_frule(SymHerm, rand(T, 3, 3), uplo)
         end
         @testset "rrule" begin
             # on old versions of julia this combination doesn't infer but we don't care as
@@ -16,7 +16,7 @@
                 x = randn(T, 3, 3)
                 ΔΩ = MT(randn(T, 3, 3))
                 test_rrule(
-                    SymHerm, x, uplo ⊢ nothing;
+                    SymHerm, x, uplo;
                     output_tangent = ΔΩ,
                     # type stability here critically relies on uplo being constant propagated,
                     # so we need to test this more carefully below
@@ -32,7 +32,7 @@
                 x = randn(T, 3, 3)
                 ΔΩ = Diagonal(randn(T, 3, 3))
                 test_rrule(
-                    SymHerm, x ⊢ Diagonal(randn(T, 3)), uplo ⊢ nothing;
+                    SymHerm, x ⊢ Diagonal(randn(T, 3)), uplo;
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )

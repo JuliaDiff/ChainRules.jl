@@ -15,12 +15,12 @@
             C = randn(T, m, n)
             test_frule(
                 LAPACK.trsyl!,
-                transa ⊢ nothing,
-                transb ⊢ nothing,
+                transa,
+                transb,
                 A ⊢ rand_tangent(A) .* (!iszero).(A),  # Match sparsity pattern
                 B ⊢ rand_tangent(B) .* (!iszero).(B),
                 C,
-                isgn ⊢ nothing,
+                isgn,
             )
         end
     end

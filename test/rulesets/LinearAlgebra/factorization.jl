@@ -29,7 +29,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_frule(lu!, randn(T, m, n), pivot ⊢ nothing)
+                test_frule(lu!, randn(T, m, n), pivot ⊢ DoesNotExist())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -47,7 +47,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_rrule(lu, randn(T, m, n), pivot ⊢ nothing)
+                test_rrule(lu, randn(T, m, n), pivot ⊢ DoesNotExist())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -67,7 +67,7 @@ end
                     m in (7, 10, 13)
 
                     F = lu(randn(m, n))
-                    test_rrule(getproperty, F, k ⊢ nothing ; check_inferred=false)
+                    test_rrule(getproperty, F, k; check_inferred=false)
                 end
             end
             @testset "matrix inverse using LU" begin
@@ -93,10 +93,10 @@ end
                 F = svd(X)
                 rand_adj = adjoint(rand(reverse(size(F.V))...))
 
-                test_rrule(getproperty, F, :U ⊢ nothing; check_inferred=false)
-                test_rrule(getproperty, F, :S ⊢ nothing; check_inferred=false)
-                test_rrule(getproperty, F, :Vt ⊢ nothing; check_inferred=false)
-                test_rrule(getproperty, F, :V ⊢ nothing; check_inferred=false, output_tangent=rand_adj)
+                test_rrule(getproperty, F, :U; check_inferred=false)
+                test_rrule(getproperty, F, :S; check_inferred=false)
+                test_rrule(getproperty, F, :Vt; check_inferred=false)
+                test_rrule(getproperty, F, :V; check_inferred=false, output_tangent=rand_adj)
             end
         end
 
@@ -364,7 +364,7 @@ end
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
             test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ nothing;
+                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ DoesNotExist();
                 output_tangent=Composite{typeof(C)}(factors=Diagonal(randn(5)))
             )
         end
