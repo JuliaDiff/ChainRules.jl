@@ -32,6 +32,7 @@ println("Testing ChainRules.jl")
             include_test("rulesets/Base/arraymath.jl")
             include_test("rulesets/Base/indexing.jl")
             include_test("rulesets/Base/mapreduce.jl")
+            include_test("rulesets/Base/sort.jl")
         end
         println()
 
