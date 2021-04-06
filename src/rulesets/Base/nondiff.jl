@@ -165,6 +165,8 @@ VERSION >= v"1.1" && @non_differentiable fieldtypes(T)
 
 @non_differentiable ignorestatus(::Cmd)
 @non_differentiable in(::Any, ::Any)
+VERSION >= v"1.6" && @non_differentiable insorted(::Any, ::AbstractVector)
+VERSION >= v"1.6" && @non_differentiable insorted(::Any, ::AbstractRange)
 @non_differentiable include_dependency(::AbstractString)
 @non_differentiable isa(::Any, ::Any)
 @non_differentiable isabspath(::AbstractString)
