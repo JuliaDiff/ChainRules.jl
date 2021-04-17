@@ -163,4 +163,8 @@
             test_scalar(ceil, x; fdm=forward_fdm(5, 1))
         end
     end
+
+    @testset "type" begin
+        test_rrule(typejoin, Array{Float32, 4}, Array{Float32, 3})
+    end
 end
