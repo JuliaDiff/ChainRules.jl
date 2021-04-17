@@ -165,7 +165,7 @@
     end
 
     @testset "type" begin
-        @test frule((NO_FIELDS, DoesNotExist(), DoesNotExist()), typejoin, type1, type2) !== nothing
-        @test rrule(typejoin, type1, type2) !== nothing
+        @test frule((NO_FIELDS, DoesNotExist(), DoesNotExist()), typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
+        @test rrule(typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
     end
 end
