@@ -400,6 +400,7 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable write(::IO, ::Any...)
 
 @non_differentiable xor(::Any...)
+@non_differentiable typejoin(::Any...)
 
 # Non-public Base
 @non_differentiable Base.gc_num()
