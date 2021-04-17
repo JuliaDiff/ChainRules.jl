@@ -406,6 +406,7 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
+@non_differentiable Base.depwarn(::Any...)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)
