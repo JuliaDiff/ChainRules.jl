@@ -58,7 +58,7 @@
             @testset "Array{$T,$N}" for N in eachindex(dims), T in (Float64, ComplexF64)
                 s = (dims[1] * incx, dims[2:N]...)
                 n = div(prod(s), incx)
-                test_rrule( BLAS.asum, n, randn(T, s), incx)
+                test_rrule(BLAS.asum, n, randn(T, s), incx)
             end
         end
     end
