@@ -42,7 +42,7 @@
         test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
         test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
         VERSION ≥ v"1.3" && @testset "k=$k" for k in (-1, 0, 2)
-            test_rrule(diag, randn(N, N), k ⊢ nothing)
+            test_rrule(diag, randn(N, N), k)
         end
     end
     @testset "diagm" begin
@@ -138,7 +138,7 @@
         n = 7
         test_rrule(Op, randn(n, n))
         @testset "k=$k" for k in -2:2
-            test_rrule(Op, randn(n, n), k ⊢ nothing)
+            test_rrule(Op, randn(n, n), k)
         end
     end
 

@@ -89,8 +89,8 @@
 
     @testset "ldexp" begin
         for n in (0,1,20)
-            test_frule(ldexp, 10rand(), n ⊢ nothing)
-            test_rrule(ldexp, 10rand(), n ⊢ nothing)
+            test_frule(ldexp, 10rand(), n)
+            test_rrule(ldexp, 10rand(), n)
         end
     end
 
