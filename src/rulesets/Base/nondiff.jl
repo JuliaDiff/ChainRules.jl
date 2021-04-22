@@ -374,7 +374,7 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable success(::Base.Process)
 @non_differentiable success(::Base.ProcessChain)
 @non_differentiable supertype(::Any)
-@non_differentiable Symbol(::Any)
+@non_differentiable Symbol(::Any...)
 @non_differentiable symlink(::AbstractString, ::AbstractString)
 
 @non_differentiable take!(::Base.GenericIOBuffer)
