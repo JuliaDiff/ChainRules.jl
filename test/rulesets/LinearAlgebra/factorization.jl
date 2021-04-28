@@ -82,7 +82,6 @@ end
         for n in [4, 6, 10], m in [3, 5, 9]
             @testset "($n x $m) svd" begin
                 X = randn(n, m)
-                @show X
                 test_rrule(svd, X; atol=1e-6, rtol=1e-6)
             end
         end
@@ -105,9 +104,9 @@ end
             F, dX_pullback = rrule(svd, X)
             for p in [:U, :S, :V, :Vt]
                 Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(size(Y)...)
+                Ȳ = randn(size(Y)...)
 
-                _, dF_unthunked, _ = dF_pullback(Ȳ)
+                _, dF_unthunked, _ = dF_pullback(Ȳ)
 
                 # helper to let us check how things are stored.
                 p_access = p == :V ? :Vt : p
@@ -149,23 +148,23 @@ end
                 # get a bit away from zero so don't have finite differencing woes
                 # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
                 X = 10 .* (rand(T, n, n) .+ 5.0)
-                Ẋ = rand_tangent(X)
+                Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
-                F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
+                F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
                 @test F_fwd == F
-                @test Ḟ_ad isa Composite{typeof(F)}
-                Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
-                @test Ḟ_ad.values ≈ Ḟ_fd.values
-                @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
+                @test Ḟ_ad isa Composite{typeof(F)}
+                Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
+                @test Ḟ_ad.values ≈ Ḟ_fd.values
+                @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
                 @test frule((Zero(), Zero()), eigen!, copy(X)) == (F, Zero())
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues and, when real, real eigenvectors
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, Ḟ = frule((Zero(), Ẋ), eigen!, X)
-                    @test eltype(Ḟ.values) <: Real
-                    T <: Real && @test eltype(Ḟ.vectors) <: Real
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, Ḟ = frule((Zero(), Ẋ), eigen!, X)
+                    @test eltype(Ḟ.values) <: Real
+                    T <: Real && @test eltype(Ḟ.vectors) <: Real
                 end
             end
 
@@ -197,7 +196,7 @@ end
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
-                    Ẋ = rand_tangent(X)
+                    Ẋ = rand_tangent(X)
 
                     F = eigen(X)
                     V̄ = rand_tangent(F.vectors)
@@ -213,7 +212,7 @@ end
                 # applied repeatedly is idempotent, repeated pushforward/pullback should
                 # leave the (co)tangent unchanged
                 X = randn(T, n, n)
-                Ẋ = rand_tangent(X)
+                Ẋ = rand_tangent(X)
                 F = eigen(X)
 
                 V̇ = rand_tangent(F.vectors)
@@ -307,8 +306,8 @@ end
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, λ̇ = frule((Zero(), Ẋ), eigvals!, X)
+                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
+                    _, λ̇ = frule((Zero(), Ẋ), eigvals!, X)
                     @test eltype(λ̇) <: Real
                 end
             end
@@ -374,8 +373,8 @@ end
         F, dX_pullback = rrule(cholesky, X, Val(false))
         @testset "uplo=$p" for p in [:U, :L]
             Y, dF_pullback = rrule(getproperty, F, p)
-            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-            (dself, dF, dp) = dF_pullback(Ȳ)
+            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
+            (dself, dF, dp) = dF_pullback(Ȳ)
             @test dself === NO_FIELDS
             @test dp === DoesNotExist()
 
@@ -387,7 +386,7 @@ end
             _, dX = dX_pullback(ΔF)
             X̄_ad = dot(unthunk(dX), V)
             X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
             end
             @test X̄_ad ≈ X̄_fd rtol=1e-4
         end
