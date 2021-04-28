@@ -82,7 +82,6 @@ end
         for n in [4, 6, 10], m in [3, 5, 9]
             @testset "($n x $m) svd" begin
                 X = randn(n, m)
-                @show X
                 test_rrule(svd, X; atol=1e-6, rtol=1e-6)
             end
         end
