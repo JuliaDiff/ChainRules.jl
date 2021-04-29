@@ -20,11 +20,10 @@ end
 function rrule(::typeof(norm), x::AbstractArray, p::Real)
     y = LinearAlgebra.norm(x, p)
     function norm_pullback_p(Δy)
-        ∂x = Thunk() do
-            return if isempty(x) || p == 0
+        ∂x = if isempty(x) || p == 0
                 InplaceableThunk(
                     @thunk(zero.(x) .* (zero(y) * zero(real(Δy)))),
-                    dx -> dx .= zero(eltype(dx)),
+                    identity,
                 )
             elseif p == 2
                 InplaceableThunk(
@@ -43,7 +42,6 @@ function rrule(::typeof(norm), x::AbstractArray, p::Real)
             else
                 _normp_back_x(x, p, y, Δy)
             end
-        end
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
         return (NO_FIELDS, ∂x, ∂p)
     end
