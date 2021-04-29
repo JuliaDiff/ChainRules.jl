@@ -59,7 +59,7 @@ WithSomeZeros{T} = Union{
     Diagonal{T},
     UpperTriangular{T},
     UnitUpperTriangular{T},
-    UpperHessenberg{T},
+    # UpperHessenberg{T},  # doesn't exist in Julia 1.0
     LowerTriangular{T},
     UnitLowerTriangular{T},
 }
@@ -67,7 +67,7 @@ for S in [
     :Diagonal,
     :UpperTriangular,
     :UnitUpperTriangular,
-    :UpperHessenberg,
+    # :UpperHessenberg,
     :LowerTriangular,
     :UnitLowerTriangular,
 ]
