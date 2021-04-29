@@ -8,6 +8,7 @@
         ),
         T in (Float64, ComplexF64),
         sz in [(3,), (3, 3), (3, 2, 1)]
+println("starting unexported fnorm=$fnorm, T=$T, sz=$sz")
 
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
@@ -37,6 +38,7 @@
             @test rrule(fnorm, x)[2](Zero())[2] isa Zero
         end
         ndims(x) > 1 && @testset "non-strided" begin
+println("... non-strided")
             xp = if x isa Matrix
                 view(x, [1,2,3], 1:3)
             elseif x isa Array{T,3}
@@ -51,6 +53,7 @@
             rrule_test(fnorm, ȳ, (xp, x̄))
         end
         T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
+println("... integer")
             x = [1,2,3]
             int_fwd, int_back = rrule(fnorm, x)
             float_fwd, float_back = rrule(fnorm, float(x))
@@ -61,6 +64,7 @@
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
         sz in [(0,), (3,), (3, 3), (3, 2, 1)]
+println("starting exported norm T=$T, sz=$sz")
 
         x = randn(T, sz)
 
@@ -84,6 +88,7 @@
             @test rrule(norm, x)[2](Zero())[2] isa Zero
         end
         ndims(x) > 1 && @testset "non-strided" begin
+println("... non-strided'")
             xp = if x isa Matrix
                 view(x, [1,2,3], 1:3)
             elseif x isa Array{T,3}
@@ -103,6 +108,7 @@
         p in (1.0, 2.0, Inf, -Inf, 2.5),
         T in (Float64, ComplexF64),
         sz in (fnorm === norm ? [(0,), (3,), (3, 3), (3, 2, 1)] : [(3,), (3, 3), (3, 2, 1)])
+println("starting p-norm p=$p, T=$T, sz=$sz")
 
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
@@ -145,6 +151,7 @@
     @testset "norm($fdual(::Vector{$T}), p)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
+println("starting $fdual norm T=$T")
 
         x = fdual(randn(T, 3))
         p = 2.5
@@ -155,6 +162,7 @@
     end
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 2.0, 2.5)
+println("starting scalar p-norm tests, p=$p, T=$T")
             test_frule(norm, randn(T), p)
             test_rrule(norm, randn(T), p)
 
@@ -162,6 +170,7 @@
             @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
         end
         @testset "p = 0" begin
+println("starting 0-norm tests, T=$T")
             p = 0.0
             x = randn(T)
             y = norm(x, p)
