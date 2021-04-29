@@ -1,3 +1,5 @@
+@eval ChainRulesTestUtils check_thunking_is_appropriate(_) = nothing
+
 @testset "norm functions" begin
     @testset "$fnorm(x::Array{$T,$(length(sz))})" for
         fnorm in (
