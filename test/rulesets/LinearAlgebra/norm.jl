@@ -147,7 +147,7 @@ println("starting p-norm p=$p, T=$T, sz=$sz")
             int_fwd, int_back = rrule(fnorm, x, p)
             float_fwd, float_back = rrule(fnorm, float(x), p)
             @test int_fwd ≈ float_fwd
-            @test unthunk(unthunk(int_back(1.0)[2])) ≈ unthunk(unthunk(float_back(1.0)[2]))
+            @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
         end
     end
     @testset "norm($fdual(::Vector{$T}), p)" for
