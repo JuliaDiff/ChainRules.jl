@@ -20,36 +20,36 @@ end
 function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
     y = LinearAlgebra.norm(x, p)
     function norm_pullback_p(Δy)
-        ∂x = InplaceableThunk(
+        # ∂x = InplaceableThunk(
             # out-of-place versions
-            if isempty(x) || p == 0
-                @thunk(zero.(x) .* (zero(y) * zero(real(Δy))))
+        ∂x = @thunk(if isempty(x) || p == 0
+                zero.(x) .* (zero(y) * zero(real(Δy)))
             elseif p == 2
-                @thunk(_norm2_back(x, y, Δy))
+                _norm2_back(x, y, Δy)
             elseif p == 1
-                @thunk(_norm1_back(x, y, Δy))
+                _norm1_back(x, y, Δy)
             elseif p == Inf
-                @thunk(_normInf_back(x, y, Δy))
+                _normInf_back(x, y, Δy)
             elseif p == -Inf
-                @thunk(_normInf_back(x, y, Δy))
+                _normInf_back(x, y, Δy)
             else
-                @thunk(_normp_back_x(x, p, y, Δy))
-            end,
-            # in-place versions
-            if isempty(x) || p == 0
-                identity
-            elseif p == 2
-                dx -> _norm2_back!(dx, x, y, Δy)
-            elseif p == 1
-                dx -> _norm1_back!(dx, x, y, Δy)
-            elseif p == Inf
-                dx -> dx .+= _normInf_back(x, y, Δy)  # not really in-place! could perhaps be improved
-            elseif p == -Inf
-                dx -> dx .+= _normInf_back(x, y, Δy)
-            else
-                dx -> dx .+= _normp_back_x(x, p, y, Δy)
-            end
-            )
+                _normp_back_x(x, p, y, Δy)
+            end)
+            # , # in-place versions -- can be fixed when actually useful?
+            # dx -> if isempty(x) || p == 0
+            #     dx
+            # elseif p == 2
+            #     _norm2_back!(dx, x, y, Δy)
+            # elseif p == 1
+            #     _norm1_back!(dx, x, y, Δy)
+            # elseif p == Inf
+            #     dx .+= _normInf_back(x, y, Δy)  # not really in-place! could perhaps be improved
+            # elseif p == -Inf
+            #     dx .+= _normInf_back(x, y, Δy)
+            # else
+            #     dx .+= _normp_back_x(x, p, y, Δy)
+            # end
+            # )
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
         return (NO_FIELDS, ∂x, ∂p)
     end
@@ -59,19 +59,19 @@ end
 function rrule(::typeof(norm), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm(x)
     function norm_pullback_2(Δy)
-        ∂x = InplaceableThunk(
-            if isempty(x)
-                @thunk(zero.(x) .* (zero(y) * zero(real(Δy))))
+        # ∂x = InplaceableThunk(
+        ∂x = @thunk(if isempty(x)
+                zero.(x) .* (zero(y) * zero(real(Δy)))
             else
-                @thunk(_norm2_back(x, y, Δy))
-            end
-            ,
-            if isempty(x)
-                identity
-            else
-                dx -> _norm2_back!(dx, x, y, Δy)
-            end
-            )
+                _norm2_back(x, y, Δy)
+            end)
+            # ,
+            # dx -> if isempty(x)
+            #     dx
+            # else
+            #     _norm2_back!(dx, x, y, Δy)
+            # end
+            # )
         return (NO_FIELDS, ∂x)
     end
     norm_pullback_2(::Zero) = (NO_FIELDS, Zero())
