@@ -124,7 +124,7 @@ function rrule(::typeof(repeat), x::AbstractVecOrMat, m::Integer, n::Integer=1)
     return repeat(x,m,n), repeat_pullback
  end
 
-function rrule(::typeof(repeat), xs, inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
+function rrule(::typeof(repeat), xs; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
     function repeat_pullback(Ȳ)
         Ȳ′ = zero(xs)
         S = size(xs)
@@ -134,5 +134,5 @@ function rrule(::typeof(repeat), xs, inner=ntuple(_->1, ndims(xs)), outer=ntuple
         end
         return (NO_FIELDS, Ȳ′)
     end
-    return repeat(xs, inner = inner, outer = outer), repeat_pullback
+    return repeat(xs; inner = inner, outer = outer), repeat_pullback
 end

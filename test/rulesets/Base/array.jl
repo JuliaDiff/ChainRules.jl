@@ -35,3 +35,9 @@ end
     test_rrule(fill, 44.0, 4; check_inferred=false)
     test_rrule(fill, 2.0, (3, 3, 3) ⊢ DoesNotExist())
 end
+
+@testset "repeat" begin
+    test_rrule(repeat, randn(5), 3)
+    test_rrule(repeat, randn(3,3), 2)
+    test_rrule(repeat, randn(5,4,3); inner=(2,2,1), outer=(1,1,3))
+end
