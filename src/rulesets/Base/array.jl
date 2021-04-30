@@ -132,7 +132,7 @@ function rrule(::typeof(repeat), xs, inner=ntuple(_->1, ndims(xs)), outer=ntuple
             src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim ∈ 1:length(S)]
             Ȳ′[src_idx...] += val
         end
-        return (NO_FIELDS, Ȳ′, ntuple(_->DoesNotExist(),length(inner)),ntuple(_->DoesNotExist(),length(outer)))
+        return (NO_FIELDS, Ȳ′)
     end
-    return repeat(xs, inner, outer), repeat_pullback
+    return repeat(xs, inner = inner, outer = outer), repeat_pullback
 end
