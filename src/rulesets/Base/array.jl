@@ -112,7 +112,7 @@ function rrule(::typeof(repeat), x::AbstractVector, m::Integer)
     function repeat_pullback(Ȳ)
         return (NO_FIELDS, dropdims(sum(reshape(Ȳ, length(x), :); dims=2); dims=2), DoesNotExist())
     end
-    return repeat(x,m), repeat_pullback
+    return repeat(x, m), repeat_pullback
 end
 
 function rrule(::typeof(repeat), x::AbstractVecOrMat, m::Integer, n::Integer=1)
