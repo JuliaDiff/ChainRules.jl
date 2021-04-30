@@ -103,3 +103,36 @@ function rrule(::typeof(fill), value::Any, dims::Int...)
     end
     return fill(value, dims), fill_pullback
 end
+
+#####
+##### `repeat`
+#####
+
+function rrule(::typeof(repeat), x::AbstractVector, m::Integer)
+    function repeat_pullback(Ȳ)
+        return (NO_FIELDS, dropdims(sum(reshape(Ȳ, length(x), :); dims=2); dims=2), DoesNotExist())
+    end
+    return repeat(x,m), repeat_pullback
+end
+
+function rrule(::typeof(repeat), x::AbstractVecOrMat, m::Integer, n::Integer=1)
+    function repeat_pullback(Ȳ)
+        Ȳ′ = reshape(Ȳ, size(x,1), m, size(x,2), n)
+        return (NO_FIELDS, reshape(sum(Ȳ′; dims=(2,4)), size(x)), DoesNotExist(), DoesNotExist())
+     end
+    
+    return repeat(x,m,n), repeat_pullback
+ end
+
+function rrule(::typeof(repeat), xs, inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
+    function repeat_pullback(Ȳ)
+        Ȳ′ = zero(xs)
+        S = size(xs)
+        for (dest_idx, val) ∈ pairs(IndexCartesian(), Ȳ)
+            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim ∈ 1:length(S)]
+            Ȳ′[src_idx...] += val
+        end
+        return (NO_FIELDS, Ȳ′, ntuple(_->DoesNotExist(),length(inner)),ntuple(_->DoesNotExist(),length(outer)))
+    end
+    return repeat(xs, inner, outer), repeat_pullback
+end
