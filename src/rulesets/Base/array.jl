@@ -117,7 +117,7 @@ end
 
 function rrule(::typeof(repeat), x::AbstractVecOrMat, m::Integer, n::Integer=1)
     function repeat_pullback(Ȳ)
-        Ȳ′ = reshape(Ȳ, size(x,1), m, size(x,2), n)
+        Ȳ′ = reshape(Ȳ, size(x, 1), m, size(x, 2), n)
         return (NO_FIELDS, reshape(sum(Ȳ′; dims=(2,4)), size(x)), DoesNotExist(), DoesNotExist())
      end
     return repeat(x, m, n), repeat_pullback
