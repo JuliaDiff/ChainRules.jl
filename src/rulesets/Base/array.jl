@@ -133,5 +133,5 @@ function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)
         end
         return (NO_FIELDS, Ȳ′)
     end
-    return repeat(xs; inner = inner, outer = outer), repeat_pullback
+    return repeat(xs; inner=inner, outer=outer), repeat_pullback
 end
