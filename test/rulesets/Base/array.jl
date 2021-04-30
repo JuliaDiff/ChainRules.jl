@@ -43,10 +43,5 @@ end
     test_rrule(repeat, randn(5, 5), 2,5)
     test_rrule(repeat, randn(5, 4, 3); fkwargs=(inner=(2, 2, 1), outer=(1, 1, 3)))
     test_rrule(repeat, fill(4.0), 3)
-    test_frule(repeat, randn(5), 3)
-    test_frule(repeat, randn(5), 3,3)
-    test_frule(repeat, randn(3, 3), 2)
-    test_frule(repeat, randn(3, 3), 2,5)
-    test_frule(repeat, randn(5, 4, 3); fkwargs=(inner=(2, 2, 1), outer=(1, 1, 3)))
-    test_frule(repeat, fill(4.0), 3)
+
 end
