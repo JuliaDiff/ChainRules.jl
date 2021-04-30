@@ -150,5 +150,5 @@ function frule((_,Δxs), ::typeof(repeat), xs; inner=ntuple(_->1, ndims(xs)), ou
 end
 
 function frule((_,Δx), ::typeof(repeat), x::AbstractArray{<:Real,0}, m::Integer)
-    return repeat(x,m), repeat(fill(Δx,m))
+    return repeat(x, m), repeat(fill(Δx,m))
 end
