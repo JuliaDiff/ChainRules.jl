@@ -141,14 +141,14 @@ function rrule(::typeof(repeat), x::AbstractArray{<:Real, 0}, m::Integer)
     return repeat(x, m), repeat_pullback
 end
 
-function frule((_,Δx), ::typeof(repeat), x, m::Integer)
+function frule((_, Δx), ::typeof(repeat), x, m::Integer)
     return repeat(x, m), repeat(Δx, m)
 end
 
-function frule((_,Δxs), ::typeof(repeat), xs; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
+function frule((_, Δxs), ::typeof(repeat), xs; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
     return repeat(xs; inner=inner, outer=outer), repeat(Δxs; inner=inner, outer=outer)
 end
 
-function frule((_,Δx), ::typeof(repeat), x::AbstractArray{<:Real,0}, m::Integer)
+function frule((_, Δx), ::typeof(repeat), x::AbstractArray{<:Real,0}, m::Integer)
     return repeat(x, m), repeat(fill(Δx,m))
 end
