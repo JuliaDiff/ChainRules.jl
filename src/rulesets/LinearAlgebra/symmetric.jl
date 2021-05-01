@@ -101,6 +101,11 @@ end
 #
 # accounting for normalization convention appears in Boeddeker && Hanebrink.
 # account for phase convention is unpublished.
+
+# workaround for exactly degenerate matrices inspired by
+# Kasim M.F. Derivatives of partial eigendecomposition of a real symmetric matrix for
+# degenerate cases. 2020. arXiv:2011.04366v1 [math.NA]
+
 function frule(
     (_, ΔA),
     ::typeof(eigen!),
@@ -114,7 +119,14 @@ function frule(
     ∂K = mul!(ΔA.data, tmp, U)
     ∂Kdiag = @view ∂K[diagind(∂K)]
     ∂λ = real.(∂Kdiag)
-    ∂K ./= λ' .- λ
+    # in-place ∂X = sylvester(Λ, -Λ, ∂K),
+    broadcast!(∂K, ∂K, transpose(λ), λ) do ∂Kij, λj, λi
+        Δλ = λj - λi
+        # when Δλ=0, then ∂Xij * Δλ = ∂Kij only has a solution when ∂Kij=0.
+        # of infinite solutions, choose ∂Xij = 0
+        iszero(Δλ) && iszero(∂Kij) && return zero(∂Kij)
+        return ∂Kij / Δλ
+    end
     fill!(∂Kdiag, 0)
     ∂U = mul!(tmp, U, ∂K)
     _eigen_norm_phase_fwd!(∂U, A, U)
@@ -149,7 +161,16 @@ function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     else
         _eigen_norm_phase_rev!(∂U, A, U)
         ∂K = mul!(Ā, U', ∂U)
-        ∂K ./= λ' .- λ
+        # in-place ∂X = sylvester(Λ, -Λ, skew(∂K)),
+        # where skew(X) = (X - X') / 2 is a projection to skew-Hermitian matrices
+        broadcast!(∂K, ∂K, ∂K', transpose(λ), λ) do ∂Kij, ∂Kji′, λj, λi
+            Δ∂K = ∂Kij - ∂Kji′
+            Δλ = λj - λi
+            # when Δλ=0, then ∂Xij * Δλ = Δ∂K only has a solution when Δ∂K=0.
+            # of infinite solutions, choose ∂Xij = 0
+            iszero(Δλ) && iszero(Δ∂K) && return Δ∂K
+            return Δ∂K / 2Δλ
+        end
         ∂K[diagind(∂K)] .= real.(∂λ)
         mul!(tmp, ∂K, U')
         mul!(Ā, U, tmp)

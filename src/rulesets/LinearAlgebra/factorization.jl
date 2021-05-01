@@ -268,9 +268,8 @@ end
 #####
 
 # TODO:
-# - support correct differential of phase convention when A is hermitian
 # - simplify when A is diagonal
-# - support degenerate matrices (see #144)
+# - support almost-degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
@@ -288,7 +287,14 @@ function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where
     ∂K = tmp * V
     ∂Kdiag = @view ∂K[diagind(∂K)]
     ∂λ = eltype(λ) <: Real ? real.(∂Kdiag) : copy(∂Kdiag)
-    ∂K ./= transpose(λ) .- λ
+    # in-place ∂X = sylvester(Λ, -Λ, ∂K),
+    broadcast!(∂K, ∂K, transpose(λ), λ) do ∂Kij, λj, λi
+        Δλ = λj - λi
+        # when Δλ=0, then ∂Xij * Δλ = ∂Kij only has a solution when ∂Kij=0.
+        # of infinite solutions, choose ∂Xij = 0
+        iszero(Δλ) && iszero(∂Kij) && return zero(∂Kij)
+        return ∂Kij / Δλ
+    end
     fill!(∂Kdiag, 0)
     ∂V = mul!(tmp, V, ∂K)
     _eigen_norm_phase_fwd!(∂V, A, V)
@@ -315,7 +321,14 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
             ∂V = copyto!(similar(ΔV), ΔV)
             _eigen_norm_phase_rev!(∂V, A, V)
             ∂K = V' * ∂V
-            ∂K ./= λ' .- conj.(λ)
+            # in-place ∂X = sylvester(Λ', -Λ', ∂K),
+            broadcast!(∂K, ∂K, transpose(λ), λ) do ∂Kij, λj, λi
+                Δλji = λj - λi
+                # when Δλ=0, then ∂Xij * Δλji' = ∂Kij only has a solution when ∂Kij=0.
+                # of infinite solutions, choose ∂Xij = 0
+                iszero(Δλji) && iszero(∂Kij) && return ∂Kij
+                return ∂Kij / conj(Δλji)
+            end
             ∂K[diagind(∂K)] .= Δλ
             ∂A = mul!(∂K, V' \ ∂K, V')
         end
