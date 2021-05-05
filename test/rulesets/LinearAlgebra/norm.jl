@@ -1,5 +1,3 @@
-@eval ChainRulesTestUtils check_thunking_is_appropriate(_) = nothing
-
 @testset "norm functions" begin
     @testset "$fnorm(x::Array{$T,$(length(sz))})" for
         fnorm in (
@@ -80,8 +78,6 @@ println("starting exported norm T=$T, sz=$sz")
         @testset "rrule" begin
             test_rrule(norm, x)
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-                # we don't check inference on older julia versions. Improvements to
-                # inference mean on 1.5+ it works, and that is good enough
                 test_rrule(norm, MT(x); check_inferred=VERSION>=v"1.5")
             end
 
@@ -130,13 +126,9 @@ println("starting p-norm p=$p, T=$T, sz=$sz")
             kwargs = NamedTuple()
         end
 
-
         test_rrule(fnorm, x, p; kwargs...)
         x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-            test_rrule(fnorm, MT(x), p;
-                #Don't check inference on old julia, what matters is that works on new
-                check_inferred=VERSION>=v"1.5", kwargs...
-            )
+            test_rrule(fnorm, MT(x), p; kwargs..., check_inferred=VERSION>=v"1.5")
         end
 
         ȳ = rand_tangent(fnorm(x, p))

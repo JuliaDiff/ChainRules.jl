@@ -6,6 +6,7 @@ function frule((_, Δx), ::typeof(norm), x)
     y = norm(x)
     return y, _norm2_forward(x, Δx, norm(x))
 end
+
 function frule((_, Δx), ::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
     ∂y = if iszero(Δx) || iszero(p)
@@ -20,9 +21,9 @@ end
 function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
     y = LinearAlgebra.norm(x, p)
     function norm_pullback_p(Δy)
-        # ∂x = InplaceableThunk(
+        ∂x = InplaceableThunk(
             # out-of-place versions
-        ∂x = @thunk(if isempty(x) || p == 0
+            @thunk(if isempty(x) || p == 0
                 zero.(x) .* (zero(y) * zero(real(Δy)))
             elseif p == 2
                 _norm2_back(x, y, Δy)
@@ -35,48 +36,50 @@ function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
             else
                 _normp_back_x(x, p, y, Δy)
             end)
-            # , # in-place versions -- can be fixed when actually useful?
-            # dx -> if isempty(x) || p == 0
-            #     dx
-            # elseif p == 2
-            #     _norm2_back!(dx, x, y, Δy)
-            # elseif p == 1
-            #     _norm1_back!(dx, x, y, Δy)
-            # elseif p == Inf
-            #     dx .+= _normInf_back(x, y, Δy)  # not really in-place! could perhaps be improved
-            # elseif p == -Inf
-            #     dx .+= _normInf_back(x, y, Δy)
-            # else
-            #     dx .+= _normp_back_x(x, p, y, Δy)
-            # end
-            # )
+            , # in-place versions -- can be fixed when actually useful?
+            dx -> if isempty(x) || p == 0
+                dx
+            elseif p == 2
+                _norm2_back!(dx, x, y, Δy)
+            elseif p == 1
+                _norm1_back!(dx, x, y, Δy)
+            elseif p == Inf
+                dx .+= _normInf_back(x, y, Δy)  # not really in-place! could perhaps be improved
+            elseif p == -Inf
+                dx .+= _normInf_back(x, y, Δy)
+            else
+                dx .+= _normp_back_x(x, p, y, Δy)
+            end
+            )
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
         return (NO_FIELDS, ∂x, ∂p)
     end
     norm_pullback_p(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, norm_pullback_p
 end
+
 function rrule(::typeof(norm), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm(x)
     function norm_pullback_2(Δy)
-        # ∂x = InplaceableThunk(
-        ∂x = @thunk(if isempty(x)
+        ∂x = InplaceableThunk(
+            @thunk(if isempty(x)
                 zero.(x) .* (zero(y) * zero(real(Δy)))
             else
                 _norm2_back(x, y, Δy)
             end)
-            # ,
-            # dx -> if isempty(x)
-            #     dx
-            # else
-            #     _norm2_back!(dx, x, y, Δy)
-            # end
-            # )
+            ,
+            dx -> if isempty(x)
+                dx
+            else
+                _norm2_back!(dx, x, y, Δy)
+            end
+            )
         return (NO_FIELDS, ∂x)
     end
     norm_pullback_2(::Zero) = (NO_FIELDS, Zero())
     return y, norm_pullback_2
 end
+
 function rrule(::typeof(norm), x::LinearAlgebra.AdjOrTransAbsVec{<:Number}, p::Real)
     y, inner_pullback = rrule(norm, parent(x), p)
     function norm_pullback(Δy)
@@ -87,6 +90,7 @@ function rrule(::typeof(norm), x::LinearAlgebra.AdjOrTransAbsVec{<:Number}, p::R
     end
     return y, norm_pullback
 end
+
 function rrule(::typeof(norm), x::Number, p::Real)
     y = norm(x, p)
     function norm_pullback(Δy)
@@ -126,6 +130,7 @@ function _normp_back_x(x, p, y, Δy)
     end
     return ∂x
 end
+
 function _normp_back_x(x::WithSomeZeros, p, y, Δy) # Diagonal, UpperTriangular, etc.
     c = real(Δy) / y
     ∂x_data = map(parent(x)) do xi
@@ -261,6 +266,7 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
     normalize_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
     return y, normalize_pullback
 end
+
 function rrule(::typeof(normalize), x::AbstractVector{<:Number})
     nrm = LinearAlgebra.norm2(x)
     Ty = typeof(first(x) / nrm)
