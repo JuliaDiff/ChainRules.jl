@@ -63,22 +63,25 @@ end
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
     function prod_pullback(dy)
-        x_thunk = if dims == (:)
-            InplaceableThunk(
-                @thunk(∇prod(x, dy, y)),  # This is usually y ./ x .* dy
-                dx -> ∇prod!(dx, x, dy, y)
+        x_thunk = InplaceableThunk(
+            # Out-of-place versions
+            @thunk if dims == (:)
+                ∇prod(x, dy, y)
+            elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
+                ∇prod_dims(dims, x, dy, y)
+            else
+                y ./ conj.(x) .* conj.(dy)
+            end
+            ,
+            # In-place versions -- same branching
+            dx -> if dims == (:)
+                ∇prod!(dx, x, dy, y)
+            elseif any(iszero, x) 
+                ∇prod_dims!(dx, dims, x, dy, y)
+            else
+                dx .+= y ./ conj.(x) .* conj.(dy)
+            end
             )
-        elseif any(iszero, x)  # Only cases where ./x would give NaN
-            InplaceableThunk(
-                @thunk(∇prod_dims(dims, x, dy, y)),
-                dx -> ∇prod_dims!(dx, dims, x, dy, y)
-            )
-        else
-            InplaceableThunk(
-                @thunk(y ./ conj.(x) .* conj.(dy)),
-                dx -> dx .+= y ./ conj.(x) .* conj.(dy)
-            )
-        end
         return (NO_FIELDS, x_thunk)
     end
     return y, prod_pullback
@@ -107,7 +110,7 @@ end
 function ∇prod(x, dy::Number=1, y::Number=prod(x))
     T = promote_type(eltype(x), eltype(dy))
     dx = fill!(similar(x, T), zero(T))
-    ∇prod!(dx, x, y, dy)
+    ∇prod!(dx, x, dy, y)
     return dx
 end
 
