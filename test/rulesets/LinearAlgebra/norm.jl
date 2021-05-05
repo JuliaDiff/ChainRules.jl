@@ -1,4 +1,8 @@
 @testset "norm functions" begin
+
+    # First test the un-exported functions which norm(A,p) calls
+    # ==========================================================
+
     @testset "$fnorm(x::Array{$T,$(length(sz))})" for
         fnorm in (
             LinearAlgebra.norm1,
@@ -61,6 +65,10 @@ println("... integer")
             @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
         end
     end
+
+    # Next test norm(x, p=2) -- two methods
+    # =====================================
+
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
         sz in [(0,), (3,), (3, 3), (3, 2, 1)]
@@ -142,7 +150,8 @@ println("starting p-norm p=$p, T=$T, sz=$sz")
             @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
         end
     end
-    @testset "norm($fdual(::Vector{$T}), p)" for
+    # Extra test for norm(adjoint vector, p)
+    @testset "norm($fdual(::Vector{$T}), 2.5)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
 println("starting $fdual norm T=$T")
@@ -154,6 +163,10 @@ println("starting $fdual norm T=$T")
         ȳ = rand_tangent(norm(x, p))
         @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
+
+    # Scalar norm(x, p)
+    # =================
+
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 2.0, 2.5)
 println("starting scalar p-norm tests, p=$p, T=$T")
@@ -180,6 +193,9 @@ println("starting 0-norm tests, T=$T")
         end
     end
 end
+
+# normalise(x, p) and normalise(A, p)
+# ===================================
 
 @testset "normalize" begin
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
