@@ -28,8 +28,10 @@ println("starting unexported fnorm=$fnorm, T=$T, sz=$sz")
             kwargs = NamedTuple()
         end
 
-        fnorm === LinearAlgebra.norm2 && @testset "frule" begin
-            test_frule(fnorm, x)
+        if fnorm === LinearAlgebra.norm2
+            @testset "frule" begin
+                test_frule(fnorm, x)
+            end
         end
         @testset "rrule" begin
             test_rrule(fnorm, x; kwargs...)
@@ -49,12 +51,37 @@ println("... non-strided")
                 PermutedDimsArray(x, (1,2,3))
             end
             @test !(xp isa StridedArray)
-            y = fnorm(x)
-            # ẋ = rand(T, size(xp)) # rand_tangent(xp)
-            x̄ = rand(T, size(xp)) # rand_tangent(xp)
-            ȳ = rand_tangent(y)
-            # frule_test(fnorm, (xp, ẋ))
-            rrule_test(fnorm, ȳ, (xp, x̄))
+            # y = fnorm(x)
+            # # ẋ = rand(T, size(xp)) # rand_tangent(xp)
+            # x̄ = rand(T, size(xp)) # rand_tangent(xp)
+            # ȳ = rand_tangent(y)
+            # # frule_test(fnorm, (xp, ẋ))
+            # rrule_test(fnorm, ȳ, (xp, x̄)) # old notation, gives a depwarn
+#=
+┌ Warning: `rrule_test(f, ȳ, inputs::Tuple{Any, Any}...; kwargs...)` is deprecated, use `test_rrule(f, (x ⊢ dx for (x, dx) = inputs)...; output_tangent = ȳ, kwargs...)` instead.
+│   caller = macro expansion at norm.jl:57 [inlined]
+└ @ Core ~/.julia/dev/ChainRules/test/rulesets/LinearAlgebra/norm.jl:57
+=#
+            # @show typeof(xp)
+            # test_rrule(fnorm, xp) # new notation, gives a spectacular failure:
+#=
+typeof(xp) = SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}
+test_rrule: norm1 at ([0.2972879845354616 -0.01044524463737564 2.2950878238373105; 0.3823959677906078 -0.839026854388764 -2.2670863488005306; -0.5976344767282311 0.31111133849833383 0.5299655761667461],): Error During Test at /Users/me/.julia/packages/ChainRulesTestUtils/bDd51/src/testers.jl:168
+  Got exception outside of a @test
+  MethodError: no method matching +(::Composite{SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, NamedTuple{(:parent, :indices, :offset1, :stride1), Tuple{Matrix{Float64}, Composite{Tuple{Vector{Int64}, UnitRange{Int64}}, Tuple{Vector{DoesNotExist}, Composite{UnitRange{Int64}, NamedTuple{(:start, :stop), Tuple{DoesNotExist, DoesNotExist}}}}}, DoesNotExist, DoesNotExist}}}, ::Matrix{Float64})
+  Closest candidates are:
+    +(::Any, ::Any, ::Any, ::Any...) at operators.jl:560
+    +(::Composite{P, T} where T, ::Composite{P, T} where T) where P at /Users/me/.julia/packages/ChainRulesCore/1qau5/src/differential_arithmetic.jl:167
+    +(::Composite, ::AbstractThunk) at /Users/me/.julia/packages/ChainRulesCore/1qau5/src/differential_arithmetic.jl:161
+    ...
+  Stacktrace:
+    [1] +(a::Composite{SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, NamedTuple{(:parent, :indices, :offset1, :stride1), Tuple{Matrix{Float64}, Composite{Tuple{Vector{Int64}, UnitRange{Int64}}, Tuple{Vector{DoesNotExist}, Composite{UnitRange{Int64}, NamedTuple{(:start, :stop), Tuple{DoesNotExist, DoesNotExist}}}}}, DoesNotExist, DoesNotExist}}}, b::InplaceableThunk{Thunk{ChainRules.var"#1798#1801"{Float64, SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, Float64}}, ChainRules.var"#1799#1802"{Float64, SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, Float64}})
+      @ ChainRulesCore ~/.julia/packages/ChainRulesCore/1qau5/src/differential_arithmetic.jl:161
+    [2] add!!(x::Composite{SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, NamedTuple{(:parent, :indices, :offset1, :stride1), Tuple{Matrix{Float64}, Composite{Tuple{Vector{Int64}, UnitRange{Int64}}, Tuple{Vector{DoesNotExist}, Composite{UnitRange{Int64}, NamedTuple{(:start, :stop), Tuple{DoesNotExist, DoesNotExist}}}}}, DoesNotExist, DoesNotExist}}}, t::InplaceableThunk{Thunk{ChainRules.var"#1798#1801"{Float64, SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, Float64}}, ChainRules.var"#1799#1802"{Float64, SubArray{Float64, 2, Matrix{Float64}, Tuple{Vector{Int64}, UnitRange{Int64}}, false}, Float64}})
+      @ ChainRulesCore ~/.julia/packages/ChainRulesCore/1qau5/src/accumulation.jl:23
+=#
+        test_rrule(fnorm, xp ⊢ rand(T, size(xp))) # ok, this passes! 
+
         end
         T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
 println("... integer")
@@ -101,12 +128,14 @@ println("... non-strided'")
                 PermutedDimsArray(x, (1,2,3))
             end
             @test !(xp isa StridedArray)
-            y = norm(x)
-            ẋ = rand(T, size(xp)) # rand_tangent(xp)
-            x̄ = rand(T, size(xp)) # rand_tangent(xp)
-            ȳ = rand_tangent(y)
-            frule_test(norm, (xp, ẋ))
-            rrule_test(norm, ȳ, (xp, x̄))
+            # y = norm(x)
+            # ẋ = rand(T, size(xp)) # rand_tangent(xp)
+            # x̄ = rand(T, size(xp)) # rand_tangent(xp)
+            # ȳ = rand_tangent(y)
+            # frule_test(norm, (xp, ẋ))
+            # rrule_test(norm, ȳ, (xp, x̄))
+            test_frule(norm, xp ⊢ rand(T, size(xp)))
+            test_rrule(norm, xp ⊢ rand(T, size(xp)))  # rand_tangent does not work here
         end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
