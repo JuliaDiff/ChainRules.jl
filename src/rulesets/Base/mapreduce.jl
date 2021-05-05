@@ -89,7 +89,7 @@ end
 
 function ∇prod_dims(dims, x, dy, y=prod(x; dims=dims))
     T = promote_type(eltype(x), eltype(dy))
-    dx = fill!(similar(x, T), zero(T))
+    dx = fill!(similar(x, T, size(x)), zero(T))
     ∇prod_dims!(dx, dims, x, dy, y)
     return dx
 end
@@ -109,7 +109,7 @@ end
 
 function ∇prod(x, dy::Number=1, y::Number=prod(x))
     T = promote_type(eltype(x), eltype(dy))
-    dx = fill!(similar(x, T), zero(T))
+    dx = fill!(similar(x, T, size(x)), zero(T))
     ∇prod!(dx, x, dy, y)
     return dx
 end
@@ -120,8 +120,8 @@ function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
         dx .+= y ./ conj.(x) .* conj.(dy)
     elseif numzero == 1
         ∇prod_one_zero!(dx, x, dy)
-    else  # numzero > 1, then all first derivatives are zero
-        dx
+    else
+        # numzero > 1, then all first derivatives are zero
     end
     return dx
 end
