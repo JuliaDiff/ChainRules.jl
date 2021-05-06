@@ -11,8 +11,8 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
     function sum_pullback(ȳ)
         # broadcasting the two works out the size no-matter `dims`
         x̄ = InplaceableThunk(
-            @thunk(broadcast((_,y1)->y1, x, ȳ)), # last∘tuple
-            x -> x .+= x̄
+            @thunk(broadcast(last∘tuple, x, ȳ))
+            x -> x .+= ȳ
         )
         return (NO_FIELDS, x̄)
     end
