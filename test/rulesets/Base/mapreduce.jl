@@ -22,7 +22,7 @@
     end  # sum abs2
 
     @testset "prod" begin
-        @testset "Array{$T}" for T in [Float64] # [Float64, ComplexF64]
+        @testset "Array{$T}" for T in [Float64, ComplexF64]
             @testset "size = $sz, dims = $dims" for (sz, dims) in [
                 ((12,), :), ((12,), 1),
                 ((3,4), 1), ((3,4), 2), ((3,4), :), ((3,4), [1,2]),

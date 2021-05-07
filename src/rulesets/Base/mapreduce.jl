@@ -70,7 +70,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
             elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
                 ∇prod_dims(dims, x, dy, y)
             else
-                y ./ conj.(x) .* conj.(dy)
+                conj.(y ./ x) .* dy
             end
             ,
             # In-place versions -- same branching
@@ -79,7 +79,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
             elseif any(iszero, x) 
                 ∇prod_dims!(dx, dims, x, dy, y)
             else
-                dx .+= y ./ conj.(x) .* conj.(dy)
+                dx .+= conj.(y ./ x) .* dy
             end
             )
         return (NO_FIELDS, x_thunk)
@@ -117,7 +117,7 @@ end
 function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
     numzero = iszero(y) ? count(iszero, x) : 0
     if numzero == 0  # This can happen while y==0, if there are several small xs
-        dx .+= y ./ conj.(x) .* conj.(dy)
+        dx .+= conj.(y ./ x) .* dy
     elseif numzero == 1
         ∇prod_one_zero!(dx, x, dy)
     else
