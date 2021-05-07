@@ -94,7 +94,7 @@
             end
             @test !(xp isa StridedArray)
             test_frule(norm, xp ⊢ rand(T, size(xp)))
-            test_rrule(norm, xp ⊢ rand(T, size(xp)))  # rand_tangent does not work here
+            test_rrule(norm, xp ⊢ rand(T, size(xp)))  # rand_tangent does not work here because eltype(xp)==Int
         end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
