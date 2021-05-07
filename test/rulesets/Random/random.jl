@@ -46,7 +46,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             x, pb = rrule(rand, args...)
             @test x isa xType
             dself, dargs = Iterators.peel(pb(10.0))
-            @test dself isa Zero
+            @test iszero(dself)
             @test all(darg isa DoesNotExist for darg in dargs)
         end
 

@@ -1,57 +1,50 @@
 @testset "getindex" begin
     @testset "getindex(::Matrix{<:Number},...)" begin
         x = [1.0 2.0 3.0; 10.0 20.0 30.0]
-        x̄ = [1.4 2.5 3.7; 10.5 20.1 30.2]
-        full_ȳ = [7.4 5.5 2.7; 8.5 11.1 4.2]
 
         @testset "single element" begin
-            rrule_test(getindex, 2.3, (x, x̄), (2, nothing))
-            rrule_test(getindex, 2.3, (x, x̄), (2, nothing), (1, nothing))
-            rrule_test(getindex, 2.3, (x, x̄), (2, nothing), (2, nothing))
+            test_rrule(getindex, x, 2)
+            test_rrule(getindex, x, 2, 1)
+            test_rrule(getindex, x, 2, 2)
 
-            rrule_test(getindex, 2.3, (x, x̄), (CartesianIndex(2, 3), nothing))
+            test_rrule(getindex, x, CartesianIndex(2, 3) ⊢ DoesNotExist())
         end
 
         @testset "slice/index postions" begin
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (2:3, nothing))
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (3:-1:2, nothing))
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), ([3,2], nothing))
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), ([2,3], nothing))
+            test_rrule(getindex, x, 2:3 ⊢ DoesNotExist())
+            test_rrule(getindex, x, 3:-1:2 ⊢ DoesNotExist())
+            test_rrule(getindex, x, [3,2] ⊢ DoesNotExist())
+            test_rrule(getindex, x, [2,3] ⊢ DoesNotExist())
 
-            rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (1:2, nothing), (2:3, nothing))
-            rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (:, nothing), (2:3, nothing))
+            test_rrule(getindex, x, 1:2 ⊢ DoesNotExist(), 2:3 ⊢ DoesNotExist())
+            test_rrule(getindex, x, (:) ⊢ DoesNotExist(), 2:3 ⊢ DoesNotExist())
 
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (1:2, nothing), (1, nothing))
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (1, nothing), (1:2, nothing))
+            test_rrule(getindex, x, 1:2 ⊢ DoesNotExist(), 1)
+            test_rrule(getindex, x, 1, 1:2 ⊢ DoesNotExist())
 
-            rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (1:2, nothing), (2:3, nothing))
-            rrule_test(getindex, [2.3 3.1; 4.1 5.1], (x, x̄), (:, nothing), (2:3, nothing))
+            test_rrule(getindex, x, 1:2 ⊢ DoesNotExist(), 2:3 ⊢ DoesNotExist())
+            test_rrule(getindex, x, (:) ⊢ DoesNotExist(), 2:3 ⊢ DoesNotExist())
 
-
-            rrule_test(getindex, full_ȳ, (x, x̄), (:, nothing), (:, nothing))
-            rrule_test(getindex, full_ȳ[:], (x, x̄), (:, nothing))
+            test_rrule(getindex, x, (:) ⊢ DoesNotExist(), (:) ⊢ DoesNotExist())
+            test_rrule(getindex, x, (:) ⊢ DoesNotExist())
         end
 
         @testset "masking" begin
-            rrule_test(getindex, full_ȳ, (x, x̄), (trues(size(x)), nothing))
-            rrule_test(getindex, full_ȳ[:], (x, x̄), (trues(length(x)), nothing))
+            test_rrule(getindex, x, trues(size(x)) ⊢ DoesNotExist())
+            test_rrule(getindex, x, trues(length(x)) ⊢ DoesNotExist())
 
             mask = falses(size(x))
             mask[2,3] = true
             mask[1,2] = true
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), (mask, nothing))
+            test_rrule(getindex, x, mask ⊢ DoesNotExist())
 
-            rrule_test(
-                getindex, full_ȳ[1,:], (x, x̄), ([true, false], nothing), (:, nothing)
-            )
+            test_rrule(getindex, x, [true, false] ⊢ DoesNotExist(), (:) ⊢ DoesNotExist())
         end
 
         @testset "By position with repeated elements" begin
-            rrule_test(getindex, [2.3, 3.1], (x, x̄), ([2, 2], nothing))
-            rrule_test(getindex, [2.3, 3.1, 4.1], (x, x̄), ([2, 2, 2], nothing))
-            rrule_test(
-                getindex, [2.3 3.1; 4.1 5.1], (x, x̄), ([2,2], nothing), ([3,3], nothing)
-            )
+            test_rrule(getindex, x, [2, 2] ⊢ DoesNotExist())
+            test_rrule(getindex, x, [2, 2, 2] ⊢ DoesNotExist())
+            test_rrule(getindex, x, [2,2] ⊢ DoesNotExist(), [3,3] ⊢ DoesNotExist())
         end
     end
 end

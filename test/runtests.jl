@@ -3,7 +3,7 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: only
+using Compat: hasproperty, only
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
 using SpecialFunctions
@@ -17,7 +17,7 @@ using Test
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)
-    print("Testing $path:\t")  # print so TravisCI doesn't timeout due to no output
+    println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
     @time include(path)  # show basic timing, (this will print a newline at end)
 end
 
@@ -32,6 +32,7 @@ println("Testing ChainRules.jl")
             include_test("rulesets/Base/arraymath.jl")
             include_test("rulesets/Base/indexing.jl")
             include_test("rulesets/Base/mapreduce.jl")
+            include_test("rulesets/Base/sort.jl")
         end
         println()
 
@@ -43,10 +44,12 @@ println("Testing ChainRules.jl")
         @testset "LinearAlgebra" begin
             include_test("rulesets/LinearAlgebra/dense.jl")
             include_test("rulesets/LinearAlgebra/norm.jl")
+            include_test("rulesets/LinearAlgebra/matfun.jl")
             include_test("rulesets/LinearAlgebra/structured.jl")
             include_test("rulesets/LinearAlgebra/symmetric.jl")
             include_test("rulesets/LinearAlgebra/factorization.jl")
             include_test("rulesets/LinearAlgebra/blas.jl")
+            include_test("rulesets/LinearAlgebra/lapack.jl")
         end
         println()
 

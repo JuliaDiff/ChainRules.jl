@@ -59,11 +59,10 @@ const FASTABLE_AST = quote
         end
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
-                x, Δx, x̄ = randn(T, 3)
-                Δz = (randn(T), randn(T))
+                Δz = Composite{Tuple{T,T}}(randn(T), randn(T))
 
-                frule_test(sincos, (x, Δx))
-                rrule_test(sincos, Δz, (x, x̄))
+                test_frule(sincos, randn(T))
+                test_rrule(sincos, randn(T); output_tangent=Δz)
             end
         end
     end
@@ -126,21 +125,13 @@ const FASTABLE_AST = quote
 
     @testset "binary functions" begin
         @testset "$f(x, y)" for f in (atan, rem, max, min)
-            x, Δx, x̄ = 100rand(3)
-            y, Δy, ȳ = 10rand(3)
-            Δz = rand()
-
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            test_frule(f, 100rand(), 10rand())
+            test_rrule(f, 100rand(), 10rand())
         end
 
         @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
-            x, Δx, x̄ = 10rand(T, 3)
-            y, Δy, ȳ = rand(T, 3)
-            Δz = randn(typeof(f(x, y)))
-
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            test_frule(f, 10rand(T), rand(T))
+            test_rrule(f, 10rand(T), rand(T))
         end
 
         @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
@@ -167,12 +158,8 @@ const FASTABLE_AST = quote
 
         @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
             # for real x and n, x must be >0
-            x, Δx, x̄ = rand(T, 3) .+ 3
-            y, Δy, ȳ = rand(T, 3) .+ 3
-            Δz = rand(T)
-
-            frule_test(^, (x, Δx), (y, Δy))
-            rrule_test(^, Δz, (x, x̄), (y, ȳ))
+            test_frule(^, rand(T) + 3, rand(T) + 3)
+            test_rrule(^, rand(T) + 3, rand(T) + 3)
 
             T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
                 # finite differences doesn't work for x < 0, so we check manually

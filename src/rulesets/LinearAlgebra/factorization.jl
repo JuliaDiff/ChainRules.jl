@@ -2,6 +2,204 @@ using LinearAlgebra: checksquare
 using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 #####
+##### `lu`
+#####
+
+# These rules are necessary because the primals call LAPACK functions
+
+# frule for square matrix was introduced in Eq. 3.6 of
+# de Hoog, F.R., Anderssen, R.S. and Lukas, M.A. (2011)
+# Differentiation of matrix functionals using triangular factorization.
+# Mathematics of Computation, 80 (275). p. 1585.
+# doi: http://doi.org/10.1090/S0025-5718-2011-02451-8
+# for derivations for wide and tall matrices, see
+# https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
+
+function frule(
+    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu!(A, pivot; kwargs...)
+    ∂factors = pivot === Val(true) ? ΔA[F.p, :] : ΔA
+    m, n = size(∂factors)
+    q = min(m, n)
+    if m == n  # square A
+        # minimal allocation computation of
+        # ∂L = L * tril(L \ (P * ΔA) / U, -1)
+        # ∂U = triu(L \ (P * ΔA) / U) * U
+        # ∂factors = ∂L + ∂U
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
+        rdiv!(∂factors, U)
+        ldiv!(L, ∂factors)
+        ∂L = lmul!(L, tril(∂factors, -1))
+        ∂U = rmul!(triu(∂factors), U)
+        ∂factors .= ∂L .+ ∂U
+    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        L = UnitLowerTriangular(F.L)
+        U = F.U
+        ldiv!(L, ∂factors)
+        @views begin
+            ∂factors1 = ∂factors[:, 1:q]
+            ∂factors2 = ∂factors[:, (q + 1):end]
+            U1 = UpperTriangular(U[:, 1:q])
+            U2 = U[:, (q + 1):end]
+        end
+        rdiv!(∂factors1, U1)
+        ∂L = tril(∂factors1, -1)
+        mul!(∂factors2, ∂L, U2, -1, 1)
+        lmul!(L, ∂L)
+        rmul!(triu!(∂factors1), U1)
+        ∂factors1 .+= ∂L
+    else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+        L = F.L
+        U = UpperTriangular(F.U)
+        rdiv!(∂factors, U)
+        @views begin
+            ∂factors1 = ∂factors[1:q, :]
+            ∂factors2 = ∂factors[(q + 1):end, :]
+            L1 = UnitLowerTriangular(L[1:q, :])
+            L2 = L[(q + 1):end, :]
+        end
+        ldiv!(L1, ∂factors1)
+        ∂U = triu(∂factors1)
+        mul!(∂factors2, L2, ∂U, -1, 1)
+        rmul!(∂U, U)
+        lmul!(L1, tril!(∂factors1, -1))
+        ∂factors1 .+= ∂U
+    end
+    ∂F = Composite{typeof(F)}(; factors=∂factors)
+    return F, ∂F
+end
+
+function rrule(
+    ::typeof(lu), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu(A, pivot; kwargs...)
+    function lu_pullback(ΔF::Composite)
+        Δfactors = ΔF.factors
+        Δfactors isa AbstractZero && return (NO_FIELDS, Δfactors, DoesNotExist())
+        factors = F.factors
+        ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
+        ∂A = similar(factors)
+        m, n = size(A)
+        q = min(m, n)
+        if m == n  # square A
+            # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
+            L = UnitLowerTriangular(factors)
+            U = UpperTriangular(factors)
+            ∂U = UpperTriangular(∂factors)
+            tril!(copyto!(∂A, ∂factors), -1)
+            lmul!(L', ∂A)
+            copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+            rdiv!(∂A, U')
+            ldiv!(L', ∂A)
+        elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+            triu!(copyto!(∂A, ∂factors))
+            @views begin
+                factors1 = factors[:, 1:q]
+                U2 = factors[:, (q + 1):end]
+                ∂A1 = ∂A[:, 1:q]
+                ∂A2 = ∂A[:, (q + 1):end]
+                ∂L = tril(∂factors[:, 1:q], -1)
+            end
+            L = UnitLowerTriangular(factors1)
+            U1 = UpperTriangular(factors1)
+            triu!(rmul!(∂A1, U1'))
+            ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
+            rdiv!(∂A1, U1')
+            ldiv!(L', ∂A)
+        else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+            tril!(copyto!(∂A, ∂factors), -1)
+            @views begin
+                factors1 = factors[1:q, :]
+                L2 = factors[(q + 1):end, :]
+                ∂A1 = ∂A[1:q, :]
+                ∂A2 = ∂A[(q + 1):end, :]
+                ∂U = triu(∂factors[1:q, :])
+            end
+            U = UpperTriangular(factors1)
+            L1 = UnitLowerTriangular(factors1)
+            tril!(lmul!(L1', ∂A1), -1)
+            ∂A1 .+= triu!(mul!(rmul!(∂U, U'), L2', ∂A2, -1, 1))
+            ldiv!(L1', ∂A1)
+            rdiv!(∂A, U')
+        end
+        if pivot === Val(true)
+            ∂A = ∂A[invperm(F.p), :]
+        end
+        return NO_FIELDS, ∂A, DoesNotExist()
+    end
+    return F, lu_pullback
+end
+
+#####
+##### functions of `LU`
+#####
+
+# this rrule is necessary because the primal mutates
+
+function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:StridedMatrix{T}}}
+    function getproperty_LU_pullback(ΔY)
+        ∂factors = if x === :L
+            m, n = size(F.factors)
+            S = eltype(ΔY)
+            tril!([ΔY zeros(S, m, max(0, n - m))], -1)
+        elseif x === :U
+            m, n = size(F.factors)
+            S = eltype(ΔY)
+            triu!([ΔY; zeros(S, max(0, m - n), n)])
+        elseif x === :factors
+            Matrix(ΔY)
+        else
+            return (NO_FIELDS, DoesNotExist(), DoesNotExist())
+        end
+        ∂F = Composite{TF}(; factors=∂factors)
+        return NO_FIELDS, ∂F, DoesNotExist()
+    end
+    return getproperty(F, x), getproperty_LU_pullback
+end
+
+# these rules are needed because the primal calls a LAPACK function
+
+function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatrix})
+    # factors must be square if the primal did not error
+    L = UnitLowerTriangular(F.factors)
+    U = UpperTriangular(F.factors)
+    # compute ∂Y = -(U \ (L \ ∂L + ∂U / U) / L) * P while minimizing allocations
+    m, n = size(F.factors)
+    q = min(m, n)
+    ∂L = tril(m ≥ n ? ΔF.factors : view(ΔF.factors, :, 1:q), -1)
+    ∂U = triu(m ≤ n ? ΔF.factors : view(ΔF.factors, 1:q, :))
+    ∂Y = ldiv!(L, ∂L)
+    ∂Y .+= rdiv!(∂U, U)
+    ldiv!(U, ∂Y)
+    rdiv!(∂Y, L)
+    rmul!(∂Y, -1)
+    return LinearAlgebra.inv!(F), ∂Y[:, invperm(F.p)]
+end
+
+function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
+    function inv_LU_pullback(ΔY)
+        # factors must be square if the primal did not error
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
+        # compute the following while minimizing allocations
+        # ∂U = - triu((U' \ ∂Y * P' / L') / U')
+        # ∂L = - tril(L' \ (U' \ ∂Y * P' / L'), -1)
+        ∂factors = ΔY[:, F.p]
+        ldiv!(U', ∂factors)
+        rdiv!(∂factors, L')
+        rmul!(∂factors, -1)
+        ∂L = tril!(L' \ ∂factors, -1)
+        triu!(rdiv!(∂factors, U'))
+        ∂factors .+= ∂L
+        ∂F = Composite{typeof(F)}(; factors=∂factors)
+        return NO_FIELDS, ∂F
+    end
+    return inv(F), inv_LU_pullback
+end
+
+#####
 ##### `svd`
 #####
 
@@ -9,7 +207,7 @@ function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)
         # `getproperty` on `Composite`s ensures we have no thunks.
-        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
+        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
@@ -23,10 +221,9 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
         elseif x === :S
             C(S=Ȳ,)
         elseif x === :V
-            C(V=Ȳ,)
+            C(Vt=Ȳ',)
         elseif x === :Vt
-            # TODO: https://github.com/JuliaDiff/ChainRules.jl/issues/106
-            throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
+            C(Vt=Ȳ,)
         end
         return NO_FIELDS, ∂F, DoesNotExist()
     end
@@ -76,8 +273,16 @@ end
 # - support degenerate matrices (see #144)
 
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
+    if ishermitian(A)
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        return if sortby === nothing
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
+        else
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
+        end
+    end
     F = eigen!(A; kwargs...)
-    ΔA isa AbstractZero && return F, ΔA
     λ, V = F.values, F.vectors
     tmp = V \ ΔA
     ∂K = tmp * V
@@ -93,11 +298,17 @@ end
 
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite{<:Eigen})
+    function eigen_pullback(ΔF::Composite)
         λ, V = F.values, F.vectors
         Δλ, ΔV = ΔF.values, ΔF.vectors
-        if ΔV isa AbstractZero
-            Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+        ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+        if eltype(λ) <: Real && ishermitian(A)
+            hermA = Hermitian(A)
+            ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
+            ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
+            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
+            ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
+        elseif ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
             ∂A = V' \ ∂K * V'
         else
@@ -173,29 +384,45 @@ end
 
 function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
-    F = eigen!(A; kwargs...)
-    λ, V = F.values, F.vectors
-    tmp = V \ ΔA
-    ∂λ = similar(λ)
-    # diag(tmp * V) without computing full matrix product
-    if eltype(∂λ) <: Real
-        broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+    if ishermitian(A)
+        λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        _sorteig!_fwd(∂λ, λ, sortby)
     else
-        broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        F = eigen!(A; kwargs...)
+        λ, V = F.values, F.vectors
+        tmp = V \ ΔA
+        ∂λ = similar(λ)
+        # diag(tmp * V) without computing full matrix product
+        if eltype(∂λ) <: Real
+            broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        else
+            broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        end
     end
     return λ, ∂λ
 end
 
 function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
-    F = eigen(A; kwargs...)
+    F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        V = F.vectors
-        ∂A = V' \ Diagonal(Δλ) * V'
-        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+        ∂F = Composite{typeof(F)}(values = Δλ)
+        _, ∂A = eigen_back(∂F)
+        return NO_FIELDS, ∂A
     end
-    eigvals_pullback(Δλ::AbstractZero) = (NO_FIELDS, Δλ)
     return λ, eigvals_pullback
+end
+
+# adapted from LinearAlgebra.sorteig!
+function _sorteig!_fwd(Δλ, λ, sortby)
+    Δλ isa AbstractZero && return (sort!(λ; by=sortby), Δλ)
+    if sortby !== nothing
+        p = sortperm(λ; alg=QuickSort, by=sortby)
+        permute!(λ, p)
+        permute!(Δλ, p)
+    end
+    return (λ, Δλ)
 end
 
 #####
