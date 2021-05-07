@@ -1,3 +1,8 @@
+const BESSEL_ORDER_INFO = """
+derivatives of Bessel functions with respect to the order are not implemented currently:
+https://github.com/JuliaMath/SpecialFunctions.jl/issues/160
+"""
+
 @scalar_rule(SpecialFunctions.airyai(x), SpecialFunctions.airyaiprime(x))
 @scalar_rule(SpecialFunctions.airyaiprime(x), x * SpecialFunctions.airyai(x))
 @scalar_rule(SpecialFunctions.airybi(x), SpecialFunctions.airybiprime(x))
@@ -30,31 +35,52 @@
 # binary
 @scalar_rule(
     SpecialFunctions.besselj(ν, x),
-    (NaN, (SpecialFunctions.besselj(ν - 1, x) - SpecialFunctions.besselj(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        (SpecialFunctions.besselj(ν - 1, x) - SpecialFunctions.besselj(ν + 1, x)) / 2
+    ),
 )
 @scalar_rule(
     SpecialFunctions.besseli(ν, x),
-    (NaN, (SpecialFunctions.besseli(ν - 1, x) + SpecialFunctions.besseli(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        (SpecialFunctions.besseli(ν - 1, x) + SpecialFunctions.besseli(ν + 1, x)) / 2,
+    ),
 )
 @scalar_rule(
     SpecialFunctions.bessely(ν, x),
-    (NaN, (SpecialFunctions.bessely(ν - 1, x) - SpecialFunctions.bessely(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        (SpecialFunctions.bessely(ν - 1, x) - SpecialFunctions.bessely(ν + 1, x)) / 2,
+    ),
 )
 @scalar_rule(
     SpecialFunctions.besselk(ν, x),
-    (NaN, -(SpecialFunctions.besselk(ν - 1, x) + SpecialFunctions.besselk(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        -(SpecialFunctions.besselk(ν - 1, x) + SpecialFunctions.besselk(ν + 1, x)) / 2,
+    ),
 )
 @scalar_rule(
     SpecialFunctions.hankelh1(ν, x),
-    (NaN, (SpecialFunctions.hankelh1(ν - 1, x) - SpecialFunctions.hankelh1(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        (SpecialFunctions.hankelh1(ν - 1, x) - SpecialFunctions.hankelh1(ν + 1, x)) / 2,
+    ),
 )
 @scalar_rule(
     SpecialFunctions.hankelh2(ν, x),
-    (NaN, (SpecialFunctions.hankelh2(ν - 1, x) - SpecialFunctions.hankelh2(ν + 1, x)) / 2),
+    (
+        @not_implemented(BESSEL_ORDER_INFO),
+        (SpecialFunctions.hankelh2(ν - 1, x) - SpecialFunctions.hankelh2(ν + 1, x)) / 2,
+    ),
 )
 @scalar_rule(
     SpecialFunctions.polygamma(m, x),
-    (NaN, SpecialFunctions.polygamma(m + 1, x))
+    (
+        DoesNotExist(),
+        SpecialFunctions.polygamma(m + 1, x),
+    ),
 )
 # todo: setup for common expr
 @scalar_rule(
@@ -62,11 +88,7 @@
     (Ω*(SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b)),
      Ω*(SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b)),)
 )
-@scalar_rule(
-    SpecialFunctions.lbeta(a, b),
-    (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
-     SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b),)
-)
+
 # Changes between SpecialFunctions 0.7 and 0.8
 if isdefined(SpecialFunctions, :lgamma)
     # actually is the absolute value of the logorithm of gamma
@@ -80,4 +102,22 @@ end
 
 if isdefined(SpecialFunctions, :loggamma)
     @scalar_rule(SpecialFunctions.loggamma(x), SpecialFunctions.digamma(x))
+end
+
+if isdefined(SpecialFunctions, :lbeta)
+    # todo: setup for common expr
+    @scalar_rule(
+        SpecialFunctions.lbeta(a, b),
+        (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
+         SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b),)
+    )
+end
+
+if isdefined(SpecialFunctions, :logbeta)
+    # todo: setup for common expr
+    @scalar_rule(
+        SpecialFunctions.logbeta(a, b),
+        (SpecialFunctions.digamma(a) - SpecialFunctions.digamma(a + b),
+         SpecialFunctions.digamma(b) - SpecialFunctions.digamma(a + b),)
+    )
 end
