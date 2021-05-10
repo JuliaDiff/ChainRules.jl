@@ -1,4 +1,8 @@
 @testset "norm functions" begin
+
+    # First test the un-exported functions which norm(A,p) calls
+    # ==========================================================
+
     @testset "$fnorm(x::Array{$T,$(length(sz))})" for
         fnorm in (
             LinearAlgebra.norm1,
@@ -23,8 +27,10 @@
             kwargs = NamedTuple()
         end
 
-        fnorm === LinearAlgebra.norm2 && @testset "frule" begin
-            test_frule(fnorm, x)
+        if fnorm === LinearAlgebra.norm2
+            @testset "frule" begin
+                test_frule(fnorm, x)
+            end
         end
         @testset "rrule" begin
             test_rrule(fnorm, x; kwargs...)
@@ -36,7 +42,27 @@
             @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(fnorm, x)[2](Zero())[2] isa Zero
         end
+        ndims(x) > 1 && @testset "non-strided" begin
+            xp = if x isa Matrix
+                view(x, [1,2,3], 1:3)
+            elseif x isa Array{T,3}
+                PermutedDimsArray(x, (1,2,3))
+            end
+            @test !(xp isa StridedArray)
+            test_rrule(fnorm, xp ⊢ rand(T, size(xp)))
+        end
+        T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
+            x = [1,2,3]
+            int_fwd, int_back = rrule(fnorm, x)
+            float_fwd, float_back = rrule(fnorm, float(x))
+            @test int_fwd ≈ float_fwd
+            @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
+        end
     end
+
+    # Next test norm(A, p=2) -- two methods
+    # =====================================
+
     @testset "norm(x::Array{$T,$(length(sz))})" for
         T in (Float64, ComplexF64),
         sz in [(0,), (3,), (3, 3), (3, 2, 1)]
@@ -53,14 +79,22 @@
         @testset "rrule" begin
             test_rrule(norm, x)
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-                # we don't check inference on older julia versions. Improvements to
-                # inference mean on 1.5+ it works, and that is good enough
                 test_rrule(norm, MT(x); check_inferred=VERSION>=v"1.5")
             end
 
             ȳ = rand_tangent(norm(x))
             @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(norm, x)[2](Zero())[2] isa Zero
+        end
+        ndims(x) > 1 && @testset "non-strided" begin
+            xp = if x isa Matrix
+                view(x, [1,2,3], 1:3)
+            elseif x isa Array{T,3}
+                PermutedDimsArray(x, (1,2,3))
+            end
+            @test !(xp isa StridedArray)
+            test_frule(norm, xp ⊢ rand(T, size(xp)))
+            test_rrule(norm, xp ⊢ rand(T, size(xp)))  # rand_tangent does not work here because eltype(xp)==Int
         end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for
@@ -71,7 +105,7 @@
 
         x = randn(T, sz)
         # finite differences is unstable if maxabs (minabs) values are not well
-        # separated from other values
+        # separated from other values (same as above)
         if p == Inf
             if !isempty(x)
                 x[end] = 1000rand(T)
@@ -87,20 +121,24 @@
             kwargs = NamedTuple()
         end
 
-
         test_rrule(fnorm, x, p; kwargs...)
         x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-            test_rrule(fnorm, MT(x), p;
-                #Don't check inference on old julia, what matters is that works on new
-                check_inferred=VERSION>=v"1.5", kwargs...
-            )
+            test_rrule(fnorm, MT(x), p; kwargs..., check_inferred=VERSION>=v"1.5")
         end
 
         ȳ = rand_tangent(fnorm(x, p))
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
+        T == Float64 && sz == (3,) && @testset "Integer input, p=$p" begin
+            x = [1,2,3]
+            int_fwd, int_back = rrule(fnorm, x, p)
+            float_fwd, float_back = rrule(fnorm, float(x), p)
+            @test int_fwd ≈ float_fwd
+            @test unthunk(int_back(1.0)[2]) ≈ unthunk(float_back(1.0)[2])
+        end
     end
-    @testset "norm($fdual(::Vector{$T}), p)" for
+    # Extra test for norm(adjoint vector, p)
+    @testset "norm($fdual(::Vector{$T}), 2.5)" for
         T in (Float64, ComplexF64),
         fdual in (adjoint, transpose)
 
@@ -111,6 +149,10 @@
         ȳ = rand_tangent(norm(x, p))
         @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
+
+    # Scalar norm(x, p)
+    # =================
+
     @testset "norm(x::$T, p)" for T in (Float64, ComplexF64)
         @testset "p = $p" for p in (-1.0, 2.0, 2.5)
             test_frule(norm, randn(T), p)
@@ -135,6 +177,9 @@
         end
     end
 end
+
+# normalise(x, p) and normalise(A, p)
+# ===================================
 
 @testset "normalize" begin
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
