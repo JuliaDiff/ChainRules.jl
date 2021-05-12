@@ -62,22 +62,23 @@ end
 
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
+    vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
     function prod_pullback(dy)
         x_thunk = InplaceableThunk(
             # Out-of-place versions
-            @thunk if dims == (:)
+            @thunk if dims === (:)
                 ∇prod(x, dy, y)
             elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
-                ∇prod_dims(dims, x, dy, y)
+                ∇prod_dims(vald, x, dy, y)
             else
                 conj.(y ./ x) .* dy
             end
             ,
             # In-place versions -- same branching
-            dx -> if dims == (:)
+            dx -> if dims === (:)
                 ∇prod!(dx, x, dy, y)
             elseif any(iszero, x) 
-                ∇prod_dims!(dx, dims, x, dy, y)
+                ∇prod_dims!(dx, vald, x, dy, y)
             else
                 dx .+= conj.(y ./ x) .* dy
             end
@@ -87,15 +88,15 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
     return y, prod_pullback
 end
 
-function ∇prod_dims(dims, x, dy, y=prod(x; dims=dims))
+function ∇prod_dims(vald::Val{dims}, x, dy, y=prod(x; dims=dims)) where {dims}
     T = promote_type(eltype(x), eltype(dy))
     dx = fill!(similar(x, T, axes(x)), zero(T))
-    ∇prod_dims!(dx, dims, x, dy, y)
+    ∇prod_dims!(dx, vald, x, dy, y)
     return dx
 end
 
-function ∇prod_dims!(dx, dims, x, dy, y)
-    iters = ntuple(d -> d in dims ? tuple(:) : axes(x,d), ndims(x))
+function ∇prod_dims!(dx, ::Val{dims}, x, dy, y) where {dims}
+    iters = ntuple(d -> d in dims ? tuple(:) : axes(x,d), ndims(x))  # without Val(dims) this is a serious type instability
     @inbounds for ind in Iterators.product(iters...)
         jay = map(i -> i isa Colon ? 1 : i, ind)
         @views ∇prod!(dx[ind...], x[ind...], dy[jay...], y[jay...])
