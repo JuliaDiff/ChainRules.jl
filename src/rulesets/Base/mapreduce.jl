@@ -247,17 +247,17 @@ end
 function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims)
     y = cumprod(x; dims=dims)
     @assert dims isa Integer
-    # vald = Val(dims)
+    vald = Val(Int(dims))  # else ∇cumprod_dim! will be type unstable
     function cumprod_pullback_2(dy)
         dx_thunk = InplaceableThunk(
             @thunk if dims <= ndims(x)
-                ∇cumprod_dim(dims, x, dy, y)
+                ∇cumprod_dim(vald, x, dy, y)
             else
                 dy
             end
             ,
             dx -> if dims <= ndims(x)
-                ∇cumprod_dim!(dx, dims, x, dy, y)
+                ∇cumprod_dim!(dx, vald, x, dy, y)
             else
                 dx .+= dy
             end
@@ -267,20 +267,33 @@ function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims)
     return y, cumprod_pullback_2
 end
 
-function ∇cumprod_dim(dim::Integer, x::AbstractArray, dy=fill!(zero(x),1), y=cumprod(x; dims=dim))
+function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y=cumprod(x; dims=dim)) where {dim}
      T = promote_type(eltype(x), eltype(dy))
      dx = fill!(similar(x, T, axes(x)), zero(T))
-     ∇cumprod_dim!(dx, dim, x, dy, y)
+     ∇cumprod_dim!(dx, vald, x, dy, y)
      return dx
  end
 
-function ∇cumprod_dim!(dx::AbstractArray, dim::Integer, x::AbstractArray, dy, y)
-    iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))  # type instability!
+function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
+    iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
     for ind in Iterators.product(iters...)
         @views ∇cumprod!(dx[ind...], x[ind...], dy[ind...], y[ind...])
     end
     return dx
 end
+
+#=
+
+julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]
+  86.333 μs (2007 allocations: 67.54 KiB)
+
+julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]  # with 1 hard-coded
+  5.417 μs (6 allocations: 15.95 KiB)
+
+julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]  # with Val(dim)
+  5.423 μs (6 allocations: 15.95 KiB)
+
+=#
 
 function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     T = promote_type(eltype(x), eltype(dy))
