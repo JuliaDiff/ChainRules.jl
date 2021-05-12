@@ -218,3 +218,93 @@ function ∇prod_one_zero!(dx, x, dy::Number=1)  # Assumes exactly one x is zero
     dx[i_zero] += p_rest * dy
     return
 end
+
+#####
+##### `cumprod`
+#####
+
+function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims=1)
+    y = cumprod(x; dims=dims)  # does nothing unless dims == 1
+    function cumprod_pullback_1(dy)
+        dx_thunk = InplaceableThunk(
+            @thunk if dims == 1
+                ∇cumprod(x, dy, y)
+            else
+                dy
+            end
+            ,
+            dx -> if dims == 1
+                ∇cumprod!(dx, x, dy, y)
+            else
+                dx .+= dy
+            end
+            )
+        return (NO_FIELDS, dx_thunk)
+    end
+    return y, cumprod_pullback_1
+end
+
+function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims)
+    y = cumprod(x; dims=dims)
+    @assert dims isa Integer
+    # vald = Val(dims)
+    function cumprod_pullback_2(dy)
+        dx_thunk = InplaceableThunk(
+            @thunk if dims <= ndims(x)
+                ∇cumprod_dim(dims, x, dy, y)
+            else
+                dy
+            end
+            ,
+            dx -> if dims <= ndims(x)
+                ∇cumprod_dim!(dx, dims, x, dy, y)
+            else
+                dx .+= dy
+            end
+            )
+        return (NO_FIELDS, dx_thunk)
+    end
+    return y, cumprod_pullback_2
+end
+
+function ∇cumprod_dim(dim::Integer, x::AbstractArray, dy=fill!(zero(x),1), y=cumprod(x; dims=dim))
+     T = promote_type(eltype(x), eltype(dy))
+     dx = fill!(similar(x, T, axes(x)), zero(T))
+     ∇cumprod_dim!(dx, dim, x, dy, y)
+     return dx
+ end
+
+function ∇cumprod_dim!(dx::AbstractArray, dim::Integer, x::AbstractArray, dy, y)
+    iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))  # type instability!
+    for ind in Iterators.product(iters...)
+        @views ∇cumprod!(dx[ind...], x[ind...], dy[ind...], y[ind...])
+    end
+    return dx
+end
+
+function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
+    T = promote_type(eltype(x), eltype(dy))
+    dx = fill!(similar(x, T, axes(x)), zero(T))  # axes(x) makes MArray on StaticArrays, Array for structured matrices
+    ∇cumprod!(dx, x, dy, y)
+    return dx
+end
+
+function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
+    lo, hi = firstindex(x), lastindex(x)
+    z = something(findfirst(iszero, x), hi+1)
+    @inbounds for i in lo:z-1
+        ixi = 1/x[i]
+        for k in i:z-1
+            dx[i] += y[k] * dy[k] * ixi
+        end
+    end
+    @inbounds if z != hi+1
+        yk = z==1 ? one(eltype(y)) : y[z-1]  # will be prod(x[j] for j=1:k if j!=z)
+        dx[z] += yk * dy[z]
+        for k in (z+1):hi
+            yk *= x[k]
+            dx[z] += yk * dy[k]
+        end
+    end
+    return dx
+end
