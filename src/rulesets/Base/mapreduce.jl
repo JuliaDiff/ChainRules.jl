@@ -62,13 +62,14 @@ end
 
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
-    vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
+    # vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
     function prod_pullback(dy)
         x_thunk = InplaceableThunk(
             # Out-of-place versions
             @thunk if dims === (:)
                 ∇prod(x, dy, y)
             elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
+                vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
                 ∇prod_dims(vald, x, dy, y)
             else
                 conj.(y ./ x) .* dy
@@ -77,7 +78,8 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
             # In-place versions -- same branching
             dx -> if dims === (:)
                 ∇prod!(dx, x, dy, y)
-            elseif any(iszero, x) 
+            elseif any(iszero, x)
+                vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
                 ∇prod_dims!(dx, vald, x, dy, y)
             else
                 dx .+= conj.(y ./ x) .* dy
