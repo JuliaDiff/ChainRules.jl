@@ -70,7 +70,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 ∇prod(x, dy, y)
             elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
                 vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
-                ∇prod_dims(vald, x, dy, y)
+                ∇prod_dims(vald, x, dy, y)  # val(Int(dims)) is about 2x faster than Val(Tuple(dims))
             else
                 conj.(y ./ x) .* dy
             end
@@ -106,10 +106,6 @@ function ∇prod_dims!(dx, ::Val{dims}, x, dy, y) where {dims}
     return dx
 end
 
-# To opt out of the mapslices path, and accept NaN instead, you could define for instance:
-# ∇prod_dims!(dx, dims, x::CuArray, dy, y) = dx .+= y ./ conj.(x) .* conj.(dy)
-#            ∇prod!(dx, x::CuArray, dy, y) = dx .+= y ./ conj.(x) .* conj.(dy)
-
 function ∇prod(x, dy::Number=1, y::Number=prod(x))
     T = promote_type(eltype(x), eltype(dy))
     dx = fill!(similar(x, T, axes(x)), zero(T)) # axes(x) makes MArray on StaticArrays, Array for structured matrices
@@ -140,32 +136,3 @@ function ∇prod_one_zero!(dx, x, dy::Number=1)  # Assumes exactly one x is zero
     dx[i_zero] += p_rest * dy
     return
 end
-
-#=
-
-julia> @btime gradient(x -> sum(prod(x, dims=1)), x)[1]  setup=(x=rand(10,100); x[1:21:end].=0)  # Zygote
-  1.292 μs (3 allocations: 8.83 KiB)
-10×100 Matrix{Float64}:
- NaN    1.64248e-6    0.0  2.85863e-5     0.0  …    0.0  0.00412328    0.0  0.000262674
-
-julia> @btime gradient(x -> sum(prod(x, dims=1)), x)[1]  setup=(x=rand(10,100); x[1:21:end].=0)  # this PR
-  56.000 μs (1706 allocations: 51.06 KiB)
-10×100 Matrix{Float64}:
- 1.499e-5  2.54822e-5  0.0         0.000129398  …  0.000634891  0.0         0.00343482
-
-julia> @btime gradient(x -> sum(prod(x, dims=1)), x)[1]  setup=(x=rand(10,100); x[1:21:end].=0)  # dims=1 hard coded
-  1.842 μs (5 allocations: 8.86 KiB)
-10×100 Matrix{Float64}:
- 0.00285835  0.000569394  0.0         0.000422376  …  0.000110362  0.0         0.000481694
-
-julia> @btime gradient(x -> sum(prod(x, dims=1)), x)[1]  setup=(x=rand(10,100); x[1:21:end].=0)  # with Val(Tuple(dims))
-  3.359 μs (40 allocations: 10.45 KiB)
-10×100 Matrix{Float64}:
- 3.15652e-6  6.80856e-5   0.0          7.42845e-5   …  4.69112e-6   0.0         0.000449198
-
-julia> @btime gradient(x -> sum(prod(x, dims=1)), x)[1]  setup=(x=rand(10,100); x[1:21:end].=0)  # with Val(Int(dims))
-  1.850 μs (5 allocations: 8.86 KiB)
-10×100 Matrix{Float64}:
- 1.12526e-6  0.000483517  0.0         5.28479e-6  …  0.000555819  0.0         0.00126222
-
-=#
