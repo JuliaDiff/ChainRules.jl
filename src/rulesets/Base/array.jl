@@ -24,22 +24,32 @@ end
 ##### `hcat` (🐈)
 #####
 
-function rrule(::typeof(hcat), A::AbstractArray, Bs::AbstractArray...)
-    function hcat_pullback(Ȳ)
-        Xs = (A, Bs...)
-        ntuple(length(Bs) + 2) do full_i
-            full_i == 1 && return NoTangent()
+# work around https://github.com/JuliaLang/julia/issues/40809
+_get(x::Tuple, i::Int, default) = i in 1:length(x) ? x[i] : default
 
-            i = full_i - 1
-            l = mapreduce(j->size(Xs[j], 2), Base.add_sum, 1:i-1; init=0)
-            u = l + size(Xs[i], 2)
-            dim = u > l + 1 ? (l+1:u) : u
-            # NOTE: The copy here is defensive, since `selectdim` returns a view which we can
-            # materialize with `copy`
-            copy(selectdim(Ȳ, 2, dim))
+function rrule(::typeof(hcat), Xs...)
+    Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
+    ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
+    sizes = map(size, Xs)   # this avoids closing over Xs
+    function 🐈_pullback(dY)
+        hi = Ref(0)  # Ref avoids hi::Core.Box
+        dXs = map(sizes) do sizeX
+            ndimsX = length(sizeX)
+            lo = hi[] + 1
+            hi[] += _get(sizeX, 2, 1)
+            ind = ntuple(ndimsY) do d
+                if d==2
+                    d > ndimsX ? lo : lo:hi[]
+                else
+                    d > ndimsX ? 1 : (:)
+                end
+            end
+            dY[ind...]  # no thunk as Xs may have 1 arg but 1 thunk is disallowed,
+                        # and perhaps better to GC clean up dY.
         end
+        return (NO_FIELDS, dXs...)
     end
-    return hcat(A, Bs...), hcat_pullback
+    return Y, 🐈_pullback
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
@@ -59,18 +69,28 @@ end
 ##### `vcat`
 #####
 
-function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
-    function vcat_pullback(Ȳ)
-        n = size(A, 1)
-        ∂A = copy(selectdim(Ȳ, 1, 1:n))
-        ∂Bs = ntuple(length(Bs)) do i
-            l = n + mapreduce(j->size(Bs[j], 1), Base.add_sum, 1:i-1; init=0)
-            u = l + size(Bs[i], 1)
-            copy(selectdim(Ȳ, 1, l+1:u))
+function rrule(::typeof(vcat), Xs...)
+    Y = vcat(Xs...)
+    ndimsY = Val(ndims(Y))
+    sizes = map(size, Xs)
+    function vcat_pullback(dY)
+        hi = Ref(0)
+        dXs = map(sizes) do sizeX
+            ndimsX = length(sizeX)
+            lo = hi[] + 1
+            hi[] += _get(sizeX, 1, 1)
+            ind = ntuple(ndimsY) do d
+                if d==1
+                    d > ndimsX ? lo : lo:hi[]
+                else
+                    d > ndimsX ? 1 : (:)
+                end
+            end
+            dY[ind...]
         end
-        return (NoTangent(), ∂A, ∂Bs...)
+        return (NO_FIELDS, dXs...)
     end
-    return vcat(A, Bs...), vcat_pullback
+    return Y, vcat_pullback
 end
 
 function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
@@ -84,6 +104,70 @@ function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVe
         return (NoTangent(), NoTangent(), ∂As)
     end
     return reduce(vcat, As), reduce_vcat_pullback
+end
+
+#####
+##### `cat`
+#####
+
+_val(::Val{x}) where {x} = x
+
+function rrule(::typeof(cat), Xs...; dims)
+    Y = cat(Xs...; dims)
+    cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
+    ndimsY = Val(ndims(Y))
+    sizes = map(size, Xs)
+    function cat_pullback(dY)
+        prev = fill(0, _val(ndimsY))  # note that Y always has 1-based indexing, even if X isa OffsetArray
+        dXs = map(sizes) do sizeX
+            ndimsX = length(sizeX)
+            index = ntuple(ndimsY) do d
+                if d in cdims
+                    d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
+                else
+                    d > ndimsX ? 1 : (:)
+                end
+            end
+            for d in cdims
+                prev[d] += _get(sizeX, d, 1)
+            end
+            dY[index...]
+        end
+        return (NO_FIELDS, dXs...)
+    end
+    return Y, cat_pullback
+end
+
+#####
+##### `hvcat`
+#####
+
+function rrule(::typeof(hvcat), rows, values...)
+    Y = hvcat(rows, values...)
+    cols = size(Y,2)
+    ndimsY = Val(ndims(Y))
+    sizes = map(size, values)
+    function hvcat_pullback(dY)
+        prev = fill(0, 2)
+        dXs = map(sizes) do sizeX
+            ndimsX = length(sizeX)
+            index = ntuple(ndimsY) do d
+                if d in (1, 2)
+                    d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
+                else
+                    d > ndimsX ? 1 : (:)
+                end
+            end
+            prev[2] += _get(sizeX, 2, 1)
+            if prev[2] == cols
+                prev[2] = 0
+                prev[1] += _get(sizeX, 1, 1)
+            end
+            dY[index...]
+        end
+        return (NO_FIELDS, DoesNotExist(), dXs...)
+    end
+    return Y, hvcat_pullback
 end
 
 #####
