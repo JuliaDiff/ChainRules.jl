@@ -66,7 +66,7 @@
                 xs = Symmetric(rand(T,4,4))
                 @test_skip test_rrule(prod, xs ⊢ rand(T,4,4))
                 @test_skip test_rrule(prod, xs ⊢ rand(T,4,4), fkwargs=(dims=2,))
-                @test unthunk(rrule(prod, Symmetric(ones(T,2,2)))[2](1.0)[2]) == [1 1; 1 1]
+                @test unthunk(rrule(prod, Symmetric(T[1 2; -333 4]))[2](1.0)[2]) == [16 8; 8 4]
             end
         end
         @testset "Array{Float32}, no zero entries" begin
