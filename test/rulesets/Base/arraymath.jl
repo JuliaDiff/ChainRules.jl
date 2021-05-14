@@ -111,6 +111,26 @@
         end
     end
 
+if VERSION > v"1.7.0-DEV.1284"
+    @testset "3-arg *, $T" for T in [Float64] # , ComplexF64]
+        using LinearAlgebra: mat_mat_scalar, mat_vec_scalar
+
+        test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
+        test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
+        test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
+        test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
+        test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
+
+        # Test with γ of a wider type
+        A, B, b, γ = rand(3,3), rand(3,3), rand(3), rand()
+        dZ, dz = rand(3,3), rand(3)
+        rrule(mat_mat_scalar, A, B, γ+0im   )[2](dZ)[4]() ≈ rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4]()
+        rrule(mat_mat_scalar, A, B, 0.0+0im )[2](dZ)[4]() ≈ rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4]()
+        rrule(mat_vec_scalar, A, b, γ+0im   )[2](dz)[4]() ≈ rrule(mat_vec_scalar, A, b, γ)[2](dz)[4]()
+    end
+
+end # VERSION
+
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin
             for n in 3:5, m in 3:5

@@ -132,15 +132,15 @@ end
 ##### fused 3-argument *
 #####
 
-using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!
+using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!, StridedMaybeAdjOrTransMat
 
 function rrule(
     ::typeof(mat_mat_scalar),
-    A::AbstractMatrix{<:CommutativeMulNumber},
-    B::AbstractMatrix{<:CommutativeMulNumber},
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
     γ::CommutativeMulNumber
 )
-    AB  = A * B
+    AB  = mat_mat_scalar(A, B, one(γ))
     function mat_mat_scalar_back(Ȳ)
         return (
             NO_FIELDS,
@@ -152,37 +152,28 @@ function rrule(
                 @thunk(mat_mat_scalar(A', Ȳ, conj(γ))),
                 dB -> mul!(dB, A', Ȳ, conj(γ), true)
             ),
-            @thunk(sum(Ȳ .* conj.(AB)) * size(A,2)), # not so certain!
+            @thunk if iszero(γ)
+                dot(AB, Ȳ)
+            else
+                dot(AB, Ȳ) / conj(γ)  # re-use mutated AB
+            end
         )
     end
-    return rmul!(AB, γ), mat_mat_scalar_back
+    C = if iszero(γ)
+        zero(AB)
+    else
+        rmul!(AB, γ)
+    end
+    return C, mat_mat_scalar_back
 end
 
-#=
-julia> A = rand(100,100); B = rand(100,100);
-julia> AB = A*B;
-julia> Ȳ = rand(100,100);
-
-julia> @btime sum($Ȳ .* conj.($AB))
-  7.206 μs (2 allocations: 78.20 KiB)
-
-julia> @btime sum(y * conj(ab) for (y,ab) in zip($Ȳ, $AB))
-  11.162 μs (0 allocations: 0 bytes)
-
-julia> @btime mapreduce((y,ab) -> y * conj(ab), +, $Ȳ, $AB)
-  11.239 μs (6 allocations: 78.31 KiB)
-
-julia> @btime sum(Broadcast.broadcasted((y,ab) -> y * conj(ab), $Ȳ, $AB))
-  73.458 μs (0 allocations: 0 bytes)
-=#
-
 function rrule(
-    ::typeof(mat_mat_scalar),
-    A::AbstractMatrix{<:CommutativeMulNumber},
-    b::AbstractVector{<:CommutativeMulNumber},
+    ::typeof(mat_vec_scalar),
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    b::StridedVector{<:CommutativeMulNumber},
     γ::CommutativeMulNumber
 )
-    Ab  = A * b
+    Ab  = mat_vec_scalar(A, b, one(γ))
     function mat_vec_scalar_back(dy)
         return (
             NO_FIELDS,
@@ -194,10 +185,19 @@ function rrule(
                 @thunk(mat_mat_scalar(A', dy, conj(γ))),
                 db -> mul!(db, A', dy, conj(γ), true)
             ),
-            @thunk(sum(dy .* conj.(Ab)) * size(A,2))
+            @thunk if iszero(γ)
+                dot(Ab, dy)
+            else
+                dot(Ab, dy) / conj(γ)  # re-use mutated AB
+            end
         )
     end
-    return rmul!(Ab, γ), mat_vec_scalar_back
+    y = if iszero(γ)
+        zero(Ab)
+    else
+        rmul!(Ab, γ)
+    end
+    return y, mat_vec_scalar_back
 end
 
 #####
