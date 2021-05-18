@@ -24,7 +24,7 @@
         # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
         res, pb = rrule(Diagonal, [1, 4])
         @test pb(10*res) == (NO_FIELDS, [10, 40])
-        comp = Composite{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
+        comp = Tangent{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
         @test pb(comp) == (NO_FIELDS, [10, 40])
     end
     @testset "dot(x, ::Diagonal, y)" begin
@@ -61,7 +61,7 @@
             ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(0 => a, 1 => b, 0 => c), ȳ, a, b, c)
             for (p, ∂px, ∂x_fd) in zip(ps, (∂pa, ∂pb, ∂pc), (∂a_fd, ∂b_fd, ∂c_fd))
                 ∂px = unthunk(∂px)
-                @test ∂px isa Composite{typeof(p)}
+                @test ∂px isa Tangent{typeof(p)}
                 @test ∂px.first isa AbstractZero
                 @test ∂px.second ≈ ∂x_fd
             end
@@ -82,7 +82,7 @@
             ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(M, N, 0 => a, 1 => b, 0 => c), ȳ, a, b, c)
             for (p, ∂px, ∂x_fd) in zip(ps, (∂pa, ∂pb, ∂pc), (∂a_fd, ∂b_fd, ∂c_fd))
                 ∂px = unthunk(∂px)
-                @test ∂px isa Composite{typeof(p)}
+                @test ∂px isa Tangent{typeof(p)}
                 @test ∂px.first isa AbstractZero
                 @test ∂px.second ≈ ∂x_fd
             end
@@ -98,7 +98,7 @@
             A = randn(T, n, m)
             Y = f(A)
             Ȳ_mat = randn(T, m, n)
-            Ȳ_composite = Composite{typeof(Y)}(parent=collect(f(Ȳ_mat)))
+            Ȳ_composite = Tangent{typeof(Y)}(parent=collect(f(Ȳ_mat)))
 
             test_rrule(f, A; output_tangent=Ȳ_mat)
 
@@ -110,7 +110,7 @@
             a = randn(T, n)
             y = f(a)
             ȳ_mat = randn(T, 1, n)
-            ȳ_composite = Composite{typeof(y)}(parent=collect(f(ȳ_mat)))
+            ȳ_composite = Tangent{typeof(y)}(parent=collect(f(ȳ_mat)))
 
             test_rrule(f, a; output_tangent=ȳ_mat)
 

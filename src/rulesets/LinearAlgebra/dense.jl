@@ -109,7 +109,7 @@ function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
     b = tr(x \ Δx)
     ∂y = real(b)
     ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
-    ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
+    ∂Ω = Tangent{typeof(Ω)}(∂y, ∂signy)
     return Ω, ∂Ω
 end
 

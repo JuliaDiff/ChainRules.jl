@@ -118,7 +118,7 @@ function frule(
     fill!(∂Kdiag, 0)
     ∂U = mul!(tmp, U, ∂K)
     _eigen_norm_phase_fwd!(∂U, A, U)
-    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂U)
+    ∂F = Tangent{typeof(F)}(values = ∂λ, vectors = ∂U)
     return F, ∂F
 end
 
@@ -128,7 +128,7 @@ function rrule(
     kwargs...,
 )
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite)
+    function eigen_pullback(ΔF::Tangent)
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
@@ -224,7 +224,7 @@ function rrule(
     F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        ∂F = Composite{typeof(F)}(values = Δλ)
+        ∂F = Tangent{typeof(F)}(values = Δλ)
         _, ∂A = eigen_back(∂F)
         return NO_FIELDS, ∂A
     end
@@ -240,7 +240,7 @@ end
 # is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
-    function svd_pullback(ΔF::Composite)
+    function svd_pullback(ΔF::Tangent)
         U, V = F.U, F.V
         c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
@@ -342,7 +342,7 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     ∂sinA = _symhermlike!(mul!(∂sinΛ, U, mul!(tmp, ∂sinΛ, U')), sinA)
     ∂cosA = _symhermlike!(mul!(∂cosΛ, U, mul!(tmp, ∂cosΛ, U')), cosA)
     Y = (sinA, cosA)
-    ∂Y = Composite{typeof(Y)}(∂sinA, ∂cosA)
+    ∂Y = Tangent{typeof(Y)}(∂sinA, ∂cosA)
     return Y, ∂Y
 end
 
@@ -350,7 +350,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
-    function sincos_pullback((ΔsinA, ΔcosA)::Composite)
+    function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)

@@ -59,7 +59,7 @@ const FASTABLE_AST = quote
         end
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
-                Δz = Composite{Tuple{T,T}}(randn(T), randn(T))
+                Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
 
                 test_frule(sincos, randn(T))
                 test_rrule(sincos, randn(T); output_tangent=Δz)

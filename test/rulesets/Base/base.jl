@@ -109,7 +109,7 @@
         test_frule(identity, randn(T, 4))
         test_frule(
             identity,
-            #Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...)
+            #Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...)
             Tuple(randn(T, 3))
         )
 
@@ -117,8 +117,8 @@
         test_rrule(identity, randn(T, 4))
         test_rrule(
             identity,
-            Tuple(randn(T, 3)) ⊢ Composite{Tuple{T, T, T}}(randn(T, 3)...);
-            output_tangent = Composite{Tuple{T, T, T}}(randn(T, 3)...)
+            Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...);
+            output_tangent = Tangent{Tuple{T, T, T}}(randn(T, 3)...)
         )
     end
 

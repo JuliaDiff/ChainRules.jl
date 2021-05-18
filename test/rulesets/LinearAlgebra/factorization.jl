@@ -52,7 +52,7 @@ end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 F = lu(Asingular, Val(true); check=false)
-                ΔF = Composite{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
+                ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
                 @test_throws SingularException rrule(lu, Asingular, Val(true))
                 _, back = rrule(lu, Asingular, Val(true); check=false)
                 back(ΔF)
@@ -152,7 +152,7 @@ end
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
                 @test F_fwd == F
-                @test Ḟ_ad isa Composite{typeof(F)}
+                @test Ḟ_ad isa Tangent{typeof(F)}
                 Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
                 @test Ḟ_ad.values ≈ Ḟ_fd.values
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
@@ -177,7 +177,7 @@ end
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
-                CT = Composite{typeof(F)}
+                CT = Tangent{typeof(F)}
                 F_rev, back = rrule(eigen, X)
                 @test F_rev == F
                 # NOTE: eigen is not type-stable, so neither are is its rrule
@@ -201,7 +201,7 @@ end
                     F = eigen(X)
                     V̄ = rand_tangent(F.vectors)
                     λ̄ = rand_tangent(F.values)
-                    F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
+                    F̄ = Tangent{typeof(F)}(values = λ̄, vectors = V̄)
                     X̄ = rrule(eigen, X)[2](F̄)[2]
                     @test eltype(X̄) <: Real
                 end
@@ -249,7 +249,7 @@ end
                     @test frule((Zero(), Zero()), eigen!, copy(A)) == (F, Zero())
                     F_ad, ∂F_ad = frule((Zero(), copy(ΔA)), eigen!, copy(A))
                     @test F_ad == F
-                    @test ∂F_ad isa Composite{typeof(F)}
+                    @test ∂F_ad isa Tangent{typeof(F)}
                     @test ∂F_ad.values isa typeof(F.values)
                     @test ∂F_ad.vectors isa typeof(F.vectors)
 
@@ -268,12 +268,12 @@ end
                     A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
 
                     F = eigen(A)
-                    ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
+                    ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
                     F_ad, back = rrule(eigen, A)
                     @test F_ad == F
 
                     C = _eigvecs_stabilize_mat(F.vectors)
-                    CT = Composite{typeof(F)}
+                    CT = Tangent{typeof(F)}
 
                     @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                         ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
@@ -364,7 +364,7 @@ end
             C = cholesky(D)
             test_rrule(
                 cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ NoTangent();
-                output_tangent=Composite{typeof(C)}(factors=Diagonal(randn(5)))
+                output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
             )
         end
 
@@ -397,7 +397,7 @@ end
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Composite{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end

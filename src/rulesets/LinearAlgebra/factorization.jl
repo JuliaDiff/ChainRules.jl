@@ -67,7 +67,7 @@ function frule(
         lmul!(L1, tril!(∂factors1, -1))
         ∂factors1 .+= ∂U
     end
-    ∂F = Composite{typeof(F)}(; factors=∂factors)
+    ∂F = Tangent{typeof(F)}(; factors=∂factors)
     return F, ∂F
 end
 
@@ -75,7 +75,7 @@ function rrule(
     ::typeof(lu), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
 )
     F = lu(A, pivot; kwargs...)
-    function lu_pullback(ΔF::Composite)
+    function lu_pullback(ΔF::Tangent)
         Δfactors = ΔF.factors
         Δfactors isa AbstractZero && return (NO_FIELDS, Δfactors, NoTangent())
         factors = F.factors
@@ -153,7 +153,7 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
         else
             return (NO_FIELDS, NoTangent(), NoTangent())
         end
-        ∂F = Composite{TF}(; factors=∂factors)
+        ∂F = Tangent{TF}(; factors=∂factors)
         return NO_FIELDS, ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_LU_pullback
@@ -193,7 +193,7 @@ function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
         ∂L = tril!(L' \ ∂factors, -1)
         triu!(rdiv!(∂factors, U'))
         ∂factors .+= ∂L
-        ∂F = Composite{typeof(F)}(; factors=∂factors)
+        ∂F = Tangent{typeof(F)}(; factors=∂factors)
         return NO_FIELDS, ∂F
     end
     return inv(F), inv_LU_pullback
@@ -205,8 +205,8 @@ end
 
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    function svd_pullback(Ȳ::Composite)
-        # `getproperty` on `Composite`s ensures we have no thunks.
+    function svd_pullback(Ȳ::Tangent)
+        # `getproperty` on `Tangent`s ensures we have no thunks.
         ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
         return (NO_FIELDS, ∂X)
     end
@@ -215,7 +215,7 @@ end
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     function getproperty_svd_pullback(Ȳ)
-        C = Composite{T}
+        C = Tangent{T}
         ∂F = if x === :U
             C(U=Ȳ,)
         elseif x === :S
@@ -292,13 +292,13 @@ function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where
     fill!(∂Kdiag, 0)
     ∂V = mul!(tmp, V, ∂K)
     _eigen_norm_phase_fwd!(∂V, A, V)
-    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂V)
+    ∂F = Tangent{typeof(F)}(values = ∂λ, vectors = ∂V)
     return F, ∂F
 end
 
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite)
+    function eigen_pullback(ΔF::Tangent)
         λ, V = F.values, F.vectors
         Δλ, ΔV = ΔF.values, ΔF.vectors
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
@@ -407,7 +407,7 @@ function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Unio
     F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        ∂F = Composite{typeof(F)}(values = Δλ)
+        ∂F = Tangent{typeof(F)}(values = Δλ)
         _, ∂A = eigen_back(∂F)
         return NO_FIELDS, ∂A
     end
@@ -431,7 +431,7 @@ end
 
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     C = cholesky(A, uplo)
-    function cholesky_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Tangent)
         return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
     end
     return C, cholesky_pullback
@@ -439,7 +439,7 @@ end
 
 function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Tangent)
         Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
         return NO_FIELDS, Ā, NoTangent()
     end
@@ -456,7 +456,7 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Tangent)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
         return NO_FIELDS, _symhermtype(A)(Ā), NoTangent()
@@ -471,7 +471,7 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Composite)
+    function cholesky_pullback(ΔC::Tangent)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
         idx = diagind(Ā)
@@ -493,7 +493,7 @@ end
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
     function getproperty_cholesky_pullback(Ȳ)
-        C = Composite{T}
+        C = Tangent{T}
         ∂F = if x === :U
             if F.uplo === 'U'
                 C(U=UpperTriangular(Ȳ),)
