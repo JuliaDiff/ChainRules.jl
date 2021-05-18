@@ -9,7 +9,7 @@ end
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), DoesNotExist())
+        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end

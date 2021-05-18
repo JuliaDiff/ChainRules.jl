@@ -78,7 +78,7 @@ https://github.com/JuliaMath/SpecialFunctions.jl/issues/160
 @scalar_rule(
     SpecialFunctions.polygamma(m, x),
     (
-        DoesNotExist(),
+        NoTangent(),
         SpecialFunctions.polygamma(m + 1, x),
     ),
 )

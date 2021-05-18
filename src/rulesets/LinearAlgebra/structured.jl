@@ -52,14 +52,14 @@ end
 if VERSION ≥ v"1.3"
     function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
         function diag_pullback(ȳ)
-            return (NO_FIELDS, diagm(size(A)..., k => ȳ), DoesNotExist())
+            return (NO_FIELDS, diagm(size(A)..., k => ȳ), NoTangent())
         end
         return diag(A, k), diag_pullback
     end
 
     function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
         function diagm_pullback(ȳ)
-            return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+            return (NO_FIELDS, NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
         end
         return diagm(m, n, kv...), diagm_pullback
     end
@@ -160,7 +160,7 @@ end
 
 function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, triu(ȳ, k), DoesNotExist())
+        return (NO_FIELDS, triu(ȳ, k), NoTangent())
     end
     return triu(A, k), triu_pullback
 end
@@ -173,7 +173,7 @@ end
 
 function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, tril(ȳ, k), DoesNotExist())
+        return (NO_FIELDS, tril(ȳ, k), NoTangent())
     end
     return tril(A, k), tril_pullback
 end

@@ -41,13 +41,13 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
         for (args, xType) in non_differentiables
             x, dΩ = frule((Zero(), randn(args...)), rand, args...)
             @test x isa xType
-            @test dΩ isa DoesNotExist
+            @test dΩ isa NoTangent
 
             x, pb = rrule(rand, args...)
             @test x isa xType
             dself, dargs = Iterators.peel(pb(10.0))
             @test iszero(dself)
-            @test all(darg isa DoesNotExist for darg in dargs)
+            @test all(darg isa NoTangent for darg in dargs)
         end
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable

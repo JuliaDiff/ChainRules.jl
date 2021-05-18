@@ -29,7 +29,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_frule(lu!, randn(T, m, n), pivot ⊢ DoesNotExist())
+                test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -47,7 +47,7 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_rrule(lu, randn(T, m, n), pivot ⊢ DoesNotExist())
+                test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
@@ -363,7 +363,7 @@ end
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
             test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ DoesNotExist();
+                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ NoTangent();
                 output_tangent=Composite{typeof(C)}(factors=Diagonal(randn(5)))
             )
         end
@@ -376,7 +376,7 @@ end
             Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
             (dself, dF, dp) = dF_pullback(Ȳ)
             @test dself === NO_FIELDS
-            @test dp === DoesNotExist()
+            @test dp === NoTangent()
 
             # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
             # machinery from FiniteDifferences because that isn't set up to respect

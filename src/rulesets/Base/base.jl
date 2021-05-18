@@ -77,7 +77,7 @@ end
 
 @scalar_rule fma(x, y, z) (y, x, One())
 @scalar_rule muladd(x, y, z) (y, x, One())
-@scalar_rule rem2pi(x, r::RoundingMode) (One(), DoesNotExist())
+@scalar_rule rem2pi(x, r::RoundingMode) (One(), NoTangent())
 @scalar_rule(
     mod(x, y),
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
@@ -87,7 +87,7 @@ end
 @scalar_rule deg2rad(x) π / oftype(x, 180)
 @scalar_rule rad2deg(x) oftype(x, 180) / π
 
-@scalar_rule(ldexp(x, y), (2^y, DoesNotExist()))
+@scalar_rule(ldexp(x, y), (2^y, NoTangent()))
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
 @scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))

@@ -77,8 +77,8 @@
             @test y == diagm(M, N, ps...)
             ∂self, ∂M, ∂N, ∂pa, ∂pb, ∂pc = back(ȳ)
             @test ∂self === NO_FIELDS
-            @test ∂M === DoesNotExist()
-            @test ∂N === DoesNotExist()
+            @test ∂M === NoTangent()
+            @test ∂N === NoTangent()
             ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(M, N, 0 => a, 1 => b, 0 => c), ȳ, a, b, c)
             for (p, ∂px, ∂x_fd) in zip(ps, (∂pa, ∂pb, ∂pc), (∂a_fd, ∂b_fd, ∂c_fd))
                 ∂px = unthunk(∂px)
