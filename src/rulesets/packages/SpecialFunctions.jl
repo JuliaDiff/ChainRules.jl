@@ -97,7 +97,7 @@ end
 
 if isdefined(SpecialFunctions, :logabsgamma)
     # actually is the absolute value of the logorithm of gamma paired with sign gamma
-    @scalar_rule(SpecialFunctions.logabsgamma(x), SpecialFunctions.digamma(x), Zero())
+    @scalar_rule(SpecialFunctions.logabsgamma(x), SpecialFunctions.digamma(x), ZeroTangent())
 end
 
 if isdefined(SpecialFunctions, :loggamma)

@@ -18,9 +18,9 @@ rrule(::typeof(BLAS.dot), x, y) = rrule(dot, x, y)
 function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
     function blas_dot_pullback(ΔΩ)
-        if ΔΩ isa Zero
-            ∂X = Zero()
-            ∂Y = Zero()
+        if ΔΩ isa ZeroTangent
+            ∂X = ZeroTangent()
+            ∂Y = ZeroTangent()
         else
             ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
             ∂Y = @thunk scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
@@ -55,7 +55,7 @@ end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    nrm2_pullback(::Zero) = (NO_FIELDS, NoTangent(), Zero(), NoTangent())
+    nrm2_pullback(::ZeroTangent) = (NO_FIELDS, NoTangent(), ZeroTangent(), NoTangent())
     function nrm2_pullback(ΔΩ)
         # BLAS.scal! requires s has the same eltype as X
         s = eltype(X)(real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω))
@@ -85,7 +85,7 @@ end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
-    asum_pullback(::Zero) = (NO_FIELDS, NoTangent(), Zero(), NoTangent())
+    asum_pullback(::ZeroTangent) = (NO_FIELDS, NoTangent(), ZeroTangent(), NoTangent())
     function asum_pullback(ΔΩ)
         # BLAS.scal! requires s has the same eltype as X
         s = eltype(X)(real(ΔΩ))

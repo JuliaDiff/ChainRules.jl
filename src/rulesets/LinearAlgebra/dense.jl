@@ -26,7 +26,7 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
         dy = @thunk ΔΩ .* (adjoint(A) * x)
         return (NO_FIELDS, dx, dA, dy)
     end
-    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    dot_pullback(::ZeroTangent) = (NO_FIELDS, ZeroTangent(), ZeroTangent(), ZeroTangent())
     return z, dot_pullback
 end
 
@@ -38,7 +38,7 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}
         dy = @thunk ΔΩ .* conj.(A.diag) .* x
         return (NO_FIELDS, dx, dA, dy)
     end
-    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    dot_pullback(::ZeroTangent) = (NO_FIELDS, ZeroTangent(), ZeroTangent(), ZeroTangent())
     return z, dot_pullback
 end
 
@@ -108,7 +108,7 @@ function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
     (y, signy) = Ω
     b = tr(x \ Δx)
     ∂y = real(b)
-    ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
+    ∂signy = eltype(x) <: Real ? ZeroTangent() : im * imag(b) * signy
     ∂Ω = Tangent{typeof(Ω)}(∂y, ∂signy)
     return Ω, ∂Ω
 end
@@ -202,7 +202,7 @@ function rrule(
     y = pinv(x, tol)
     function pinv_pullback(Δy)
         ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NO_FIELDS, ∂x, ZeroTangent())
     end
     return y, pinv_pullback
 end
@@ -216,7 +216,7 @@ function rrule(
     function pinv_pullback(Δy)
         ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
         ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NO_FIELDS, ∂x, ZeroTangent())
     end
     return y, pinv_pullback
 end

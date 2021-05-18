@@ -386,9 +386,9 @@ Note any function `f` used with this **must** have a `frule` defined on it.
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     if all(λi -> _isindomain(f, λi), λ)
-        fλ_df_dλ = map(λi -> frule((Zero(), One()), f, λi), λ)
+        fλ_df_dλ = map(λi -> frule((ZeroTangent(), One()), f, λi), λ)
     else  # promote to complex if necessary
-        fλ_df_dλ = map(λi -> frule((Zero(), One()), f, complex(λi)), λ)
+        fλ_df_dλ = map(λi -> frule((ZeroTangent(), One()), f, complex(λi)), λ)
     end
     fλ = first.(fλ_df_dλ)
     df_dλ = last.(unthunk.(fλ_df_dλ))

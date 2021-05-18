@@ -230,7 +230,7 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     return getproperty(F, x), getproperty_svd_pullback
 end
 
-# When not `Zero`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
+# When not `ZeroTangent`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
 function svd_rev(USV::SVD, Ū, s̄, V̄)
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U
@@ -277,9 +277,9 @@ function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where
     if ishermitian(A)
         sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
         return if sortby === nothing
-            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
+            frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A))
         else
-            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
+            frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
         end
     end
     F = eigen!(A; kwargs...)
@@ -385,7 +385,7 @@ end
 function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     if ishermitian(A)
-        λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
+        λ, ∂λ = frule((ZeroTangent(), Hermitian(ΔA)), eigvals!, Hermitian(A))
         sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
         _sorteig!_fwd(∂λ, λ, sortby)
     else

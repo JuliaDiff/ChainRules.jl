@@ -20,6 +20,6 @@ function ChainRules.frule(
     mul!(ΔC, C, ΔBtrans, -isgn, true)
     ΔC, scale2 = LAPACK.trsyl!(transa, transb, A, B, ΔC, isgn)
     rmul!(ΔC, inv(scale2))
-    ∂Y = Tangent{typeof(Y)}(ΔC, Zero())
+    ∂Y = Tangent{typeof(Y)}(ΔC, ZeroTangent())
     return Y, ∂Y
 end

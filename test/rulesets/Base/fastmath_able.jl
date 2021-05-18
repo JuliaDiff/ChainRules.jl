@@ -1,7 +1,7 @@
 # Add tests to the quote for functions with  FastMath varients.
 function jacobian_via_frule(f,z)
-    du_dx, dv_dx = reim(frule((Zero(), 1),f,z)[2])
-    du_dy, dv_dy = reim(frule((Zero(),im),f,z)[2])
+    du_dx, dv_dx = reim(frule((ZeroTangent(), 1),f,z)[2])
+    du_dy, dv_dy = reim(frule((ZeroTangent(),im),f,z)[2])
     return [
         du_dx  du_dy
         dv_dx  dv_dy
@@ -96,21 +96,21 @@ const FASTABLE_AST = quote
                 complex_jacobian_test(f, z)
             end
         end
-        # As per PR #196, angle gives a Zero() pullback for Real z and ΔΩ, rather than
+        # As per PR #196, angle gives a ZeroTangent() pullback for Real z and ΔΩ, rather than
         # the one you'd get from considering the reals as embedded in the complex plane
         # so we need to special case it's tests
         for z ∈ (-4.1-0.02im, 6.4 + 0im, 3 + im)
             complex_jacobian_test(angle, z)
         end
-        @test frule((Zero(), randn()), angle, randn())[2] === Zero()
-        @test rrule(angle, randn())[2](randn())[2] === Zero()
+        @test frule((ZeroTangent(), randn()), angle, randn())[2] === ZeroTangent()
+        @test rrule(angle, randn())[2](randn())[2] === ZeroTangent()
 
         # test that real primal with complex tangent gives complex tangent
         ΔΩ = randn(ComplexF64)
         for x in (-0.5, 2.0)
             @test isapprox(
-                frule((Zero(), ΔΩ), angle, x)[2],
-                frule((Zero(), ΔΩ), angle, complex(x))[2],
+                frule((ZeroTangent(), ΔΩ), angle, x)[2],
+                frule((ZeroTangent(), ΔΩ), angle, complex(x))[2],
             )
         end
     end
@@ -140,17 +140,17 @@ const FASTABLE_AST = quote
             @assert T == typeof(f(x, y))
             Δz = randn(typeof(f(x, y)))
 
-            @test frule((Zero(), Δx, Δy), f, x, y) isa Tuple{T, T}
+            @test frule((ZeroTangent(), Δx, Δy), f, x, y) isa Tuple{T, T}
             _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
             @test extern.((∂x, ∂y)) isa Tuple{T, T}
 
             if f != hypot
                 # Issue #233
-                @test frule((Zero(), Δx, Δy), f, x, 2) isa Tuple{T, T}
+                @test frule((ZeroTangent(), Δx, Δy), f, x, 2) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
                 @test extern.((∂x, ∂y)) isa Tuple{T, T}
 
-                @test frule((Zero(), Δx, Δy), f, 2, y) isa Tuple{T, T}
+                @test frule((ZeroTangent(), Δx, Δy), f, 2, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
                 @test extern.((∂x, ∂y)) isa Tuple{T, T}
             end
@@ -169,8 +169,8 @@ const FASTABLE_AST = quote
                 Δy = randn(T)
                 Δz = randn(T)
 
-                @test frule((Zero(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
-                @test frule((Zero(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
+                @test frule((ZeroTangent(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
+                @test frule((ZeroTangent(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
                 _, ∂x, ∂y = rrule(^, x, y)[2](Δz)
                 @test ∂x ≈ Δz * y * x^(y - 1)
                 @test ∂y ≈ 0
@@ -187,7 +187,7 @@ const FASTABLE_AST = quote
                 test_scalar(sign, x)
             end
 
-            @testset "Zero over the point discontinuity" begin
+            @testset "ZeroTangent over the point discontinuity" begin
                 # Can't do finite differencing because we are lying
                 # following the subgradient convention.
 
@@ -195,7 +195,7 @@ const FASTABLE_AST = quote
                 _, x̄ = pb(10.5)
                 @test extern(x̄) == 0
 
-                _, ẏ = frule((Zero(), 10.5), sign, 0.0)
+                _, ẏ = frule((ZeroTangent(), 10.5), sign, 0.0)
                 @test extern(ẏ) == 0
             end
         end
@@ -207,9 +207,9 @@ const FASTABLE_AST = quote
                 # complex primal with zero imaginary part
 
                 ż, ΔΩ = randn(ComplexF64, 2)
-                Ω, ∂Ω = frule((Zero(), ż), sign, real(z))
+                Ω, ∂Ω = frule((ZeroTangent(), ż), sign, real(z))
                 @test Ω == sign(real(z))
-                @test ∂Ω ≈ frule((Zero(), ż), sign, real(z) + 0im)[2]
+                @test ∂Ω ≈ frule((ZeroTangent(), ż), sign, real(z) + 0im)[2]
 
                 Ω, pb = rrule(sign, real(z))
                 @test Ω == sign(real(z))
@@ -224,7 +224,7 @@ const FASTABLE_AST = quote
                 _, z̄ = pb(randn(ComplexF64))
                 @test extern(z̄) == 0.0 + 0.0im
 
-                _, Ω̇ = frule((Zero(), randn(ComplexF64)), sign, 0.0 + 0.0im)
+                _, Ω̇ = frule((ZeroTangent(), randn(ComplexF64)), sign, 0.0 + 0.0im)
                 @test extern(Ω̇) == 0.0 + 0.0im
             end
         end

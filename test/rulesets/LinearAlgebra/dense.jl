@@ -33,7 +33,7 @@
     @testset "pinv" begin
         @testset "$T" for T in (Float64, ComplexF64)
             test_scalar(pinv, randn(T))
-            @test frule((Zero(), randn(T)), pinv, zero(T))[2] ≈ zero(T)
+            @test frule((ZeroTangent(), randn(T)), pinv, zero(T))[2] ≈ zero(T)
             @test rrule(pinv, zero(T))[2](randn(T))[2] ≈ zero(T)
         end
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
@@ -44,7 +44,7 @@
             x = randn(T, 3)
             ẋ = randn(T, 3)
             Δy = copyto!(similar(pinv(x)), randn(T, 3))
-            @test frule((Zero(), ẋ), pinv, x)[2] isa typeof(pinv(x))
+            @test frule((ZeroTangent(), ẋ), pinv, x)[2] isa typeof(pinv(x))
             @test rrule(pinv, x)[2](Δy)[2] isa typeof(x)
         end
 
@@ -58,7 +58,7 @@
             y = pinv(x)
             Δy = copyto!(similar(y), randn(T, 3))
 
-            y_fwd, ∂y_fwd = frule((Zero(),  ẋ), pinv, x)
+            y_fwd, ∂y_fwd = frule((ZeroTangent(),  ẋ), pinv, x)
             @test y_fwd isa typeof(y)
             @test ∂y_fwd isa typeof(y)
 

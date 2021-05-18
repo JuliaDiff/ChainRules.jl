@@ -10,20 +10,20 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
         @testset "no args" begin
             rng, dΩ = frule((5.0,), MersenneTwister)
             @test rng isa MersenneTwister
-            @test dΩ isa Zero
+            @test dΩ isa ZeroTangent
 
             rng, pb = rrule(MersenneTwister)
             @test rng isa MersenneTwister
-            @test first(pb(10)) isa Zero
+            @test first(pb(10)) isa ZeroTangent
         end
         @testset "unary" begin
             rng, dΩ = frule((5.0, 4.0), MersenneTwister, 123)
             @test rng isa MersenneTwister
-            @test dΩ isa Zero
+            @test dΩ isa ZeroTangent
 
             rng, pb = rrule(MersenneTwister, 123)
             @test rng isa MersenneTwister
-            @test all(map(x -> x isa Zero, pb(10)))
+            @test all(map(x -> x isa ZeroTangent, pb(10)))
         end
     end
 
@@ -39,7 +39,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
         ]
 
         for (args, xType) in non_differentiables
-            x, dΩ = frule((Zero(), randn(args...)), rand, args...)
+            x, dΩ = frule((ZeroTangent(), randn(args...)), rand, args...)
             @test x isa xType
             @test dΩ isa NoTangent
 
@@ -52,7 +52,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
         @test nothing === frule(
-            (Zero(), Tangent{NormalDistribution}(μ=0.5,σ=2.0)),
+            (ZeroTangent(), Tangent{NormalDistribution}(μ=0.5,σ=2.0)),
             rand,
             NormalDistribution(0.1,1.5),
         )

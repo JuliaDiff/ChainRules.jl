@@ -28,7 +28,7 @@ end
 
 # `imag`
 
-@scalar_rule imag(x::Real) Zero()
+@scalar_rule imag(x::Real) ZeroTangent()
 
 frule((_, Δz), ::typeof(imag), z::Complex) = (imag(z), imag(Δz))
 
@@ -154,7 +154,7 @@ function rrule(::typeof(identity), x)
 end
 
 # rouding related,
-# we use `zero` rather than `Zero()` for scalar, and avoids issues with map etc
+# we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)
