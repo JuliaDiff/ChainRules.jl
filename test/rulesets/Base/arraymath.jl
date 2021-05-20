@@ -65,7 +65,7 @@
     _adjoint(x) = x'
     _adjoint(::Nothing) = nothing
 
-    VERSION >= v"1.6.0-DEV.1536" && @testset "muladd: $T" for T in (Float64, ComplexF64)
+    @testset "muladd: $T" for T in (Float64, ComplexF64)
         @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
             dz = if z===false
                 nothing  # gradient for z::Bool is tested to be DoesNotExist()
