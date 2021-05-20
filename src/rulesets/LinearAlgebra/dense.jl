@@ -241,25 +241,84 @@ function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
 end
 
 #####
-##### `norm`
+##### `sylvester`
 #####
 
-function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
-    y = norm(A, p)
-    function norm_pullback(ȳ)
-        u = y^(1-p)
-        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
-        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
-        (NO_FIELDS, ∂A, ∂p)
-    end
-    return y, norm_pullback
+# included because the primal uses `schur`, for which we don't have a rule
+
+function frule(
+    (_, ΔA, ΔB, ΔC),
+    ::typeof(sylvester),
+    A::StridedMatrix{T},
+    B::StridedMatrix{T},
+    C::StridedMatrix{T},
+) where {T<:BlasFloat}
+    RA, QA = schur(A)
+    RB, QB = schur(B)
+    D = QA' * (C * QB)
+    Y, scale = LAPACK.trsyl!('N', 'N', RA, RB, D)
+    Ω = rmul!(QA * (Y * QB'), -inv(scale))
+    ∂D = QA' * (mul!(muladd(ΔA, Ω, ΔC), Ω, ΔB, true, true) * QB)
+    ∂Y, scale2 = LAPACK.trsyl!('N', 'N', RA, RB, ∂D)
+    ∂Ω = rmul!(QA * (∂Y * QB'), -inv(scale2))
+    return Ω, ∂Ω
 end
 
-function rrule(::typeof(norm), x::Real, p::Real=2)
-    function norm_pullback(ȳ)
-        ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
-        (NO_FIELDS, ∂x, ∂p)
+# included because the primal mutates and uses `schur` and LAPACK
+
+function rrule(
+    ::typeof(sylvester), A::StridedMatrix{T}, B::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    RA, QA = schur(A)
+    RB, QB = schur(B)
+    D = QA' * (C * QB)
+    Y, scale = LAPACK.trsyl!('N', 'N', RA, RB, D)
+    Ω = rmul!(QA * (Y * QB'), -inv(scale))
+    function sylvester_pullback(ΔΩ)
+        ∂Ω = T <: Real ? real(ΔΩ) : ΔΩ
+        ∂Y = QA' * (∂Ω * QB)
+        trans = T <: Complex ? 'C' : 'T'
+        ∂D, scale2 = LAPACK.trsyl!(trans, trans, RA, RB, ∂Y)
+        ∂Z = rmul!(QA * (∂D * QB'), -inv(scale2))
+        return NO_FIELDS, @thunk(∂Z * Ω'), @thunk(Ω' * ∂Z), @thunk(∂Z * inv(scale))
     end
-    return norm(x, p), norm_pullback
+    return Ω, sylvester_pullback
+end
+
+#####
+##### `lyap`
+#####
+
+# included because the primal uses `schur`, for which we don't have a rule
+
+function frule(
+    (_, ΔA, ΔC), ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    R, Q = schur(A)
+    D = Q' * (C * Q)
+    Y, scale = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, D)
+    Ω = rmul!(Q * (Y * Q'), -inv(scale))
+    ∂D = Q' * (mul!(muladd(ΔA, Ω, ΔC), Ω, ΔA', true, true) * Q)
+    ∂Y, scale2 = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, ∂D)
+    ∂Ω = rmul!(Q * (∂Y * Q'), -inv(scale2))
+    return Ω, ∂Ω
+end
+
+# included because the primal mutates and uses `schur` and LAPACK
+
+function rrule(
+    ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    R, Q = schur(A)
+    D = Q' * (C * Q)
+    Y, scale = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, D)
+    Ω = rmul!(Q * (Y * Q'), -inv(scale))
+    function lyap_pullback(ΔΩ)
+        ∂Ω = T <: Real ? real(ΔΩ) : ΔΩ
+        ∂Y = Q' * (∂Ω * Q)
+        ∂D, scale2 = LAPACK.trsyl!(T <: Complex ? 'C' : 'T', 'N', R, R, ∂Y)
+        ∂Z = rmul!(Q * (∂D * Q'), -inv(scale2))
+        return NO_FIELDS, @thunk(mul!(∂Z * Ω', ∂Z', Ω, true, true)), @thunk(∂Z * inv(scale))
+    end
+    return Ω, lyap_pullback
 end

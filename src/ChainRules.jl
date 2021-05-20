@@ -36,14 +36,19 @@ include("rulesets/Base/evalpoly.jl")
 include("rulesets/Base/array.jl")
 include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
+include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
 
 include("rulesets/Statistics/statistics.jl")
 
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
+include("rulesets/LinearAlgebra/lapack.jl")
 include("rulesets/LinearAlgebra/dense.jl")
+include("rulesets/LinearAlgebra/norm.jl")
+include("rulesets/LinearAlgebra/matfun.jl")
 include("rulesets/LinearAlgebra/structured.jl")
+include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 
 include("rulesets/Random/random.jl")
@@ -56,8 +61,12 @@ function __init__()
         include("rulesets/packages/NaNMath.jl")
     end
 
+    # Note: drop SpecialFunctions dependency in next breaking release
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/319
     @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
-        include("rulesets/packages/SpecialFunctions.jl")
+        if !isdefined(SpecialFunctions, :ChainRulesCore)
+            include("rulesets/packages/SpecialFunctions.jl")
+        end
     end
 end
 

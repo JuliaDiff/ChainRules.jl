@@ -5,8 +5,33 @@ let
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
-        @scalar_rule cos(x) -(sin(x))
-        @scalar_rule sin(x) cos(x)
+        ## use `sincos` to compute `sin` and `cos` at the same time
+        ## for the rules for `sin` and `cos`
+        ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291
+        ## sin
+        function rrule(::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            sin_pullback(Δy) = (NO_FIELDS, cosx' * Δy)
+            return (sinx, sin_pullback)
+        end
+
+        function frule((_, Δx), ::typeof(sin), x::Number)
+            sinx, cosx = sincos(x)
+            return (sinx, cosx * Δx)
+        end
+
+        ## cos
+        function rrule(::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            cos_pullback(Δy) = (NO_FIELDS, -sinx' * Δy)
+            return (cosx, cos_pullback)
+        end
+        
+        function frule((_, Δx), ::typeof(cos), x::Number)
+            sinx, cosx = sincos(x)
+            return (cosx, -sinx * Δx)
+        end
+        
         @scalar_rule tan(x) 1 + Ω ^ 2
 
 
@@ -41,8 +66,8 @@ let
         ## abs
         function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
             Ω = abs(x)
-            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             # `ifelse` is applied only to denominator to ensure type-stability.
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             return Ω, _realconjtimes(signx, Δx)
         end
 
@@ -83,7 +108,8 @@ let
         function frule((_, Δx), ::typeof(angle), x)
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
-            ∂Ω = _imagconjtimes(x, Δx) / ifelse(iszero(x), one(x), abs2(x))
+            n = ifelse(iszero(x), one(real(x)), abs2(x))
+            ∂Ω = _imagconjtimes(x, Δx) / n
             return Ω, ∂Ω
         end
 
@@ -102,8 +128,9 @@ let
             function angle_pullback(ΔΩ)
                 x,  y  = reim(z)
                 Δu, Δv = reim(ΔΩ)
-                return (NO_FIELDS, (-y + im*x)*Δu/ifelse(iszero(z), one(z), abs2(z)))
                 # `ifelse` is applied only to denominator to ensure type-stability.
+                n = ifelse(iszero(z), one(real(z)), abs2(z))
+                return (NO_FIELDS, (-y + im*x)*Δu/n)
             end
             return angle(z), angle_pullback
         end
@@ -160,14 +187,14 @@ let
         # `sign`
 
         function frule((_, Δx), ::typeof(sign), x)
-            n = ifelse(iszero(x), one(x), abs(x))
+            n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
             return Ω, ∂Ω
         end
 
         function rrule(::typeof(sign), x)
-            n = ifelse(iszero(x), one(x), abs(x))
+            n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
                 ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im

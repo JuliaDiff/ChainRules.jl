@@ -2,6 +2,204 @@ using LinearAlgebra: checksquare
 using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 
 #####
+##### `lu`
+#####
+
+# These rules are necessary because the primals call LAPACK functions
+
+# frule for square matrix was introduced in Eq. 3.6 of
+# de Hoog, F.R., Anderssen, R.S. and Lukas, M.A. (2011)
+# Differentiation of matrix functionals using triangular factorization.
+# Mathematics of Computation, 80 (275). p. 1585.
+# doi: http://doi.org/10.1090/S0025-5718-2011-02451-8
+# for derivations for wide and tall matrices, see
+# https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
+
+function frule(
+    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu!(A, pivot; kwargs...)
+    ∂factors = pivot === Val(true) ? ΔA[F.p, :] : ΔA
+    m, n = size(∂factors)
+    q = min(m, n)
+    if m == n  # square A
+        # minimal allocation computation of
+        # ∂L = L * tril(L \ (P * ΔA) / U, -1)
+        # ∂U = triu(L \ (P * ΔA) / U) * U
+        # ∂factors = ∂L + ∂U
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
+        rdiv!(∂factors, U)
+        ldiv!(L, ∂factors)
+        ∂L = lmul!(L, tril(∂factors, -1))
+        ∂U = rmul!(triu(∂factors), U)
+        ∂factors .= ∂L .+ ∂U
+    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        L = UnitLowerTriangular(F.L)
+        U = F.U
+        ldiv!(L, ∂factors)
+        @views begin
+            ∂factors1 = ∂factors[:, 1:q]
+            ∂factors2 = ∂factors[:, (q + 1):end]
+            U1 = UpperTriangular(U[:, 1:q])
+            U2 = U[:, (q + 1):end]
+        end
+        rdiv!(∂factors1, U1)
+        ∂L = tril(∂factors1, -1)
+        mul!(∂factors2, ∂L, U2, -1, 1)
+        lmul!(L, ∂L)
+        rmul!(triu!(∂factors1), U1)
+        ∂factors1 .+= ∂L
+    else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+        L = F.L
+        U = UpperTriangular(F.U)
+        rdiv!(∂factors, U)
+        @views begin
+            ∂factors1 = ∂factors[1:q, :]
+            ∂factors2 = ∂factors[(q + 1):end, :]
+            L1 = UnitLowerTriangular(L[1:q, :])
+            L2 = L[(q + 1):end, :]
+        end
+        ldiv!(L1, ∂factors1)
+        ∂U = triu(∂factors1)
+        mul!(∂factors2, L2, ∂U, -1, 1)
+        rmul!(∂U, U)
+        lmul!(L1, tril!(∂factors1, -1))
+        ∂factors1 .+= ∂U
+    end
+    ∂F = Composite{typeof(F)}(; factors=∂factors)
+    return F, ∂F
+end
+
+function rrule(
+    ::typeof(lu), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+)
+    F = lu(A, pivot; kwargs...)
+    function lu_pullback(ΔF::Composite)
+        Δfactors = ΔF.factors
+        Δfactors isa AbstractZero && return (NO_FIELDS, Δfactors, DoesNotExist())
+        factors = F.factors
+        ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
+        ∂A = similar(factors)
+        m, n = size(A)
+        q = min(m, n)
+        if m == n  # square A
+            # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
+            L = UnitLowerTriangular(factors)
+            U = UpperTriangular(factors)
+            ∂U = UpperTriangular(∂factors)
+            tril!(copyto!(∂A, ∂factors), -1)
+            lmul!(L', ∂A)
+            copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+            rdiv!(∂A, U')
+            ldiv!(L', ∂A)
+        elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+            triu!(copyto!(∂A, ∂factors))
+            @views begin
+                factors1 = factors[:, 1:q]
+                U2 = factors[:, (q + 1):end]
+                ∂A1 = ∂A[:, 1:q]
+                ∂A2 = ∂A[:, (q + 1):end]
+                ∂L = tril(∂factors[:, 1:q], -1)
+            end
+            L = UnitLowerTriangular(factors1)
+            U1 = UpperTriangular(factors1)
+            triu!(rmul!(∂A1, U1'))
+            ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
+            rdiv!(∂A1, U1')
+            ldiv!(L', ∂A)
+        else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+            tril!(copyto!(∂A, ∂factors), -1)
+            @views begin
+                factors1 = factors[1:q, :]
+                L2 = factors[(q + 1):end, :]
+                ∂A1 = ∂A[1:q, :]
+                ∂A2 = ∂A[(q + 1):end, :]
+                ∂U = triu(∂factors[1:q, :])
+            end
+            U = UpperTriangular(factors1)
+            L1 = UnitLowerTriangular(factors1)
+            tril!(lmul!(L1', ∂A1), -1)
+            ∂A1 .+= triu!(mul!(rmul!(∂U, U'), L2', ∂A2, -1, 1))
+            ldiv!(L1', ∂A1)
+            rdiv!(∂A, U')
+        end
+        if pivot === Val(true)
+            ∂A = ∂A[invperm(F.p), :]
+        end
+        return NO_FIELDS, ∂A, DoesNotExist()
+    end
+    return F, lu_pullback
+end
+
+#####
+##### functions of `LU`
+#####
+
+# this rrule is necessary because the primal mutates
+
+function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:StridedMatrix{T}}}
+    function getproperty_LU_pullback(ΔY)
+        ∂factors = if x === :L
+            m, n = size(F.factors)
+            S = eltype(ΔY)
+            tril!([ΔY zeros(S, m, max(0, n - m))], -1)
+        elseif x === :U
+            m, n = size(F.factors)
+            S = eltype(ΔY)
+            triu!([ΔY; zeros(S, max(0, m - n), n)])
+        elseif x === :factors
+            Matrix(ΔY)
+        else
+            return (NO_FIELDS, DoesNotExist(), DoesNotExist())
+        end
+        ∂F = Composite{TF}(; factors=∂factors)
+        return NO_FIELDS, ∂F, DoesNotExist()
+    end
+    return getproperty(F, x), getproperty_LU_pullback
+end
+
+# these rules are needed because the primal calls a LAPACK function
+
+function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatrix})
+    # factors must be square if the primal did not error
+    L = UnitLowerTriangular(F.factors)
+    U = UpperTriangular(F.factors)
+    # compute ∂Y = -(U \ (L \ ∂L + ∂U / U) / L) * P while minimizing allocations
+    m, n = size(F.factors)
+    q = min(m, n)
+    ∂L = tril(m ≥ n ? ΔF.factors : view(ΔF.factors, :, 1:q), -1)
+    ∂U = triu(m ≤ n ? ΔF.factors : view(ΔF.factors, 1:q, :))
+    ∂Y = ldiv!(L, ∂L)
+    ∂Y .+= rdiv!(∂U, U)
+    ldiv!(U, ∂Y)
+    rdiv!(∂Y, L)
+    rmul!(∂Y, -1)
+    return LinearAlgebra.inv!(F), ∂Y[:, invperm(F.p)]
+end
+
+function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
+    function inv_LU_pullback(ΔY)
+        # factors must be square if the primal did not error
+        L = UnitLowerTriangular(F.factors)
+        U = UpperTriangular(F.factors)
+        # compute the following while minimizing allocations
+        # ∂U = - triu((U' \ ∂Y * P' / L') / U')
+        # ∂L = - tril(L' \ (U' \ ∂Y * P' / L'), -1)
+        ∂factors = ΔY[:, F.p]
+        ldiv!(U', ∂factors)
+        rdiv!(∂factors, L')
+        rmul!(∂factors, -1)
+        ∂L = tril!(L' \ ∂factors, -1)
+        triu!(rdiv!(∂factors, U'))
+        ∂factors .+= ∂L
+        ∂F = Composite{typeof(F)}(; factors=∂factors)
+        return NO_FIELDS, ∂F
+    end
+    return inv(F), inv_LU_pullback
+end
+
+#####
 ##### `svd`
 #####
 
@@ -9,7 +207,7 @@ function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
     function svd_pullback(Ȳ::Composite)
         # `getproperty` on `Composite`s ensures we have no thunks.
-        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.V)
+        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
         return (NO_FIELDS, ∂X)
     end
     return F, svd_pullback
@@ -23,10 +221,9 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
         elseif x === :S
             C(S=Ȳ,)
         elseif x === :V
-            C(V=Ȳ,)
+            C(Vt=Ȳ',)
         elseif x === :Vt
-            # TODO: https://github.com/JuliaDiff/ChainRules.jl/issues/106
-            throw(ArgumentError("Vt is unsupported; use V and transpose the result"))
+            C(Vt=Ȳ,)
         end
         return NO_FIELDS, ∂F, DoesNotExist()
     end
@@ -67,23 +264,234 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
 end
 
 #####
+##### `eigen`
+#####
+
+# TODO:
+# - support correct differential of phase convention when A is hermitian
+# - simplify when A is diagonal
+# - support degenerate matrices (see #144)
+
+function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
+    if ishermitian(A)
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        return if sortby === nothing
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A))
+        else
+            frule((Zero(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
+        end
+    end
+    F = eigen!(A; kwargs...)
+    λ, V = F.values, F.vectors
+    tmp = V \ ΔA
+    ∂K = tmp * V
+    ∂Kdiag = @view ∂K[diagind(∂K)]
+    ∂λ = eltype(λ) <: Real ? real.(∂Kdiag) : copy(∂Kdiag)
+    ∂K ./= transpose(λ) .- λ
+    fill!(∂Kdiag, 0)
+    ∂V = mul!(tmp, V, ∂K)
+    _eigen_norm_phase_fwd!(∂V, A, V)
+    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂V)
+    return F, ∂F
+end
+
+function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F = eigen(A; kwargs...)
+    function eigen_pullback(ΔF::Composite)
+        λ, V = F.values, F.vectors
+        Δλ, ΔV = ΔF.values, ΔF.vectors
+        ΔV isa AbstractZero && Δλ isa AbstractZero && return (NO_FIELDS, Δλ + ΔV)
+        if eltype(λ) <: Real && ishermitian(A)
+            hermA = Hermitian(A)
+            ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
+            ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
+            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
+            ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
+        elseif ΔV isa AbstractZero
+            ∂K = Diagonal(Δλ)
+            ∂A = V' \ ∂K * V'
+        else
+            ∂V = copyto!(similar(ΔV), ΔV)
+            _eigen_norm_phase_rev!(∂V, A, V)
+            ∂K = V' * ∂V
+            ∂K ./= λ' .- conj.(λ)
+            ∂K[diagind(∂K)] .= Δλ
+            ∂A = mul!(∂K, V' \ ∂K, V')
+        end
+        return NO_FIELDS, T <: Real ? real(∂A) : ∂A
+    end
+    eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
+    return F, eigen_pullback
+end
+
+# mutate ∂V to account for the (arbitrary but consistent) normalization and phase condition
+# applied to the eigenvectors.
+# these implementations assume the convention used by eigen in LinearAlgebra (i.e. that of
+# LAPACK.geevx!; eigenvectors have unit norm, and the element with the largest absolute
+# value is real), but they can be specialized for `A`
+
+function _eigen_norm_phase_fwd!(∂V, A, V)
+    @inbounds for i in axes(V, 2)
+        v, ∂v = @views V[:, i], ∂V[:, i]
+        # account for unit normalization
+        ∂c_norm = -real(dot(v, ∂v))
+        if eltype(V) <: Real
+            ∂c = ∂c_norm
+        else
+            # account for rotation of largest element to real
+            k = _findrealmaxabs2(v)
+            ∂c_phase = -imag(∂v[k]) / real(v[k])
+            ∂c = complex(∂c_norm, ∂c_phase)
+        end
+        ∂v .+= v .* ∂c
+    end
+    return ∂V
+end
+
+function _eigen_norm_phase_rev!(∂V, A, V)
+    @inbounds for i in axes(V, 2)
+        v, ∂v = @views V[:, i], ∂V[:, i]
+        ∂c = dot(v, ∂v)
+        # account for unit normalization
+        ∂v .-= real(∂c) .* v
+        if !(eltype(V) <: Real)
+            # account for rotation of largest element to real
+            k = _findrealmaxabs2(v)
+            @inbounds ∂v[k] -= im * (imag(∂c) / real(v[k]))
+        end
+    end
+    return ∂V
+end
+
+# workaround for findmax not taking a mapped function
+function _findrealmaxabs2(x)
+    amax = abs2(first(x))
+    imax = 1
+    @inbounds for i in 2:length(x)
+        xi = x[i]
+        !isreal(xi) && continue
+        a = abs2(xi)
+        a < amax && continue
+        amax, imax = a, i
+    end
+    return imax
+end
+
+#####
+##### `eigvals`
+#####
+
+function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
+    if ishermitian(A)
+        λ, ∂λ = frule((Zero(), Hermitian(ΔA)), eigvals!, Hermitian(A))
+        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        _sorteig!_fwd(∂λ, λ, sortby)
+    else
+        F = eigen!(A; kwargs...)
+        λ, V = F.values, F.vectors
+        tmp = V \ ΔA
+        ∂λ = similar(λ)
+        # diag(tmp * V) without computing full matrix product
+        if eltype(∂λ) <: Real
+            broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        else
+            broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
+        end
+    end
+    return λ, ∂λ
+end
+
+function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    F, eigen_back = rrule(eigen, A; kwargs...)
+    λ = F.values
+    function eigvals_pullback(Δλ)
+        ∂F = Composite{typeof(F)}(values = Δλ)
+        _, ∂A = eigen_back(∂F)
+        return NO_FIELDS, ∂A
+    end
+    return λ, eigvals_pullback
+end
+
+# adapted from LinearAlgebra.sorteig!
+function _sorteig!_fwd(Δλ, λ, sortby)
+    Δλ isa AbstractZero && return (sort!(λ; by=sortby), Δλ)
+    if sortby !== nothing
+        p = sortperm(λ; alg=QuickSort, by=sortby)
+        permute!(λ, p)
+        permute!(Δλ, p)
+    end
+    return (λ, Δλ)
+end
+
+#####
 ##### `cholesky`
 #####
 
-function rrule(::typeof(cholesky), X::AbstractMatrix{<:Real})
-    F = cholesky(X)
-    function cholesky_pullback(Ȳ::Composite)
-        ∂X = if F.uplo === 'U'
-            chol_blocked_rev(Ȳ.U, F.U, 25, true)
-        else
-            chol_blocked_rev(Ȳ.L, F.L, 25, false)
-        end
-        return (NO_FIELDS, ∂X)
+function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
+    C = cholesky(A, uplo)
+    function cholesky_pullback(ΔC::Composite)
+        return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), DoesNotExist()
     end
-    return F, cholesky_pullback
+    return C, cholesky_pullback
 end
 
-function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Cholesky
+function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
+    C = cholesky(A, Val(false); check=check)
+    function cholesky_pullback(ΔC::Composite)
+        Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
+        return NO_FIELDS, Ā, DoesNotExist()
+    end
+    return C, cholesky_pullback
+end
+
+# The appropriate cotangent is different depending upon whether A is Symmetric / Hermitian,
+# or just a StridedMatrix.
+# Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
+function rrule(
+    ::typeof(cholesky),
+    A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
+    ::Val{false};
+    check::Bool=true,
+)
+    C = cholesky(A, Val(false); check=check)
+    function cholesky_pullback(ΔC::Composite)
+        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
+        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
+        return NO_FIELDS, _symhermtype(A)(Ā), DoesNotExist()
+    end
+    return C, cholesky_pullback
+end
+
+function rrule(
+    ::typeof(cholesky),
+    A::StridedMatrix{<:LinearAlgebra.BlasReal},
+    ::Val{false};
+    check::Bool=true,
+)
+    C = cholesky(A, Val(false); check=check)
+    function cholesky_pullback(ΔC::Composite)
+        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
+        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
+        idx = diagind(Ā)
+        @views Ā[idx] .= real.(Ā[idx]) ./ 2
+        return (NO_FIELDS, UpperTriangular(Ā), DoesNotExist())
+    end
+    return C, cholesky_pullback
+end
+
+function _cholesky_pullback_shared_code(C, ΔC)
+    U = C.U
+    Ū = ΔC.U
+    Ā = similar(U.data)
+    Ā = mul!(Ā, Ū, U')
+    Ā = LinearAlgebra.copytri!(Ā, 'U', true)
+    Ā = ldiv!(U, Ā)
+    return Ā, U
+end
+
+function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
     function getproperty_cholesky_pullback(Ȳ)
         C = Composite{T}
         ∂F = if x === :U
@@ -102,162 +510,4 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Cholesky
         return NO_FIELDS, ∂F, DoesNotExist()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
-end
-
-# See "Differentiation of the Cholesky decomposition" (Murray 2016), pages 5-9 in particular,
-# for derivations. Here we're implementing the algorithms and their transposes.
-
-"""
-    level2partition(A::AbstractMatrix, j::Integer, upper::Bool)
-
-Returns views to various bits of the lower triangle of `A` according to the
-`level2partition` procedure defined in [1] if `upper` is `false`. If `upper` is `true` then
-the transposed views are returned from the upper triangle of `A`.
-
-[1]: "Differentiation of the Cholesky decomposition", Murray 2016
-"""
-function level2partition(A::AbstractMatrix, j::Integer, upper::Bool)
-    n = checksquare(A)
-    @boundscheck checkbounds(1:n, j)
-    if upper
-        r = view(A, 1:j-1, j)
-        d = view(A, j, j)
-        B = view(A, 1:j-1, j+1:n)
-        c = view(A, j, j+1:n)
-    else
-        r = view(A, j, 1:j-1)
-        d = view(A, j, j)
-        B = view(A, j+1:n, 1:j-1)
-        c = view(A, j+1:n, j)
-    end
-    return r, d, B, c
-end
-
-"""
-    level3partition(A::AbstractMatrix, j::Integer, k::Integer, upper::Bool)
-
-Returns views to various bits of the lower triangle of `A` according to the
-`level3partition` procedure defined in [1] if `upper` is `false`. If `upper` is `true` then
-the transposed views are returned from the upper triangle of `A`.
-
-[1]: "Differentiation of the Cholesky decomposition", Murray 2016
-"""
-function level3partition(A::AbstractMatrix, j::Integer, k::Integer, upper::Bool)
-    n = checksquare(A)
-    @boundscheck checkbounds(1:n, j)
-    if upper
-        R = view(A, 1:j-1, j:k)
-        D = view(A, j:k, j:k)
-        B = view(A, 1:j-1, k+1:n)
-        C = view(A, j:k, k+1:n)
-    else
-        R = view(A, j:k, 1:j-1)
-        D = view(A, j:k, j:k)
-        B = view(A, k+1:n, 1:j-1)
-        C = view(A, k+1:n, j:k)
-    end
-    return R, D, B, C
-end
-
-"""
-    chol_unblocked_rev!(Ā::AbstractMatrix, L::AbstractMatrix, upper::Bool)
-
-Compute the reverse-mode sensitivities of the Cholesky factorization in an unblocked manner.
-If `upper` is `false`, then the sensitivites are computed from and stored in the lower triangle
-of `Ā` and `L` respectively. If `upper` is `true` then they are computed and stored in the
-upper triangles. If at input `upper` is `false` and `tril(Ā) = L̄`, at output
-`tril(Ā) = tril(Σ̄)`, where `Σ = LLᵀ`. Analogously, if at input `upper` is `true` and
-`triu(Ā) = triu(Ū)`, at output `triu(Ā) = triu(Σ̄)` where `Σ = UᵀU`.
-"""
-function chol_unblocked_rev!(Σ̄::AbstractMatrix{T}, L::AbstractMatrix{T}, upper::Bool) where T<:Real
-    n = checksquare(Σ̄)
-    j = n
-    @inbounds for _ in 1:n
-        r, d, B, c = level2partition(L, j, upper)
-        r̄, d̄, B̄, c̄ = level2partition(Σ̄, j, upper)
-
-        # d̄ <- d̄ - c'c̄ / d.
-        d̄[1] -= dot(c, c̄) / d[1]
-
-        # [d̄ c̄'] <- [d̄ c̄'] / d.
-        d̄ ./= d
-        c̄ ./= d
-
-        # r̄ <- r̄ - [d̄ c̄'] [r' B']'.
-        r̄ = axpy!(-Σ̄[j,j], r, r̄)
-        r̄ = gemv!(upper ? 'n' : 'T', -one(T), B, c̄, one(T), r̄)
-
-        # B̄ <- B̄ - c̄ r.
-        B̄ = upper ? ger!(-one(T), r, c̄, B̄) : ger!(-one(T), c̄, r, B̄)
-        d̄ ./= 2
-        j -= 1
-    end
-    return (upper ? triu! : tril!)(Σ̄)
-end
-
-function chol_unblocked_rev(Σ̄::AbstractMatrix, L::AbstractMatrix, upper::Bool)
-    return chol_unblocked_rev!(copy(Σ̄), L, upper)
-end
-
-"""
-    chol_blocked_rev!(Σ̄::StridedMatrix, L::StridedMatrix, nb::Integer, upper::Bool)
-
-Compute the sensitivities of the Cholesky factorization using a blocked, cache-friendly
-procedure. `Σ̄` are the sensitivities of `L`, and will be transformed into the sensitivities
-of `Σ`, where `Σ = LLᵀ`. `nb` is the block size to use. If the upper triangle has been used
-to represent the factorization, that is `Σ = UᵀU` where `U := Lᵀ`, then this should be
-indicated by passing `upper = true`.
-"""
-function chol_blocked_rev!(Σ̄::StridedMatrix{T}, L::StridedMatrix{T}, nb::Integer, upper::Bool) where T<:Real
-    n = checksquare(Σ̄)
-    tmp = Matrix{T}(undef, nb, nb)
-    k = n
-    if upper
-        @inbounds for _ in 1:nb:n
-            j = max(1, k - nb + 1)
-            R, D, B, C = level3partition(L, j, k, true)
-            R̄, D̄, B̄, C̄ = level3partition(Σ̄, j, k, true)
-
-            C̄ = trsm!('L', 'U', 'N', 'N', one(T), D, C̄)
-            gemm!('N', 'N', -one(T), R, C̄, one(T), B̄)
-            gemm!('N', 'T', -one(T), C, C̄, one(T), D̄)
-            chol_unblocked_rev!(D̄, D, true)
-            gemm!('N', 'T', -one(T), B, C̄, one(T), R̄)
-            if size(D̄, 1) == nb
-                tmp = axpy!(one(T), D̄, transpose!(tmp, D̄))
-                gemm!('N', 'N', -one(T), R, tmp, one(T), R̄)
-            else
-                gemm!('N', 'N', -one(T), R, D̄ + D̄', one(T), R̄)
-            end
-
-            k -= nb
-        end
-        return triu!(Σ̄)
-    else
-        @inbounds for _ in 1:nb:n
-            j = max(1, k - nb + 1)
-            R, D, B, C = level3partition(L, j, k, false)
-            R̄, D̄, B̄, C̄ = level3partition(Σ̄, j, k, false)
-
-            C̄ = trsm!('R', 'L', 'N', 'N', one(T), D, C̄)
-            gemm!('N', 'N', -one(T), C̄, R, one(T), B̄)
-            gemm!('T', 'N', -one(T), C̄, C, one(T), D̄)
-            chol_unblocked_rev!(D̄, D, false)
-            gemm!('T', 'N', -one(T), C̄, B, one(T), R̄)
-            if size(D̄, 1) == nb
-                tmp = axpy!(one(T), D̄, transpose!(tmp, D̄))
-                gemm!('N', 'N', -one(T), tmp, R, one(T), R̄)
-            else
-                gemm!('N', 'N', -one(T), D̄ + D̄', R, one(T), R̄)
-            end
-
-            k -= nb
-        end
-        return tril!(Σ̄)
-    end
-end
-
-function chol_blocked_rev(Σ̄::AbstractMatrix, L::AbstractMatrix, nb::Integer, upper::Bool)
-    # Convert to `Matrix`s because blas functions require StridedMatrix input.
-    return chol_blocked_rev!(Matrix(Σ̄), Matrix(L), nb, upper)
 end

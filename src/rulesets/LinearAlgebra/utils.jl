@@ -27,3 +27,52 @@ function _eyesubx!(X::AbstractMatrix)
 end
 
 _extract_imag(x) = complex(0, imag(x))
+
+"""
+    _unionall_wrapper(T::Type) -> UnionAll
+
+Return the most general `UnionAll` type union associated with the concrete type `T`.
+
+# Example
+```julia
+julia> _unionall_wrapper(typeof(Diagonal(1:3)))
+Diagonal
+
+julia> _unionall_wrapper(typeof(Symmetric(randn(3, 3))))
+Symmetric
+````
+"""
+_unionall_wrapper(::Type{T}) where {T} = T.name.wrapper
+
+"""
+    WithSomeZeros{T}
+
+This is a union of LinearAlgebra types, all of which are partly structral zeros,
+with a simple backing array given by `parent(x)`. All have methods of `_rewrap`
+to re-create.
+
+This exists to solve a type instability, as broadcasting for instance
+`λ .* Diagonal(rand(3))` gives a dense matrix when `x==Inf`.
+But `withsomezeros_rewrap(x, λ .* parent(x))` is type-stable.
+"""
+WithSomeZeros{T} = Union{
+    Diagonal{T},
+    UpperTriangular{T},
+    UnitUpperTriangular{T},
+    # UpperHessenberg{T},  # doesn't exist in Julia 1.0
+    LowerTriangular{T},
+    UnitLowerTriangular{T},
+}
+for S in [
+    :Diagonal,
+    :UpperTriangular,
+    :UnitUpperTriangular,
+    # :UpperHessenberg,
+    :LowerTriangular,
+    :UnitLowerTriangular,
+]
+    @eval withsomezeros_rewrap(::$S, x) = $S(x)
+end
+
+# Bidiagonal, Tridiagonal have more complicated storage.
+# AdjOrTransUpperOrUnitUpperTriangular would need adjoint(parent(parent()))
