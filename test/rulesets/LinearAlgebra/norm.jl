@@ -159,7 +159,7 @@
             test_rrule(norm, randn(T), p)
 
             _, back = rrule(norm, randn(T), p)
-            @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
+            @test back(Zero()) == (NoTangent(), Zero(), Zero())
         end
         @testset "p = 0" begin
             p = 0.0
@@ -172,8 +172,8 @@
             @test iszero(ẏ)
             y_rev, back = rrule(norm, x, p)
             @test y_rev == y
-            @test back(ȳ) == (NO_FIELDS, zero(x), Zero())
-            @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
+            @test back(ȳ) == (NoTangent(), zero(x), Zero())
+            @test back(Zero()) == (NoTangent(), Zero(), Zero())
         end
     end
 end
@@ -185,12 +185,12 @@ end
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
         x = randn(T, 3)
         test_rrule(normalize, x)
-        @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
+        @test rrule(normalize, x)[2](Zero()) === (NoTangent(), Zero())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
         p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
         x = randn(T, 3)
         test_rrule(normalize, x, p)
-        @test rrule(normalize, x, p)[2](Zero()) === (NO_FIELDS, Zero(), Zero())
+        @test rrule(normalize, x, p)[2](Zero()) === (NoTangent(), Zero(), Zero())
     end
 end

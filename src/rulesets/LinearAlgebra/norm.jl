@@ -52,9 +52,9 @@ function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
             end
             )
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
-        return (NO_FIELDS, ∂x, ∂p)
+        return (NoTangent(), ∂x, ∂p)
     end
-    norm_pullback_p(::Zero) = (NO_FIELDS, Zero(), Zero())
+    norm_pullback_p(::Zero) = (NoTangent(), Zero(), Zero())
     return y, norm_pullback_p
 end
 
@@ -74,9 +74,9 @@ function rrule(::typeof(norm), x::AbstractArray{<:Number})
                 _norm2_back!(dx, x, y, Δy)
             end
             )
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
-    norm_pullback_2(::Zero) = (NO_FIELDS, Zero())
+    norm_pullback_2(::Zero) = (NoTangent(), Zero())
     return y, norm_pullback_2
 end
 
@@ -100,9 +100,9 @@ function rrule(::typeof(norm), x::Number, p::Real)
             signx = x isa Real ? sign(x) : x * pinv(y)
             signx * real(Δy)
         end
-        return (NO_FIELDS, ∂x, Zero())
+        return (NoTangent(), ∂x, Zero())
     end
-    norm_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
+    norm_pullback(::Zero) = (NoTangent(), Zero(), Zero())
     return y, norm_pullback
 end
 
@@ -115,9 +115,9 @@ function rrule(::typeof(LinearAlgebra.normp), x::AbstractArray{<:Number}, p)
     function normp_pullback(Δy)
         ∂x = @thunk _normp_back_x(x, p, y, Δy)
         ∂p = @thunk _normp_back_p(x, p, y, Δy)
-        return (NO_FIELDS, ∂x, ∂p)
+        return (NoTangent(), ∂x, ∂p)
     end
-    normp_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
+    normp_pullback(::Zero) = (NoTangent(), Zero(), Zero())
     return y, normp_pullback
 end
 
@@ -158,15 +158,15 @@ end
 
 function rrule(::typeof(LinearAlgebra.normMinusInf), x::AbstractArray{<:Number})
     y = LinearAlgebra.normMinusInf(x)
-    normMinusInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
-    normMinusInf_pullback(::Zero) = (NO_FIELDS, Zero())
+    normMinusInf_pullback(Δy) = (NoTangent(), _normInf_back(x, y, Δy))
+    normMinusInf_pullback(::Zero) = (NoTangent(), Zero())
     return y, normMinusInf_pullback
 end
 
 function rrule(::typeof(LinearAlgebra.normInf), x::AbstractArray{<:Number})
     y = LinearAlgebra.normInf(x)
-    normInf_pullback(Δy) = (NO_FIELDS, _normInf_back(x, y, Δy))
-    normInf_pullback(::Zero) = (NO_FIELDS, Zero())
+    normInf_pullback(Δy) = (NoTangent(), _normInf_back(x, y, Δy))
+    normInf_pullback(::Zero) = (NoTangent(), Zero())
     return y, normInf_pullback
 end
 
@@ -189,11 +189,11 @@ end
 
 function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm1(x)
-    norm1_pullback(Δy) = (NO_FIELDS, InplaceableThunk(
+    norm1_pullback(Δy) = (NoTangent(), InplaceableThunk(
         @thunk(_norm1_back(x, y, Δy)),
         dx -> _norm1_back!(dx, x, y, Δy),
     ))
-    norm1_pullback(::Zero) = (NO_FIELDS, Zero())
+    norm1_pullback(::Zero) = (NoTangent(), Zero())
     return y, norm1_pullback
 end
 
@@ -221,11 +221,11 @@ end
 
 function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm2(x)
-    norm2_pullback(Δy) = (NO_FIELDS, InplaceableThunk(
+    norm2_pullback(Δy) = (NoTangent(), InplaceableThunk(
         @thunk(_norm2_back(x, y, Δy)),
         dx -> _norm2_back!(dx, x, y, Δy),
     ))
-    norm2_pullback(::Zero) = (NO_FIELDS, Zero())
+    norm2_pullback(::Zero) = (NoTangent(), Zero())
     return y, norm2_pullback
 end
 
@@ -261,9 +261,9 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
         ∂nrm = -dot(y, Δy) * invnrm
         (_, ∂xnorm, ∂p) = inner_pullback(∂nrm)
         ∂x = @thunk unthunk(∂xnorm) .+ Δy .* invnrm
-        return (NO_FIELDS, ∂x, ∂p)
+        return (NoTangent(), ∂x, ∂p)
     end
-    normalize_pullback(::Zero) = (NO_FIELDS, Zero(), Zero())
+    normalize_pullback(::Zero) = (NoTangent(), Zero(), Zero())
     return y, normalize_pullback
 end
 
@@ -274,8 +274,8 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number})
     LinearAlgebra.__normalize!(y, nrm)
     function normalize_pullback(Δy)
         ∂x = (Δy .- real(dot(y, Δy)) .* y) .* pinv(nrm)
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
-    normalize_pullback(::Zero) = (NO_FIELDS, Zero())
+    normalize_pullback(::Zero) = (NoTangent(), Zero())
     return y, normalize_pullback
 end

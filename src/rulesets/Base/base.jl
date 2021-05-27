@@ -10,7 +10,7 @@
 frule((_, Δz), ::typeof(adjoint), z::Number) = (z', Δz')
 
 function rrule(::typeof(adjoint), z::Number)
-    adjoint_pullback(ΔΩ) = (NO_FIELDS, ΔΩ')
+    adjoint_pullback(ΔΩ) = (NoTangent(), ΔΩ')
     return (z', adjoint_pullback)
 end
 
@@ -22,7 +22,7 @@ frule((_, Δz), ::typeof(real), z::Number) = (real(z), real(Δz))
 
 function rrule(::typeof(real), z::Number)
     # add zero(z) to embed the real number in the same number type as z
-    real_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) + zero(z))
+    real_pullback(ΔΩ) = (NoTangent(), real(ΔΩ) + zero(z))
     return (real(z), real_pullback)
 end
 
@@ -33,7 +33,7 @@ end
 frule((_, Δz), ::typeof(imag), z::Complex) = (imag(z), imag(Δz))
 
 function rrule(::typeof(imag), z::Complex)
-    imag_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ) * im)
+    imag_pullback(ΔΩ) = (NoTangent(), real(ΔΩ) * im)
     return (imag(z), imag_pullback)
 end
 
@@ -45,15 +45,15 @@ function frule((_, Δx, Δy), ::Type{T}, x::Number, y::Number) where {T<:Complex
 end
 
 function rrule(::Type{T}, z::Complex) where {T<:Complex}
-    Complex_pullback(ΔΩ) = (NO_FIELDS, Complex(ΔΩ))
+    Complex_pullback(ΔΩ) = (NoTangent(), Complex(ΔΩ))
     return (T(z), Complex_pullback)
 end
 function rrule(::Type{T}, x::Real) where {T<:Complex}
-    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ))
+    Complex_pullback(ΔΩ) = (NoTangent(), real(ΔΩ))
     return (T(x), Complex_pullback)
 end
 function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
-    Complex_pullback(ΔΩ) = (NO_FIELDS, real(ΔΩ), imag(ΔΩ))
+    Complex_pullback(ΔΩ) = (NoTangent(), real(ΔΩ), imag(ΔΩ))
     return (T(x, y), Complex_pullback)
 end
 
@@ -70,7 +70,7 @@ end
 function rrule(::typeof(hypot), z::Complex)
     Ω = hypot(z)
     function hypot_pullback(ΔΩ)
-        return (NO_FIELDS, (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)
+        return (NoTangent(), (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)
     end
     return (Ω, hypot_pullback)
 end
@@ -148,7 +148,7 @@ end
 
 function rrule(::typeof(identity), x)
     function identity_pullback(ȳ)
-        return (NO_FIELDS, ȳ)
+        return (NoTangent(), ȳ)
     end
     return (x, identity_pullback)
 end

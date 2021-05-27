@@ -15,7 +15,7 @@ if VERSION ≥ v"1.4"
         y, ys = _evalpoly_intermediates(x, p)
         function evalpoly_pullback(Δy)
             ∂x, ∂p = _evalpoly_back(x, p, ys, Δy)
-            return NO_FIELDS, ∂x, ∂p
+            return NoTangent(), ∂x, ∂p
         end
         return y, evalpoly_pullback
     end

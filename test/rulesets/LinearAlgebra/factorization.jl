@@ -187,12 +187,12 @@ end
                 @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1] rtol=1e-4
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @inferred back(F̄)
-                @test s̄elf === NO_FIELDS
+                @test s̄elf === NoTangent()
                 X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
                 @test X̄_ad ≈ X̄_fd rtol=1e-4
-                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                @test @inferred(back(Zero())) === (NoTangent(), Zero())
                 F̄zero = CT(values = Zero(), vectors = Zero())
-                @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
+                @test @inferred(back(F̄zero)) === (NoTangent(), Zero())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
@@ -286,7 +286,7 @@ end
                         end
 
                         ∂self, ∂A = @inferred back(∂F)
-                        @test ∂self === NO_FIELDS
+                        @test ∂self === NoTangent()
                         @test ∂A isa typeof(A)
                         ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
                         @test ∂A ≈ ∂A_fd
@@ -318,7 +318,7 @@ end
 
                 λ, back = rrule(eigvals, randn(T, n, n))
                 _, X̄ = @inferred back(rand_tangent(λ))
-                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                @test @inferred(back(Zero())) === (NoTangent(), Zero())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     @test eltype(X̄) <: Real
@@ -343,10 +343,10 @@ end
                     λ_ad, back = rrule(eigvals, A)
                     @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
                     ∂self, ∂A = @inferred back(Δλ)
-                    @test ∂self === NO_FIELDS
+                    @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
                     @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
-                    @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+                    @test @inferred(back(Zero())) == (NoTangent(), Zero())
                 end
             end
         end
@@ -375,7 +375,7 @@ end
             Y, dF_pullback = rrule(getproperty, F, p)
             Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
             (dself, dF, dp) = dF_pullback(Ȳ)
-            @test dself === NO_FIELDS
+            @test dself === NoTangent()
             @test dp === DoesNotExist()
 
             # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`

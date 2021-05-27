@@ -8,7 +8,7 @@ end
 
 function rrule(::typeof(dot), x, y)
     function dot_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
+        return (NoTangent(), @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
     end
     return dot(x, y), dot_pullback
 end
@@ -24,9 +24,9 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
         dx = @thunk conj(ΔΩ) .* Ay
         dA = @thunk ΔΩ .* x .* adjoint(y)
         dy = @thunk ΔΩ .* (adjoint(A) * x)
-        return (NO_FIELDS, dx, dA, dy)
+        return (NoTangent(), dx, dA, dy)
     end
-    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    dot_pullback(::Zero) = (NoTangent(), Zero(), Zero(), Zero())
     return z, dot_pullback
 end
 
@@ -36,9 +36,9 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}
         dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
         dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
         dy = @thunk ΔΩ .* conj.(A.diag) .* x
-        return (NO_FIELDS, dx, dA, dy)
+        return (NoTangent(), dx, dA, dy)
     end
-    dot_pullback(::Zero) = (NO_FIELDS, Zero(), Zero(), Zero())
+    dot_pullback(::Zero) = (NoTangent(), Zero(), Zero(), Zero())
     return z, dot_pullback
 end
 
@@ -54,7 +54,7 @@ end
 function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
     Ω = cross(a, b)
     function cross_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
+        return (NoTangent(), @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
     end
     return Ω, cross_pullback
 end
@@ -76,7 +76,7 @@ function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return Ω, det_pullback
 end
@@ -94,7 +94,7 @@ function rrule(::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return Ω, logdet_pullback
 end
@@ -122,7 +122,7 @@ function rrule(::typeof(logabsdet), x::AbstractMatrix)
         imagf = f - real(f)
         g = real(Δy) + imagf
         ∂x = g * inv(x)'
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return Ω, logabsdet_pullback
 end
@@ -139,7 +139,7 @@ function rrule(::typeof(tr), x)
     # This should really be a FillArray
     # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
     function tr_pullback(ΔΩ)
-        return (NO_FIELDS, Diagonal(fill(ΔΩ, size(x, 1))))
+        return (NoTangent(), Diagonal(fill(ΔΩ, size(x, 1))))
     end
     return tr(x), tr_pullback
 end
@@ -202,7 +202,7 @@ function rrule(
     y = pinv(x, tol)
     function pinv_pullback(Δy)
         ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NoTangent(), ∂x, Zero())
     end
     return y, pinv_pullback
 end
@@ -216,7 +216,7 @@ function rrule(
     function pinv_pullback(Δy)
         ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
         ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NoTangent(), ∂x, Zero())
     end
     return y, pinv_pullback
 end
@@ -235,7 +235,7 @@ function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
             ∂A = add!!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
             ∂A = add!!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
         end
-        return (NO_FIELDS, ∂A)
+        return (NoTangent(), ∂A)
     end
     return Y, pinv_pullback
 end
@@ -280,7 +280,7 @@ function rrule(
         trans = T <: Complex ? 'C' : 'T'
         ∂D, scale2 = LAPACK.trsyl!(trans, trans, RA, RB, ∂Y)
         ∂Z = rmul!(QA * (∂D * QB'), -inv(scale2))
-        return NO_FIELDS, @thunk(∂Z * Ω'), @thunk(Ω' * ∂Z), @thunk(∂Z * inv(scale))
+        return NoTangent(), @thunk(∂Z * Ω'), @thunk(Ω' * ∂Z), @thunk(∂Z * inv(scale))
     end
     return Ω, sylvester_pullback
 end
@@ -318,7 +318,7 @@ function rrule(
         ∂Y = Q' * (∂Ω * Q)
         ∂D, scale2 = LAPACK.trsyl!(T <: Complex ? 'C' : 'T', 'N', R, R, ∂Y)
         ∂Z = rmul!(Q * (∂D * Q'), -inv(scale2))
-        return NO_FIELDS, @thunk(mul!(∂Z * Ω', ∂Z', Ω, true, true)), @thunk(∂Z * inv(scale))
+        return NoTangent(), @thunk(mul!(∂Z * Ω', ∂Z', Ω, true, true)), @thunk(∂Z * inv(scale))
     end
     return Ω, lyap_pullback
 end

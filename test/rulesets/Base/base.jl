@@ -165,12 +165,12 @@
     end
 
     @testset "type" begin
-        @test frule((NO_FIELDS, DoesNotExist(), DoesNotExist()), typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
+        @test frule((NoTangent(), DoesNotExist(), DoesNotExist()), typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
         @test rrule(typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
     end
 
     @testset "Logging" begin
-        @test frule((NO_FIELDS, DoesNotExist(), DoesNotExist()), Base.depwarn, "message", :f) !== nothing
+        @test frule((NoTangent(), DoesNotExist(), DoesNotExist()), Base.depwarn, "message", :f) !== nothing
         @test rrule(Base.depwarn, "message", :f) !== nothing
     end
 end
