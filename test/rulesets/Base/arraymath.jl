@@ -62,62 +62,48 @@
         end
     end
 
-    _adjoint(x) = x'
-    _adjoint(::Nothing) = nothing
-
     @testset "muladd: $T" for T in (Float64, ComplexF64)
         @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
-            dz = if z===false
-                nothing  # gradient for z::Bool is tested to be DoesNotExist()
-            else
-                rand(T, fill(3, ndims(z))...)
-            end
             @testset "matrix * matrix" begin
-                A, B = rand(T, 3, 3), rand(T, 3, 3)
-                dA, dB = rand(T, 3, 3), rand(T, 3, 3)
-                rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                rrule_test(muladd, A'*B.+z, (A', dA'), (B, dB), (z, dz))
-                rrule_test(muladd, A*B'.+z, (A, dA), (B', dB'), (z, dz))
-                A, B = rand(T, 3, 5), rand(T, 5, 3)
-                dA, dB = rand(T, 3, 5), rand(T, 5, 3)
-                rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                A = rand(T, 3, 3)
+                B = rand(T, 3, 3)
+                test_rrule(muladd, A, B, z)
+                test_rrule(muladd, A', B, z)
+                test_rrule(muladd, A , B', z)
+
+                C = rand(T, 3, 5)
+                D = rand(T, 5, 3)
+                test_rrule(muladd, C, D, z)
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
                     A, B = rand(T, 3, 3), rand(T, 3)
-                    dA, dB = rand(T, 3, 3), rand(T, 3)
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T, 3, 3), rand(T, 3,1)
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A, B ⊢ rand(T, 3,1), z)
                 end
                 @testset "adjoint * matrix" begin
-                    At, B, zt = rand(T, 3)', rand(T, 3, 3), _adjoint(z)
-                    dAt, dB, dzt = rand(T, 3)', rand(T, 3, 3), _adjoint(dz)
-                    rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
-                    dAt, dB, dzt = rand(T,1,3), rand(T, 3, 3), _adjoint(dz)
-                    rrule_test(muladd, At*B.+zt, (At, dAt), (B, dB), (zt, dzt))
+                    At, B = rand(T, 3)', rand(T, 3, 3)
+                    test_rrule(muladd, At, B, z')
+                    test_rrule(muladd, At ⊢ rand(T,1,3), B, z')
                 end
             end
             if ndims(z) == 0
                 @testset "adjoint * vector" begin # like dot
                     A, B = rand(T, 3)', rand(T, 3)
-                    dA, dB = rand(T, 3)', rand(T, 3)
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T,1,3), rand(T, 3)
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A ⊢ rand(T,1,3), B, z')
                 end
             end
             if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
                 @testset "vector * adjoint" begin # outer product
                     A, B = rand(T, 3), rand(T, 3)'
-                    dA, dB = rand(T, 3), rand(T, 3)'
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
-                    dA, dB = rand(T, 3), rand(T,1,3)
-                    rrule_test(muladd, A*B.+z, (A, dA), (B, dB), (z, dz))
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A, B ⊢ rand(T,1,3), z)
                 end
             end
         end
     end
+
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin
             for n in 3:5, m in 3:5
@@ -144,12 +130,12 @@
             end
         end
     end
+
     @testset "/ and \\ Scalar-AbstractArray" begin
         A = randn(3, 4, 5)
         test_rrule(/, A, 7.2)
         test_rrule(\, 7.2, A)
     end
-
 
     @testset "negation" begin
         A = randn(4, 4)
