@@ -1,5 +1,5 @@
 @testset "reshape" begin
-    test_rrule(reshape, rand(4, 5), (2, 10) ⊢ DoesNotExist())
+    test_rrule(reshape, rand(4, 5), (2, 10) ⊢ NoTangent())
     test_rrule(reshape, rand(4, 5), 2, 10)
 end
 
@@ -14,7 +14,7 @@ end
     A = randn(3, 2)
     B = randn(3, 1)
     C = randn(3, 3)
-    test_rrule(reduce, hcat ⊢ DoesNotExist(), [A, B, C])
+    test_rrule(reduce, hcat ⊢ NoTangent(), [A, B, C])
 end
 
 @testset "vcat" begin
@@ -28,10 +28,10 @@ end
     A = randn(2, 4)
     B = randn(1, 4)
     C = randn(3, 4)
-    test_rrule(reduce, vcat ⊢ DoesNotExist(), [A, B, C])
+    test_rrule(reduce, vcat ⊢ NoTangent(), [A, B, C])
 end
 
 @testset "fill" begin
     test_rrule(fill, 44.0, 4; check_inferred=false)
-    test_rrule(fill, 2.0, (3, 3, 3) ⊢ DoesNotExist())
+    test_rrule(fill, 2.0, (3, 3, 3) ⊢ NoTangent())
 end

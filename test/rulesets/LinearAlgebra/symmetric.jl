@@ -86,13 +86,13 @@
 
                 A, ΔA = randn(T, n, n), randn(T, n, n)
                 symA = SymHerm(A, uplo)
-                ΔsymA = frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
+                ΔsymA = frule((ZeroTangent(), ΔA, ZeroTangent()), SymHerm, A, uplo)[2]
 
                 F = eigen!(copy(symA))
-                @test @inferred(frule((Zero(), Zero()), eigen!, copy(symA))) == (F, Zero())
-                F_ad, ∂F_ad = @inferred frule((Zero(), copy(ΔsymA)), eigen!, copy(symA))
+                @test @inferred(frule((ZeroTangent(), ZeroTangent()), eigen!, copy(symA))) == (F, ZeroTangent())
+                F_ad, ∂F_ad = @inferred frule((ZeroTangent(), copy(ΔsymA)), eigen!, copy(symA))
                 @test F_ad == F
-                @test ∂F_ad isa Composite{typeof(F)}
+                @test ∂F_ad isa Tangent{typeof(F)}
                 @test ∂F_ad.values isa typeof(F.values)
                 @test ∂F_ad.vectors isa typeof(F.vectors)
 
@@ -115,12 +115,12 @@
                 symA = SymHerm(A, uplo)
 
                 F = eigen(symA)
-                ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
+                ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
                 F_ad, back = @inferred rrule(eigen, symA)
                 @test F_ad == F
 
                 C = _eigvecs_stabilize_mat(F.vectors, uplo)
-                CT = Composite{typeof(F)}
+                CT = Tangent{typeof(F)}
 
                 @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                     ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
@@ -141,8 +141,8 @@
                     @test ∂A ≈ ∂A_fd
                 end
 
-                @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
-                @test @inferred(back(CT())) == (NO_FIELDS, Zero())
+                @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
+                @test @inferred(back(CT())) == (NO_FIELDS, ZeroTangent())
             end
 
             # when value used to determine phase convention is low, the usual derivatives
@@ -164,14 +164,14 @@
                     end
 
                     Ȧ = Hermitian(randn(eltype(A), size(A)))
-                    F, Ḟ_ad = frule((Zero(), copy(Ȧ)), eigen!, copy(A))
+                    F, Ḟ_ad = frule((ZeroTangent(), copy(Ȧ)), eigen!, copy(A))
                     V, V̇_ad = F.vectors, Ḟ_ad.vectors
                     Ω̇_ad = V̇_ad' * V + V' * V̇_ad
                     @test maximum(abs, Ω̇_ad) < sqrt(eps())
 
                     Ω̄ = randn(eltype(A), (n, n))
                     V̄ = V * (Ω̄ + Ω̄')
-                    F̄ = Composite{typeof(F)}(vectors = V̄)
+                    F̄ = Tangent{typeof(F)}(vectors = V̄)
                     _, back = rrule(eigen, A)
                     Ā = back(F̄)[2]
                     @test maximum(abs, Ā) < sqrt(eps())
@@ -187,10 +187,10 @@
 
                 A, ΔA = randn(T, n, n), randn(T, n, n)
                 symA = SymHerm(A, uplo)
-                ΔsymA = @inferred frule((Zero(), ΔA, Zero()), SymHerm, A, uplo)[2]
+                ΔsymA = @inferred frule((ZeroTangent(), ΔA, ZeroTangent()), SymHerm, A, uplo)[2]
 
                 λ = eigvals!(copy(symA))
-                λ_ad, ∂λ_ad = @inferred frule((Zero(), copy(ΔsymA)), eigvals!, copy(symA))
+                λ_ad, ∂λ_ad = @inferred frule((ZeroTangent(), copy(ΔsymA)), eigvals!, copy(symA))
                 @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                 @test ∂λ_ad isa typeof(λ)
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
@@ -215,7 +215,7 @@
                 ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
 
-                @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+                @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
             end
         end
     end
@@ -242,14 +242,14 @@
             symA = SymHerm(A, uplo)
 
             F = svd(symA)
-            CT = Composite{typeof(F)}
+            CT = Tangent{typeof(F)}
             ΔF = CT(; U=ΔU, V=ΔV, Vt=ΔVt, S=ΔS)
             F_ad, back = @inferred rrule(svd, symA)
             @test F_ad == F
 
             C = _eigvecs_stabilize_mat(F.U, uplo)
 
-            # pull back different combination of non-Zero cotangents
+            # pull back different combination of non-ZeroTangent cotangents
             @testset for nzprops in ([:U], [:S], [:V], [:Vt], [:U, :S, :V, :Vt])
                 ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
                 ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
@@ -272,8 +272,8 @@
                 @test ∂A ≈ ∂A_fd
             end
 
-            @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
-            @test @inferred(back(CT())) == (NO_FIELDS, Zero())
+            @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
+            @test @inferred(back(CT())) == (NO_FIELDS, ZeroTangent())
         end
 
         @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
@@ -295,7 +295,7 @@
             ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
             @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
 
-            @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+            @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
         end
     end
 
@@ -346,14 +346,14 @@
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
                     if is_inferrable(f, A)
-                        Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), f, A)
+                        Y_ad, ∂Y_ad = @inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
                             Union{Symmetric{Complex{T}},Symmetric{T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
-                        Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((Zero(), ΔA), f, A)
+                        Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((ZeroTangent(), ΔA), f, A)
                     end
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
@@ -369,13 +369,13 @@
                     λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
                     A = TA(U * Diagonal(λ) * U')
                     ΔA = TA(randn(T, n, n))
-                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
 
                     λ[1:m] .= λ[m+1:2m]
                     A2 = TA(U * Diagonal(λ) * U')
                     ΔA2 = TA(randn(T, n, n))
-                    _, ∂Y2 = frule((Zero(), ΔA2), f, A2)
+                    _, ∂Y2 = frule((ZeroTangent(), ΔA2), f, A2)
                     @test parent(∂Y2) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A2.data, ΔA2.data))
                 end
 
@@ -384,7 +384,7 @@
                     λ[2:n] .= 0
                     A = TA(U * Diagonal(λ) * U')
                     ΔA = TA(randn(T, n, n))
-                    _, ∂Y = frule((Zero(), ΔA), f, A)
+                    _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
                 end
             end
@@ -465,16 +465,16 @@
                     A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
                     Y = sincos(A)
                     sinA, cosA = Y
-                    Y_ad, ∂Y_ad = @inferred frule((Zero(), ΔA), sincos, A)
+                    Y_ad, ∂Y_ad = @inferred frule((ZeroTangent(), ΔA), sincos, A)
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
                     @test Y_ad[1].uplo === Y[1].uplo
                     @test Y_ad[2].uplo === Y[2].uplo
 
-                    @test ∂Y_ad isa Composite{typeof(Y)}
-                    ∂Y_ad2 = Composite{typeof(Y)}(
-                        frule((Zero(), ΔA), sin, A)[2],
-                        frule((Zero(), ΔA), cos, A)[2],
+                    @test ∂Y_ad isa Tangent{typeof(Y)}
+                    ∂Y_ad2 = Tangent{typeof(Y)}(
+                        frule((ZeroTangent(), ΔA), sin, A)[2],
+                        frule((ZeroTangent(), ΔA), cos, A)[2],
                     )
                     # not exact because evaluated in a more efficient way
                     @test ∂Y_ad ≈ ∂Y_ad2
@@ -494,18 +494,18 @@
                     @test Y_ad[1].uplo === Y[1].uplo
                     @test Y_ad[2].uplo === Y[2].uplo
 
-                    ΔY = Composite{typeof(Y)}(ΔsinA, ΔcosA)
+                    ΔY = Tangent{typeof(Y)}(ΔsinA, ΔcosA)
                     ∂self, ∂A = @inferred back(ΔY)
                     @test ∂self === NO_FIELDS
                     @test ∂A ≈ rrule(sin, A)[2](ΔsinA)[2] + rrule(cos, A)[2](ΔcosA)[2]
 
-                    ΔY2 = Composite{typeof(Y)}(Zero(), Zero())
-                    @test @inferred(back(ΔY2)) === (NO_FIELDS, Zero())
+                    ΔY2 = Tangent{typeof(Y)}(ZeroTangent(), ZeroTangent())
+                    @test @inferred(back(ΔY2)) === (NO_FIELDS, ZeroTangent())
 
-                    ΔY3 = Composite{typeof(Y)}(ΔsinA, Zero())
+                    ΔY3 = Tangent{typeof(Y)}(ΔsinA, ZeroTangent())
                     @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
 
-                    ΔY4 = Composite{typeof(Y)}(Zero(), ΔcosA)
+                    ΔY4 = Tangent{typeof(Y)}(ZeroTangent(), ΔcosA)
                     @test @inferred(back(ΔY4)) == rrule(cos, A)[2](ΔcosA)
                 end
             end

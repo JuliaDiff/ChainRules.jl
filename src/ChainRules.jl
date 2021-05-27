@@ -2,6 +2,7 @@ module ChainRules
 
 using Reexport
 @reexport using ChainRulesCore
+export Zero, DoesNotExist, Composite, AbstractDifferential
 
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using Compat
