@@ -28,7 +28,7 @@ end
 
 # `imag`
 
-@scalar_rule imag(x::Real) Zero()
+@scalar_rule imag(x::Real) ZeroTangent()
 
 frule((_, Δz), ::typeof(imag), z::Complex) = (imag(z), imag(Δz))
 
@@ -77,7 +77,7 @@ end
 
 @scalar_rule fma(x, y, z) (y, x, true)
 @scalar_rule muladd(x, y, z) (y, x, true)
-@scalar_rule rem2pi(x, r::RoundingMode) (true, DoesNotExist())
+@scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
@@ -87,7 +87,7 @@ end
 @scalar_rule deg2rad(x) π / oftype(x, 180)
 @scalar_rule rad2deg(x) oftype(x, 180) / π
 
-@scalar_rule(ldexp(x, y), (2^y, DoesNotExist()))
+@scalar_rule(ldexp(x, y), (2^y, NoTangent()))
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
 @scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))
@@ -154,7 +154,7 @@ function rrule(::typeof(identity), x)
 end
 
 # rouding related,
-# we use `zero` rather than `Zero()` for scalar, and avoids issues with map etc
+# we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)

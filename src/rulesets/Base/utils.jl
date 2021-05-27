@@ -12,4 +12,4 @@
 end
 @inline _imagconjtimes(x::Real, y::Complex) = x * imag(y)
 @inline _imagconjtimes(x::Complex, y::Real) = -imag(x) * y
-@inline _imagconjtimes(x::Real, y::Real) = Zero()
+@inline _imagconjtimes(x::Real, y::Real) = ZeroTangent()

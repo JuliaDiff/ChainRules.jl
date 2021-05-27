@@ -40,7 +40,7 @@
 
             ȳ = rand_tangent(fnorm(x))
             @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
-            @test rrule(fnorm, x)[2](Zero())[2] isa Zero
+            @test rrule(fnorm, x)[2](ZeroTangent())[2] isa ZeroTangent
         end
         ndims(x) > 1 && @testset "non-strided" begin
             xp = if x isa Matrix
@@ -71,10 +71,10 @@
 
         @testset "frule" begin
             test_frule(norm, x)
-            @test frule((Zero(), Zero()), norm, x)[2] isa Zero
+            @test frule((ZeroTangent(), ZeroTangent()), norm, x)[2] isa ZeroTangent
 
             ẋ = rand_tangent(x)
-            @test iszero(frule((Zero(), ẋ), norm, zero(x))[2])
+            @test iszero(frule((ZeroTangent(), ẋ), norm, zero(x))[2])
         end
         @testset "rrule" begin
             test_rrule(norm, x)
@@ -84,7 +84,7 @@
 
             ȳ = rand_tangent(norm(x))
             @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
-            @test rrule(norm, x)[2](Zero())[2] isa Zero
+            @test rrule(norm, x)[2](ZeroTangent())[2] isa ZeroTangent
         end
         ndims(x) > 1 && @testset "non-strided" begin
             xp = if x isa Matrix
@@ -128,7 +128,7 @@
 
         ȳ = rand_tangent(fnorm(x, p))
         @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
-        @test rrule(fnorm, x, p)[2](Zero())[2] isa Zero
+        @test rrule(fnorm, x, p)[2](ZeroTangent())[2] isa ZeroTangent
         T == Float64 && sz == (3,) && @testset "Integer input, p=$p" begin
             x = [1,2,3]
             int_fwd, int_back = rrule(fnorm, x, p)
@@ -159,7 +159,7 @@
             test_rrule(norm, randn(T), p)
 
             _, back = rrule(norm, randn(T), p)
-            @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
+            @test back(ZeroTangent()) == (NO_FIELDS, ZeroTangent(), ZeroTangent())
         end
         @testset "p = 0" begin
             p = 0.0
@@ -167,13 +167,13 @@
             y = norm(x, p)
             ẋ, ṗ = rand_tangent.((x, p))
             x̄, p̄, ȳ = rand_tangent.((x, p, y))
-            y_fwd, ẏ = frule((Zero(), ẋ, ṗ), norm, x, p)
+            y_fwd, ẏ = frule((ZeroTangent(), ẋ, ṗ), norm, x, p)
             @test y_fwd == y
             @test iszero(ẏ)
             y_rev, back = rrule(norm, x, p)
             @test y_rev == y
-            @test back(ȳ) == (NO_FIELDS, zero(x), Zero())
-            @test back(Zero()) == (NO_FIELDS, Zero(), Zero())
+            @test back(ȳ) == (NO_FIELDS, zero(x), ZeroTangent())
+            @test back(ZeroTangent()) == (NO_FIELDS, ZeroTangent(), ZeroTangent())
         end
     end
 end
@@ -185,12 +185,12 @@ end
     @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
         x = randn(T, 3)
         test_rrule(normalize, x)
-        @test rrule(normalize, x)[2](Zero()) === (NO_FIELDS, Zero())
+        @test rrule(normalize, x)[2](ZeroTangent()) === (NO_FIELDS, ZeroTangent())
     end
     @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
         p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
         x = randn(T, 3)
         test_rrule(normalize, x, p)
-        @test rrule(normalize, x, p)[2](Zero()) === (NO_FIELDS, Zero(), Zero())
+        @test rrule(normalize, x, p)[2](ZeroTangent()) === (NO_FIELDS, ZeroTangent(), ZeroTangent())
     end
 end

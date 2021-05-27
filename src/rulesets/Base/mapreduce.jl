@@ -51,7 +51,7 @@ function rrule(
             @thunk(2 .* real.(ȳ) .* x),
             dx -> dx .+= 2 .* real.(ȳ) .* x
         )
-        return (NO_FIELDS, DoesNotExist(), x_thunk)
+        return (NO_FIELDS, NoTangent(), x_thunk)
     end
     return y, sum_abs2_pullback
 end
