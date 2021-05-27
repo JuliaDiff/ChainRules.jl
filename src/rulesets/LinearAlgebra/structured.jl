@@ -33,8 +33,8 @@ function rrule(::Type{<:Diagonal}, d::AbstractVector)
     function Diagonal_pullback(ȳ::AbstractMatrix)
         return (NO_FIELDS, diag(ȳ))
     end
-    function Diagonal_pullback(ȳ::Composite)
-        # TODO: Assert about the primal type in the Composite, It should be Diagonal
+    function Diagonal_pullback(ȳ::Tangent)
+        # TODO: Assert about the primal type in the Tangent, It should be Diagonal
         # infact it should be exactly the type of `Diagonal(d)`
         # but right now Zygote loses primal type information so we can't use it.
         # See https://github.com/FluxML/Zygote.jl/issues/603
@@ -52,14 +52,14 @@ end
 if VERSION ≥ v"1.3"
     function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
         function diag_pullback(ȳ)
-            return (NO_FIELDS, diagm(size(A)..., k => ȳ), DoesNotExist())
+            return (NO_FIELDS, diagm(size(A)..., k => ȳ), NoTangent())
         end
         return diag(A, k), diag_pullback
     end
 
     function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
         function diagm_pullback(ȳ)
-            return (NO_FIELDS, DoesNotExist(), DoesNotExist(), _diagm_back.(kv, Ref(ȳ))...)
+            return (NO_FIELDS, NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
         end
         return diagm(m, n, kv...), diagm_pullback
     end
@@ -74,7 +74,7 @@ end
 function _diagm_back(p, ȳ)
     k, v = p
     d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
-    return Composite{typeof(p)}(second = d)
+    return Tangent{typeof(p)}(second = d)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
@@ -89,25 +89,25 @@ end
 #####
 
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
-    Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    Adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
     Adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
-    Adjoint_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    Adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
     Adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
-    adjoint_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
     adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
     return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
-    adjoint_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
     adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
     return adjoint(A), adjoint_pullback
 end
@@ -117,25 +117,25 @@ end
 #####
 
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
-    Transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    Transpose_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
     Transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, Transpose(ȳ))
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
-    Transpose_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    Transpose_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
     Transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(Transpose(ȳ)))
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
-    transpose_pullback(ȳ::Composite) = (NO_FIELDS, ȳ.parent)
+    transpose_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
     transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, transpose(ȳ))
     return transpose(A), transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractVector{<:Number})
-    transpose_pullback(ȳ::Composite) = (NO_FIELDS, vec(ȳ.parent))
+    transpose_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
     transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(transpose(ȳ)))
     return transpose(A), transpose_pullback
 end
@@ -160,7 +160,7 @@ end
 
 function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, triu(ȳ, k), DoesNotExist())
+        return (NO_FIELDS, triu(ȳ, k), NoTangent())
     end
     return triu(A, k), triu_pullback
 end
@@ -173,7 +173,7 @@ end
 
 function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, tril(ȳ, k), DoesNotExist())
+        return (NO_FIELDS, tril(ȳ, k), NoTangent())
     end
     return tril(A, k), tril_pullback
 end

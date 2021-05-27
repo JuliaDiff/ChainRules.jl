@@ -29,15 +29,15 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_frule(lu!, randn(T, m, n), pivot ⊢ DoesNotExist())
+                test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 ΔAsingular = rand_tangent(Asingular)
                 @test_throws SingularException frule(
-                    (Zero(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
+                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), Val(true)
                 )
-                frule((Zero(), ΔAsingular), lu!, Asingular, Val(true); check=false)
+                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, Val(true); check=false)
                 @test true  # above line would have errored if this was not working right
             end
         end
@@ -47,12 +47,12 @@ end
                 pivot in (Val(true), Val(false)),
                 m in (7, 10, 13)
 
-                test_rrule(lu, randn(T, m, n), pivot ⊢ DoesNotExist())
+                test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 F = lu(Asingular, Val(true); check=false)
-                ΔF = Composite{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
+                ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
                 @test_throws SingularException rrule(lu, Asingular, Val(true))
                 _, back = rrule(lu, Asingular, Val(true); check=false)
                 back(ΔF)
@@ -150,19 +150,19 @@ end
                 X = 10 .* (rand(T, n, n) .+ 5.0)
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
-                F_fwd, Ḟ_ad = frule((Zero(), copy(Ẋ)), eigen!, copy(X))
+                F_fwd, Ḟ_ad = frule((ZeroTangent(), copy(Ẋ)), eigen!, copy(X))
                 @test F_fwd == F
-                @test Ḟ_ad isa Composite{typeof(F)}
+                @test Ḟ_ad isa Tangent{typeof(F)}
                 Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
                 @test Ḟ_ad.values ≈ Ḟ_fd.values
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
-                @test frule((Zero(), Zero()), eigen!, copy(X)) == (F, Zero())
+                @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(X)) == (F, ZeroTangent())
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues and, when real, real eigenvectors
                     X = Matrix(Hermitian(randn(T, n, n)))
                     Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, Ḟ = frule((Zero(), Ẋ), eigen!, X)
+                    _, Ḟ = frule((ZeroTangent(), Ẋ), eigen!, X)
                     @test eltype(Ḟ.values) <: Real
                     T <: Real && @test eltype(Ḟ.vectors) <: Real
                 end
@@ -177,7 +177,7 @@ end
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
                 λ̄ = rand_tangent(F.values)
-                CT = Composite{typeof(F)}
+                CT = Tangent{typeof(F)}
                 F_rev, back = rrule(eigen, X)
                 @test F_rev == F
                 # NOTE: eigen is not type-stable, so neither are is its rrule
@@ -190,9 +190,9 @@ end
                 @test s̄elf === NO_FIELDS
                 X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
                 @test X̄_ad ≈ X̄_fd rtol=1e-4
-                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
-                F̄zero = CT(values = Zero(), vectors = Zero())
-                @test @inferred(back(F̄zero)) === (NO_FIELDS, Zero())
+                @test @inferred(back(ZeroTangent())) === (NO_FIELDS, ZeroTangent())
+                F̄zero = CT(values = ZeroTangent(), vectors = ZeroTangent())
+                @test @inferred(back(F̄zero)) === (NO_FIELDS, ZeroTangent())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
@@ -201,7 +201,7 @@ end
                     F = eigen(X)
                     V̄ = rand_tangent(F.vectors)
                     λ̄ = rand_tangent(F.values)
-                    F̄ = Composite{typeof(F)}(values = λ̄, vectors = V̄)
+                    F̄ = Tangent{typeof(F)}(values = λ̄, vectors = V̄)
                     X̄ = rrule(eigen, X)[2](F̄)[2]
                     @test eltype(X̄) <: Real
                 end
@@ -246,10 +246,10 @@ end
                     A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
 
                     F = eigen!(copy(A))
-                    @test frule((Zero(), Zero()), eigen!, copy(A)) == (F, Zero())
-                    F_ad, ∂F_ad = frule((Zero(), copy(ΔA)), eigen!, copy(A))
+                    @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(A)) == (F, ZeroTangent())
+                    F_ad, ∂F_ad = frule((ZeroTangent(), copy(ΔA)), eigen!, copy(A))
                     @test F_ad == F
-                    @test ∂F_ad isa Composite{typeof(F)}
+                    @test ∂F_ad isa Tangent{typeof(F)}
                     @test ∂F_ad.values isa typeof(F.values)
                     @test ∂F_ad.vectors isa typeof(F.vectors)
 
@@ -268,12 +268,12 @@ end
                     A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
 
                     F = eigen(A)
-                    ΔF = Composite{typeof(F)}(; values=Δλ, vectors=ΔU)
+                    ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
                     F_ad, back = rrule(eigen, A)
                     @test F_ad == F
 
                     C = _eigvecs_stabilize_mat(F.vectors)
-                    CT = Composite{typeof(F)}
+                    CT = Tangent{typeof(F)}
 
                     @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                         ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
@@ -301,13 +301,13 @@ end
                 n = 10
                 X = randn(T, n, n)
                 test_frule(eigvals!, X)
-                @test frule((Zero(), Zero()), eigvals!, copy(X))[2] == Zero()
+                @test frule((ZeroTangent(), ZeroTangent()), eigvals!, copy(X))[2] == ZeroTangent()
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues
                     X = Matrix(Hermitian(randn(T, n, n)))
                     Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, λ̇ = frule((Zero(), Ẋ), eigvals!, X)
+                    _, λ̇ = frule((ZeroTangent(), Ẋ), eigvals!, X)
                     @test eltype(λ̇) <: Real
                 end
             end
@@ -318,7 +318,7 @@ end
 
                 λ, back = rrule(eigvals, randn(T, n, n))
                 _, X̄ = @inferred back(rand_tangent(λ))
-                @test @inferred(back(Zero())) === (NO_FIELDS, Zero())
+                @test @inferred(back(ZeroTangent())) === (NO_FIELDS, ZeroTangent())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     @test eltype(X̄) <: Real
@@ -331,7 +331,7 @@ end
                 @testset "eigvals!(::Matrix{$T})" for T in (Float64, ComplexF64)
                     A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
                     λ = eigvals!(copy(A))
-                    λ_ad, ∂λ_ad = frule((Zero(), copy(ΔA)), eigvals!, copy(A))
+                    λ_ad, ∂λ_ad = frule((ZeroTangent(), copy(ΔA)), eigvals!, copy(A))
                     @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                     @test ∂λ_ad isa typeof(λ)
                     @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(Matrix(Hermitian(A))), (A, ΔA))
@@ -346,7 +346,7 @@ end
                     @test ∂self === NO_FIELDS
                     @test ∂A isa typeof(A)
                     @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
-                    @test @inferred(back(Zero())) == (NO_FIELDS, Zero())
+                    @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
                 end
             end
         end
@@ -363,8 +363,8 @@ end
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
             test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ DoesNotExist();
-                output_tangent=Composite{typeof(C)}(factors=Diagonal(randn(5)))
+                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ NoTangent();
+                output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
             )
         end
 
@@ -376,7 +376,7 @@ end
             Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
             (dself, dF, dp) = dF_pullback(Ȳ)
             @test dself === NO_FIELDS
-            @test dp === DoesNotExist()
+            @test dp === NoTangent()
 
             # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
             # machinery from FiniteDifferences because that isn't set up to respect
@@ -397,7 +397,7 @@ end
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Composite{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
