@@ -3,7 +3,7 @@
 
 @scalar_rule one(x) zero(x)
 @scalar_rule zero(x) zero(x)
-@scalar_rule transpose(x) One()
+@scalar_rule transpose(x) true
 
 # `adjoint`
 
@@ -16,7 +16,7 @@ end
 
 # `real`
 
-@scalar_rule real(x::Real) One()
+@scalar_rule real(x::Real) true
 
 frule((_, Δz), ::typeof(real), z::Number) = (real(z), real(Δz))
 
@@ -75,9 +75,9 @@ function rrule(::typeof(hypot), z::Complex)
     return (Ω, hypot_pullback)
 end
 
-@scalar_rule fma(x, y, z) (y, x, One())
-@scalar_rule muladd(x, y, z) (y, x, One())
-@scalar_rule rem2pi(x, r::RoundingMode) (One(), NoTangent())
+@scalar_rule fma(x, y, z) (y, x, true)
+@scalar_rule muladd(x, y, z) (y, x, true)
+@scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),
     @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
