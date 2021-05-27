@@ -122,9 +122,8 @@ function rrule(
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
-            T = eltype(Ȳ)
             InplaceableThunk(
-                @thunk(sum!(similar(z, T), Ȳ)),
+                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
@@ -171,9 +170,8 @@ function rrule(
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
-            T = eltype(Ȳ)
             InplaceableThunk(
-                @thunk(sum!(similar(z, T), Ȳ)),
+                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
