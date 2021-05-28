@@ -312,11 +312,10 @@ end
 @inline function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
     lo, hi = firstindex(x), lastindex(x)
     z = something(findfirst(iszero, x), hi+1)
-    @inbounds for i in lo:z-1
-        ixi = 1/x[i]
-        for k in i:z-1
-            dx[i] += y[k] * dy[k] * ixi
-        end
+    acc = zero(eltype(dy))
+    @inbounds for k in z-1:-1:lo
+        acc += y[k] * dy[k]
+        dx[k] += acc / x[k]
     end
     @inbounds if z != hi+1
         yk = z==1 ? one(eltype(y)) : y[z-1]  # will be prod(x[j] for j=1:k if j!=z)
