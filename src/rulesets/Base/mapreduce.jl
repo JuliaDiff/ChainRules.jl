@@ -296,7 +296,7 @@ _reverse!!(x, dims=1) = reverse(x; dims=dims)
 if VERSION >= v"1.6"
     _reverse!!(x::StridedArray, dims=1) = reverse!(x; dims=dims)
 else
-    _reverse!!(x::StridedArray, dims=1) = dims==1 ? reverse!(x) : reverse(x; dims=dims)
+    _reverse!!(x::StridedVector, dims=1) = dims==1 ? reverse!(x) : x
 end
 
 _cumsum!!(x, dims=1) = cumsum(x; dims=dims)
