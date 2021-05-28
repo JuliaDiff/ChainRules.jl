@@ -276,12 +276,27 @@ function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y
  end
 
 @inline function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
-    iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
-    for ind in Iterators.product(iters...)
-        @views ∇cumprod!(dx[ind...], x[ind...], dy[ind...], y[ind...])
+    if any(iszero, x)
+        iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
+        for ind in Iterators.product(iters...)
+            @views ∇cumprod!(dx[ind...], x[ind...], dy[ind...], y[ind...])
+        end
+    else
+        step1 = y .* dy # _rscale!!(y, dy)  # is it safe to mutate y?
+        step2 = _reverse!!(_cumsum!!(_reverse!!(step1, dim), dim), dim)
+        dx .+= step2 ./ x
     end
     return dx
 end
+
+# _rscale!!(A, β) = A .* β
+# _rscale!!(A::StridedArray, β) = A .*= β
+
+_reverse!!(x, dims=1) = reverse(x; dims=dims)
+_reverse!!(x::StridedArray, dims=1) = reverse!(x; dims=dims)
+
+_cumsum!!(x, dims=1) = cumsum(x; dims=dims)
+_cumsum!!(x::StridedArray, dims=1) = cumsum!(x, x; dims=dims)
 
 function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     T = promote_type(eltype(x), eltype(dy))
