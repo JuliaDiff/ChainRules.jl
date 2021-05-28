@@ -293,7 +293,11 @@ end
 # _rscale!!(A::StridedArray, β) = A .*= β
 
 _reverse!!(x, dims=1) = reverse(x; dims=dims)
-_reverse!!(x::StridedArray, dims=1) = reverse!(x; dims=dims)
+if VERSION >= v"1.6"
+    _reverse!!(x::StridedArray, dims=1) = reverse!(x; dims=dims)
+else
+    _reverse!!(x::StridedArray, dims=1) = dims==1 ? reverse!(x) : reverse(x; dims=dims)
+end
 
 _cumsum!!(x, dims=1) = cumsum(x; dims=dims)
 _cumsum!!(x::StridedArray, dims=1) = cumsum!(x, x; dims=dims)
