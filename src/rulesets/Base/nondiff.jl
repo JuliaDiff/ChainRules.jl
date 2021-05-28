@@ -316,9 +316,7 @@ VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable readuntil(::IO, ::AbstractString)
 @non_differentiable realpath(::AbstractString)
 if isdefined(Base, :redirect_stdio)
-    @non_differentiable (::Base.redirect_stdio)(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, Base.AbstractPipe},
-    )
+    @non_differentiable Base.redirect_stdio(::Any)
 else
     @non_differentiable redirect_stderr(
         ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
