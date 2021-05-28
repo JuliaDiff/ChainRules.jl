@@ -275,7 +275,7 @@ function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y
      return dx
  end
 
-function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
+@inline function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
     iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
     for ind in Iterators.product(iters...)
         @views ∇cumprod!(dx[ind...], x[ind...], dy[ind...], y[ind...])
@@ -290,7 +290,7 @@ function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     return dx
 end
 
-function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
+@inline function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
     lo, hi = firstindex(x), lastindex(x)
     z = something(findfirst(iszero, x), hi+1)
     @inbounds for i in lo:z-1
