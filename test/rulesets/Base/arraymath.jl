@@ -62,6 +62,47 @@
         end
     end
 
+    @testset "muladd: $T" for T in (Float64, ComplexF64)
+        @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
+            @testset "matrix * matrix" begin
+                A = rand(T, 3, 3)
+                B = rand(T, 3, 3)
+                test_rrule(muladd, A, B, z)
+                test_rrule(muladd, A', B, z)
+                test_rrule(muladd, A , B', z)
+
+                C = rand(T, 3, 5)
+                D = rand(T, 5, 3)
+                test_rrule(muladd, C, D, z)
+            end
+            if ndims(z) <= 1
+                @testset "matrix * vector" begin
+                    A, B = rand(T, 3, 3), rand(T, 3)
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A, B ⊢ rand(T, 3,1), z)
+                end
+                @testset "adjoint * matrix" begin
+                    At, B = rand(T, 3)', rand(T, 3, 3)
+                    test_rrule(muladd, At, B, z')
+                    test_rrule(muladd, At ⊢ rand(T,1,3), B, z')
+                end
+            end
+            if ndims(z) == 0
+                @testset "adjoint * vector" begin # like dot
+                    A, B = rand(T, 3)', rand(T, 3)
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A ⊢ rand(T,1,3), B, z')
+                end
+            end
+            if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
+                @testset "vector * adjoint" begin # outer product
+                    A, B = rand(T, 3), rand(T, 3)'
+                    test_rrule(muladd, A, B, z)
+                    test_rrule(muladd, A, B ⊢ rand(T,1,3), z)
+                end
+            end
+        end
+    end
 
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin
@@ -89,12 +130,12 @@
             end
         end
     end
+
     @testset "/ and \\ Scalar-AbstractArray" begin
         A = randn(3, 4, 5)
         test_rrule(/, A, 7.2)
         test_rrule(\, 7.2, A)
     end
-
 
     @testset "negation" begin
         A = randn(4, 4)
