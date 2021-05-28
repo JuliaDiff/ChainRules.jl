@@ -247,16 +247,17 @@ end
 function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims)
     y = cumprod(x; dims=dims)
     @assert dims isa Integer
-    vald = Val(Int(dims))  # else ∇cumprod_dim! will be type unstable
     function cumprod_pullback_2(dy)
         dx_thunk = InplaceableThunk(
             @thunk if dims <= ndims(x)
+                vald = Val(Int(dims))
                 ∇cumprod_dim(vald, x, dy, y)
             else
                 dy
             end
             ,
             dx -> if dims <= ndims(x)
+                vald = Val(Int(dims))
                 ∇cumprod_dim!(dx, vald, x, dy, y)
             else
                 dx .+= dy
@@ -281,19 +282,6 @@ function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y)
     end
     return dx
 end
-
-#=
-
-julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]
-  86.333 μs (2007 allocations: 67.54 KiB)
-
-julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]  # with 1 hard-coded
-  5.417 μs (6 allocations: 15.95 KiB)
-
-julia> @btime gradient(x -> sum(cumprod(x, dims=1)), $(rand(10,100)))[1]  # with Val(dim)
-  5.423 μs (6 allocations: 15.95 KiB)
-
-=#
 
 function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     T = promote_type(eltype(x), eltype(dy))

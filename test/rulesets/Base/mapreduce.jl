@@ -31,7 +31,6 @@
             dy = sum(x; dims=dims)
             ddy = rrule(ChainRules._unsum, x, dy, dims)[2](x)[3]
             @test size(ddy) == size(dy)
-        end
     end
 
     @testset "sum abs2" begin
@@ -155,10 +154,9 @@
     end # prod
 end
 
-
-
+@testset "Accumulations" begin
     @testset "cumprod" begin
-        v = randn(9)
+        v = round.(10 .* randn(9), sigdigits=3)
         test_rrule(cumprod, v)
         v[3] = 0
         test_rrule(cumprod, v)
@@ -166,26 +164,27 @@ end
         test_rrule(cumprod, v)
 
         @testset "higher dimensions, dims=$dims" for dims in (1,2,3)
-            m = rand(4,5)
+            m = round.(10 .* randn(4,5), sigdigits=3)
             test_rrule(cumprod, m; fkwargs=(;dims=dims))
             m[2,2] = 0
             m[2,4] = 0
             test_rrule(cumprod, m; fkwargs=(;dims=dims))
 
-            t = randn(3,3,3)
-            test_rrule(cumprod, x; fkwargs=(;dims=dims))
+            t = round.(10 .* randn(3,3,3), sigdigits=3)
+            test_rrule(cumprod, t; fkwargs=(;dims=dims))
         end
 
         @testset "types" begin
-            back = unthunk(rrule(cumprod, [1, 2, 3])[2])
+            back = unthunk(rrule(cumprod, [1, 2, 3])[2])  # allow integer input
             @test unthunk(back(fill(0.5, 3))[2]) == [9/2, 2, 1]
 
             back = unthunk(rrule(cumprod, PermutedDimsArray([1 2; 3 4], (2,1)); dims=1)[2])
             @test unthunk(back(ones(Float32, 2,2))[2]) == [3 5; 1 3]
 
-            @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1)
+            @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1) # forward pass fails
 
             back = unthunk(rrule(cumprod, Diagonal([1, 2]); dims=1)[2])
             @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 3/2; 1/2 0]
         end
     end
+end
