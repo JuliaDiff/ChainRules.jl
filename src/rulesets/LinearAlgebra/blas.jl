@@ -18,14 +18,14 @@ rrule(::typeof(BLAS.dot), x, y) = rrule(dot, x, y)
 function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
     function blas_dot_pullback(ΔΩ)
-        if ΔΩ isa Zero
-            ∂X = Zero()
-            ∂Y = Zero()
+        if ΔΩ isa ZeroTangent
+            ∂X = ZeroTangent()
+            ∂Y = ZeroTangent()
         else
             ∂X = @thunk scal!(n, ΔΩ, blascopy!(n, Y, incy, _zeros(X), incx), incx)
             ∂Y = @thunk scal!(n, ΔΩ, blascopy!(n, X, incx, _zeros(Y), incy), incy)
         end
-        return (NoTangent(), DoesNotExist(), ∂X, DoesNotExist(), ∂Y, DoesNotExist())
+        return (NO_FIELDS, NoTangent(), ∂X, NoTangent(), ∂Y, NoTangent())
     end
     return Ω, blas_dot_pullback
 end
@@ -55,12 +55,12 @@ end
 
 function rrule(::typeof(BLAS.nrm2), n, X, incx)
     Ω = BLAS.nrm2(n, X, incx)
-    nrm2_pullback(::Zero) = (NoTangent(), DoesNotExist(), Zero(), DoesNotExist())
+    nrm2_pullback(::ZeroTangent) = (NO_FIELDS, NoTangent(), ZeroTangent(), NoTangent())
     function nrm2_pullback(ΔΩ)
         # BLAS.scal! requires s has the same eltype as X
         s = eltype(X)(real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω))
         ∂X = scal!(n, s, blascopy!(n, X, incx, _zeros(X), incx), incx)
-        return (NoTangent(), DoesNotExist(), ∂X, DoesNotExist())
+        return (NO_FIELDS, NoTangent(), ∂X, NoTangent())
     end
     return Ω, nrm2_pullback
 end
@@ -85,12 +85,12 @@ end
 
 function rrule(::typeof(BLAS.asum), n, X, incx)
     Ω = BLAS.asum(n, X, incx)
-    asum_pullback(::Zero) = (NoTangent(), DoesNotExist(), Zero(), DoesNotExist())
+    asum_pullback(::ZeroTangent) = (NO_FIELDS, NoTangent(), ZeroTangent(), NoTangent())
     function asum_pullback(ΔΩ)
         # BLAS.scal! requires s has the same eltype as X
         s = eltype(X)(real(ΔΩ))
         ∂X = scal!(n, s, blascopy!(n, _signcomp.(X), incx, _zeros(X), incx), incx)
-        return (NoTangent(), DoesNotExist(), ∂X, DoesNotExist())
+        return (NO_FIELDS, NoTangent(), ∂X, NoTangent())
     end
     return Ω, asum_pullback
 end
@@ -135,7 +135,7 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
                 x̄ -> gemv!('N', α', conj(A), ȳ, one(T), x̄)
             )
         end
-        return (NoTangent(), DoesNotExist(), @thunk(dot(y, ȳ) / α'), ∂A, ∂x)
+        return (NO_FIELDS, NoTangent(), @thunk(dot(y, ȳ) / α'), ∂A, ∂x)
     end
     return y, gemv_pullback
 end
@@ -249,7 +249,7 @@ function rrule(
                 )
             end
         end
-        return (NoTangent(), DoesNotExist(), DoesNotExist(), @thunk(dot(C, C̄) / α'), ∂A, ∂B)
+        return (NO_FIELDS, NoTangent(), NoTangent(), @thunk(dot(C, C̄) / α'), ∂A, ∂B)
     end
     return C, gemm_pullback
 end

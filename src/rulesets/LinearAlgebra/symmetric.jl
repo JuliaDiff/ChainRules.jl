@@ -9,7 +9,7 @@ end
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NoTangent(), _symherm_back(typeof(Ω), ΔΩ, uplo), DoesNotExist())
+        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end
@@ -118,7 +118,7 @@ function frule(
     fill!(∂Kdiag, 0)
     ∂U = mul!(tmp, U, ∂K)
     _eigen_norm_phase_fwd!(∂U, A, U)
-    ∂F = Composite{typeof(F)}(values = ∂λ, vectors = ∂U)
+    ∂F = Tangent{typeof(F)}(values = ∂λ, vectors = ∂U)
     return F, ∂F
 end
 
@@ -128,7 +128,7 @@ function rrule(
     kwargs...,
 )
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Composite)
+    function eigen_pullback(ΔF::Tangent)
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
@@ -142,19 +142,19 @@ end
 # ∂U is overwritten if not an `AbstractZero`
 function eigen_rev!(A::LinearAlgebra.RealHermSymComplexHerm, λ, U, ∂λ, ∂U)
     ∂λ isa AbstractZero && ∂U isa AbstractZero && return ∂λ + ∂U
-    Ā = similar(parent(A), eltype(U))
+    Ā = similar(parent(A), eltype(U))
     tmp = ∂U
     if ∂U isa AbstractZero
-        mul!(Ā, U, real.(∂λ) .* U')
+        mul!(Ā, U, real.(∂λ) .* U')
     else
         _eigen_norm_phase_rev!(∂U, A, U)
-        ∂K = mul!(Ā, U', ∂U)
+        ∂K = mul!(Ā, U', ∂U)
         ∂K ./= λ' .- λ
         ∂K[diagind(∂K)] .= real.(∂λ)
         mul!(tmp, ∂K, U')
-        mul!(Ā, U, tmp)
+        mul!(Ā, U, tmp)
     end
-    ∂A = _hermitrizelike!(Ā, A)
+    ∂A = _hermitrizelike!(Ā, A)
     return ∂A
 end
 
@@ -224,7 +224,7 @@ function rrule(
     F, eigen_back = rrule(eigen, A; kwargs...)
     λ = F.values
     function eigvals_pullback(Δλ)
-        ∂F = Composite{typeof(F)}(values = Δλ)
+        ∂F = Tangent{typeof(F)}(values = Δλ)
         _, ∂A = eigen_back(∂F)
         return NoTangent(), ∂A
     end
@@ -240,7 +240,7 @@ end
 # is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
-    function svd_pullback(ΔF::Composite)
+    function svd_pullback(ΔF::Tangent)
         U, V = F.U, F.V
         c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
@@ -296,7 +296,7 @@ end
 ##### matrix functions
 #####
 
-# Formula for frule (Fréchet derivative) from Daleckiĭ-Kreĭn theorem given in Theorem 3.11 of
+# Formula for frule (Fréchet derivative) from Daleckiĭ-Kreĭn theorem given in Theorem 3.11 of
 # Higham N.J. Functions of Matrices: Theory and Computation. 2008. ISBN: 978-0-898716-46-7.
 # rrule is derived from frule. These rules are more stable for degenerate matrices than
 # applying the chain rule to the rules for `eigen`.
@@ -305,12 +305,12 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     @eval begin
         function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
             Y, intermediates = _matfun($func, A)
-            Ȳ = _matfun_frechet($func, ΔA, A, Y, intermediates)
+            Ȳ = _matfun_frechet($func, ΔA, A, Y, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
             ∂Y = if ishermitian(ΔA) && (isa(Y, Symmetric) || isa(Y, Hermitian))
-                _symhermlike!(Ȳ, Y)
+                _symhermlike!(Ȳ, Y)
             else
-                Ȳ
+                Ȳ
             end
             return Y, ∂Y
         end
@@ -321,10 +321,10 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
                 # for Hermitian Y, we don't need to realify the diagonal of ΔY, since the
                 # effect is the same as applying _hermitrizelike! at the end
                 ∂Y = eltype(Y) <: Real ? real(ΔY) : ΔY
-                Ā = _matfun_frechet_adjoint($func, ∂Y, A, Y, intermediates)
+                Ā = _matfun_frechet_adjoint($func, ∂Y, A, Y, intermediates)
                 # the cotangent of Hermitian A should be Hermitian
-                ∂A = _hermitrizelike!(Ā, A)
-                return NoTangent(), ∂A
+                ∂A = _hermitrizelike!(Ā, A)
+                return NO_FIELDS, ∂A
             end
             return Y, $(Symbol(func, :_pullback))
         end
@@ -342,7 +342,7 @@ function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHe
     ∂sinA = _symhermlike!(mul!(∂sinΛ, U, mul!(tmp, ∂sinΛ, U')), sinA)
     ∂cosA = _symhermlike!(mul!(∂cosΛ, U, mul!(tmp, ∂cosΛ, U')), cosA)
     Y = (sinA, cosA)
-    ∂Y = Composite{typeof(Y)}(∂sinA, ∂cosA)
+    ∂Y = Tangent{typeof(Y)}(∂sinA, ∂cosA)
     return Y, ∂Y
 end
 
@@ -350,15 +350,15 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
-    function sincos_pullback((ΔsinA, ΔcosA)::Composite)
-        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NoTangent(), ΔsinA + ΔcosA
+    function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
+        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
         end
         if ΔcosA isa AbstractZero
-            Ā = _matfun_frechet_adjoint(sin, ΔsinA, A, sinA, (λ, U, sinλ, cosλ))
+            Ā = _matfun_frechet_adjoint(sin, ΔsinA, A, sinA, (λ, U, sinλ, cosλ))
         elseif ΔsinA isa AbstractZero
-            Ā = _matfun_frechet_adjoint(cos, ΔcosA, A, cosA, (λ, U, cosλ, -sinλ))
+            Ā = _matfun_frechet_adjoint(cos, ΔcosA, A, cosA, (λ, U, cosλ, -sinλ))
         else
             # we will overwrite tmp with various temporary values during this computation
             tmp = mul!(similar(U, Base.promote_eltype(U, ΔsinA, ΔcosA)), ΔsinA, U)
@@ -366,10 +366,10 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             ∂cosΛ = U' * mul!(tmp, ΔcosA, U)
             ∂Λ = _muldiffquotmat!!(∂sinΛ, sin, λ, sinλ, cosλ, ∂sinΛ)
             ∂Λ = _muldiffquotmat!!(∂Λ, cos, λ, cosλ, -sinλ, ∂cosΛ, true)
-            Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
+            Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
         end
-        ∂A = _hermitrizelike!(Ā, A)
-        return NoTangent(), ∂A
+        ∂A = _hermitrizelike!(Ā, A)
+        return NO_FIELDS, ∂A
     end
     return Y, sincos_pullback
 end
@@ -386,9 +386,9 @@ Note any function `f` used with this **must** have a `frule` defined on it.
 function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     λ, U = eigen(A)
     if all(λi -> _isindomain(f, λi), λ)
-        fλ_df_dλ = map(λi -> frule((Zero(), One()), f, λi), λ)
+        fλ_df_dλ = map(λi -> frule((ZeroTangent(), true), f, λi), λ)
     else  # promote to complex if necessary
-        fλ_df_dλ = map(λi -> frule((Zero(), One()), f, complex(λi)), λ)
+        fλ_df_dλ = map(λi -> frule((ZeroTangent(), true), f, complex(λi)), λ)
     end
     fλ = first.(fλ_df_dλ)
     df_dλ = last.(unthunk.(fλ_df_dλ))

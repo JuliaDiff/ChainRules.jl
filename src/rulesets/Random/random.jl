@@ -1,8 +1,8 @@
-frule(Δargs, ::Type{MersenneTwister}, args...) = MersenneTwister(args...), Zero()
+frule(Δargs, ::Type{MersenneTwister}, args...) = MersenneTwister(args...), ZeroTangent()
 
 function rrule(::Type{MersenneTwister}, args...)
     function MersenneTwister_pullback(ΔΩ)
-        return (NoTangent(), map(_ -> Zero(), args)...)
+        return (NO_FIELDS, map(_ -> ZeroTangent(), args)...)
     end
     return MersenneTwister(args...), MersenneTwister_pullback
 end

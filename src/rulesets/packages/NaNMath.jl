@@ -16,23 +16,23 @@
     NaNMath.max(x, y),
     (ifelse(
         (y > x) | (signbit(y) < signbit(x)),
-        ifelse(isnan(y), One(), Zero()),
-        ifelse(isnan(x), Zero(), One())),
+        ifelse(isnan(y), true, ZeroTangent()),
+        ifelse(isnan(x), ZeroTangent(), true)),
      ifelse(
         (y > x) | (signbit(y) < signbit(x)),
-        ifelse(isnan(y), Zero(), One()),
-        ifelse(isnan(x), One(), Zero())),
+        ifelse(isnan(y), ZeroTangent(), true),
+        ifelse(isnan(x), true, ZeroTangent())),
     )
 )
 @scalar_rule(
     NaNMath.min(x, y),
     (ifelse(
         (y < x) | (signbit(y) > signbit(x)),
-        ifelse(isnan(y), One(), Zero()),
-        ifelse(isnan(x), Zero(), One())),
+        ifelse(isnan(y), true, ZeroTangent()),
+        ifelse(isnan(x), ZeroTangent(), true)),
      ifelse(
         (y < x) | (signbit(y) > signbit(x)),
-        ifelse(isnan(y), Zero(), One()),
-        ifelse(isnan(x), One(), Zero())),
+        ifelse(isnan(y), ZeroTangent(), true),
+        ifelse(isnan(x), true, ZeroTangent())),
    )
 )

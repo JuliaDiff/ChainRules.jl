@@ -92,7 +92,7 @@ if VERSION ≥ v"1.4"
                 :(∂yi = x′ * ∂yi),
                 exs...,
                 :(∂p = (∂p1, $(vars...))),
-                :(∂x, Composite{typeof(p),typeof(∂p)}(∂p)),
+                :(∂x, Tangent{typeof(p),typeof(∂p)}(∂p)),
             )
         else
             _evalpoly_back_fallback(x, p, ys, Δy)
@@ -115,7 +115,7 @@ if VERSION ≥ v"1.4"
             end...,
             _evalpoly_backp(p[N], ∂yi), # ∂pN
         )
-        return ∂x, Composite{typeof(p),typeof(∂p)}(∂p)
+        return ∂x, Tangent{typeof(p),typeof(∂p)}(∂p)
     end
     function _evalpoly_back(x, p, ys, Δy)
         x′ = x'

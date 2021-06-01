@@ -10,7 +10,7 @@ function rrule(::typeof(partialsort), xs::AbstractVector, k::Union{Integer,Ordin
 
         Δxs = InplaceableThunk(@thunk(partialsort_add!(zero(xs))), partialsort_add!)
 
-        return NoTangent(), Δxs, DoesNotExist()
+        return NO_FIELDS, Δxs, NoTangent()
     end
 
     return ys, partialsort_pullback

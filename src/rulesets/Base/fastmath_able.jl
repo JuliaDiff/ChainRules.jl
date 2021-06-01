@@ -115,7 +115,7 @@ let
 
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
-                return (NoTangent(), Zero())
+                return (NO_FIELDS, ZeroTangent())
             end
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)
@@ -160,8 +160,8 @@ let
             return (Ω, hypot_pullback)
         end
 
-        @scalar_rule x + y (One(), One())
-        @scalar_rule x - y (One(), -1)
+        @scalar_rule x + y (true, true)
+        @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
         #log(complex(x)) is required so it gives correct complex answer for x<0
         @scalar_rule(x ^ y,
@@ -181,7 +181,7 @@ let
         @scalar_rule min(x, y) @setup(gt = x > y) (!gt, gt)
 
         # Unary functions
-        @scalar_rule +x One()
+        @scalar_rule +x true
         @scalar_rule -x -1
 
         # `sign`
