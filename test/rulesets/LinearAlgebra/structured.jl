@@ -23,9 +23,9 @@
         # TODO: replace this with a `rrule_test` once we have that working
         # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
         res, pb = rrule(Diagonal, [1, 4])
-        @test pb(10*res) == (NO_FIELDS, [10, 40])
+        @test pb(10*res) == (NoTangent(), [10, 40])
         comp = Tangent{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
-        @test pb(comp) == (NO_FIELDS, [10, 40])
+        @test pb(comp) == (NoTangent(), [10, 40])
     end
     @testset "dot(x, ::Diagonal, y)" begin
         N = 4
@@ -76,7 +76,7 @@
             y, back = rrule(diagm, M, N, ps...)
             @test y == diagm(M, N, ps...)
             ∂self, ∂M, ∂N, ∂pa, ∂pb, ∂pc = back(ȳ)
-            @test ∂self === NO_FIELDS
+            @test ∂self === NoTangent()
             @test ∂M === NoTangent()
             @test ∂N === NoTangent()
             ∂a_fd, ∂b_fd, ∂c_fd = j′vp(_fdm, (a, b, c) -> diagm(M, N, 0 => a, 1 => b, 0 => c), ȳ, a, b, c)

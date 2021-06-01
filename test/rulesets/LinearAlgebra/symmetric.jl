@@ -141,8 +141,8 @@
                     @test ∂A ≈ ∂A_fd
                 end
 
-                @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
-                @test @inferred(back(CT())) == (NO_FIELDS, ZeroTangent())
+                @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                @test @inferred(back(CT())) == (NoTangent(), ZeroTangent())
             end
 
             # when value used to determine phase convention is low, the usual derivatives
@@ -215,7 +215,7 @@
                 ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
 
-                @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
+                @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
             end
         end
     end
@@ -272,8 +272,8 @@
                 @test ∂A ≈ ∂A_fd
             end
 
-            @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
-            @test @inferred(back(CT())) == (NO_FIELDS, ZeroTangent())
+            @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+            @test @inferred(back(CT())) == (NoTangent(), ZeroTangent())
         end
 
         @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
@@ -295,7 +295,7 @@
             ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
             @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
 
-            @test @inferred(back(ZeroTangent())) == (NO_FIELDS, ZeroTangent())
+            @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
         end
     end
 
@@ -500,7 +500,7 @@
                     @test ∂A ≈ rrule(sin, A)[2](ΔsinA)[2] + rrule(cos, A)[2](ΔcosA)[2]
 
                     ΔY2 = Tangent{typeof(Y)}(ZeroTangent(), ZeroTangent())
-                    @test @inferred(back(ΔY2)) === (NO_FIELDS, ZeroTangent())
+                    @test @inferred(back(ΔY2)) === (NoTangent(), ZeroTangent())
 
                     ΔY3 = Tangent{typeof(Y)}(ΔsinA, ZeroTangent())
                     @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)

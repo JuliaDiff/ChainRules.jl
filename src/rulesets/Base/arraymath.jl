@@ -127,7 +127,7 @@ function rrule(
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
-        (NO_FIELDS, matmul..., addon)
+        (NoTangent(), matmul..., addon)
     end
     return muladd(A, B, z), muladd_pullback_1
 end
@@ -148,7 +148,7 @@ function rrule(
             @thunk(ut' .* dy),
             dv -> dv .+= ut' .* dy
         )
-        (NO_FIELDS, ut_thunk, v_thunk, z isa Bool ? DoesNotExist() : dy)
+        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? DoesNotExist() : dy)
     end
     return muladd(ut, v, z), muladd_pullback_2
 end
@@ -175,7 +175,7 @@ function rrule(
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
-        (NO_FIELDS, proj..., addon)
+        (NoTangent(), proj..., addon)
     end
     return muladd(u, vt, z), muladd_pullback_3
 end

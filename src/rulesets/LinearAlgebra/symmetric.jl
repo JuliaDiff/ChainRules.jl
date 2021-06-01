@@ -9,7 +9,7 @@ end
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
+        return (NoTangent(), _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end
@@ -324,7 +324,7 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
                 Ā = _matfun_frechet_adjoint($func, ∂Y, A, Y, intermediates)
                 # the cotangent of Hermitian A should be Hermitian
                 ∂A = _hermitrizelike!(Ā, A)
-                return NO_FIELDS, ∂A
+                return NoTangent(), ∂A
             end
             return Y, $(Symbol(func, :_pullback))
         end
@@ -351,7 +351,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
     function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
-        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
+        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NoTangent(), ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
         end
@@ -369,7 +369,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
         end
         ∂A = _hermitrizelike!(Ā, A)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
     return Y, sincos_pullback
 end

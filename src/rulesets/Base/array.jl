@@ -5,7 +5,7 @@
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
     A_dims = size(A)
     function reshape_pullback(Ȳ)
-        return (NO_FIELDS, reshape(Ȳ, A_dims), NoTangent())
+        return (NoTangent(), reshape(Ȳ, A_dims), NoTangent())
     end
     return reshape(A, dims), reshape_pullback
 end
@@ -15,7 +15,7 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
     function reshape_pullback(Ȳ)
         ∂A = reshape(Ȳ, A_dims)
         ∂dims = broadcast(_ -> NoTangent(), dims)
-        return (NO_FIELDS, ∂A, ∂dims...)
+        return (NoTangent(), ∂A, ∂dims...)
     end
     return reshape(A, dims...), reshape_pullback
 end
@@ -50,7 +50,7 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
             pre = post - diff + 1
             return ΔY[:, pre:post]
         end
-        return (NO_FIELDS, NoTangent(), ∂As)
+        return (NoTangent(), NoTangent(), ∂As)
     end
     return reduce(hcat, As), reduce_hcat_pullback
 end
@@ -81,7 +81,7 @@ function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVe
             pre = post - diff + 1
             return ΔY[pre:post, :]
         end
-        return (NO_FIELDS, NoTangent(), ∂As)
+        return (NoTangent(), NoTangent(), ∂As)
     end
     return reduce(vcat, As), reduce_vcat_pullback
 end
@@ -92,14 +92,14 @@ end
 
 function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, sum(Ȳ), NoTangent())
+        return (NoTangent(), sum(Ȳ), NoTangent())
     end
     return fill(value, dims), fill_pullback
 end
 
 function rrule(::typeof(fill), value::Any, dims::Int...)
     function fill_pullback(Ȳ)
-        return (NO_FIELDS, sum(Ȳ), ntuple(_->NoTangent(), length(dims))...)
+        return (NoTangent(), sum(Ȳ), ntuple(_->NoTangent(), length(dims))...)
     end
     return fill(value, dims), fill_pullback
 end

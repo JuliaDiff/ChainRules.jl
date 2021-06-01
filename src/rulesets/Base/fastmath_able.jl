@@ -115,7 +115,7 @@ let
 
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
-                return (NO_FIELDS, ZeroTangent())
+                return (NoTangent(), ZeroTangent())
             end
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)

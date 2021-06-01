@@ -77,7 +77,7 @@ function rrule(
     F = lu(A, pivot; kwargs...)
     function lu_pullback(ΔF::Tangent)
         Δfactors = ΔF.factors
-        Δfactors isa AbstractZero && return (NO_FIELDS, Δfactors, NoTangent())
+        Δfactors isa AbstractZero && return (NoTangent(), Δfactors, NoTangent())
         factors = F.factors
         ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
         ∂A = similar(factors)
@@ -127,7 +127,7 @@ function rrule(
         if pivot === Val(true)
             ∂A = ∂A[invperm(F.p), :]
         end
-        return NO_FIELDS, ∂A, NoTangent()
+        return NoTangent(), ∂A, NoTangent()
     end
     return F, lu_pullback
 end
@@ -151,10 +151,10 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
         elseif x === :factors
             Matrix(ΔY)
         else
-            return (NO_FIELDS, NoTangent(), NoTangent())
+            return (NoTangent(), NoTangent(), NoTangent())
         end
         ∂F = Tangent{TF}(; factors=∂factors)
-        return NO_FIELDS, ∂F, NoTangent()
+        return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_LU_pullback
 end
@@ -194,7 +194,7 @@ function rrule(::typeof(inv), F::LU{<:Any,<:StridedMatrix})
         triu!(rdiv!(∂factors, U'))
         ∂factors .+= ∂L
         ∂F = Tangent{typeof(F)}(; factors=∂factors)
-        return NO_FIELDS, ∂F
+        return NoTangent(), ∂F
     end
     return inv(F), inv_LU_pullback
 end
@@ -225,7 +225,7 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
         elseif x === :Vt
             C(Vt=Ȳ,)
         end
-        return NO_FIELDS, ∂F, NoTangent()
+        return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_svd_pullback
 end
@@ -432,7 +432,7 @@ end
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
     C = cholesky(A, uplo)
     function cholesky_pullback(ΔC::Tangent)
-        return NO_FIELDS, ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
+        return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
     end
     return C, cholesky_pullback
 end
@@ -441,7 +441,7 @@ function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Boo
     C = cholesky(A, Val(false); check=check)
     function cholesky_pullback(ΔC::Tangent)
         Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
-        return NO_FIELDS, Ā, NoTangent()
+        return NoTangent(), Ā, NoTangent()
     end
     return C, cholesky_pullback
 end
@@ -459,7 +459,7 @@ function rrule(
     function cholesky_pullback(ΔC::Tangent)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
-        return NO_FIELDS, _symhermtype(A)(Ā), NoTangent()
+        return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
     return C, cholesky_pullback
 end
@@ -476,7 +476,7 @@ function rrule(
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
-        return (NO_FIELDS, UpperTriangular(Ā), NoTangent())
+        return (NoTangent(), UpperTriangular(Ā), NoTangent())
     end
     return C, cholesky_pullback
 end
@@ -507,7 +507,7 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
                 C(U=UpperTriangular(Ȳ'),)
             end
         end
-        return NO_FIELDS, ∂F, NoTangent()
+        return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end

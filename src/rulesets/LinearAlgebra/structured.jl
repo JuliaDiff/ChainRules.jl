@@ -52,14 +52,14 @@ end
 if VERSION ≥ v"1.3"
     function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
         function diag_pullback(ȳ)
-            return (NO_FIELDS, diagm(size(A)..., k => ȳ), NoTangent())
+            return (NoTangent(), diagm(size(A)..., k => ȳ), NoTangent())
         end
         return diag(A, k), diag_pullback
     end
 
     function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
         function diagm_pullback(ȳ)
-            return (NO_FIELDS, NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+            return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
         end
         return diagm(m, n, kv...), diagm_pullback
     end
@@ -89,26 +89,26 @@ end
 #####
 
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
-    Adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
-    Adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
+    Adjoint_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+    Adjoint_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
-    Adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
-    Adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
+    Adjoint_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+    Adjoint_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
     return Adjoint(A), Adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
-    adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
-    adjoint_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, adjoint(ȳ))
+    adjoint_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+    adjoint_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
     return adjoint(A), adjoint_pullback
 end
 
 function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
-    adjoint_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
-    adjoint_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(adjoint(ȳ)))
+    adjoint_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+    adjoint_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
     return adjoint(A), adjoint_pullback
 end
 
@@ -117,26 +117,26 @@ end
 #####
 
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
-    Transpose_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
-    Transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, Transpose(ȳ))
+    Transpose_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+    Transpose_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
-    Transpose_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
-    Transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(Transpose(ȳ)))
+    Transpose_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+    Transpose_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(Transpose(ȳ)))
     return Transpose(A), Transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
-    transpose_pullback(ȳ::Tangent) = (NO_FIELDS, ȳ.parent)
-    transpose_pullback(ȳ::AbstractVecOrMat) = (NO_FIELDS, transpose(ȳ))
+    transpose_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+    transpose_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), transpose(ȳ))
     return transpose(A), transpose_pullback
 end
 
 function rrule(::typeof(transpose), A::AbstractVector{<:Number})
-    transpose_pullback(ȳ::Tangent) = (NO_FIELDS, vec(ȳ.parent))
-    transpose_pullback(ȳ::AbstractMatrix) = (NO_FIELDS, vec(transpose(ȳ)))
+    transpose_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+    transpose_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(transpose(ȳ)))
     return transpose(A), transpose_pullback
 end
 
@@ -160,7 +160,7 @@ end
 
 function rrule(::typeof(triu), A::AbstractMatrix, k::Integer)
     function triu_pullback(ȳ)
-        return (NO_FIELDS, triu(ȳ, k), NoTangent())
+        return (NoTangent(), triu(ȳ, k), NoTangent())
     end
     return triu(A, k), triu_pullback
 end
@@ -173,7 +173,7 @@ end
 
 function rrule(::typeof(tril), A::AbstractMatrix, k::Integer)
     function tril_pullback(ȳ)
-        return (NO_FIELDS, tril(ȳ, k), NoTangent())
+        return (NoTangent(), tril(ȳ, k), NoTangent())
     end
     return tril(A, k), tril_pullback
 end
