@@ -207,16 +207,16 @@ end
 #####
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Y = A \ B
+    Af = factorize(A)  # precompute factorized form, to reused in pullback
+    Y = Af \ B  # factorized form is much faster to run \ on
     function backslash_pullback(Ȳ)
+        ∂B = Af' \ Ȳ
         ∂A = @thunk begin
-            B̄ = A' \ Ȳ
-            Ā = -B̄ * Y'
-            Ā = add!!(Ā, (B - A * Y) * B̄' / A')
-            Ā = add!!(Ā, A' \ Y * (Ȳ' - B̄'A))
+            Ā = -∂B * Y'
+            Ā = add!!(Ā, (B - A * Y) * ∂B' / Af')
+            Ā = add!!(Ā, Af' \ Y * (Ȳ' - ∂B'A))
             Ā
         end
-        ∂B = @thunk A' \ Ȳ
         return NO_FIELDS, ∂A, ∂B
     end
     return Y, backslash_pullback
