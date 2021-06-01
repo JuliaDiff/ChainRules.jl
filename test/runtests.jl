@@ -57,15 +57,5 @@ println("Testing ChainRules.jl")
             include_test("rulesets/Random/random.jl")
         end
         println()
-
-        @testset "packages" begin
-            include_test("rulesets/packages/NaNMath.jl")
-            # Note: drop SpecialFunctions dependency in next breaking release
-            # https://github.com/JuliaDiff/ChainRules.jl/issues/319
-            if !isdefined(SpecialFunctions, :ChainRulesCore)
-                include_test("rulesets/packages/SpecialFunctions.jl")
-            end
-        end
-        println()
     end
 end
