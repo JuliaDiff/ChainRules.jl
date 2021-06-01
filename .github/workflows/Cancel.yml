@@ -1,5 +1,6 @@
 name: Cancel
 on: [push]
+
 jobs:
   cancel:
     name: 'Cancel Previous Runs'
