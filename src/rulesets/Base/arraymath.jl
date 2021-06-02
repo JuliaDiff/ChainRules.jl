@@ -118,7 +118,7 @@ function rrule(
             )
         )
         addon = if z isa Bool
-            DoesNotExist()
+            NoTangent()
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
@@ -148,7 +148,7 @@ function rrule(
             @thunk(ut' .* dy),
             dv -> dv .+= ut' .* dy
         )
-        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? DoesNotExist() : dy)
+        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : dy)
     end
     return muladd(ut, v, z), muladd_pullback_2
 end
@@ -166,7 +166,7 @@ function rrule(
             @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
         )
         addon = if z isa Bool
-            DoesNotExist()
+            NoTangent()
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
