@@ -1,9 +1,7 @@
 module ChainRules
 
-using Reexport
-@reexport using ChainRulesCore
-
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
+using ChainRulesCore
 using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -14,7 +12,6 @@ using Statistics
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
-
 
 if VERSION < v"1.3.0-DEV.142"
     # In prior versions, the BLAS submodule also exported `dot`, which caused a conflict
