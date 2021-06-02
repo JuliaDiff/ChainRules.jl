@@ -47,7 +47,7 @@ function rrule(::typeof(hcat), Xs...)
             dY[ind...]  # no thunk as Xs may have 1 arg but 1 thunk is disallowed,
                         # and perhaps better to GC clean up dY.
         end
-        return (NO_FIELDS, dXs...)
+        return (NoTangent(), dXs...)
     end
     return Y, 🐈_pullback
 end
@@ -71,7 +71,7 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
     function reduce_hcat_pullback_1(dY)
         hi = Ref(0)
         dAs = map(_ -> dY[:, hi[]+=1], axe)
-        return (NO_FIELDS, DoesNotExist(), dAs)
+        return (NoTangent(), NoTangent(), dAs)
     end
     return reduce(hcat, As), reduce_hcat_pullback_1
 end
@@ -99,7 +99,7 @@ function rrule(::typeof(vcat), Xs...)
             end
             dY[ind...]
         end
-        return (NO_FIELDS, dXs...)
+        return (NoTangent(), dXs...)
     end
     return Y, vcat_pullback
 end
@@ -148,7 +148,7 @@ function rrule(::typeof(cat), Xs...; dims)
             end
             dY[index...]
         end
-        return (NO_FIELDS, dXs...)
+        return (NoTangent(), dXs...)
     end
     return Y, cat_pullback
 end
@@ -180,7 +180,7 @@ function rrule(::typeof(hvcat), rows, values...)
             end
             dY[index...]
         end
-        return (NO_FIELDS, DoesNotExist(), dXs...)
+        return (NoTangent(), NoTangent(), dXs...)
     end
     return Y, hvcat_pullback
 end
