@@ -122,7 +122,7 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
         hermX, hermX_intermediates = _matfun(exp, hermA)
         function exp_pullback_hermitian(ΔX)
             ∂hermA = _matfun_frechet_adjoint(exp, ΔX, hermA, hermX, hermX_intermediates)
-            return NO_FIELDS, Matrix(∂hermA)
+            return NoTangent(), Matrix(∂hermA)
         end
         return Matrix(hermX), exp_pullback_hermitian
     else
@@ -133,7 +133,7 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
             # the default _matfun_frechet_adjoint!
             ∂X = ChainRulesCore.is_inplaceable_destination(ΔX) ? ΔX : convert(Matrix, ΔX')'
             ∂A = _matfun_frechet_adjoint!(exp, ∂X, A, X, intermediates)
-            return NO_FIELDS, ∂A
+            return NoTangent(), ∂A
         end
         return X, exp_pullback
     end

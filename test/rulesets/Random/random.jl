@@ -14,7 +14,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
             rng, pb = rrule(MersenneTwister)
             @test rng isa MersenneTwister
-            @test first(pb(10)) isa typeof(NO_FIELDS)
+            @test first(pb(10)) isa typeof(NoTangent())
         end
         @testset "unary" begin
             rng, dΩ = frule((5.0, 4.0), MersenneTwister, 123)

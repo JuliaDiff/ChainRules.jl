@@ -10,7 +10,7 @@ end
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     function inv_pullback(ΔΩ)
-        return NO_FIELDS, -Ω' * ΔΩ * Ω'
+        return NoTangent(), -Ω' * ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end
@@ -26,7 +26,7 @@ function rrule(
 )
     function times_pullback(Ȳ)
         return (
-            NO_FIELDS,
+            NoTangent(),
             InplaceableThunk(
                 @thunk(Ȳ * B'),
                 X̄ -> mul!(X̄, Ȳ, B', true, true)
@@ -48,7 +48,7 @@ function rrule(
     function times_pullback(Ȳ)
         @assert size(B, 1) === 1   # otherwise primal would have failed.
         return (
-            NO_FIELDS,
+            NoTangent(),
             InplaceableThunk(
                 @thunk(Ȳ * vec(B')),
                 X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
@@ -67,7 +67,7 @@ function rrule(
 )
     function times_pullback(Ȳ)
         return (
-            NO_FIELDS,
+            NoTangent(),
             @thunk(dot(Ȳ, B)'),
             InplaceableThunk(
                 @thunk(A' * Ȳ),
@@ -83,7 +83,7 @@ function rrule(
 )
     function times_pullback(Ȳ)
         return (
-            NO_FIELDS,
+            NoTangent(),
             InplaceableThunk(
                 @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
@@ -118,7 +118,7 @@ function rrule(
             )
         )
         addon = if z isa Bool
-            DoesNotExist()
+            NoTangent()
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
@@ -127,7 +127,7 @@ function rrule(
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
-        (NO_FIELDS, matmul..., addon)
+        (NoTangent(), matmul..., addon)
     end
     return muladd(A, B, z), muladd_pullback_1
 end
@@ -148,7 +148,7 @@ function rrule(
             @thunk(ut' .* dy),
             dv -> dv .+= ut' .* dy
         )
-        (NO_FIELDS, ut_thunk, v_thunk, z isa Bool ? DoesNotExist() : dy)
+        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : dy)
     end
     return muladd(ut, v, z), muladd_pullback_2
 end
@@ -166,7 +166,7 @@ function rrule(
             @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
         )
         addon = if z isa Bool
-            DoesNotExist()
+            NoTangent()
         elseif z isa Number
             @thunk(sum(Ȳ))
         else
@@ -175,7 +175,7 @@ function rrule(
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
-        (NO_FIELDS, proj..., addon)
+        (NoTangent(), proj..., addon)
     end
     return muladd(u, vt, z), muladd_pullback_3
 end
@@ -197,7 +197,7 @@ function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         ∂A = last(dA_pb(unthunk(dAᵀ)))
         ∂B = last(dA_pb(unthunk(dBᵀ)))
 
-        (NO_FIELDS, ∂A, ∂B)
+        (NoTangent(), ∂A, ∂B)
     end
     return C, slash_pullback
 end
@@ -217,7 +217,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             Ā
         end
         ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
+        return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
 
@@ -230,7 +230,7 @@ end
 function rrule(::typeof(/), A::AbstractArray{<:Real}, b::Real)
     Y = A/b
     function slash_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(Ȳ/b), @thunk(-dot(Ȳ, Y)/b))
+        return (NoTangent(), @thunk(Ȳ/b), @thunk(-dot(Ȳ, Y)/b))
     end
     return Y, slash_pullback
 end
@@ -238,7 +238,7 @@ end
 function rrule(::typeof(\), b::Real, A::AbstractArray{<:Real})
     Y = b\A
     function backslash_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(-dot(Ȳ, Y)/b), @thunk(Ȳ/b))
+        return (NoTangent(), @thunk(-dot(Ȳ, Y)/b), @thunk(Ȳ/b))
     end
     return Y, backslash_pullback
 end
@@ -249,7 +249,7 @@ end
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
-        return NO_FIELDS, InplaceableThunk(@thunk(-ȳ), ā -> ā .-= ȳ)
+        return NoTangent(), InplaceableThunk(@thunk(-ȳ), ā -> ā .-= ȳ)
     end
     return -x, negation_pullback
 end
