@@ -14,7 +14,7 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
             @thunk(broadcast(last∘tuple, x, ȳ)),
             x -> x .+= ȳ
         )
-        return (NO_FIELDS, x̄)
+        return (NoTangent(), x̄)
     end
     return y, sum_pullback
 end
@@ -51,7 +51,7 @@ function rrule(
             @thunk(2 .* real.(ȳ) .* x),
             dx -> dx .+= 2 .* real.(ȳ) .* x
         )
-        return (NO_FIELDS, NoTangent(), x_thunk)
+        return (NoTangent(), NoTangent(), x_thunk)
     end
     return y, sum_abs2_pullback
 end
@@ -85,7 +85,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 dx .+= conj.(y ./ x) .* dy
             end
             )
-        return (NO_FIELDS, x_thunk)
+        return (NoTangent(), x_thunk)
     end
     return y, prod_pullback
 end

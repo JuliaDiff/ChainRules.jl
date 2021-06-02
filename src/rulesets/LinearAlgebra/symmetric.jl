@@ -9,7 +9,7 @@ end
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NO_FIELDS, _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
+        return (NoTangent(), _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end
@@ -27,7 +27,7 @@ function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
         T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
         uplo = A.uplo
         ∂A = T∂A(_symherm_back(typeof(A), ΔΩ, Symbol(uplo)), uplo)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
     return TM(A), Matrix_pullback
 end
@@ -133,9 +133,9 @@ function rrule(
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
         ∂A = eigen_rev!(A, λ, U, Δλ, ΔU)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
-    eigen_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
+    eigen_pullback(ΔF::AbstractZero) = (NoTangent(), ΔF)
     return F, eigen_pullback
 end
 
@@ -226,7 +226,7 @@ function rrule(
     function eigvals_pullback(Δλ)
         ∂F = Tangent{typeof(F)}(values = Δλ)
         _, ∂A = eigen_back(∂F)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
     return λ, eigvals_pullback
 end
@@ -251,9 +251,9 @@ function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.Bla
             ∂U = ΔF.U .+ (ΔF.V .+ ΔF.Vt') .* c'
         end
         ∂A = eigen_rev!(A, λ, U, ∂λ, ∂U)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
-    svd_pullback(ΔF::AbstractZero) = (NO_FIELDS, ΔF)
+    svd_pullback(ΔF::AbstractZero) = (NoTangent(), ΔF)
     return F, svd_pullback
 end
 
@@ -286,9 +286,9 @@ function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS
         invpermute!(∂λ, p)
         ∂λ .*= sign.(λ)
         _, ∂A = back(∂λ)
-        return NO_FIELDS, unthunk(∂A)
+        return NoTangent(), unthunk(∂A)
     end
-    svdvals_pullback(ΔS::AbstractZero) = (NO_FIELDS, ΔS)
+    svdvals_pullback(ΔS::AbstractZero) = (NoTangent(), ΔS)
     return S, svdvals_pullback
 end
 
@@ -324,7 +324,7 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
                 Ā = _matfun_frechet_adjoint($func, ∂Y, A, Y, intermediates)
                 # the cotangent of Hermitian A should be Hermitian
                 ∂A = _hermitrizelike!(Ā, A)
-                return NO_FIELDS, ∂A
+                return NoTangent(), ∂A
             end
             return Y, $(Symbol(func, :_pullback))
         end
@@ -351,7 +351,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
     function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
-        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NO_FIELDS, ΔsinA + ΔcosA
+        ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NoTangent(), ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
         end
@@ -369,7 +369,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
             Ā = mul!(∂Λ, U, mul!(tmp, ∂Λ, U'))
         end
         ∂A = _hermitrizelike!(Ā, A)
-        return NO_FIELDS, ∂A
+        return NoTangent(), ∂A
     end
     return Y, sincos_pullback
 end

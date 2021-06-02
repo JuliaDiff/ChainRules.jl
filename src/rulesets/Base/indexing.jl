@@ -21,7 +21,7 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
             getindex_add!
         )
         īnds = broadcast(_ -> NoTangent(), inds)
-        return (NO_FIELDS, x̄, īnds...)
+        return (NoTangent(), x̄, īnds...)
     end
 
     return y, getindex_pullback

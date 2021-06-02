@@ -14,7 +14,7 @@ function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
     function mean_pullback(ȳ)
         _, ∂sum_x = sum_pullback(ȳ)
         ∂x = extern(∂sum_x) / n
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return y_sum / n, mean_pullback
 end

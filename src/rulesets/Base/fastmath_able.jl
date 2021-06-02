@@ -11,7 +11,7 @@ let
         ## sin
         function rrule(::typeof(sin), x::Number)
             sinx, cosx = sincos(x)
-            sin_pullback(Δy) = (NO_FIELDS, cosx' * Δy)
+            sin_pullback(Δy) = (NoTangent(), cosx' * Δy)
             return (sinx, sin_pullback)
         end
 
@@ -23,7 +23,7 @@ let
         ## cos
         function rrule(::typeof(cos), x::Number)
             sinx, cosx = sincos(x)
-            cos_pullback(Δy) = (NO_FIELDS, -sinx' * Δy)
+            cos_pullback(Δy) = (NoTangent(), -sinx' * Δy)
             return (cosx, cos_pullback)
         end
         
@@ -75,7 +75,7 @@ let
             Ω = abs(x)
             function abs_pullback(ΔΩ)
                 signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
-                return (NO_FIELDS, signx * real(ΔΩ))
+                return (NoTangent(), signx * real(ΔΩ))
             end
             return Ω, abs_pullback
         end
@@ -88,7 +88,7 @@ let
         function rrule(::typeof(abs2), z::Union{Real, Complex})
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
-                return (NO_FIELDS, 2real(ΔΩ)*z)
+                return (NoTangent(), 2real(ΔΩ)*z)
             end
             return abs2(z), abs2_pullback
         end
@@ -99,7 +99,7 @@ let
         end
         function rrule(::typeof(conj), z::Union{Real, Complex})
             function conj_pullback(ΔΩ)
-                return (NO_FIELDS, conj(ΔΩ))
+                return (NoTangent(), conj(ΔΩ))
             end
             return conj(z), conj_pullback
         end
@@ -115,11 +115,11 @@ let
 
         function rrule(::typeof(angle), x::Real)
             function angle_pullback(ΔΩ::Real)
-                return (NO_FIELDS, ZeroTangent())
+                return (NoTangent(), ZeroTangent())
             end
             function angle_pullback(ΔΩ)
                 Δu, Δv = reim(ΔΩ)
-                return (NO_FIELDS, im*Δu/ifelse(iszero(x), one(x), x))
+                return (NoTangent(), im*Δu/ifelse(iszero(x), one(x), x))
                 # `ifelse` is applied only to denominator to ensure type-stability.
             end
             return angle(x), angle_pullback
@@ -130,7 +130,7 @@ let
                 Δu, Δv = reim(ΔΩ)
                 # `ifelse` is applied only to denominator to ensure type-stability.
                 n = ifelse(iszero(z), one(real(z)), abs2(z))
-                return (NO_FIELDS, (-y + im*x)*Δu/n)
+                return (NoTangent(), (-y + im*x)*Δu/n)
             end
             return angle(z), angle_pullback
         end
@@ -155,7 +155,7 @@ let
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
-                return (NO_FIELDS, c * x, c * y)
+                return (NoTangent(), c * x, c * y)
             end
             return (Ω, hypot_pullback)
         end
@@ -198,7 +198,7 @@ let
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
                 ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im
-                return (NO_FIELDS, ∂x)
+                return (NoTangent(), ∂x)
             end
             return Ω, sign_pullback
         end
@@ -214,7 +214,7 @@ let
 
         function rrule(::typeof(*), x::Number, y::Number)
             function times_pullback(ΔΩ)
-                return (NO_FIELDS,  ΔΩ * y', x' * ΔΩ)
+                return (NoTangent(),  ΔΩ * y', x' * ΔΩ)
             end
             return x * y, times_pullback
         end
