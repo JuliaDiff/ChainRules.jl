@@ -53,21 +53,4 @@ include("rulesets/LinearAlgebra/factorization.jl")
 
 include("rulesets/Random/random.jl")
 
-# Note: The following is only required because package authors sometimes do not
-# declare their own rules using `ChainRulesCore.jl`. For arguably good reasons.
-# So we define them here for them.
-function __init__()
-    @require NaNMath="77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" begin
-        include("rulesets/packages/NaNMath.jl")
-    end
-
-    # Note: drop SpecialFunctions dependency in next breaking release
-    # https://github.com/JuliaDiff/ChainRules.jl/issues/319
-    @require SpecialFunctions="276daf66-3868-5448-9aa4-cd146d93841b" begin
-        if !isdefined(SpecialFunctions, :ChainRulesCore)
-            include("rulesets/packages/SpecialFunctions.jl")
-        end
-    end
-end
-
 end # module
