@@ -151,12 +151,15 @@ end
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((ZeroTangent(), copy(Ẋ)), eigen!, copy(X))
-                @test F_fwd == F
+                test_approx(F_fwd, F)
                 @test Ḟ_ad isa Tangent{typeof(F)}
                 Ḟ_fd = jvp(_fdm, asnt ∘ eigen! ∘ copy, (X, Ẋ))
                 @test Ḟ_ad.values ≈ Ḟ_fd.values
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
-                @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(X)) == (F, ZeroTangent())
+                test_approx(
+                    frule((ZeroTangent(), ZeroTangent()), eigen!, copy(X)),
+                    (F, ZeroTangent()),
+                )
 
                 @testset "tangents are real when outputs are" begin
                     # hermitian matrices have real eigenvalues and, when real, real eigenvectors
@@ -179,7 +182,7 @@ end
                 λ̄ = rand_tangent(F.values)
                 CT = Tangent{typeof(F)}
                 F_rev, back = rrule(eigen, X)
-                @test F_rev == F
+                test_approx(F_rev, F)
                 # NOTE: eigen is not type-stable, so neither are is its rrule
                 _, X̄_values_ad = @inferred back(CT(values = λ̄))
                 @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
