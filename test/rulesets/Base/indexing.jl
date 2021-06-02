@@ -11,22 +11,22 @@
         end
 
         @testset "slice/index postions" begin
-            test_rrule(getindex, x, 2:3 ⊢ NoTangent())
-            test_rrule(getindex, x, 3:-1:2 ⊢ NoTangent())
+            test_rrule(getindex, x, 2:3)
+            test_rrule(getindex, x, 3:-1:2)
             test_rrule(getindex, x, [3,2] ⊢ NoTangent())
             test_rrule(getindex, x, [2,3] ⊢ NoTangent())
 
-            test_rrule(getindex, x, 1:2 ⊢ NoTangent(), 2:3 ⊢ NoTangent())
-            test_rrule(getindex, x, (:) ⊢ NoTangent(), 2:3 ⊢ NoTangent())
+            test_rrule(getindex, x, 1:2, 2:3)
+            test_rrule(getindex, x, (:), 2:3)
 
-            test_rrule(getindex, x, 1:2 ⊢ NoTangent(), 1)
-            test_rrule(getindex, x, 1, 1:2 ⊢ NoTangent())
+            test_rrule(getindex, x, 1:2, 1)
+            test_rrule(getindex, x, 1, 1:2)
 
-            test_rrule(getindex, x, 1:2 ⊢ NoTangent(), 2:3 ⊢ NoTangent())
-            test_rrule(getindex, x, (:) ⊢ NoTangent(), 2:3 ⊢ NoTangent())
+            test_rrule(getindex, x, 1:2, 2:3)
+            test_rrule(getindex, x, (:), 2:3)
 
-            test_rrule(getindex, x, (:) ⊢ NoTangent(), (:) ⊢ NoTangent())
-            test_rrule(getindex, x, (:) ⊢ NoTangent())
+            test_rrule(getindex, x, (:), (:))
+            test_rrule(getindex, x, (:))
         end
 
         @testset "masking" begin
@@ -38,7 +38,7 @@
             mask[1,2] = true
             test_rrule(getindex, x, mask ⊢ NoTangent())
 
-            test_rrule(getindex, x, [true, false] ⊢ NoTangent(), (:) ⊢ NoTangent())
+            test_rrule(getindex, x, [true, false] ⊢ NoTangent(), (:))
         end
 
         @testset "By position with repeated elements" begin
