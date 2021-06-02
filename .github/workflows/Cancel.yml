@@ -1,0 +1,19 @@
+name: Cancel
+
+on:
+  workflow_run:
+    workflows:
+      - "CI"
+      - "IntegrationTest"
+      - "JuliaNightly"
+    types:
+      - requested
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        all_but_latest: true
+        workflow_id: ${{ github.event.workflow.id }}
