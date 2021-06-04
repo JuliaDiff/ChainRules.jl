@@ -428,8 +428,12 @@ end
 #####
 ##### `cholesky`
 #####
-
-function rrule(::typeof(cholesky), A::Real, uplo::Symbol=:U)
+function rrule(::typeof(cholesky), A::Real)
+    C, full_pb = rrule(cholesky, A, :U)
+    cholesky_pullback(ΔC::Tangent) = return full_pb(ΔC)[1:2]
+    return C, cholesky_pullback
+end
+function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
     C = cholesky(A, uplo)
     function cholesky_pullback(ΔC::Tangent)
         return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()

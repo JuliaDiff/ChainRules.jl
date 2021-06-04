@@ -196,8 +196,17 @@ end
 
 function rrule(
     ::typeof(pinv),
+    x::Union{AbstractVector{T}, LinearAlgebra.AdjOrTransAbsVec{T}},
+) where {T<:Union{Real,Complex}}
+    y, full_pb = rrule(pinv, x, 0)
+    pinv_pullback(Δy) = return full_pb(Δy)[1:2]
+    return y, pinv_pullback
+end
+
+function rrule(
+    ::typeof(pinv),
     x::AbstractVector{T},
-    tol::Real = 0,
+    tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
     function pinv_pullback(Δy)
@@ -210,7 +219,7 @@ end
 function rrule(
     ::typeof(pinv),
     x::LinearAlgebra.AdjOrTransAbsVec{T},
-    tol::Real = 0,
+    tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
     function pinv_pullback(Δy)
