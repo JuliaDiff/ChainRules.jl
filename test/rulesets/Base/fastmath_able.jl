@@ -142,17 +142,17 @@ const FASTABLE_AST = quote
 
             @test frule((ZeroTangent(), Δx, Δy), f, x, y) isa Tuple{T, T}
             _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
-            @test unthunk.((∂x, ∂y)) isa Tuple{T, T}
+            @test (∂x, ∂y) isa Tuple{T, T}
 
             if f != hypot
                 # Issue #233
                 @test frule((ZeroTangent(), Δx, Δy), f, x, 2) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
-                @test unthunk.((∂x, ∂y)) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{T, T}
 
                 @test frule((ZeroTangent(), Δx, Δy), f, 2, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
-                @test unthunk.((∂x, ∂y)) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{T, T}
             end
         end
 
@@ -193,10 +193,10 @@ const FASTABLE_AST = quote
 
                 _, pb = rrule(sign, 0.0)
                 _, x̄ = pb(10.5)
-                @test unthunk(x̄) == 0
+                test_approx(x̄, 0)
 
                 _, ẏ = frule((ZeroTangent(), 10.5), sign, 0.0)
-                @test unthunk(ẏ) == 0
+                test_approx(ẏ, 0)
             end
         end
         @testset "complex" begin
@@ -222,10 +222,10 @@ const FASTABLE_AST = quote
 
                 _, pb = rrule(sign, 0.0 + 0.0im)
                 _, z̄ = pb(randn(ComplexF64))
-                @test unthunk(z̄) == 0.0 + 0.0im
+                @test z̄ == 0.0 + 0.0im
 
                 _, Ω̇ = frule((ZeroTangent(), randn(ComplexF64)), sign, 0.0 + 0.0im)
-                @test unthunk(Ω̇) == 0.0 + 0.0im
+                @test Ω̇ == 0.0 + 0.0im
             end
         end
     end
