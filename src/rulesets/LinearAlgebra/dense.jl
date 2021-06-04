@@ -200,7 +200,7 @@ function rrule(
 ) where {T<:Union{Real,Complex}}
     y, full_pb = rrule(pinv, x, 0)
     function pinv_pullback(Δy)
-        return pull_pb(Δy)[1:2]
+        return full_pb(Δy)[1:2]
     end
     return y, pinv_pullback
 end
