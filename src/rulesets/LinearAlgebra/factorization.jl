@@ -430,9 +430,7 @@ end
 #####
 function rrule(::typeof(cholesky), A::Real)
     y, full_pb = rrule(cholesky, A, :U)
-    function cholesky_pullback(ΔC::Tangent)
-        return full_pb(ΔC)[1:2]
-    end
+    cholesky_pullback(ΔC::Tangent) = return full_pb(ΔC)[1:2]
     return C, cholesky_pullback
 end
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol)

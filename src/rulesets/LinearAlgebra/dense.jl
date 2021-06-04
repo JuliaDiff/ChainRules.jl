@@ -199,9 +199,7 @@ function rrule(
     x::Union{AbstractVector{T}, LinearAlgebra.AdjOrTransAbsVec{T}},
 ) where {T<:Union{Real,Complex}}
     y, full_pb = rrule(pinv, x, 0)
-    function pinv_pullback(Δy)
-        return full_pb(Δy)[1:2]
-    end
+    pinv_pullback(Δy) = return full_pb(Δy)[1:2]
     return y, pinv_pullback
 end
 
