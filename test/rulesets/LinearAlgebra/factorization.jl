@@ -20,8 +20,8 @@ function FiniteDifferences.to_vec(x::Val)
     return Bool[], Val_from_vec
 end
 
-const ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
-const NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
+const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
+const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
 
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
@@ -29,7 +29,7 @@ const NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
         @testset "lu! frule" begin
             @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (ROW_MAXIMUM, NO_PIVOT),
+                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
                 m in (7, 10, 13)
 
                 test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
@@ -38,26 +38,26 @@ const NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
                 Asingular = zeros(n, n)
                 ΔAsingular = rand_tangent(Asingular)
                 @test_throws SingularException frule(
-                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), ROW_MAXIMUM
+                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), LU_ROW_MAXIMUM
                 )
-                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, ROW_MAXIMUM; check=false)
+                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, LU_ROW_MAXIMUM; check=false)
                 @test true  # above line would have errored if this was not working right
             end
         end
         @testset "lu rrule" begin
             @testset "lu(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (ROW_MAXIMUM, NO_PIVOT),
+                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
                 m in (7, 10, 13)
 
                 test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
-                F = lu(Asingular, ROW_MAXIMUM; check=false)
+                F = lu(Asingular, LU_ROW_MAXIMUM; check=false)
                 ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
-                @test_throws SingularException rrule(lu, Asingular, ROW_MAXIMUM)
-                _, back = rrule(lu, Asingular, ROW_MAXIMUM; check=false)
+                @test_throws SingularException rrule(lu, Asingular, LU_ROW_MAXIMUM)
+                _, back = rrule(lu, Asingular, LU_ROW_MAXIMUM; check=false)
                 back(ΔF)
                 @test true  # above line would have errored if this was not working right
             end
@@ -75,8 +75,8 @@ const NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
             end
             @testset "matrix inverse using LU" begin
                 @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
-                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), ROW_MAXIMUM))
-                    test_rrule(inv, lu(randn(T, n, n), ROW_MAXIMUM))
+                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), LU_ROW_MAXIMUM))
+                    test_rrule(inv, lu(randn(T, n, n), LU_ROW_MAXIMUM))
                 end
             end
         end
