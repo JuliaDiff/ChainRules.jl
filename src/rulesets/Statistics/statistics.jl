@@ -13,7 +13,7 @@ function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
     n = _denom(x, dims)
     function mean_pullback(ȳ)
         _, ∂sum_x = sum_pullback(ȳ)
-        ∂x = extern(∂sum_x) / n
+        ∂x = unthunk(∂sum_x) / n
         return (NoTangent(), ∂x)
     end
     return y_sum / n, mean_pullback

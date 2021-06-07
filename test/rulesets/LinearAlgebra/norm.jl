@@ -39,7 +39,7 @@
             end
 
             ȳ = rand_tangent(fnorm(x))
-            @test extern(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+            @test unthunk(rrule(fnorm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(fnorm, x)[2](ZeroTangent())[2] isa ZeroTangent
         end
         ndims(x) > 1 && @testset "non-strided" begin
@@ -83,7 +83,7 @@
             end
 
             ȳ = rand_tangent(norm(x))
-            @test extern(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
+            @test unthunk(rrule(norm, zero(x))[2](ȳ)[2]) ≈ zero(x)
             @test rrule(norm, x)[2](ZeroTangent())[2] isa ZeroTangent
         end
         ndims(x) > 1 && @testset "non-strided" begin
@@ -127,7 +127,7 @@
         end
 
         ȳ = rand_tangent(fnorm(x, p))
-        @test extern(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
+        @test unthunk(rrule(fnorm, zero(x), p)[2](ȳ)[2]) ≈ zero(x)
         @test rrule(fnorm, x, p)[2](ZeroTangent())[2] isa ZeroTangent
         T == Float64 && sz == (3,) && @testset "Integer input, p=$p" begin
             x = [1,2,3]
@@ -147,7 +147,7 @@
 
         test_rrule(norm, x, p)
         ȳ = rand_tangent(norm(x, p))
-        @test extern(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
+        @test unthunk(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
 
     # Scalar norm(x, p)
