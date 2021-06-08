@@ -23,7 +23,7 @@
                     check_inferred=false,
                 )
                 if check_inferred
-                    @inferred (function (SymHerm, x, ΔΩ, ::Val)
+                    @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
                 end
@@ -37,7 +37,7 @@
                     output_tangent = ΔΩ,
                 )
                 if check_inferred
-                    @inferred (function (SymHerm, x, ΔΩ, ::Val)
+                    @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
                 end
@@ -89,8 +89,8 @@
                 ΔsymA = frule((ZeroTangent(), ΔA, ZeroTangent()), SymHerm, A, uplo)[2]
 
                 F = eigen!(copy(symA))
-                @test @inferred(frule((ZeroTangent(), ZeroTangent()), eigen!, copy(symA))) == (F, ZeroTangent())
-                F_ad, ∂F_ad = @inferred frule((ZeroTangent(), copy(ΔsymA)), eigen!, copy(symA))
+                @test @maybe_inferred(frule((ZeroTangent(), ZeroTangent()), eigen!, copy(symA))) == (F, ZeroTangent())
+                F_ad, ∂F_ad = @maybe_inferred frule((ZeroTangent(), copy(ΔsymA)), eigen!, copy(symA))
                 @test F_ad == F
                 @test ∂F_ad isa Tangent{typeof(F)}
                 @test ∂F_ad.values isa typeof(F.values)
@@ -116,7 +116,7 @@
 
                 F = eigen(symA)
                 ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
-                F_ad, back = @inferred rrule(eigen, symA)
+                F_ad, back = @maybe_inferred rrule(eigen, symA)
                 @test F_ad == F
 
                 C = _eigvecs_stabilize_mat(F.vectors, uplo)
@@ -132,7 +132,7 @@
                         return (; (s => getproperty(F_, s) for s in nzprops)...)
                     end
 
-                    ∂self, ∂symA = @inferred back(∂F)
+                    ∂self, ∂symA = @maybe_inferred back(∂F)
                     @test ∂self === NoTangent()
                     @test ∂symA isa typeof(symA)
                     @test ∂symA.uplo == symA.uplo
@@ -141,8 +141,8 @@
                     @test ∂A ≈ ∂A_fd
                 end
 
-                @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
-                @test @inferred(back(CT())) == (NoTangent(), ZeroTangent())
+                @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                @test @maybe_inferred(back(CT())) == (NoTangent(), ZeroTangent())
             end
 
             # when value used to determine phase convention is low, the usual derivatives
@@ -187,10 +187,10 @@
 
                 A, ΔA = randn(T, n, n), randn(T, n, n)
                 symA = SymHerm(A, uplo)
-                ΔsymA = @inferred frule((ZeroTangent(), ΔA, ZeroTangent()), SymHerm, A, uplo)[2]
+                ΔsymA = @maybe_inferred frule((ZeroTangent(), ΔA, ZeroTangent()), SymHerm, A, uplo)[2]
 
                 λ = eigvals!(copy(symA))
-                λ_ad, ∂λ_ad = @inferred frule((ZeroTangent(), copy(ΔsymA)), eigvals!, copy(symA))
+                λ_ad, ∂λ_ad = @maybe_inferred frule((ZeroTangent(), copy(ΔsymA)), eigvals!, copy(symA))
                 @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                 @test ∂λ_ad isa typeof(λ)
                 @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(SymHerm(A, uplo)), (A, ΔA))
@@ -204,9 +204,9 @@
                 symA = SymHerm(A, uplo)
 
                 λ = eigvals(symA)
-                λ_ad, back = @inferred rrule(eigvals, symA)
+                λ_ad, back = @maybe_inferred rrule(eigvals, symA)
                 @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
-                ∂self, ∂symA = @inferred back(Δλ)
+                ∂self, ∂symA = @maybe_inferred back(Δλ)
                 @test ∂self === NoTangent()
                 @test ∂symA isa typeof(symA)
                 @test ∂symA.uplo == symA.uplo
@@ -215,7 +215,7 @@
                 ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
                 @test ∂A ≈ j′vp(_fdm, A -> eigvals(SymHerm(A, uplo)), Δλ, A)[1]
 
-                @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
             end
         end
     end
@@ -244,7 +244,7 @@
             F = svd(symA)
             CT = Tangent{typeof(F)}
             ΔF = CT(; U=ΔU, V=ΔV, Vt=ΔVt, S=ΔS)
-            F_ad, back = @inferred rrule(svd, symA)
+            F_ad, back = @maybe_inferred rrule(svd, symA)
             @test F_ad == F
 
             C = _eigvecs_stabilize_mat(F.U, uplo)
@@ -262,7 +262,7 @@
                     return (; (s => getproperty(F_, s) for s in nzprops)...)
                 end
 
-                VERSION ≥ v"1.6.0-DEV.1686" && @inferred back(∂F)
+                VERSION ≥ v"1.6.0-DEV.1686" && @maybe_inferred back(∂F)
                 ∂self, ∂symA = back(∂F)
                 @test ∂self === NoTangent()
                 @test ∂symA isa typeof(symA)
@@ -272,8 +272,8 @@
                 @test ∂A ≈ ∂A_fd
             end
 
-            @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
-            @test @inferred(back(CT())) == (NoTangent(), ZeroTangent())
+            @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+            @test @maybe_inferred(back(CT())) == (NoTangent(), ZeroTangent())
         end
 
         @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
@@ -284,9 +284,9 @@
             symA = SymHerm(A, uplo)
 
             S = svdvals(symA)
-            S_ad, back = @inferred rrule(svdvals, symA)
+            S_ad, back = @maybe_inferred rrule(svdvals, symA)
             @test S_ad ≈ S # inexact because rrule uses svd not svdvals
-            ∂self, ∂symA = @inferred back(ΔS)
+            ∂self, ∂symA = @maybe_inferred back(ΔS)
             @test ∂self === NoTangent()
             @test ∂symA isa typeof(symA)
             @test ∂symA.uplo == symA.uplo
@@ -295,7 +295,7 @@
             ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
             @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
 
-            @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+            @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
         end
     end
 
@@ -327,7 +327,7 @@
         # Adapted From ChainRulesTestUtils._is_inferrable
         function is_inferrable(f, A)
             try
-                @inferred f(A)
+                @maybe_inferred f(A)
                 return true
             catch ErrorException
                 return false
@@ -346,14 +346,14 @@
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
                     if is_inferrable(f, A)
-                        Y_ad, ∂Y_ad = @inferred frule((ZeroTangent(), ΔA), f, A)
+                        Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
                             Union{Symmetric{Complex{T}},Symmetric{T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
-                        Y_ad, ∂Y_ad = @inferred Tuple{TY,T∂Y} frule((ZeroTangent(), ΔA), f, A)
+                        Y_ad, ∂Y_ad = @maybe_inferred Tuple{TY,T∂Y} frule((ZeroTangent(), ΔA), f, A)
                     end
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
@@ -399,19 +399,19 @@
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
                     if is_inferrable(f, A)
-                        Y_ad, back = @inferred rrule(f, A)
+                        Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real
                             Union{Symmetric{Complex{T}},Symmetric{T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
-                        Y_ad, back = @inferred Tuple{TY,Any} rrule(f, A)
+                        Y_ad, back = @maybe_inferred Tuple{TY,Any} rrule(f, A)
                     end
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
                     hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
-                    ∂self, ∂A = @inferred back(ΔY)
+                    ∂self, ∂A = @maybe_inferred back(ΔY)
                     @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
                     @test ∂A.uplo == A.uplo
@@ -465,7 +465,7 @@
                     A, ΔA = TA(randn(T, n, n), uplo), TA(randn(T, n, n), uplo)
                     Y = sincos(A)
                     sinA, cosA = Y
-                    Y_ad, ∂Y_ad = @inferred frule((ZeroTangent(), ΔA), sincos, A)
+                    Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), sincos, A)
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
                     @test Y_ad[1].uplo === Y[1].uplo
@@ -488,25 +488,25 @@
                     sinA, cosA = Y
                     ΔsinA = typeof(sinA)(randn(T, n, n), sinA.uplo)
                     ΔcosA = typeof(cosA)(randn(T, n, n), cosA.uplo)
-                    Y_ad, back = @inferred rrule(sincos, A)
+                    Y_ad, back = @maybe_inferred rrule(sincos, A)
                     @test Y_ad == Y
                     @test typeof(Y_ad) === typeof(Y)
                     @test Y_ad[1].uplo === Y[1].uplo
                     @test Y_ad[2].uplo === Y[2].uplo
 
                     ΔY = Tangent{typeof(Y)}(ΔsinA, ΔcosA)
-                    ∂self, ∂A = @inferred back(ΔY)
+                    ∂self, ∂A = @maybe_inferred back(ΔY)
                     @test ∂self === NoTangent()
                     @test ∂A ≈ rrule(sin, A)[2](ΔsinA)[2] + rrule(cos, A)[2](ΔcosA)[2]
 
                     ΔY2 = Tangent{typeof(Y)}(ZeroTangent(), ZeroTangent())
-                    @test @inferred(back(ΔY2)) === (NoTangent(), ZeroTangent())
+                    @test @maybe_inferred(back(ΔY2)) === (NoTangent(), ZeroTangent())
 
                     ΔY3 = Tangent{typeof(Y)}(ΔsinA, ZeroTangent())
-                    @test @inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
+                    @test @maybe_inferred(back(ΔY3)) == rrule(sin, A)[2](ΔsinA)
 
                     ΔY4 = Tangent{typeof(Y)}(ZeroTangent(), ΔcosA)
-                    @test @inferred(back(ΔY4)) == rrule(cos, A)[2](ΔcosA)
+                    @test @maybe_inferred(back(ΔY4)) == rrule(cos, A)[2](ΔcosA)
                 end
             end
         end

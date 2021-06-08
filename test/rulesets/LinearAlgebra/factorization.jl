@@ -181,18 +181,18 @@ end
                 F_rev, back = rrule(eigen, X)
                 @test F_rev == F
                 # NOTE: eigen is not type-stable, so neither are is its rrule
-                _, X̄_values_ad = @inferred back(CT(values = λ̄))
+                _, X̄_values_ad = @maybe_inferred back(CT(values = λ̄))
                 @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
-                _, X̄_vectors_ad = @inferred back(CT(vectors = V̄))
+                _, X̄_vectors_ad = @maybe_inferred back(CT(vectors = V̄))
                 @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1] rtol=1e-4
                 F̄ = CT(values = λ̄, vectors = V̄)
-                s̄elf, X̄_ad = @inferred back(F̄)
+                s̄elf, X̄_ad = @maybe_inferred back(F̄)
                 @test s̄elf === NoTangent()
                 X̄_fd = j′vp(_fdm, asnt ∘ eigen, F̄, X)[1]
                 @test X̄_ad ≈ X̄_fd rtol=1e-4
-                @test @inferred(back(ZeroTangent())) === (NoTangent(), ZeroTangent())
+                @test @maybe_inferred(back(ZeroTangent())) === (NoTangent(), ZeroTangent())
                 F̄zero = CT(values = ZeroTangent(), vectors = ZeroTangent())
-                @test @inferred(back(F̄zero)) === (NoTangent(), ZeroTangent())
+                @test @maybe_inferred(back(F̄zero)) === (NoTangent(), ZeroTangent())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     X = randn(T, n, n)
@@ -285,7 +285,7 @@ end
                             return (; (s => getproperty(F_, s) for s in nzprops)...)
                         end
 
-                        ∂self, ∂A = @inferred back(∂F)
+                        ∂self, ∂A = @maybe_inferred back(∂F)
                         @test ∂self === NoTangent()
                         @test ∂A isa typeof(A)
                         ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
@@ -317,8 +317,8 @@ end
                 test_rrule(eigvals, randn(T, n, n))
 
                 λ, back = rrule(eigvals, randn(T, n, n))
-                _, X̄ = @inferred back(rand_tangent(λ))
-                @test @inferred(back(ZeroTangent())) === (NoTangent(), ZeroTangent())
+                _, X̄ = @maybe_inferred back(rand_tangent(λ))
+                @test @maybe_inferred(back(ZeroTangent())) === (NoTangent(), ZeroTangent())
 
                 T <: Real && @testset "cotangent is real when input is" begin
                     @test eltype(X̄) <: Real
@@ -342,11 +342,11 @@ end
                     λ = eigvals(A)
                     λ_ad, back = rrule(eigvals, A)
                     @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
-                    ∂self, ∂A = @inferred back(Δλ)
+                    ∂self, ∂A = @maybe_inferred back(Δλ)
                     @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
                     @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
-                    @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                    @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
                 end
             end
         end

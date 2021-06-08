@@ -33,7 +33,7 @@
             tols = nrm == 0.1 ? (atol=1e-8, rtol=1e-8) : NamedTuple()
             test_rrule(exp, A; check_inferred=false, tols...)
             Y, back = rrule(exp, A)
-            @inferred back(rand_tangent(Y))
+            @maybe_inferred back(rand_tangent(Y))
         end
         @testset "imbalanced A" begin
             A = Float64[0 10 0 0; -1 0 0 0; 0 0 0 0; -2 0 0 0]
