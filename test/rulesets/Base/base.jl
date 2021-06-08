@@ -100,8 +100,11 @@
     end
 
     @testset "mod" begin
-        test_frule(mod, 10rand(), rand())
-        test_rrule(mod, 10rand(), rand())
+        # be careful not to sample near singularities
+        base = rand() + 1
+        test_frule(mod, (rand(0:10) + .6rand() + .2) * base, base)
+        base = rand() + 1
+        test_rrule(mod, (rand(0:10) + .6rand() + .2) * base, base)
     end
 
     @testset "identity" for T in (Float64, ComplexF64)
