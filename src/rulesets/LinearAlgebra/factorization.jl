@@ -15,11 +15,14 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # for derivations for wide and tall matrices, see
 # https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
 
+const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
+const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
+
 function frule(
-    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
     F = lu!(A, pivot; kwargs...)
-    ∂factors = pivot === Val(true) ? ΔA[F.p, :] : ΔA
+    ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
     q = min(m, n)
     if m == n  # square A
@@ -72,7 +75,7 @@ function frule(
 end
 
 function rrule(
-    ::typeof(lu), A::StridedMatrix, pivot::Union{Val{false},Val{true}}; kwargs...
+    ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
     F = lu(A, pivot; kwargs...)
     function lu_pullback(ΔF::Tangent)
@@ -124,7 +127,7 @@ function rrule(
             ldiv!(L1', ∂A1)
             rdiv!(∂A, U')
         end
-        if pivot === Val(true)
+        if pivot isa LU_RowMaximum
             ∂A = ∂A[invperm(F.p), :]
         end
         return NoTangent(), ∂A, NoTangent()
