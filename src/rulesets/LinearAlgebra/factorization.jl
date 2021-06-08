@@ -22,7 +22,7 @@ function frule(
     (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
     F = lu!(A, pivot; kwargs...)
-    ∂factors = pivot === LU_RowMaximum() ? ΔA[F.p, :] : ΔA
+    ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
     q = min(m, n)
     if m == n  # square A
@@ -127,7 +127,7 @@ function rrule(
             ldiv!(L1', ∂A1)
             rdiv!(∂A, U')
         end
-        if pivot === LU_RowMaximum()
+        if pivot isa LU_RowMaximum
             ∂A = ∂A[invperm(F.p), :]
         end
         return NoTangent(), ∂A, NoTangent()
