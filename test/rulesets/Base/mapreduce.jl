@@ -55,7 +55,12 @@
                 # Diagonal -- a stupid thing to do, product of zeros! Shouldn't be an error though:
                 @test iszero(unthunk(rrule(prod, Diagonal(rand(T,3)))[2](1.0)[2]))
                 @test iszero(unthunk(rrule(prod, Diagonal(rand(T,3)), dims=1)[2](ones(1,3))[2]))
-                @test unthunk(rrule(prod, Diagonal(rand(T,1)))[2](1.0)[2]) == hcat(1) # 1x1 sparse matrix
+                # does a division for the complex case, so is not necessarily exact
+                @test isapprox(
+                    unthunk(rrule(prod, Diagonal(rand(T,1)))[2](1.0)[2]), # 1x1 sparse matrix
+                    hcat(1);
+                    rtol=T <: Complex ? 2eps() : 0.0,
+                )
                 @test unthunk(rrule(prod, Diagonal(ones(T,2)), dims=1)[2](ones(1,2))[2]) == [0 1; 1 0]
 
                 # Triangular -- almost equally stupud
