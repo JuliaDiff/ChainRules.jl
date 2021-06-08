@@ -1,3 +1,9 @@
+# be careful not to sample near singularities for jumping functions like `mod`
+function rand_mod_pair()
+    base = rand() + 1
+    return (rand(0:10) + .6rand() + .2) * base, base
+end
+
 @testset "base" begin
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
@@ -100,8 +106,8 @@
     end
 
     @testset "mod" begin
-        test_frule(mod, 10rand(), rand())
-        test_rrule(mod, 10rand(), rand())
+        test_frule(mod, rand_mod_pair()...)
+        test_rrule(mod, rand_mod_pair()...)
     end
 
     @testset "identity" for T in (Float64, ComplexF64)

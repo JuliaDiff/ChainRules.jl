@@ -125,8 +125,8 @@ const FASTABLE_AST = quote
 
     @testset "binary functions" begin
         @testset "$f(x, y)" for f in (atan, rem, max, min)
-            test_frule(f, 100rand(), 10rand())
-            test_rrule(f, 100rand(), 10rand())
+            test_frule(mod, rand_mod_pair()...)
+            test_rrule(mod, rand_mod_pair()...)
         end
 
         @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
