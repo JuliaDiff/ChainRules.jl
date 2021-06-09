@@ -20,23 +20,24 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
 end
 
 function rrule(
-    config::RuleConfig{>:CanReverseMode}, ::typeof(sum), f, xs::AbstractArray{T}; dims=:
+    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray{T}; dims=:
 ) where {T<:Number}
     fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
     y = sum(first, fx_and_pullbacks; dims=dims)
 
     pullbacks = last.(fx_and_pullbacks)
     function sum_pullback(ȳ)
-        f̄_and_x̄s = [pullback(ȳ) for pullback in pullbacks]
+        @show f̄_and_x̄s = [pullback(ȳ) for pullback in pullbacks]
         # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
         f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
             NoTangent()
         else
             sum(first, f̄_and_x̄s)
         end
-        x̄s = sum(last, f̄_and_x̄s)
+        x̄s = map(last, f̄_and_x̄s)
         return NoTangent(), f̄, x̄s
     end
+    return y, sum_pullback
 end
 
 function frule(
