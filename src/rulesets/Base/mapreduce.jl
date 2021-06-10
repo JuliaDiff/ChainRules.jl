@@ -20,8 +20,8 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
 end
 
 function rrule(
-    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray{T}; dims=:
-) where {T<:Number}
+    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
+)
     fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
     y = sum(first, fx_and_pullbacks; dims=dims)
 
