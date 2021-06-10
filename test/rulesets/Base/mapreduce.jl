@@ -1,30 +1,3 @@
-"For testing this config re-dispatches Xrule_via_ad to Xrule without config argument"
-struct ADviaRuleConfig <: RuleConfig{Union{HasReverseMode, HasForwardsMode}} end
-
-function ChainRulesCore.frule_via_ad(config::ADviaRuleConfig, ȧrgs, f, args...; kws...)
-    ret = frule(ȧrgs, f, args...; kws...)
-    # we don't support actually doing AD: the rule has to exist. lets give helpfulish error
-    ret === nothing && throw(MethodError(frule, (ȧrgs, f, args...)))
-    return ret
-end
-
-function ChainRulesCore.rrule_via_ad(config::ADviaRuleConfig, f, args...; kws...)
-    ret = rrule(f, args...; kws...)
-    # we don't support actually doing AD: the rule has to exist. lets give helpfulish error
-    ret === nothing && throw(MethodError(rrule, (f, args...)))
-    return ret
-end
-
-# A functor for testing
-struct Multiplier{T}
-    x::T
-end
-(m::Multiplier)(y) = m.x * y
-function ChainRulesCore.rrule(m::Multiplier, y)
-    Multiplier_pullback(z̄) = Tangent{typeof(m)}(; x=y * z̄), m.x * z̄
-    return m(y), Multiplier_pullback
-end
-
 @testset "Maps and Reductions" begin
     @testset "sum" begin
         sizes = (3, 4, 7)
@@ -48,19 +21,15 @@ end
         end
     end  # sum abs2
 
-    @testset "sum f" begin
+    @testset "sum(f, xs)" begin
         # This calls back into AD
-        # TODO: we don't have a easy way to test this via ChainRulesTestUtils
+        test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
-        _, pb = rrule(ADviaRuleConfig(), sum, abs, [-4.0, 2.0, 2.0])
-        @test pb(1.0) == (NoTangent(), NoTangent(), [-1.0, 1.0, 1.0])
+        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]])  # array of arrays
 
-        _, pb2 = rrule(ADviaRuleConfig(), sum, Multiplier(2.0), [2.0, 4.0, 8.0])
-        @test pb2(1.0) == (
-            NoTangent(),
-            Tangent{Multiplier{Float64}}(;x=14.0),
-            [2.0, 2.0, 2.0]
-        )
+        test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0])
+        test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0]')
     end
 
     @testset "prod" begin
