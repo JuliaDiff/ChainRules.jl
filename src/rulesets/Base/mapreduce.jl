@@ -77,6 +77,17 @@ function rrule(
     return y, sum_abs2_pullback
 end
 
+# Fix dispatch for this pidgeon-hole optimization,
+# Rules with RuleConfig dispatch with priority over without (regardless of other args).
+# and if we don't specify what do do for one that HasReverseMode then it is ambigious
+for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
+    @eval function rrule(
+        ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T}; dims=:,
+    ) where {T<:Union{Real,Complex}}
+        return rrule(sum, abs2, x; dims=dims)
+    end
+end
+
 #####
 ##### `prod`
 #####
