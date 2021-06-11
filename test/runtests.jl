@@ -10,6 +10,7 @@ using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
+using StaticArrays
 using Statistics
 using Test
 

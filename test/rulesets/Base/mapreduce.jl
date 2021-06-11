@@ -30,6 +30,18 @@
 
         test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0])
         test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0]')
+
+        test_rrule(sum, abs, @SVector[1.0, -3.0])
+
+        # Make sure we preserve type for StaticArrays
+        ADviaRuleConfig = ChainRulesTestUtils.ADviaRuleConfig
+        _, pb = rrule(ADviaRuleConfig(), sum, abs, @SVector[1.0, -3.0])
+        @test pb(1.0) isa Tuple{NoTangent, NoTangent, SVector{2, Float64}}
+
+        # For structured sparse matrixes we screw it up, getting dense back
+        # see https://github.com/JuliaDiff/ChainRules.jl/issues/232 etc
+        _, pb = rrule(ADviaRuleConfig(), sum, abs, Diagonal([1.0, -3.0]))
+        @test_broken pb(1.0)[3] isa Diagonal
     end
 
     @testset "prod" begin

@@ -27,7 +27,7 @@ function rrule(
 
     pullbacks = last.(fx_and_pullbacks)
     function sum_pullback(ȳ)
-        f̄_and_x̄s = [pullback(ȳ) for pullback in pullbacks]
+        f̄_and_x̄s = map(pullback->pullback(ȳ), pullbacks)
         # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
         f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
             NoTangent()
