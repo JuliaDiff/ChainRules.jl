@@ -227,20 +227,20 @@ end
 ##### `\`, `/` matrix-scalar_rule
 #####
 
-function rrule(::typeof(/), A::AbstractArray{<:Real}, b::Real)
+function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
-    function slash_pullback(Ȳ)
-        return (NoTangent(), @thunk(Ȳ/b), @thunk(-dot(Ȳ, Y)/b))
+    function slash_pullback_scalar(Ȳ)
+        return (NoTangent(), @thunk(Ȳ / conj(b)), @thunk(-dot(A,Ȳ) / b^2))
     end
-    return Y, slash_pullback
+    return Y, slash_pullback_scalar
 end
 
 function rrule(::typeof(\), b::Real, A::AbstractArray{<:Real})
     Y = b\A
-    function backslash_pullback(Ȳ)
-        return (NoTangent(), @thunk(-dot(Ȳ, Y)/b), @thunk(Ȳ/b))
+    function backslash_pullback_scalar(Ȳ)
+        return (NoTangent(), @thunk(-dot(A,Ȳ) / b^2), @thunk(Ȳ / conj(b)))
     end
-    return Y, backslash_pullback
+    return Y, backslash_pullback_scalar
 end
 
 #####
