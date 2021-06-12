@@ -8,7 +8,15 @@ end
 
 function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
     function dot_pullback(ΔΩ)
-        return (NoTangent(), @thunk(reshape(y .* ΔΩ', axes(x))), @thunk(reshape(x .* ΔΩ, axes(y))))
+        xthunk = InplaceableThunk(
+            @thunk(reshape(y .* ΔΩ', axes(x))),
+            dx -> dx .+= reshape(y, axes(x)) .* ΔΩ',
+        )
+        ythunk = InplaceableThunk(
+            @thunk(reshape(x .* ΔΩ, axes(y))),
+            dy -> dy .+= reshape(x, axes(y)) .* ΔΩ,
+        )
+        return (NoTangent(), xthunk, ythunk)
     end
     return dot(x, y), dot_pullback
 end
