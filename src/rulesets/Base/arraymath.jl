@@ -235,12 +235,13 @@ function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::Commuta
     return Y, slash_pullback_scalar
 end
 
-function rrule(::typeof(\), b::Real, A::AbstractArray{<:Real})
-    Y = b\A
-    function backslash_pullback_scalar(Ȳ)
-        return (NoTangent(), @thunk(-dot(A,Ȳ) / b^2), @thunk(Ȳ / conj(b)))
+function rrule(::typeof(\), b::CommutativeMulNumber, A::AbstractArray{<:CommutativeMulNumber})
+    Y, back = rrule(/, A, b)
+    function backslash_pullback(dY)  # just reverses the arguments!
+        d0, dA, db = back(dY)
+        return (d0, db, dA)
     end
-    return Y, backslash_pullback_scalar
+    return Y, backslash_pullback
 end
 
 #####
