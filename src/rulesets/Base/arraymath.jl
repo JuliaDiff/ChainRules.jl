@@ -230,7 +230,12 @@ end
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
     function slash_pullback_scalar(Ȳ)
-        return (NoTangent(), @thunk(Ȳ / conj(b)), @thunk(-dot(A,Ȳ) / b^2))
+        Athunk = InplaceableThunk(
+            @thunk(Ȳ / conj(b)),
+            dA -> dA .+= Ȳ ./ conj(b),
+        )
+        bthunk = @thunk(-dot(A,Ȳ) / conj(b^2))
+        return (NoTangent(), Athunk, bthunk)
     end
     return Y, slash_pullback_scalar
 end
