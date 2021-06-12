@@ -4,13 +4,17 @@
             test_frule(dot, randn(T, 3), randn(T, 3))
             test_rrule(dot, randn(T, 3), randn(T, 3))
         end
-        @testset "Matrix{$T}" for T in (Float64, ComplexF64)
-            test_frule(dot, randn(T, 3, 4), randn(T, 3, 4))
-            test_rrule(dot, randn(T, 3, 4), randn(T, 3, 4))
-        end
         @testset "Array{$T, 3}" for T in (Float64, ComplexF64)
             test_frule(dot, randn(T, 3, 4, 5), randn(T, 3, 4, 5))
             test_rrule(dot, randn(T, 3, 4, 5), randn(T, 3, 4, 5))
+        end
+        @testset "mismatched shapes" begin
+           # forward
+           test_frule(dot, randn(3, 5), randn(5, 3))             
+           test_frule(dot, randn(15), randn(5, 3))             
+           # reverse
+           test_rrule(dot, randn(3, 5), randn(5, 3))             
+           test_rrule(dot, randn(15), randn(5, 3))             
         end
         @testset "3-arg dot, Array{$T}" for T in (Float64, ComplexF64)
             test_frule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
