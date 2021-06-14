@@ -6,12 +6,24 @@ function frule((_, Δx, Δy), ::typeof(dot), x, y)
     return dot(x, y), dot(Δx, y) + dot(x, Δy)
 end
 
-function rrule(::typeof(dot), x, y)
+function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
     function dot_pullback(ΔΩ)
-        return (NoTangent(), @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
+        xthunk = InplaceableThunk(
+            @thunk(reshape(y .* ΔΩ', axes(x))),
+            dx -> dx .+= reshape(y, axes(x)) .* ΔΩ',
+        )
+        ythunk = InplaceableThunk(
+            @thunk(reshape(x .* ΔΩ, axes(y))),
+            dy -> dy .+= reshape(x, axes(y)) .* ΔΩ,
+        )
+        return (NoTangent(), xthunk, ythunk)
     end
     return dot(x, y), dot_pullback
 end
+
+#####
+##### 3-arg `dot`
+#####
 
 function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
     return dot(x, A, y), dot(Δx, A, y) + dot(x, ΔA, y) + dot(x, A, Δy)
