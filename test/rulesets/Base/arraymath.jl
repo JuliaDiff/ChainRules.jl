@@ -136,13 +136,7 @@
         test_rrule(/, A, 7.2)
         test_rrule(\, 7.2, A)
 
-        # test_rrule(/, A, 7.2+8.3im)
-        # test_rrule(\, 7.2+8.3im, A)
-
         C = round.(10 .* randn(6) .+ im .* 10 .* randn(6), digits=1)
-        # test_rrule(/, C, 7.2)
-        # test_rrule(\, 7.2, C)
-
         test_rrule(/, C, 7.2+8.3im)
         test_rrule(\, 7.2+8.3im, C)
     end
