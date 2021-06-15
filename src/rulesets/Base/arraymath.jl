@@ -134,73 +134,69 @@ end
 
 if VERSION > v"1.7.0-DEV.1284"
 
-using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!, StridedMaybeAdjOrTransMat
+    using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!, StridedMaybeAdjOrTransMat
 
-function rrule(
-    ::typeof(mat_mat_scalar),
-    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-    B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-    γ::CommutativeMulNumber
-)
-    AB  = mat_mat_scalar(A, B, one(γ))
-    function mat_mat_scalar_back(Ȳ)
-        return (
-            NO_FIELDS,
-            InplaceableThunk(
+    function rrule(
+        ::typeof(mat_mat_scalar),
+        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        γ::CommutativeMulNumber
+    )
+        AB  = mat_mat_scalar(A, B, one(γ))  # one(γ) allows for γ having a wider type than A, B
+        function mat_mat_scalar_back(Ȳ)
+            Athunk = InplaceableThunk(
                 @thunk(mat_mat_scalar(Ȳ, B', conj(γ))),
-                dA -> mul!(dA, Ȳ, B', conj(γ), true)
-            ),
-            InplaceableThunk(
+                dA -> mul!(dA, Ȳ, B', conj(γ), true),
+            )
+            Bthunk = InplaceableThunk(
                 @thunk(mat_mat_scalar(A', Ȳ, conj(γ))),
-                dB -> mul!(dB, A', Ȳ, conj(γ), true)
-            ),
-            @thunk if iszero(γ)
+                dB -> mul!(dB, A', Ȳ, conj(γ), true),
+            )
+            γthunk = @thunk if iszero(γ)
                 dot(AB, Ȳ)
             else
-                dot(AB, Ȳ) / conj(γ)  # re-use mutated AB
+                dot(AB, Ȳ) / conj(γ)  # in this case AB has been mutated by rmul! below
             end
-        )
+            return (NoTangent(), Athunk, Bthunk, γthunk)
+        end
+        C = if iszero(γ)
+            zero(AB)
+        else
+            rmul!(AB, γ)  # mutate to save an allocation, which fused * also does
+        end
+        return C, mat_mat_scalar_back
     end
-    C = if iszero(γ)
-        zero(AB)
-    else
-        rmul!(AB, γ)
-    end
-    return C, mat_mat_scalar_back
-end
 
-function rrule(
-    ::typeof(mat_vec_scalar),
-    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-    b::StridedVector{<:CommutativeMulNumber},
-    γ::CommutativeMulNumber
-)
-    Ab  = mat_vec_scalar(A, b, one(γ))
-    function mat_vec_scalar_back(dy)
-        return (
-            NO_FIELDS,
-            InplaceableThunk(
+    function rrule(
+        ::typeof(mat_vec_scalar),
+        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        b::StridedVector{<:CommutativeMulNumber},
+        γ::CommutativeMulNumber
+    )
+        Ab  = mat_vec_scalar(A, b, one(γ))
+        function mat_vec_scalar_back(dy)
+            Athunk = InplaceableThunk(
                 @thunk(mat_mat_scalar(dy, b', conj(γ))),
-                dA -> mul!(dA, dy, b', conj(γ), true)
-            ),
-            InplaceableThunk(
+                dA -> mul!(dA, dy, b', conj(γ), true),
+            )
+            Bthunk = InplaceableThunk(
                 @thunk(mat_mat_scalar(A', dy, conj(γ))),
-                db -> mul!(db, A', dy, conj(γ), true)
-            ),
-            @thunk if iszero(γ)
+                db -> mul!(db, A', dy, conj(γ), true),
+            )
+            γthunk = @thunk if iszero(γ)
                 dot(Ab, dy)
             else
                 dot(Ab, dy) / conj(γ)  # re-use mutated AB
             end
-        )
+            return (NoTangent(), Athunk, Bthunk, γthunk)
+        end
+        y = if iszero(γ)
+            zero(Ab)
+        else
+            rmul!(Ab, γ)
+        end
+        return y, mat_vec_scalar_back
     end
-    y = if iszero(γ)
-        zero(Ab)
-    else
-        rmul!(Ab, γ)
-    end
-    return y, mat_vec_scalar_back
-end
 
 end # VERSION
 
