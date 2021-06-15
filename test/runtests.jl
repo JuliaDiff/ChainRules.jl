@@ -3,7 +3,7 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: hasproperty, only
+using Compat: hasproperty, only, cispi
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
 using LinearAlgebra
