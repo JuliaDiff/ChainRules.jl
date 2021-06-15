@@ -4,7 +4,7 @@
 # F .* (X - X'), overwrites X if possible
 function _mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractMatrix{<:Real})
     T = promote_type(eltype(X), eltype(F))
-    Y = (T == eltype(X)) ? X : similar(X, T)
+    Y = (T <: eltype(X)) ? X : similar(X, T)
     k = size(X, 1)
     @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
         if i == j
