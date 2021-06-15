@@ -2,7 +2,7 @@
 # to any particular rule definition
 
 # F .* (X - X'), overwrites X if possible
-function _mulsubtrans!!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
+function _mulsubtrans!!(X::AbstractMatrix{T}, F::AbstractMatrix{<:Real}) where T<:Real
     k = size(X, 1)
     @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
         if i == j
