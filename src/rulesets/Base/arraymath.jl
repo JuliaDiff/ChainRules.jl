@@ -132,6 +132,8 @@ end
 ##### fused 3-argument *
 #####
 
+if VERSION > v"1.7.0-DEV.1284"
+
 using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, rmul!, StridedMaybeAdjOrTransMat
 
 function rrule(
@@ -199,6 +201,8 @@ function rrule(
     end
     return y, mat_vec_scalar_back
 end
+
+end # VERSION
 
 #####
 ##### `muladd`
