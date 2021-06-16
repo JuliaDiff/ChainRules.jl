@@ -150,6 +150,11 @@ end
             Y = randn(10, 10)
             @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
             @test ChainRules._eyesubx!(copy(X)) ≈ I - X
+
+            Z = randn(Float32, 10, 10)
+            result = ChainRules._mulsubtrans!!(copy(Z), Y)
+            @test result ≈ Y .* (Z - Z')
+            @test eltype(result) == Float64
         end
     end
 
