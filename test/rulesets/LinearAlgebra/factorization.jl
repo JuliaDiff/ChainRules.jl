@@ -23,6 +23,25 @@ end
 const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
 const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
 
+# well-conditioned random n×n matrix with elements of type `T` for testing `eigen`
+function rand_eigen(T::Type, n::Int)
+    # uniform distribution over `(-1, 1)` / `(-1, 1)^2`
+    _rand(T, n...) = rand(T, n...) .* rand(T <: Complex ? [1, im, -1, -im] : [1, -1], n...)
+
+    # make sure that each eigenvector has one clearly defined entry with maximum magnitude
+    # so that the normalization of EVs is well defined
+    V = _rand(T, n, n)
+    for (col, i) in zip(eachcol(V), shuffle(1:n))
+        col[i] += 3 * (T <: Complex ? cispi(2rand()) : rand([1, -1]))
+        normalize!(col)
+    end
+
+    # make sure the sorting of eigen values is well defined
+    λ = 10(_rand(T, n) .+ (0:3:3(n-1)))
+
+    return V * Diagonal(λ) / V
+end
+
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
         n = 10
@@ -148,21 +167,7 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
             n = 10
 
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
-                # uniform distribution over `(-1, 1)` / `(-1, 1)^2`
-                _rand(T, n...) = rand(T, n...) .* rand(T <: Complex ? [1, im, -1, -im] : [1, -1], n...)
-
-                # make sure that each eigenvector has one clearly defined entry with maximum magnitude
-                # so that the normalization of EVs is well defined
-                V = _rand(T, n, n)
-                for (col, i) in zip(eachcol(V), shuffle(1:n))
-                    col[i] += 3 * (T <: Complex ? cispi(2rand()) : rand([1, -1]))
-                    normalize!(col)
-                end
-
-                # make sure the sorting of eigen values is well defined
-                λ = 10(_rand(T, n) .+ (0:3:3(n-1)))
-
-                X = V * Diagonal(λ) / V
+                X = rand_eigen(T, n)
 
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
@@ -185,21 +190,7 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
             end
 
             @testset "eigen(::Matrix{$T}) rrule" for T in (Float64, ComplexF64)
-                # uniform distribution over `(-1, 1)` / `(-1, 1)^2`
-                _rand(T, n...) = rand(T, n...) .* rand(T <: Complex ? [1, im, -1, -im] : [1, -1], n...)
-
-                # make sure that each eigenvector has one clearly defined entry with maximum magnitude
-                # so that the normalization of EVs is well defined
-                V = _rand(T, n, n)
-                for (col, i) in zip(eachcol(V), shuffle(1:n))
-                    col[i] += 3 * (T <: Complex ? cispi(2rand()) : rand([1, -1]))
-                    normalize!(col)
-                end
-
-                # make sure the sorting of eigen values is well defined
-                λ = 10(_rand(T, n) .+ (0:3:3(n-1)))
-
-                X = V * Diagonal(λ) / V
+                X = rand_eigen(T, n)
 
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
