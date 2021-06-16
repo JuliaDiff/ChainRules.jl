@@ -29,14 +29,14 @@ function rand_eigen(T::Type, n::Int)
     _rand(T, n...) = rand(T, n...) .* rand(T <: Complex ? [1, im, -1, -im] : [1, -1], n...)
 
     # make sure that each eigenvector has one clearly defined entry with maximum magnitude
-    # so that the normalization of EVs is well defined
+    # so that the complex phase of EVs is well defined
     V = _rand(T, n, n)
     for (col, i) in zip(eachcol(V), shuffle(1:n))
         col[i] += 3 * (T <: Complex ? cispi(2rand()) : rand([1, -1]))
         normalize!(col)
     end
 
-    # make sure the sorting of eigen values is well defined
+    # make sure the sorting of eigenvalues is well defined
     λ = 10(_rand(T, n) .+ (0:3:3(n-1)))
 
     return V * Diagonal(λ) / V
