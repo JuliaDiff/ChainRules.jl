@@ -213,7 +213,7 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
                 _, X̄_vectors_ad = @maybe_inferred back(CT(vectors = V̄))
                 # need the conversion to `complex` here, since FiniteDiff is currently buggy if functions
                 # return arrays of either real or complex values based solely on the input values (not the
-                # input types)
+                # input types). See https://github.com/JuliaLang/julia/issues/41243
                 @test X̄_vectors_ad ≈ j′vp(_fdm, x -> complex.(eigen(x).vectors), complex.(V̄), X)[1] rtol=1e-6
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @maybe_inferred back(F̄)
