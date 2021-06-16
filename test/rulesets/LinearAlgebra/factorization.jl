@@ -23,6 +23,25 @@ end
 const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
 const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
 
+# well-conditioned random n×n matrix with elements of type `T` for testing `eigen`
+function rand_eigen(T::Type, n::Int)
+    # uniform distribution over `(-1, 1)` / `(-1, 1)^2`
+    _rand(T, n...) = rand(T, n...) .* rand(T <: Complex ? [1, im, -1, -im] : [1, -1], n...)
+
+    # make sure that each eigenvector has one clearly defined entry with maximum magnitude
+    # so that the complex phase of EVs is well defined
+    V = _rand(T, n, n)
+    for (col, i) in zip(eachcol(V), shuffle(1:n))
+        col[i] += 3 * (T <: Complex ? cispi(2rand()) : rand([1, -1]))
+        normalize!(col)
+    end
+
+    # make sure the sorting of eigenvalues is well defined
+    λ = 10(_rand(T, n) .+ (0:3:3(n-1)))
+
+    return V * Diagonal(λ) / V
+end
+
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
         n = 10
@@ -153,9 +172,8 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
             n = 10
 
             @testset "eigen!(::Matrix{$T}) frule" for T in (Float64,ComplexF64)
-                # get a bit away from zero so don't have finite differencing woes
-                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
-                X = 10 .* (rand(T, n, n) .+ 5.0)
+                X = rand_eigen(T, n)
+
                 Ẋ = rand_tangent(X)
                 F = eigen!(copy(X))
                 F_fwd, Ḟ_ad = frule((ZeroTangent(), copy(Ẋ)), eigen!, copy(X))
@@ -177,10 +195,7 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
             end
 
             @testset "eigen(::Matrix{$T}) rrule" for T in (Float64, ComplexF64)
-                # get a bit away from zero so don't have finite differencing woes
-                # TODO: this better https://github.com/JuliaDiff/ChainRules.jl/issues/379
-                Random.seed!(1)
-                X = 10 .* (rand(T, n, n) .+ 5.0)
+                X = rand_eigen(T, n)
 
                 F = eigen(X)
                 V̄ = rand_tangent(F.vectors)
@@ -192,7 +207,10 @@ const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
                 _, X̄_values_ad = @maybe_inferred back(CT(values = λ̄))
                 @test X̄_values_ad ≈ j′vp(_fdm, x -> eigen(x).values, λ̄, X)[1]
                 _, X̄_vectors_ad = @maybe_inferred back(CT(vectors = V̄))
-                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> eigen(x).vectors, V̄, X)[1] rtol=1e-4
+                # need the conversion to `complex` here, since FiniteDiff is currently buggy if functions
+                # return arrays of either real or complex values based solely on the input values (not the
+                # input types). See https://github.com/JuliaLang/julia/issues/41243
+                @test X̄_vectors_ad ≈ j′vp(_fdm, x -> complex.(eigen(x).vectors), complex.(V̄), X)[1] rtol=1e-6
                 F̄ = CT(values = λ̄, vectors = V̄)
                 s̄elf, X̄_ad = @maybe_inferred back(F̄)
                 @test s̄elf === NoTangent()
