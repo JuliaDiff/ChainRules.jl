@@ -47,8 +47,10 @@ function rrule(
     y = sum(first, fx_and_pullbacks; dims=dims)
 
     pullbacks = last.(fx_and_pullbacks)
+
     function sum_pullback(ȳ)
-        f̄_and_x̄s = map(pullback->pullback(ȳ), pullbacks)
+        call(f, x) = f(x)  # we need to broadcast this to handle dims kwarg
+        f̄_and_x̄s = call.(pullbacks, ȳ)
         # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
         f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
             NoTangent()

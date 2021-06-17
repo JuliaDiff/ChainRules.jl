@@ -8,7 +8,7 @@
                 test_rrule(sum, x; fkwargs=(;dims=dims))
             end
         end
-    end  # sum
+    end
 
     @testset "sum abs2" begin
         sizes = (3, 4, 7)
@@ -29,11 +29,8 @@
         test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]])  # array of arrays
         
         # dims kwarg
-        test_rrule(sum, sum, [2.0 4.0; 4.0 1.9]; dims=1)
-        test_rrule(sum, sum, [2.0 4.0; 4.0 1.9]; dims=2)
-
-        test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0])
-        test_rrule(sum, abs, [-4.0 2.0; 2.0 -1.0]')
+        test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
+        test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=2))
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
 
