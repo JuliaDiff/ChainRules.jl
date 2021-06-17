@@ -63,7 +63,8 @@ end
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
     # vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
-    function prod_pullback(dy)
+    function prod_pullback(ȳ)
+        dy = unthunk(ȳ)
         x_thunk = InplaceableThunk(
             # Out-of-place versions
             @thunk if dims === (:)

@@ -24,7 +24,7 @@ end
 function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
     function Matrix_pullback(ΔΩ)
         TA = _symhermtype(A)
-        T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
+        T∂A = TA{eltype(ΔΩ),typeof(unthunk(ΔΩ))}
         uplo = A.uplo
         ∂A = T∂A(_symherm_back(typeof(A), ΔΩ, Symbol(uplo)), uplo)
         return NoTangent(), ∂A
@@ -36,10 +36,11 @@ rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 # for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
 function _symherm_forward(A, ΔA)
     TA = _symhermtype(A)
-    return if ΔA isa TA
+    typeofΔA = typeof(unthunk(ΔA))
+    return if typeofΔA <: TA
         ΔA
     else
-        TA{eltype(ΔA),typeof(ΔA)}(ΔA, A.uplo)
+        TA{eltype(ΔA),typeofΔA}(ΔA, A.uplo)
     end
 end
 
@@ -460,6 +461,7 @@ _isindomain(::Union{typeof(log),typeof(sqrt)}, x::Real) = x ≥ 0
 _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
+_symhermtype(a::AbstractThunk) = _symhermtype(unthunk(a))
 
 function _realifydiag!(A)
     for i in diagind(A)

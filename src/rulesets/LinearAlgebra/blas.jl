@@ -159,7 +159,8 @@ function rrule(
     ::typeof(gemm), tA::Char, tB::Char, α::T, A::AbstractMatrix{T}, B::AbstractMatrix{T}
 ) where T<:BlasFloat
     C = gemm(tA, tB, α, A, B)
-    function gemm_pullback(C̄)
+    function gemm_pullback(Cbar)
+        C̄ = unthunk(Cbar)
         β = one(T)
         if uppercase(tA) === 'N'
             if uppercase(tB) === 'N'

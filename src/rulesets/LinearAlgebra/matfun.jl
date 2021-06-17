@@ -269,6 +269,11 @@ function _matfun_frechet!(
     _unbalance!(∂X, ilo, ihi, scale, n)
     return ∂X
 end
+function _matfun_frechet!(
+    f::typeof(exp), a::AbstractThunk, A::StridedMatrix{T}, X, t
+) where {T<:BlasFloat}
+    return _matfun_frechet!(f, unthunk(a), A, X, t)
+end
 
 #####
 ##### utils

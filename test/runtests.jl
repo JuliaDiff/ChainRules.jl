@@ -13,6 +13,8 @@ using Random
 using Statistics
 using Test
 
+push!(ChainRulesTestUtils.TRANSFORMS_TO_ALT_TANGENTS, x -> @thunk(x))
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)
