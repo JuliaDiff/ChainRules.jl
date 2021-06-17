@@ -26,7 +26,7 @@ function rrule(::typeof(sort), xs::AbstractVector; kwargs...)
             return Δxs
         end
 
-        Δxs = InplaceableThunk(@thunk(sort_add!(zero(Δys))), sort_add!)
+        Δxs = InplaceableThunk(@thunk(sort_add!(zero(xs))), sort_add!)
 
         return NoTangent(), Δxs
     end
