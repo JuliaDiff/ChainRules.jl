@@ -10,6 +10,7 @@ using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
+using StaticArrays
 using Statistics
 using Test
 
@@ -22,6 +23,8 @@ end
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
+    include_test("test_helpers.jl")
+    println()
     @testset "rulesets" begin
         @testset "Base" begin
             include_test("rulesets/Base/base.jl")
