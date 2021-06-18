@@ -1,6 +1,7 @@
 @testset "reshape" begin
     test_rrule(reshape, rand(4, 5), (2, 10) ⊢ NoTangent())
     test_rrule(reshape, rand(4, 5), 2, 10)
+    test_rrule(reshape, rand(4, 5), 2, :)
 end
 
 @testset "hcat" begin
