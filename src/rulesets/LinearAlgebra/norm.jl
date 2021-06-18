@@ -21,7 +21,8 @@ end
 
 function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
     y = LinearAlgebra.norm(x, p)
-    function norm_pullback_p(Δy) # DECIDE, i think keeping a thunk here is fine
+    function norm_pullback_p(ȳ)
+        Δy = unthunk(ȳ)
         ∂x = InplaceableThunk(
             # out-of-place versions
             @thunk(if isempty(x) || p == 0
@@ -61,7 +62,8 @@ end
 
 function rrule(::typeof(norm), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm(x)
-    function norm_pullback_2(Δy) # DECIDE
+    function norm_pullback_2(ȳ)
+        Δy = unthunk(ȳ)
         ∂x = InplaceableThunk(
             @thunk(if isempty(x)
                 zero.(x) .* (zero(y) * zero(real(Δy)))
@@ -192,7 +194,7 @@ end
 
 function rrule(::typeof(LinearAlgebra.norm1), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm1(x)
-    norm1_pullback(Δy) = (NoTangent(), InplaceableThunk( # DECIDE
+    norm1_pullback(Δy) = (NoTangent(), InplaceableThunk(
         @thunk(_norm1_back(x, y, Δy)),
         dx -> _norm1_back!(dx, x, y, Δy),
     ))
@@ -224,7 +226,7 @@ end
 
 function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray{<:Number})
     y = LinearAlgebra.norm2(x)
-    norm2_pullback(Δy) = (NoTangent(), InplaceableThunk( # DECIDE
+    norm2_pullback(Δy) = (NoTangent(), InplaceableThunk(
         @thunk(_norm2_back(x, y, Δy)),
         dx -> _norm2_back!(dx, x, y, Δy),
     ))

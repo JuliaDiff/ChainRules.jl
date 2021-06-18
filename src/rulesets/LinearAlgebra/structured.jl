@@ -7,7 +7,8 @@ const SquareMatrix{T} = Union{Diagonal{T}, AbstractTriangular{T}}
 
 function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
     Y = A / B
-    function slash_pullback(Ȳ) # DECIDE
+    function slash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         ∂A = @thunk Ȳ / B'
         ∂B = @thunk _unionall_wrapper(T)(-Y' * (Ȳ / B'))
         return (NoTangent(), ∂A, ∂B)
@@ -17,7 +18,8 @@ end
 
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
-    function backslash_pullback(Ȳ) # DECIDE
+    function backslash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         ∂A = @thunk _unionall_wrapper(T)(-(A' \ Ȳ) * Y')
         ∂B = @thunk A' \ Ȳ
         return NoTangent(), ∂A, ∂B
@@ -77,7 +79,8 @@ function _diagm_back(p, ȳ)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
-    function times_pullback(Ȳ) # DECIDE
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         return (NoTangent(), @thunk(Diagonal(Ȳ .* V)), @thunk(D * Ȳ))
     end
     return D * V, times_pullback
