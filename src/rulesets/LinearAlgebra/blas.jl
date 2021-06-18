@@ -17,7 +17,8 @@ rrule(::typeof(BLAS.dot), x, y) = rrule(dot, x, y)
 
 function rrule(::typeof(BLAS.dot), n, X, incx, Y, incy)
     Ω = BLAS.dot(n, X, incx, Y, incy)
-    function blas_dot_pullback(ΔΩ)
+    function blas_dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         if ΔΩ isa ZeroTangent
             ∂X = ZeroTangent()
             ∂Y = ZeroTangent()
@@ -106,7 +107,8 @@ end
 function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
                x::AbstractVector{T}) where T<:BlasFloat
     y = gemv(tA, α, A, x)
-    function gemv_pullback(ȳ)
+    function gemv_pullback(Ȳ)
+        ȳ = unthunk(Ȳ)
         if uppercase(tA) === 'N'
             ∂A = InplaceableThunk(
                 @thunk(α' * ȳ * x'),

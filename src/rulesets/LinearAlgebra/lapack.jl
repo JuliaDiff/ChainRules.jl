@@ -3,7 +3,7 @@
 #####
 
 function ChainRules.frule(
-    (_, _, _, ΔA, ΔB, ΔC),
+    (_, _, _, Ȧ, Ḃ, Ċ),
     ::typeof(LAPACK.trsyl!),
     transa::AbstractChar,
     transb::AbstractChar,
@@ -12,6 +12,7 @@ function ChainRules.frule(
     C::AbstractMatrix{T},
     isgn::Int,
 ) where {T<:BlasFloat}
+    ΔA, ΔB, ΔC = Ȧ, Ḃ, unthunk(Ċ)
     C, scale = LAPACK.trsyl!(transa, transb, A, B, C, isgn)
     Y = (C, scale)
     ΔAtrans = transa === 'T' ? transpose(ΔA) : (transa === 'C' ? ΔA' : ΔA)

@@ -22,9 +22,10 @@ function frule((_, ΔA), ::Type{Array}, A::LinearAlgebra.HermOrSym)
 end
 
 function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
-    function Matrix_pullback(ΔΩ)
+    function Matrix_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         TA = _symhermtype(A)
-        T∂A = TA{eltype(ΔΩ),typeof(unthunk(ΔΩ))}
+        T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
         uplo = A.uplo
         ∂A = T∂A(_symherm_back(typeof(A), ΔΩ, Symbol(uplo)), uplo)
         return NoTangent(), ∂A
@@ -34,18 +35,19 @@ end
 rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
 # for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
-function _symherm_forward(A, ΔA)
+function _symherm_forward(A, Ȧ)
+    ΔA = unthunk(Ȧ)
     TA = _symhermtype(A)
-    typeofΔA = typeof(unthunk(ΔA))
-    return if typeofΔA <: TA
+    return if typeof(ΔA) <: TA
         ΔA
     else
-        TA{eltype(ΔA),typeofΔA}(ΔA, A.uplo)
+        TA{eltype(ΔA),typeof(ΔA)}(ΔA, A.uplo)
     end
 end
 
 # for Ω = HermOrSym(A, uplo), pull back ΔΩ to get ∂A
-@inline function _symherm_back(::Type{T}, ΔΩ, uplo::Symbol) where {T}
+@inline function _symherm_back(::Type{T}, Ω̄, uplo::Symbol) where {T}
+    ΔΩ = unthunk(Ω̄)
     if T <: Symmetric
         return _symmetric_back(ΔΩ, uplo)
     elseif T <: Hermitian
@@ -58,7 +60,8 @@ end
     error()
 end
 
-@inline function _symmetric_back(ΔΩ, uplo::Symbol)
+@inline function _symmetric_back(Ω̄, uplo::Symbol)
+    ΔΩ = unthunk(Ω̄)
     if ΔΩ isa Diagonal
         return ΔΩ
     elseif ΔΩ isa LinearAlgebra.AbstractTriangular
@@ -103,11 +106,12 @@ end
 # accounting for normalization convention appears in Boeddeker && Hanebrink.
 # account for phase convention is unpublished.
 function frule(
-    (_, ΔA),
+    (_, Ȧ),
     ::typeof(eigen!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     kwargs...,
 )
+    ΔA = unthunk(Ȧ)
     F = eigen!(A; kwargs...)
     ΔA isa AbstractZero && return F, ΔA
     λ, U = F.values, F.vectors
@@ -129,7 +133,7 @@ function rrule(
     kwargs...,
 )
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Tangent)
+    function eigen_pullback(ΔF::Tangent) # Is there no coverage for this?
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
@@ -200,11 +204,12 @@ end
 #####
 
 function frule(
-    (_, ΔA),
+    (_, Ȧ),
     ::typeof(eigvals!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     kwargs...,
 )
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     F = eigen!(A; kwargs...)
     λ, U = F.values, F.vectors
@@ -241,7 +246,7 @@ end
 # is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
-    function svd_pullback(ΔF::Tangent)
+    function svd_pullback(ΔF::Tangent) # is there no coverage for this in the tests? should fail when thunk is passed
         U, V = F.U, F.V
         c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
@@ -304,7 +309,8 @@ end
 
 for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
-        function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+        function frule((_, Ȧ), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+            ΔA = unthunk(Ȧ)
             Y, intermediates = _matfun($func, A)
             Ȳ = _matfun_frechet($func, ΔA, A, Y, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
@@ -332,7 +338,8 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     end
 end
 
-function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+function frule((_, Ȧ), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    ΔA = unthunk(Ȧ)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
     # We will overwrite tmp matrix several times to hold different values
@@ -351,7 +358,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
-    function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
+    function sincos_pullback((ΔsinA, ΔcosA)::Tangent) # is there no coverage for this? should fail
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NoTangent(), ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
