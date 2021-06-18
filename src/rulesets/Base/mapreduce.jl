@@ -19,6 +19,50 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
     return y, sum_pullback
 end
 
+# Can't map over Adjoint/Transpose Vector
+function rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(sum),
+    f,
+    xs::Union{Adjoint{<:Number,<:AbstractVector},Transpose{<:Number,<:AbstractVector}};
+    kwargs...
+)
+    op = xs isa Adjoint ? adjoint : transpose
+    # since summing a vector we don't need to worry about dims which simplifies adjointing
+    vector = parent(xs)
+    y, vector_sum_pb = rrule(config, sum, f, vector; kwargs...)
+    function covector_sum_pb(ȳ)
+        s̄um, f̄, v̄ = vector_sum_pb(ȳ)
+        return s̄um, f̄, op(v̄)
+    end
+
+    return y, covector_sum_pb
+end
+
+
+function rrule(
+    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
+)
+    fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
+    y = sum(first, fx_and_pullbacks; dims=dims)
+
+    pullbacks = last.(fx_and_pullbacks)
+
+    function sum_pullback(ȳ)
+        call(f, x) = f(x)  # we need to broadcast this to handle dims kwarg
+        f̄_and_x̄s = call.(pullbacks, ȳ)
+        # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
+        f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
+            NoTangent()
+        else
+            sum(first, f̄_and_x̄s)
+        end
+        x̄s = map(last, f̄_and_x̄s)
+        return NoTangent(), f̄, x̄s
+    end
+    return y, sum_pullback
+end
+
 function frule(
     (_, _, Δx),
     ::typeof(sum),
@@ -55,6 +99,17 @@ function rrule(
         return (NoTangent(), NoTangent(), x_thunk)
     end
     return y, sum_abs2_pullback
+end
+
+# Fix dispatch for this pidgeon-hole optimization,
+# Rules with RuleConfig dispatch with priority over without (regardless of other args).
+# and if we don't specify what do do for one that HasReverseMode then it is ambigious
+for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
+    @eval function rrule(
+        ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T}; dims=:,
+    ) where {T<:Union{Real,Complex}}
+        return rrule(sum, abs2, x; dims=dims)
+    end
 end
 
 #####

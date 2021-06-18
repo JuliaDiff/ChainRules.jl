@@ -3,13 +3,14 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: hasproperty, only
+using Compat: hasproperty, only, cispi, eachcol
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
+using StaticArrays
 using Statistics
 using Test
 
@@ -24,6 +25,8 @@ end
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
+    include_test("test_helpers.jl")
+    println()
     @testset "rulesets" begin
         @testset "Base" begin
             include_test("rulesets/Base/base.jl")

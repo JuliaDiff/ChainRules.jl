@@ -2,7 +2,7 @@
 ##### `reshape`
 #####
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
+function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
     A_dims = size(A)
     function reshape_pullback(Ȳ)
         return (NoTangent(), reshape(Ȳ, A_dims), NoTangent())
@@ -10,7 +10,7 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Int}})
     return reshape(A, dims), reshape_pullback
 end
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Int...)
+function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
     A_dims = size(A)
     function reshape_pullback(Ȳ)
         ∂A = reshape(Ȳ, A_dims)
