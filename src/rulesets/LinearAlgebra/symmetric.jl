@@ -133,7 +133,7 @@ function rrule(
     kwargs...,
 )
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Tangent) # Is there no coverage for this?
+    function eigen_pullback(ΔF::Tangent)
         λ, U = F.values, F.vectors
         Δλ, ΔU = ΔF.values, ΔF.vectors
         ΔU = ΔU isa AbstractZero ? ΔU : copy(ΔU)
@@ -246,7 +246,7 @@ end
 # is supported by reverse-mode AD packages
 function rrule(::typeof(svd), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
     F = svd(A)
-    function svd_pullback(ΔF::Tangent) # is there no coverage for this in the tests? should fail when thunk is passed
+    function svd_pullback(ΔF::Tangent)
         U, V = F.U, F.V
         c = _svd_eigvals_sign!(similar(F.S), U, V)
         λ = F.S .* c
@@ -358,7 +358,7 @@ function rrule(::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = typeof(sinA)((U * Diagonal(cosλ)) * U', sinA.uplo)
     Y = (sinA, cosA)
-    function sincos_pullback((ΔsinA, ΔcosA)::Tangent) # is there no coverage for this? should fail
+    function sincos_pullback((ΔsinA, ΔcosA)::Tangent)
         ΔsinA isa AbstractZero && ΔcosA isa AbstractZero && return NoTangent(), ΔsinA + ΔcosA
         if eltype(A) <: Real
             ΔsinA, ΔcosA = real(ΔsinA), real(ΔcosA)
