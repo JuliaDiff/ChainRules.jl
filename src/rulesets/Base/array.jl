@@ -60,7 +60,8 @@ end
 #####
 
 function rrule(::typeof(vcat), A::AbstractArray, Bs::AbstractArray...)
-    function vcat_pullback(Ȳ)
+    function vcat_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         n = size(A, 1)
         ∂A = copy(selectdim(Ȳ, 1, 1:n))
         ∂Bs = ntuple(length(Bs)) do i

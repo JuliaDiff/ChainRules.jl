@@ -20,12 +20,13 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
 end
 
 function frule(
-    (_, _, ẋ),
+    (_, _, Δx),
     ::typeof(sum),
     ::typeof(abs2),
     x::AbstractArray{T};
     dims=:,
 ) where {T<:Union{Real,Complex}}
+    ẋ = unthunk(Δx)
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * real(dot(x, ẋ))

@@ -1,6 +1,7 @@
 
 if VERSION ≥ v"1.4"
-    function frule((_, Δx, Δp), ::typeof(evalpoly), x, p)
+    function frule((_, ẋ, ṗ), ::typeof(evalpoly), x, p)
+        Δx, Δp = ẋ, unthunk(ṗ)
         N = length(p)
         @inbounds y = p[N]
         Δy = Δp[N]
@@ -100,7 +101,7 @@ if VERSION ≥ v"1.4"
     end
     function _evalpoly_back_fallback(x, p::Tuple, ys, Δy)
         x′ = x'
-        ∂yi = Δy
+        ∂yi = unthunk(Δy)
         N = length(p)
         ∂p1 = _evalpoly_backp(p[1], ∂yi)
         ∂x = _evalpoly_backx(x, ys[N - 1], ∂yi)
