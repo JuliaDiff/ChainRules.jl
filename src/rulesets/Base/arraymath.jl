@@ -263,7 +263,7 @@ end
 #####
 
 function rrule(::typeof(-), x::AbstractArray)
-    function negation_pullback()
+    function negation_pullback(ȳ)
         return NoTangent(), InplaceableThunk(@thunk(-ȳ), ā -> ā .-= ȳ)
     end
     return -x, negation_pullback
