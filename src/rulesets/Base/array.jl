@@ -24,8 +24,7 @@ end
 ##### `hcat` (🐈)
 #####
 
-# work around https://github.com/JuliaLang/julia/issues/40809
-_get(x::Tuple, i::Int, default) = i in 1:length(x) ? x[i] : default
+using Compat # get here needs Compat 3.31
 
 function rrule(::typeof(hcat), Xs...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
@@ -36,7 +35,7 @@ function rrule(::typeof(hcat), Xs...)
         dXs = map(sizes) do sizeX
             ndimsX = length(sizeX)
             lo = hi[] + 1
-            hi[] += _get(sizeX, 2, 1)
+            hi[] += get(sizeX, 2, 1)
             ind = ntuple(ndimsY) do d
                 if d==2
                     d > ndimsX ? lo : lo:hi[]
@@ -89,7 +88,7 @@ function rrule(::typeof(vcat), Xs...)
         dXs = map(sizes) do sizeX
             ndimsX = length(sizeX)
             lo = hi[] + 1
-            hi[] += _get(sizeX, 1, 1)
+            hi[] += get(sizeX, 1, 1)
             ind = ntuple(ndimsY) do d
                 if d==1
                     d > ndimsX ? lo : lo:hi[]
@@ -144,7 +143,7 @@ function rrule(::typeof(cat), Xs...; dims)
                 end
             end
             for d in cdims
-                prev[d] += _get(sizeX, d, 1)
+                prev[d] += get(sizeX, d, 1)
             end
             dY[index...]
         end
@@ -173,10 +172,10 @@ function rrule(::typeof(hvcat), rows, values...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            prev[2] += _get(sizeX, 2, 1)
+            prev[2] += get(sizeX, 2, 1)
             if prev[2] == cols
                 prev[2] = 0
-                prev[1] += _get(sizeX, 1, 1)
+                prev[1] += get(sizeX, 1, 1)
             end
             dY[index...]
         end
