@@ -128,7 +128,7 @@ end
 _val(::Val{x}) where {x} = x
 
 function rrule(::typeof(cat), Xs...; dims)
-    Y = cat(Xs...; dims)
+    Y = cat(Xs...; dims=dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
