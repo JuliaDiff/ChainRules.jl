@@ -43,8 +43,11 @@ function rrule(::typeof(hcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dY[ind...]  # no thunk as Xs may have 1 arg but 1 thunk is disallowed,
-                        # and perhaps better to GC clean up dY.
+            if ndimsX > 0
+                InplaceableThunk(@tunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
+            else
+                dY[ind...]
+            end
         end
         return (NoTangent(), dXs...)
     end
@@ -96,7 +99,11 @@ function rrule(::typeof(vcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dY[ind...]
+            if ndimsX > 0
+                InplaceableThunk(@tunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
+            else
+                dY[ind...]
+            end
         end
         return (NoTangent(), dXs...)
     end
@@ -145,7 +152,11 @@ function rrule(::typeof(cat), Xs...; dims)
             for d in cdims
                 prev[d] += get(sizeX, d, 1)
             end
-            dY[index...]
+            if ndimsX > 0
+                InplaceableThunk(@tunk(dY[index...]), dX -> dX .+= view(dY, index...))
+            else
+                dY[index...]
+            end
         end
         return (NoTangent(), dXs...)
     end
