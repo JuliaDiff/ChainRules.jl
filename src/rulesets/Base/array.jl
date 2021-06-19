@@ -44,7 +44,7 @@ function rrule(::typeof(hcat), Xs...)
                 end
             end
             if ndimsX > 0
-                InplaceableThunk(@tunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
+                InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
             else
                 dY[ind...]
             end
@@ -100,7 +100,7 @@ function rrule(::typeof(vcat), Xs...)
                 end
             end
             if ndimsX > 0
-                InplaceableThunk(@tunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
+                InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
             else
                 dY[ind...]
             end
@@ -153,7 +153,7 @@ function rrule(::typeof(cat), Xs...; dims)
                 prev[d] += get(sizeX, d, 1)
             end
             if ndimsX > 0
-                InplaceableThunk(@tunk(dY[index...]), dX -> dX .+= view(dY, index...))
+                InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
             else
                 dY[index...]
             end
