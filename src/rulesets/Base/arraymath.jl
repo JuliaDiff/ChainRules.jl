@@ -28,12 +28,12 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(Ȳ * B'),
-                X̄ -> mul!(X̄, Ȳ, B', true, true)
+                @thunk(project(A, Ȳ * B')),
+                X̄ -> project(A, mul!(X̄, Ȳ, B', true, true))
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
-                X̄ -> mul!(X̄, A', Ȳ, true, true)
+                @thunk(project(B, A' * Ȳ)),
+                X̄ -> project(B, mul!(X̄, A', Ȳ, true, true))
             )
         )
     end
