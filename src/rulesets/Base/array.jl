@@ -24,9 +24,7 @@ end
 ##### `hcat` (🐈)
 #####
 
-using Compat # get here needs Compat 3.31
-
-function rrule(::typeof(hcat), Xs...)
+function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
     sizes = map(size, Xs)   # this avoids closing over Xs
@@ -82,7 +80,7 @@ end
 ##### `vcat`
 #####
 
-function rrule(::typeof(vcat), Xs...)
+function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     Y = vcat(Xs...)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
@@ -133,7 +131,7 @@ end
 
 _val(::Val{x}) where {x} = x
 
-function rrule(::typeof(cat), Xs...; dims)
+function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
     Y = cat(Xs...; dims=dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
@@ -167,7 +165,7 @@ end
 ##### `hvcat`
 #####
 
-function rrule(::typeof(hvcat), rows, values...)
+function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
     Y = hvcat(rows, values...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
