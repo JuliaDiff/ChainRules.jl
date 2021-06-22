@@ -42,9 +42,12 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
                 end
             end
             if ndimsX > 0
-                InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
-            else
+                # Here InplaceableThunk breaks @inferred, removed for now
+                # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
                 dY[ind...]
+            else
+                # This is a hack to perhaps avoid GPU scalar indexing
+                sum(view(dY, ind...))
             end
         end
         return (NoTangent(), dXs...)
@@ -98,9 +101,10 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
                 end
             end
             if ndimsX > 0
-                InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
-            else
+                # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
                 dY[ind...]
+            else
+                sum(view(dY, ind...))
             end
         end
         return (NoTangent(), dXs...)
@@ -151,9 +155,10 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
                 prev[d] += get(sizeX, d, 1)
             end
             if ndimsX > 0
-                InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
-            else
+                # InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
                 dY[index...]
+            else
+                sum(view(dY, index...))
             end
         end
         return (NoTangent(), dXs...)
