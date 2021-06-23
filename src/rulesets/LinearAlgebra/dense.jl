@@ -154,8 +154,9 @@ end
 function rrule(::typeof(tr), x)
     # This should really be a FillArray
     # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
+    d = size(x, 1)
     function tr_pullback(ΔΩ)
-        return (NoTangent(), Diagonal(fill(ΔΩ, size(x, 1))))
+        return (NoTangent(), Diagonal(fill(ΔΩ, d)))
     end
     return tr(x), tr_pullback
 end
