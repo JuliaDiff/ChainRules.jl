@@ -178,15 +178,15 @@ end
         end
 
         @testset "types" begin
-            back = unthunk(rrule(cumprod, [1, 2, 3])[2])  # allow integer input
+            back = rrule(cumprod, [1, 2, 3])[2]  # rule allows integer input, but test_rrule does not
             @test unthunk(back(fill(0.5, 3))[2]) == [9/2, 2, 1]
 
-            back = unthunk(rrule(cumprod, PermutedDimsArray([1 2; 3 4], (2,1)); dims=1)[2])
+            back = rrule(cumprod, PermutedDimsArray([1 2; 3 4], (2,1)); dims=1)[2]
             @test unthunk(back(ones(Float32, 2,2))[2]) == [3 5; 1 3]
 
-            @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1) # forward pass fails
+            @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1) # forward pass fails, so can't test gradient
 
-            back = unthunk(rrule(cumprod, Diagonal([1, 2]); dims=1)[2])
+            back = rrule(cumprod, Diagonal([1, 2]); dims=1)[2]
             @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 3/2; 1/2 0]
         end
     end
