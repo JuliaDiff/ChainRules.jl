@@ -223,7 +223,7 @@ end
 ##### `cumprod`
 #####
 
-function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims=1)
+function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims::Integer=1)
     y = cumprod(x; dims=dims)  # does nothing unless dims == 1
     function cumprod_pullback_1(dy)
         dx_thunk = InplaceableThunk(
@@ -244,9 +244,8 @@ function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims=1)
     return y, cumprod_pullback_1
 end
 
-function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims)
+function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims::Integer)
     y = cumprod(x; dims=dims)
-    @assert dims isa Integer
     function cumprod_pullback_2(dy)
         dx_thunk = InplaceableThunk(
             @thunk if dims <= ndims(x)
