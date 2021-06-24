@@ -423,27 +423,6 @@ end
             @test X̄_ad ≈ X̄_fd rtol=1e-4
         end
 
-        @testset "uplo=$p" for p in [:U, :L]
-            Y, dF_pullback = rrule(getproperty, F, p)
-            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-            (dself, dF, dp) = dF_pullback(Ȳ)
-            @test dself === NoTangent()
-            @test dp === NoTangent()
-
-            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-            # machinery from FiniteDifferences because that isn't set up to respect
-            # necessary special properties of the input. In the case of the Cholesky
-            # factorization, we need the input to be Hermitian.
-            ΔF = unthunk(dF)
-            _, dX = dX_pullback(ΔF)
-            X̄_ad = dot(unthunk(dX), V)
-            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
-            end
-            @test X̄_ad ≈ X̄_fd rtol=1e-4
-        end
-
-
         # Ensure that cotangents of cholesky(::StridedMatrix) and
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
