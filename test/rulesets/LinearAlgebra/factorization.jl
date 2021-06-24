@@ -398,6 +398,31 @@ end
         X = generate_well_conditioned_matrix(10)
         V = generate_well_conditioned_matrix(10)
         F, dX_pullback = rrule(cholesky, X, Val(false))
+        F_1arg, dX_pullback_1arg = rrule(cholesky, X)  # to test not passing the Val(false)
+        @test F == F_1arg
+        @testset "uplo=$p" for p in [:U, :L]
+            Y, dF_pullback = rrule(getproperty, F, p)
+            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
+            (dself, dF, dp) = dF_pullback(Ȳ)
+            @test dself === NoTangent()
+            @test dp === NoTangent()
+
+            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
+            # machinery from FiniteDifferences because that isn't set up to respect
+            # necessary special properties of the input. In the case of the Cholesky
+            # factorization, we need the input to be Hermitian.
+            ΔF = unthunk(dF)
+            _, dX, darg2 = dX_pullback(ΔF)
+            _, dX_1arg = dX_pullback_1arg(ΔF)
+            @test dX == dX_1arg
+            @test darg2 === NoTangent()
+            X̄_ad = dot(unthunk(dX), V)
+            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
+                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+            end
+            @test X̄_ad ≈ X̄_fd rtol=1e-4
+        end
+
         @testset "uplo=$p" for p in [:U, :L]
             Y, dF_pullback = rrule(getproperty, F, p)
             Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
@@ -417,6 +442,7 @@ end
             end
             @test X̄_ad ≈ X̄_fd rtol=1e-4
         end
+
 
         # Ensure that cotangents of cholesky(::StridedMatrix) and
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.

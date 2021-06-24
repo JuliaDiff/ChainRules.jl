@@ -431,11 +431,21 @@ end
 #####
 ##### `cholesky`
 #####
-function rrule(::typeof(cholesky), A::Real)
-    C, full_pb = rrule(cholesky, A, :U)
+function rrule(::typeof(cholesky),
+    A::Union{
+        Real,
+        Diagonal{<:Real},
+        LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal,<:StridedMatrix},
+        StridedMatrix{<:LinearAlgebra.BlasReal}
+    }
+    # Handle not passing in the uplo
+)
+    arg2 = A isa Real ? :U : Val(false)
+    C, full_pb = rrule(cholesky, A, arg2)
     cholesky_pullback(ΔC::Tangent) = return full_pb(ΔC)[1:2]
     return C, cholesky_pullback
 end
+
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
     C = cholesky(A, uplo)
     function cholesky_pullback(ΔC::Tangent)
