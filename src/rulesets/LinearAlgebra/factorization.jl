@@ -440,12 +440,25 @@ end
 #####
 ##### `cholesky`
 #####
+
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
 _cholesky_real_pullback(ΔC::Tangent, full_pb) = return full_pb(ΔC)[1:2]
 function _cholesky_real_pullback(Ȳ::AbstractThunk, full_pb)
     return _cholesky_real_pullback(unthunk(Ȳ), full_pb)
 end
-function rrule(::typeof(cholesky), A::Real)
-    C, full_pb = rrule(cholesky, A, :U)
+function rrule(::typeof(cholesky),
+    A::Union{
+        Real,
+        Diagonal{<:Real},
+        LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal,<:StridedMatrix},
+        StridedMatrix{<:LinearAlgebra.BlasReal}
+    }
+    # Handle not passing in the uplo
+)
+    arg2 = A isa Real ? :U : Val(false)
+    C, full_pb = rrule(cholesky, A, arg2)
+
     cholesky_pullback(ȳ) = return _cholesky_real_pullback(ȳ, full_pb)
     return C, cholesky_pullback
 end
