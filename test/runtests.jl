@@ -14,7 +14,9 @@ using StaticArrays
 using Statistics
 using Test
 
-push!(ChainRulesTestUtils.TRANSFORMS_TO_ALT_TANGENTS, x -> @thunk(x))
+# Transitional feature, see
+# https://juliadiff.org/ChainRulesTestUtils.jl/dev/api.html#ChainRulesTestUtils.enable_tangent_transform!
+ChainRulesTestUtils.enable_tangent_transform!(Thunk)
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
