@@ -75,6 +75,8 @@ function frule(
     return F, ∂F
 end
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
 function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
     Δfactors = ΔF.factors
     Δfactors isa AbstractZero && return (NoTangent(), Δfactors, NoTangent())

@@ -30,6 +30,9 @@ end
 #####
 ##### `Diagonal`
 #####
+
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
 _Diagonal_pullback(ȳ::AbstractMatrix) = return (NoTangent(), diag(ȳ))
 function _Diagonal_pullback(ȳ::Tangent)
     # TODO: Assert about the primal type in the Tangent, It should be Diagonal
@@ -90,6 +93,8 @@ end
 ##### `Adjoint`
 #####
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
 Adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 Adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
 Adjoint_mat_pullback(ȳ::AbstractThunk) = return Adjoint_mat_pullback(unthunk(ȳ))
@@ -122,6 +127,8 @@ end
 ##### `Transpose`
 #####
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
 _Transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 _Transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
 _Transpose_mat_pullback(ȳ::AbstractThunk) = return _Transpose_mat_pullback(unthunk(ȳ))
