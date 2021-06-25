@@ -75,13 +75,12 @@ function frule(
     return F, ∂F
 end
 
-function _lu_pullback(ΔF::Tangent, A, pivot, F)
+function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
     Δfactors = ΔF.factors
     Δfactors isa AbstractZero && return (NoTangent(), Δfactors, NoTangent())
     factors = F.factors
-    ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
+    ∂factors = eltypeA <: Real ? real(Δfactors) : Δfactors
     ∂A = similar(factors)
-    m, n = size(A)
     q = min(m, n)
     if m == n  # square A
         # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
@@ -129,12 +128,13 @@ function _lu_pullback(ΔF::Tangent, A, pivot, F)
     end
     return NoTangent(), ∂A, NoTangent()
 end
-_lu_pullback(ΔF::AbstractThunk, A, pivot, F) = _lu_pullback(unthunk(ΔF), A, pivot, F)
+_lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
 function rrule(
     ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
+    m, n = size(A)
     F = lu(A, pivot; kwargs...)
-    lu_pullback(ȳ) = _lu_pullback(ȳ, A, pivot, F)
+    lu_pullback(ȳ) = _lu_pullback(ȳ, m, n, eltype(A), pivot, F)
     return F, lu_pullback
 end
 
