@@ -22,7 +22,8 @@ function frule((_, ΔA), ::Type{Array}, A::LinearAlgebra.HermOrSym)
 end
 
 function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
-    function Matrix_pullback(ΔΩ)
+    function Matrix_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         TA = _symhermtype(A)
         T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
         uplo = A.uplo
@@ -34,9 +35,10 @@ end
 rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
 
 # for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
-function _symherm_forward(A, ΔA)
+function _symherm_forward(A, Ȧ)
+    ΔA = unthunk(Ȧ)
     TA = _symhermtype(A)
-    return if ΔA isa TA
+    return if typeof(ΔA) <: TA
         ΔA
     else
         TA{eltype(ΔA),typeof(ΔA)}(ΔA, A.uplo)
@@ -44,7 +46,8 @@ function _symherm_forward(A, ΔA)
 end
 
 # for Ω = HermOrSym(A, uplo), pull back ΔΩ to get ∂A
-@inline function _symherm_back(::Type{T}, ΔΩ, uplo::Symbol) where {T}
+@inline function _symherm_back(::Type{T}, Ω̄, uplo::Symbol) where {T}
+    ΔΩ = unthunk(Ω̄)
     if T <: Symmetric
         return _symmetric_back(ΔΩ, uplo)
     elseif T <: Hermitian
@@ -57,7 +60,8 @@ end
     error()
 end
 
-@inline function _symmetric_back(ΔΩ, uplo::Symbol)
+@inline function _symmetric_back(Ω̄, uplo::Symbol)
+    ΔΩ = unthunk(Ω̄)
     if ΔΩ isa Diagonal
         return ΔΩ
     elseif ΔΩ isa LinearAlgebra.AbstractTriangular
@@ -102,11 +106,12 @@ end
 # accounting for normalization convention appears in Boeddeker && Hanebrink.
 # account for phase convention is unpublished.
 function frule(
-    (_, ΔA),
+    (_, Ȧ),
     ::typeof(eigen!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     kwargs...,
 )
+    ΔA = unthunk(Ȧ)
     F = eigen!(A; kwargs...)
     ΔA isa AbstractZero && return F, ΔA
     λ, U = F.values, F.vectors
@@ -199,11 +204,12 @@ end
 #####
 
 function frule(
-    (_, ΔA),
+    (_, Ȧ),
     ::typeof(eigvals!),
     A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix};
     kwargs...,
 )
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     F = eigen!(A; kwargs...)
     λ, U = F.values, F.vectors
@@ -303,7 +309,8 @@ end
 
 for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :asin, :atan, :acosh, :asinh, :atanh)
     @eval begin
-        function frule((_, ΔA), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+        function frule((_, Ȧ), ::typeof($func), A::LinearAlgebra.RealHermSymComplexHerm)
+            ΔA = unthunk(Ȧ)
             Y, intermediates = _matfun($func, A)
             Ȳ = _matfun_frechet($func, ΔA, A, Y, intermediates)
             # If ΔA was hermitian, then ∂Y has the same structure as Y
@@ -331,7 +338,8 @@ for func in (:exp, :log, :sqrt, :cos, :sin, :tan, :cosh, :sinh, :tanh, :acos, :a
     end
 end
 
-function frule((_, ΔA), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+function frule((_, Ȧ), ::typeof(sincos), A::LinearAlgebra.RealHermSymComplexHerm)
+    ΔA = unthunk(Ȧ)
     sinA, (λ, U, sinλ, cosλ) = _matfun(sin, A)
     cosA = _symhermtype(sinA)((U * Diagonal(cosλ)) * U')
     # We will overwrite tmp matrix several times to hold different values
@@ -460,6 +468,7 @@ _isindomain(::Union{typeof(log),typeof(sqrt)}, x::Real) = x ≥ 0
 _symhermtype(::Type{<:Symmetric}) = Symmetric
 _symhermtype(::Type{<:Hermitian}) = Hermitian
 _symhermtype(A) = _symhermtype(typeof(A))
+_symhermtype(a::AbstractThunk) = _symhermtype(unthunk(a))
 
 function _realifydiag!(A)
     for i in diagind(A)

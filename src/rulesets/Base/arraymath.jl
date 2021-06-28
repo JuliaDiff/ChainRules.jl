@@ -29,7 +29,8 @@ function rrule(
     valAtype = Val(typeof(A))
     valBtype = Val(typeof(B))
     _val(::Val{T}) where T = T
-    function times_pullback(Ȳ)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
             @thunk(project(_val(valAtype), Ȳ * B'; info=Ainfo)),
             X̄ -> mul!(X̄, Ȳ, B', true, true)
@@ -48,7 +49,8 @@ function rrule(
     A::AbstractVector{<:CommutativeMulNumber},
     B::AbstractMatrix{<:CommutativeMulNumber},
 )
-    function times_pullback(Ȳ)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         @assert size(B, 1) === 1   # otherwise primal would have failed.
         return (
             NoTangent(),
@@ -68,7 +70,8 @@ end
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
 )
-    function times_pullback(Ȳ)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
             @thunk(dot(Ȳ, B)'),
@@ -84,7 +87,8 @@ end
 function rrule(
     ::typeof(*), B::AbstractArray{<:CommutativeMulNumber}, A::CommutativeMulNumber
 )
-    function times_pullback(Ȳ)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
             InplaceableThunk(
@@ -109,7 +113,8 @@ function rrule(
         z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
     )
     # The useful case, mul! fused with +
-    function muladd_pullback_1(Ȳ)
+    function muladd_pullback_1(ȳ)
+        Ȳ = unthunk(ȳ)
         matmul = (
             InplaceableThunk(
                 @thunk(Ȳ * B'),
@@ -142,7 +147,8 @@ function rrule(
         z::CommutativeMulNumber,
     )
     # This case is dot(u,v)+z, but would also match signature above.
-    function muladd_pullback_2(dy)
+    function muladd_pullback_2(ȳ)
+        dy = unthunk(ȳ)
         ut_thunk = InplaceableThunk(
             @thunk(v' .* dy),
             dut -> dut .+= v' .* dy
@@ -163,7 +169,8 @@ function rrule(
         z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
     )
     # Outer product, just broadcasting
-    function muladd_pullback_3(Ȳ)
+    function muladd_pullback_3(ȳ)
+        Ȳ = unthunk(ȳ)
         proj = (
             @thunk(vec(sum(Ȳ .* conj.(vt), dims=2))),
             @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
@@ -211,7 +218,8 @@ end
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
     Y = A \ B
-    function backslash_pullback(Ȳ)
+    function backslash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         ∂A = @thunk begin
             B̄ = A' \ Ȳ
             Ā = -B̄ * Y'
@@ -232,7 +240,8 @@ end
 
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
-    function slash_pullback_scalar(Ȳ)
+    function slash_pullback_scalar(ȳ)
+        Ȳ = unthunk(ȳ)
         Athunk = InplaceableThunk(
             @thunk(Ȳ / conj(b)),
             dA -> dA .+= Ȳ ./ conj(b),

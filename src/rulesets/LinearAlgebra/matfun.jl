@@ -128,9 +128,10 @@ function rrule(::typeof(exp), A0::StridedMatrix{<:BlasFloat})
     else
         A = copy(A0)
         X, intermediates = _matfun!(exp, A)
-        function exp_pullback(ΔX)
+        function exp_pullback(X̄)
             # Ensures ∂X is mutable. The outer `adjoint` is unwrapped without copy by
             # the default _matfun_frechet_adjoint!
+            ΔX = unthunk(X̄)
             ∂X = ChainRulesCore.is_inplaceable_destination(ΔX) ? ΔX : convert(Matrix, ΔX')'
             ∂A = _matfun_frechet_adjoint!(exp, ∂X, A, X, intermediates)
             return NoTangent(), ∂A
@@ -268,6 +269,11 @@ function _matfun_frechet!(
 
     _unbalance!(∂X, ilo, ihi, scale, n)
     return ∂X
+end
+function _matfun_frechet!(
+    f::typeof(exp), a::AbstractThunk, A::StridedMatrix{T}, X, t
+) where {T<:BlasFloat}
+    return _matfun_frechet!(f, unthunk(a), A, X, t)
 end
 
 #####

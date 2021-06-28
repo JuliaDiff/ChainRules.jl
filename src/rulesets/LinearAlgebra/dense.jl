@@ -7,7 +7,8 @@ function frule((_, Δx, Δy), ::typeof(dot), x, y)
 end
 
 function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
-    function dot_pullback(ΔΩ)
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         xthunk = InplaceableThunk(
             @thunk(reshape(y .* ΔΩ', axes(x))),
             dx -> dx .+= reshape(y, axes(x)) .* ΔΩ',
@@ -32,7 +33,8 @@ end
 function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
     Ay = A * y
     z = adjoint(x) * Ay
-    function dot_pullback(ΔΩ)
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         dx = @thunk conj(ΔΩ) .* Ay
         dA = @thunk ΔΩ .* x .* adjoint(y)
         dy = @thunk ΔΩ .* (adjoint(A) * x)
@@ -44,7 +46,8 @@ end
 
 function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}, y::AbstractVector{<:Number})
     z = dot(x,A,y)
-    function dot_pullback(ΔΩ)
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
         dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
         dy = @thunk ΔΩ .* conj.(A.diag) .* x
@@ -65,7 +68,8 @@ end
 # TODO: support complex vectors
 function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
     Ω = cross(a, b)
-    function cross_pullback(ΔΩ)
+    function cross_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
         return (NoTangent(), @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
     end
     return Ω, cross_pullback
@@ -150,8 +154,9 @@ end
 function rrule(::typeof(tr), x)
     # This should really be a FillArray
     # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
+    d = size(x, 1)
     function tr_pullback(ΔΩ)
-        return (NoTangent(), Diagonal(fill(ΔΩ, size(x, 1))))
+        return (NoTangent(), Diagonal(fill(ΔΩ, d)))
     end
     return tr(x), tr_pullback
 end
@@ -164,24 +169,26 @@ end
 @scalar_rule pinv(x) -(Ω ^ 2)
 
 function frule(
-    (_, Δx),
+    (_, ẋ),
     ::typeof(pinv),
     x::AbstractVector{T},
     tol::Real = 0,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
+    Δx = unthunk(ẋ)
     ∂y′ = sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y)
     ∂y = y isa Transpose ? transpose(∂y′) : adjoint(∂y′)
     return y, ∂y
 end
 
 function frule(
-    (_, Δx),
+    (_, ẋ),
     ::typeof(pinv),
     x::LinearAlgebra.AdjOrTransAbsVec{T},
     tol::Real = 0,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
+    Δx = unthunk(ẋ)
     ∂y = sum(abs2, y) .* vec(Δx') .- 2real(Δx * y) .* y
     return y, ∂y
 end
@@ -190,10 +197,11 @@ end
 # Golub, Gene H., and Victor Pereyra. "The Differentiation of Pseudo-Inverses and Nonlinear
 # Least Squares Problems Whose Variables Separate."
 # SIAM Journal on Numerical Analysis 10(2). (1973). 413-432. doi: 10.1137/0710036
-function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+function frule((_, Ȧ), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     m, n = size(A)
     # contract over the largest dimension
+    ΔA = unthunk(Ȧ)
     if m ≤ n
         ∂Y = -Y * (ΔA * Y)
         ∂Y = add!!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y))  # (I - Y A) ΔA' Y' Y
@@ -221,7 +229,8 @@ function rrule(
     tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
-    function pinv_pullback(Δy)
+    function pinv_pullback(ȳ)
+        Δy = unthunk(ȳ)
         ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
         return (NoTangent(), ∂x, ZeroTangent())
     end
@@ -234,7 +243,8 @@ function rrule(
     tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
-    function pinv_pullback(Δy)
+    function pinv_pullback(ȳ)
+        Δy = ȳ
         ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
         ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
         return (NoTangent(), ∂x, ZeroTangent())
@@ -244,7 +254,8 @@ end
 
 function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
-    function pinv_pullback(ΔY)
+    function pinv_pullback(Ȳ)
+        ΔY = unthunk(Ȳ)
         m, n = size(A)
         # contract over the largest dimension
         if m ≤ n
@@ -313,8 +324,10 @@ end
 # included because the primal uses `schur`, for which we don't have a rule
 
 function frule(
-    (_, ΔA, ΔC), ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
+    (_, Ȧ, Ċ), ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
 ) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
+    ΔC = unthunk(Ċ)
     R, Q = schur(A)
     D = Q' * (C * Q)
     Y, scale = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, D)

@@ -20,7 +20,8 @@ function rrule(::typeof(sort), xs::AbstractVector; kwargs...)
     inds = sortperm(xs; kwargs...)
     ys = xs[inds]
 
-    function sort_pullback(Δys)
+    function sort_pullback(ȳ)
+        Δys = unthunk(ȳ)
         function sort_add!(Δxs)
             Δxs[inds] += Δys
             return Δxs

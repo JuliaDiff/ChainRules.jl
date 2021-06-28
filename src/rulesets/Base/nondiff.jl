@@ -13,7 +13,6 @@
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
 
-
 @non_differentiable Bool(::Any)
 
 @non_differentiable accumulate(::Any, ::AbstractArray{Bool})
@@ -132,6 +131,8 @@
 VERSION >= v"1.1" && @non_differentiable fieldtypes(T)
 @non_differentiable fieldname(T, ::Integer)
 @non_differentiable fieldnames(T)
+
+@non_differentiable factorial(n::Integer)
 
 @non_differentiable findall(::Union{Regex, AbstractString, Function}, ::AbstractString)
 @non_differentiable findall(::Function, ::AbstractArray)

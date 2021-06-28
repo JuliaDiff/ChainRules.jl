@@ -53,7 +53,10 @@ function rrule(::Type{T}, x::Real) where {T<:Complex}
     return (T(x), Complex_pullback)
 end
 function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
-    Complex_pullback(ΔΩ) = (NoTangent(), real(ΔΩ), imag(ΔΩ))
+    function Complex_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
+        return (NoTangent(), real(ΔΩ), imag(ΔΩ))
+    end
     return (T(x, y), Complex_pullback)
 end
 
