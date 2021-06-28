@@ -21,14 +21,15 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
 end
 
 #####
-##### `hcat` (🐈)
+##### `hcat`
 #####
 
 function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
     sizes = map(size, Xs)   # this avoids closing over Xs
-    function 🐈_pullback(dY)
+    function hcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)  # Ref avoids hi::Core.Box
         dXs = map(sizes) do sizeX
             ndimsX = length(sizeX)
@@ -52,7 +53,7 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
         end
         return (NoTangent(), dXs...)
     end
-    return Y, 🐈_pullback
+    return Y, hcat_pullback
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
@@ -87,7 +88,8 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     Y = vcat(Xs...)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
-    function vcat_pullback(dY)
+    function vcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
         dXs = map(sizes) do sizeX
             ndimsX = length(sizeX)
@@ -140,7 +142,8 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
-    function cat_pullback(dY)
+    function cat_pullback(ȳ)
+        dY = unthunk(ȳ)
         prev = fill(0, _val(ndimsY))  # note that Y always has 1-based indexing, even if X isa OffsetArray
         dXs = map(sizes) do sizeX
             ndimsX = length(sizeX)
