@@ -7,7 +7,8 @@ const SquareMatrix{T} = Union{Diagonal{T}, AbstractTriangular{T}}
 
 function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
     Y = A / B
-    function slash_pullback(Ȳ)
+    function slash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         ∂A = @thunk Ȳ / B'
         ∂B = @thunk _unionall_wrapper(T)(-Y' * (Ȳ / B'))
         return (NoTangent(), ∂A, ∂B)
@@ -17,7 +18,8 @@ end
 
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
-    function backslash_pullback(Ȳ)
+    function backslash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         ∂A = @thunk _unionall_wrapper(T)(-(A' \ Ȳ) * Y')
         ∂B = @thunk A' \ Ȳ
         return NoTangent(), ∂A, ∂B
@@ -29,18 +31,20 @@ end
 ##### `Diagonal`
 #####
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
+_Diagonal_pullback(ȳ::AbstractMatrix) = return (NoTangent(), diag(ȳ))
+function _Diagonal_pullback(ȳ::Tangent)
+    # TODO: Assert about the primal type in the Tangent, It should be Diagonal
+    # infact it should be exactly the type of `Diagonal(d)`
+    # but right now Zygote loses primal type information so we can't use it.
+    # See https://github.com/FluxML/Zygote.jl/issues/603
+    return (NoTangent(), ȳ.diag)
+end
+_Diagonal_pullback(ȳ::AbstractThunk) = return _Diagonal_pullback(unthunk(ȳ))
+
 function rrule(::Type{<:Diagonal}, d::AbstractVector)
-    function Diagonal_pullback(ȳ::AbstractMatrix)
-        return (NoTangent(), diag(ȳ))
-    end
-    function Diagonal_pullback(ȳ::Tangent)
-        # TODO: Assert about the primal type in the Tangent, It should be Diagonal
-        # infact it should be exactly the type of `Diagonal(d)`
-        # but right now Zygote loses primal type information so we can't use it.
-        # See https://github.com/FluxML/Zygote.jl/issues/603
-        return (NoTangent(), ȳ.diag)
-    end
-    return Diagonal(d), Diagonal_pullback
+    return Diagonal(d), _Diagonal_pullback
 end
 
 function rrule(::typeof(diag), A::AbstractMatrix)
@@ -78,7 +82,8 @@ function _diagm_back(p, ȳ)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
-    function times_pullback(Ȳ)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         return (NoTangent(), @thunk(Diagonal(Ȳ .* V)), @thunk(D * Ȳ))
     end
     return D * V, times_pullback
@@ -88,56 +93,68 @@ end
 ##### `Adjoint`
 #####
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
+Adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+Adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
+Adjoint_mat_pullback(ȳ::AbstractThunk) = return Adjoint_mat_pullback(unthunk(ȳ))
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
-    Adjoint_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-    Adjoint_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
-    return Adjoint(A), Adjoint_pullback
+    return Adjoint(A), Adjoint_mat_pullback
 end
 
+_Adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+_Adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
+_Adjoint_vec_pullback(ȳ::AbstractThunk) = return _Adjoint_vec_pullback(unthunk(ȳ))
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
-    Adjoint_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
-    Adjoint_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
-    return Adjoint(A), Adjoint_pullback
+    return Adjoint(A), _Adjoint_vec_pullback
 end
 
+_adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+_adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
+_adjoint_mat_pullback(ȳ::AbstractThunk) = return _adjoint_mat_pullback(unthunk(ȳ))
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
-    adjoint_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-    adjoint_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
-    return adjoint(A), adjoint_pullback
+    return adjoint(A), _adjoint_mat_pullback
 end
 
+_adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+_adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
+_adjoint_vec_pullback(ȳ::AbstractThunk) = return _adjoint_vec_pullback(unthunk(ȳ))
 function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
-    adjoint_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
-    adjoint_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
-    return adjoint(A), adjoint_pullback
+    return adjoint(A), _adjoint_vec_pullback
 end
 
 #####
 ##### `Transpose`
 #####
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
+_Transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+_Transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
+_Transpose_mat_pullback(ȳ::AbstractThunk) = return _Transpose_mat_pullback(unthunk(ȳ))
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
-    Transpose_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-    Transpose_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
-    return Transpose(A), Transpose_pullback
+    return Transpose(A), _Transpose_mat_pullback
 end
 
+_Transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+_Transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(Transpose(ȳ)))
+_Transpose_vec_pullback(ȳ::AbstractThunk) = return _Transpose_vec_pullback(unthunk(ȳ))
 function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
-    Transpose_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
-    Transpose_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(Transpose(ȳ)))
-    return Transpose(A), Transpose_pullback
+    return Transpose(A), _Transpose_vec_pullback
 end
 
+_transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
+_transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), transpose(ȳ))
+_transpose_mat_pullback(ȳ::AbstractThunk) = return _transpose_mat_pullback(unthunk(ȳ))
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
-    transpose_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-    transpose_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), transpose(ȳ))
-    return transpose(A), transpose_pullback
+    return transpose(A), _transpose_mat_pullback
 end
 
+_transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
+_transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(transpose(ȳ)))
+_transpose_vec_pullback(ȳ::AbstractThunk) = return _transpose_vec_pullback(unthunk(ȳ))
 function rrule(::typeof(transpose), A::AbstractVector{<:Number})
-    transpose_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
-    transpose_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(transpose(ȳ)))
-    return transpose(A), transpose_pullback
+    return transpose(A), _transpose_vec_pullback
 end
 
 #####

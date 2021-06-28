@@ -88,7 +88,7 @@ let
         function rrule(::typeof(abs2), z::Union{Real, Complex})
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
-                return (NoTangent(), 2real(ΔΩ)*z)
+                return (NoTangent(), 2Δu*z)
             end
             return abs2(z), abs2_pullback
         end
@@ -213,7 +213,8 @@ let
         end
 
         function rrule(::typeof(*), x::Number, y::Number)
-            function times_pullback(ΔΩ)
+            function times_pullback(Ω̇)
+                ΔΩ = unthunk(Ω̇)
                 return (NoTangent(),  ΔΩ * y', x' * ΔΩ)
             end
             return x * y, times_pullback

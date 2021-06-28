@@ -64,12 +64,13 @@ function rrule(
 end
 
 function frule(
-    (_, _, ẋ),
+    (_, _, Δx),
     ::typeof(sum),
     ::typeof(abs2),
     x::AbstractArray{T};
     dims=:,
 ) where {T<:Union{Real,Complex}}
+    ẋ = unthunk(Δx)
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * real(dot(x, ẋ))
@@ -118,7 +119,8 @@ end
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
     # vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
-    function prod_pullback(dy)
+    function prod_pullback(ȳ)
+        dy = unthunk(ȳ)
         x_thunk = InplaceableThunk(
             # Out-of-place versions
             @thunk if dims === (:)

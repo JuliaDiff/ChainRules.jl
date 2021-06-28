@@ -14,6 +14,10 @@ using StaticArrays
 using Statistics
 using Test
 
+# Transitional feature, see
+# https://juliadiff.org/ChainRulesTestUtils.jl/dev/api.html#ChainRulesTestUtils.enable_tangent_transform!
+ChainRulesTestUtils.enable_tangent_transform!(Thunk)
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)

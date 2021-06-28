@@ -19,8 +19,9 @@ const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
 const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
 
 function frule(
-    (_, ΔA), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
+    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
+    ΔA = unthunk(Ȧ)
     F = lu!(A, pivot; kwargs...)
     ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
@@ -74,64 +75,68 @@ function frule(
     return F, ∂F
 end
 
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
+function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
+    Δfactors = ΔF.factors
+    Δfactors isa AbstractZero && return (NoTangent(), Δfactors, NoTangent())
+    factors = F.factors
+    ∂factors = eltypeA <: Real ? real(Δfactors) : Δfactors
+    ∂A = similar(factors)
+    q = min(m, n)
+    if m == n  # square A
+        # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
+        L = UnitLowerTriangular(factors)
+        U = UpperTriangular(factors)
+        ∂U = UpperTriangular(∂factors)
+        tril!(copyto!(∂A, ∂factors), -1)
+        lmul!(L', ∂A)
+        copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
+        rdiv!(∂A, U')
+        ldiv!(L', ∂A)
+    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        triu!(copyto!(∂A, ∂factors))
+        @views begin
+            factors1 = factors[:, 1:q]
+            U2 = factors[:, (q + 1):end]
+            ∂A1 = ∂A[:, 1:q]
+            ∂A2 = ∂A[:, (q + 1):end]
+            ∂L = tril(∂factors[:, 1:q], -1)
+        end
+        L = UnitLowerTriangular(factors1)
+        U1 = UpperTriangular(factors1)
+        triu!(rmul!(∂A1, U1'))
+        ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
+        rdiv!(∂A1, U1')
+        ldiv!(L', ∂A)
+    else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
+        tril!(copyto!(∂A, ∂factors), -1)
+        @views begin
+            factors1 = factors[1:q, :]
+            L2 = factors[(q + 1):end, :]
+            ∂A1 = ∂A[1:q, :]
+            ∂A2 = ∂A[(q + 1):end, :]
+            ∂U = triu(∂factors[1:q, :])
+        end
+        U = UpperTriangular(factors1)
+        L1 = UnitLowerTriangular(factors1)
+        tril!(lmul!(L1', ∂A1), -1)
+        ∂A1 .+= triu!(mul!(rmul!(∂U, U'), L2', ∂A2, -1, 1))
+        ldiv!(L1', ∂A1)
+        rdiv!(∂A, U')
+    end
+    if pivot isa LU_RowMaximum
+        ∂A = ∂A[invperm(F.p), :]
+    end
+    return NoTangent(), ∂A, NoTangent()
+end
+_lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
 function rrule(
     ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
+    m, n = size(A)
     F = lu(A, pivot; kwargs...)
-    function lu_pullback(ΔF::Tangent)
-        Δfactors = ΔF.factors
-        Δfactors isa AbstractZero && return (NoTangent(), Δfactors, NoTangent())
-        factors = F.factors
-        ∂factors = eltype(A) <: Real ? real(Δfactors) : Δfactors
-        ∂A = similar(factors)
-        m, n = size(A)
-        q = min(m, n)
-        if m == n  # square A
-            # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
-            L = UnitLowerTriangular(factors)
-            U = UpperTriangular(factors)
-            ∂U = UpperTriangular(∂factors)
-            tril!(copyto!(∂A, ∂factors), -1)
-            lmul!(L', ∂A)
-            copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
-            rdiv!(∂A, U')
-            ldiv!(L', ∂A)
-        elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
-            triu!(copyto!(∂A, ∂factors))
-            @views begin
-                factors1 = factors[:, 1:q]
-                U2 = factors[:, (q + 1):end]
-                ∂A1 = ∂A[:, 1:q]
-                ∂A2 = ∂A[:, (q + 1):end]
-                ∂L = tril(∂factors[:, 1:q], -1)
-            end
-            L = UnitLowerTriangular(factors1)
-            U1 = UpperTriangular(factors1)
-            triu!(rmul!(∂A1, U1'))
-            ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
-            rdiv!(∂A1, U1')
-            ldiv!(L', ∂A)
-        else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
-            tril!(copyto!(∂A, ∂factors), -1)
-            @views begin
-                factors1 = factors[1:q, :]
-                L2 = factors[(q + 1):end, :]
-                ∂A1 = ∂A[1:q, :]
-                ∂A2 = ∂A[(q + 1):end, :]
-                ∂U = triu(∂factors[1:q, :])
-            end
-            U = UpperTriangular(factors1)
-            L1 = UnitLowerTriangular(factors1)
-            tril!(lmul!(L1', ∂A1), -1)
-            ∂A1 .+= triu!(mul!(rmul!(∂U, U'), L2', ∂A2, -1, 1))
-            ldiv!(L1', ∂A1)
-            rdiv!(∂A, U')
-        end
-        if pivot isa LU_RowMaximum
-            ∂A = ∂A[invperm(F.p), :]
-        end
-        return NoTangent(), ∂A, NoTangent()
-    end
+    lu_pullback(ȳ) = _lu_pullback(ȳ, m, n, eltype(A), pivot, F)
     return F, lu_pullback
 end
 
@@ -159,12 +164,14 @@ function rrule(::typeof(getproperty), F::TF, x::Symbol) where {T,TF<:LU{T,<:Stri
         ∂F = Tangent{TF}(; factors=∂factors)
         return NoTangent(), ∂F, NoTangent()
     end
+    getproperty_LU_pullback(ΔY::AbstractThunk) = getproperty_LU_pullback(unthunk(ΔY))
     return getproperty(F, x), getproperty_LU_pullback
 end
 
 # these rules are needed because the primal calls a LAPACK function
 
-function frule((_, ΔF), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatrix})
+function frule((_, Ḟ), ::typeof(LinearAlgebra.inv!), F::LU{<:Any,<:StridedMatrix})
+    ΔF = unthunk(Ḟ)
     # factors must be square if the primal did not error
     L = UnitLowerTriangular(F.factors)
     U = UpperTriangular(F.factors)
@@ -206,13 +213,14 @@ end
 ##### `svd`
 #####
 
+function _svd_pullback(Ȳ::Tangent, F)
+    ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
+    return (NoTangent(), ∂X)
+end
+_svd_pullback(Ȳ::AbstractThunk, F) = _svd_pullback(unthunk(Ȳ), F)
 function rrule(::typeof(svd), X::AbstractMatrix{<:Real})
     F = svd(X)
-    function svd_pullback(Ȳ::Tangent)
-        # `getproperty` on `Tangent`s ensures we have no thunks.
-        ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
-        return (NoTangent(), ∂X)
-    end
+    svd_pullback(ȳ) = _svd_pullback(ȳ, F)
     return F, svd_pullback
 end
 
@@ -324,6 +332,7 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
         end
         return NoTangent(), T <: Real ? real(∂A) : ∂A
     end
+    eigen_pullback(Ȳ::AbstractThunk) = eigen_pullback(unthunk(Ȳ))
     eigen_pullback(ΔF::AbstractZero) = (NoTangent(), ΔF)
     return F, eigen_pullback
 end
@@ -431,6 +440,13 @@ end
 #####
 ##### `cholesky`
 #####
+
+# these functions are defined outside the rrule because otherwise type inference breaks
+# see https://github.com/JuliaLang/julia/issues/40990
+_cholesky_real_pullback(ΔC::Tangent, full_pb) = return full_pb(ΔC)[1:2]
+function _cholesky_real_pullback(Ȳ::AbstractThunk, full_pb)
+    return _cholesky_real_pullback(unthunk(Ȳ), full_pb)
+end
 function rrule(::typeof(cholesky),
     A::Union{
         Real,
@@ -442,24 +458,29 @@ function rrule(::typeof(cholesky),
 )
     arg2 = A isa Real ? :U : Val(false)
     C, full_pb = rrule(cholesky, A, arg2)
-    cholesky_pullback(ΔC::Tangent) = return full_pb(ΔC)[1:2]
+
+    cholesky_pullback(ȳ) = return _cholesky_real_pullback(ȳ, full_pb)
     return C, cholesky_pullback
 end
 
+function _cholesky_realuplo_pullback(ΔC::Tangent, C)
+    return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
+end
+_cholesky_realuplo_pullback(Ȳ::AbstractThunk, C) = _cholesky_realuplo_pullback(unthunk(Ȳ), C)
 function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
     C = cholesky(A, uplo)
-    function cholesky_pullback(ΔC::Tangent)
-        return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
-    end
+    cholesky_pullback(ȳ) = _cholesky_realuplo_pullback(ȳ, C)
     return C, cholesky_pullback
 end
 
+function _cholesky_Diagonal_pullback(ΔC::Tangent, C)
+    Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
+    return NoTangent(), Ā, NoTangent()
+end
+_cholesky_Diagonal_pullback(Ȳ::AbstractThunk, C) = _cholesky_Diagonal_pullback(unthunk(Ȳ), C)
 function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Tangent)
-        Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
-        return NoTangent(), Ā, NoTangent()
-    end
+    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(ȳ, C)
     return C, cholesky_pullback
 end
 
@@ -473,12 +494,13 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Tangent)
+    function _cholesky_HermOrSym_pullback(ΔC::Tangent)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
         return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
-    return C, cholesky_pullback
+    _cholesky_HermOrSym_pullback(Ȳ::AbstractThunk) = _cholesky_HermOrSym_pullback(unthunk(Ȳ))
+    return C, _cholesky_HermOrSym_pullback
 end
 
 function rrule(
@@ -488,14 +510,15 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function cholesky_pullback(ΔC::Tangent)
+    function _cholesky_Strided_pullback(ΔC::Tangent)
         Ā, U = _cholesky_pullback_shared_code(C, ΔC)
         Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NoTangent(), UpperTriangular(Ā), NoTangent())
     end
-    return C, cholesky_pullback
+    _cholesky_Strided_pullback(Ȳ::AbstractThunk) = _cholesky_Strided_pullback(unthunk(Ȳ))
+    return C, _cholesky_Strided_pullback
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
