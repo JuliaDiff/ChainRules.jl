@@ -43,21 +43,23 @@ function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)
     return repeat(xs; inner = inner, outer = outer), repeat_pullback
 end
 
-function rrule(::typeof(repeat), xs::AbstractArray, m::Integer)
+function rrule(::typeof(repeat), xs::AbstractVector, m::Integer)
 
+    d1 = size(xs, 1)
     function repeat_pullback(ȳ)
-        Δ′ = dropdims(sum(reshape(ȳ, length(xs), :); dims=2); dims=2)
+        Δ′ = dropdims(sum(reshape(ȳ, d1, :); dims=2); dims=2)
         return (NoTangent(), Δ′, NoTangent())
     end
 
     return repeat(xs, m), repeat_pullback
 end
 
-function rrule(::typeof(repeat), xs::AbstractArray, m::Integer, n::Integer)
+function rrule(::typeof(repeat), xs::AbstractVecOrMat, m::Integer, n::Integer=1)
 
+    d1, d2 = size(xs, 1), size(xs, 2)
     function repeat_pullback(ȳ)
-        ȳ′ = reshape(ȳ, size(xs,1), m, size(xs,2), n)
-        return NoTangent(), reshape(sum(ȳ′; dims=(2,4)), size(xs)), NoTangent(), NoTangent()
+        ȳ′ = reshape(ȳ, d1, m, d2, n)
+        return NoTangent(), reshape(sum(ȳ′; dims=(2,4)), (d1, d2)), NoTangent(), NoTangent()
     end
 
     return repeat(xs, m, n), repeat_pullback
