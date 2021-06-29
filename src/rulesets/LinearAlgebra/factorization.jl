@@ -551,3 +551,44 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end
+
+#####
+##### `qr`
+#####
+
+const QR_TYPE = Union{QR, QRPivoted, LinearAlgebra.QRCompactWY}
+
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: QR_TYPE
+    function getproperty_qr_pullback(Ȳ)
+        ∂F = Tangent{T}(; x => Ȳ)
+        return NoTangent(), ∂F, NoTangent()
+    end
+    return getproperty(F, x), getproperty_qr_pullback
+end
+
+function rrule(::typeof(qr), X::AbstractMatrix{<:Real})
+    F = qr(X)
+    qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
+    return F, qr_pullback
+end
+
+function qr_rev(QR_::QR_TYPE, Q̄, R̄)
+    Q, R = QR_
+    Q = Matrix(Q)
+    Q̄ = Q̄ isa ZeroTangent ? Q̄ : @view Q̄[:, axes(Q, 2)]
+    V = R̄*R' - Q'*Q̄
+
+    if V isa ZeroTangent
+        Ā = Q̄ / R'
+    else
+        Ā = (Q̄ + Q * Hermitian(V)) / R'
+    end
+
+    return Ā
+end
+
+function _qr_pullback(Ȳ::Tangent, F)
+    ∂X = qr_rev(F, Ȳ.Q, Ȳ.R)
+    return (NoTangent(), ∂X)
+end
+_qr_pullback(Ȳ::AbstractThunk, F) = _qr_pullback(unthunk(Ȳ), F)
