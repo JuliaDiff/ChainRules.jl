@@ -29,6 +29,12 @@ println("Testing ChainRules.jl")
 @testset "ChainRules" begin
     include_test("test_helpers.jl")
     println()
+
+    # TODO Don't forget to test everything
+    include_test("rulesets/LinearAlgebra/factorization.jl")
+
+    #=
+
     @testset "rulesets" begin
         @testset "Base" begin
             include_test("rulesets/Base/base.jl")
@@ -64,4 +70,6 @@ println("Testing ChainRules.jl")
         end
         println()
     end
+
+    =#
 end

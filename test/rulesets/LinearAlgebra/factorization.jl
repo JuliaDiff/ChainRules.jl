@@ -43,6 +43,7 @@ function rand_eigen(T::Type, n::Int)
 end
 
 @testset "Factorizations" begin
+    #=
     @testset "lu decomposition" begin
         n = 10
         @testset "lu! frule" begin
@@ -100,6 +101,7 @@ end
             end
         end
     end
+    =#
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 9]
             @testset "($n x $m) svd" begin
@@ -157,6 +159,8 @@ end
             @test eltype(result) == Float64
         end
     end
+
+    #=
 
     @testset "eigendecomposition" begin
         @testset "eigen/eigen!" begin
@@ -432,6 +436,41 @@ end
             Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+        end
+    end
+
+    =#
+
+    @testset "qr" begin
+        for n in [4, 6, 10], m in [3, 5, 10]
+            @testset "($n x $m) getproperty" begin
+                X = randn(n, m)
+                F = qr(X)
+
+                test_rrule(getproperty, F, :Q; check_inferred=false)
+
+                k = min(n, m)
+                R̄ = randn(k, m)
+                
+                # Set the lower triangle to zero
+                for i in 2:k, j in 1:i-1
+                    R̄[i, j] = 0
+                end
+
+                test_rrule(
+                    getproperty, F, :R;
+                    check_inferred=false,
+                    output_tangent=R̄)
+            end
+        end
+
+        # Dirty trick to have test_rrule run
+        Base.collect(F::ChainRules.QR_TYPE) = (F.Q, F.R)
+        for n in [4, 6, 10], m in [3, 5, 10]
+            @testset "($n x $m) qr" begin
+                X = randn(n, m)
+                test_rrule(qr, X; atol=1e-6, rtol=1e-6)
+            end
         end
     end
 end
