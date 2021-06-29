@@ -24,19 +24,16 @@ function rrule(
     A::AbstractVecOrMat{<:CommutativeMulNumber},
     B::AbstractVecOrMat{<:CommutativeMulNumber},
 )
-    Ainfo = preproject(A)
-    Binfo = preproject(B)
-    valAtype = Val(typeof(A))
-    valBtype = Val(typeof(B))
-    _val(::Val{T}) where T = T
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
-            @thunk(project(_val(valAtype), Ȳ * B'; info=Ainfo)),
+            @thunk(project_A(Ȳ * B')),
             X̄ -> mul!(X̄, Ȳ, B', true, true)
         )
         dB = InplaceableThunk(
-            @thunk(project(_val(valBtype), A' * Ȳ; info=Binfo)),
+            @thunk(project_B(A' * Ȳ)),
             X̄ -> mul!(X̄, A', Ȳ, true, true)
         )
         return NoTangent(), dA, dB

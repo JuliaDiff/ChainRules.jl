@@ -7,7 +7,7 @@ using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
 using Statistics
-
+foo(x::T) where T = x
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
