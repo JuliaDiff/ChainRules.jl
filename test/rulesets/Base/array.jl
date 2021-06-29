@@ -4,6 +4,14 @@
     test_rrule(reshape, rand(4, 5), 2, :)
 end
 
+@testset "repeat" begin
+    test_rrule(repeat, rand(4, ))
+    test_rrule(repeat, rand(4, ), 2)
+    test_rrule(repeat, rand(4, 5))
+    test_rrule(repeat, rand(4, 5); fkwargs = (inner = (2,1), outer = (2,2)))
+    test_rrule(repeat, rand(4, 5), 2, 3)
+end
+
 @testset "hcat" begin
     test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3); check_inferred=VERSION>v"1.1")
     test_rrule(hcat, rand(), rand(1,2), rand(1,2,1); check_inferred=VERSION>v"1.1")

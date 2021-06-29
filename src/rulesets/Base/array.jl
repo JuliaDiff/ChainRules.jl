@@ -21,6 +21,49 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
 end
 
 #####
+##### `repeat`
+#####
+
+function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
+
+    function repeat_pullback(ȳ)
+        Δ′ = zero(xs)
+        S = size(xs)
+
+        # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
+        for (dest_idx, val) in pairs(IndexCartesian(), ȳ)
+            # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
+            # wrap around based on original size S.
+            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
+            Δ′[src_idx...] += val
+        end
+        return (NoTangent(), Δ′)
+    end
+
+    return repeat(xs; inner = inner, outer = outer), repeat_pullback
+end
+
+function rrule(::typeof(repeat), xs::AbstractArray, m::Integer)
+
+    function repeat_pullback(ȳ)
+        Δ′ = dropdims(sum(reshape(ȳ, length(xs), :); dims=2); dims=2)
+        return (NoTangent(), Δ′, NoTangent())
+    end
+
+    return repeat(xs, m), repeat_pullback
+end
+
+function rrule(::typeof(repeat), xs::AbstractArray, m::Integer, n::Integer)
+
+    function repeat_pullback(ȳ)
+        ȳ′ = reshape(ȳ, size(xs,1), m, size(xs,2), n)
+        return NoTangent(), reshape(sum(ȳ′; dims=(2,4)), size(xs)), NoTangent(), NoTangent()
+    end
+
+    return repeat(xs, m, n), repeat_pullback
+end
+
+#####
 ##### `hcat`
 #####
 
