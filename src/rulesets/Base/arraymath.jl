@@ -46,17 +46,19 @@ function rrule(
     A::AbstractVector{<:CommutativeMulNumber},
     B::AbstractMatrix{<:CommutativeMulNumber},
 )
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         @assert size(B, 1) === 1   # otherwise primal would have failed.
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(Ȳ * vec(B')),
+                @thunk(project_A(Ȳ * vec(B'))),
                 X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
+                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, A', Ȳ, true, true)
             )
         )
@@ -67,13 +69,15 @@ end
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
 )
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
-            @thunk(dot(Ȳ, B)'),
+            @thunk(project_A(dot(Ȳ, B)')),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
+                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
             )
         )
@@ -84,15 +88,17 @@ end
 function rrule(
     ::typeof(*), B::AbstractArray{<:CommutativeMulNumber}, A::CommutativeMulNumber
 )
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
+                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
             ),
-            @thunk(dot(Ȳ, B)'),
+            @thunk(project_A(dot(Ȳ, B)')),
         )
     end
     return A * B, times_pullback
@@ -109,26 +115,30 @@ function rrule(
         B::AbstractVecOrMat{<:CommutativeMulNumber},
         z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
     )
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+    project_z = ProjectTo(z)
+
     # The useful case, mul! fused with +
     function muladd_pullback_1(ȳ)
         Ȳ = unthunk(ȳ)
         matmul = (
             InplaceableThunk(
-                @thunk(Ȳ * B'),
+                @thunk(project_A(Ȳ * B')),
                 dA -> mul!(dA, Ȳ, B', true, true)
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
+                @thunk(project_B(A' * Ȳ)),
                 dB -> mul!(dB, A', Ȳ, true, true)
             )
         )
         addon = if z isa Bool
             NoTangent()
         elseif z isa Number
-            @thunk(sum(Ȳ))
+            @thunk(project_z(sum(Ȳ)))
         else
             InplaceableThunk(
-                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
+                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
@@ -143,18 +153,22 @@ function rrule(
         v::AbstractVector{<:CommutativeMulNumber},
         z::CommutativeMulNumber,
     )
+    project_ut = ProjectTo(ut)
+    project_v = ProjectTo(v)
+    project_z = ProjectTo(z)
+
     # This case is dot(u,v)+z, but would also match signature above.
     function muladd_pullback_2(ȳ)
         dy = unthunk(ȳ)
         ut_thunk = InplaceableThunk(
-            @thunk(v' .* dy),
+            @thunk(project_ut(v' .* dy)),
             dut -> dut .+= v' .* dy
         )
         v_thunk = InplaceableThunk(
-            @thunk(ut' .* dy),
+            @thunk(project_v(ut' .* dy)),
             dv -> dv .+= ut' .* dy
         )
-        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : dy)
+        (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : project_z(dy))
     end
     return muladd(ut, v, z), muladd_pullback_2
 end
@@ -165,20 +179,24 @@ function rrule(
         vt::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
         z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
     )
+    project_u = ProjectTo(u)
+    project_vt = ProjectTo(vt)
+    project_z = ProjectTo(z)
+
     # Outer product, just broadcasting
     function muladd_pullback_3(ȳ)
         Ȳ = unthunk(ȳ)
         proj = (
-            @thunk(vec(sum(Ȳ .* conj.(vt), dims=2))),
-            @thunk(vec(sum(u .* conj.(Ȳ), dims=1))'),
+            @thunk(project_u(vec(sum(Ȳ .* conj.(vt), dims=2)))),
+            @thunk(project_vt(vec(sum(u .* conj.(Ȳ), dims=1))')),
         )
         addon = if z isa Bool
             NoTangent()
         elseif z isa Number
-            @thunk(sum(Ȳ))
+            @thunk(project_z(sum(Ȳ)))
         else
             InplaceableThunk(
-                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
+                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
                 dz -> sum!(dz, Ȳ; init=false)
             )
         end
@@ -214,6 +232,9 @@ end
 #####
 
 function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+
     Y = A \ B
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
@@ -222,9 +243,9 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             Ā = -B̄ * Y'
             Ā = add!!(Ā, (B - A * Y) * B̄' / A')
             Ā = add!!(Ā, A' \ Y * (Ȳ' - B̄'A))
-            Ā
+            project_A(Ā)
         end
-        ∂B = @thunk A' \ Ȳ
+        ∂B = @thunk project_B(A' \ Ȳ)
         return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
