@@ -55,8 +55,7 @@ function rrule(::typeof(repeat), xs::AbstractVector, m::Integer)
     return repeat(xs, m), repeat_pullback
 end
 
-function rrule(::typeof(repeat), xs::AbstractVecOrMat, m::Integer, n::Integer=1)
-
+function rrule(::typeof(repeat), xs::AbstractVecOrMat, m::Integer, n::Integer)
     d1, d2 = size(xs, 1), size(xs, 2)
     function repeat_pullback(ȳ)
         ȳ′ = reshape(ȳ, d1, m, d2, n)
@@ -64,6 +63,14 @@ function rrule(::typeof(repeat), xs::AbstractVecOrMat, m::Integer, n::Integer=1)
     end
 
     return repeat(xs, m, n), repeat_pullback
+end
+
+function rrule(T::typeof(repeat), xs::AbstractVecOrMat, m::Integer)
+
+    # Workaround use of positional default (i.e. repeat(xs, m, n = 1)))
+    y, full_pb = rrule(T, xs, m, 1)
+    repeat_pullback(ȳ) = full_pb(ȳ)[1:3]
+    return y, repeat_pullback
 end
 
 #####
