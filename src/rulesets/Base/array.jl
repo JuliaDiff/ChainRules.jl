@@ -27,11 +27,12 @@ end
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
 
     function repeat_pullback(ȳ)
+        dY = unthunk(ȳ)
         Δ′ = zero(xs)
         S = size(xs)
 
         # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
-        for (dest_idx, val) in pairs(IndexCartesian(), ȳ)
+        for (dest_idx, val) in pairs(IndexCartesian(), dY)
             # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
             # wrap around based on original size S.
             src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
