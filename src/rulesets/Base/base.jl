@@ -161,3 +161,17 @@ end
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)
+
+# note: rules for ^ are defined in the fastmath_able.jl
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
+    y = Base.literal_pow(^, x, pv)
+    return y, (p * y / x * Δx)
+end
+
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
+    y = Base.literal_pow(^, x, pv)
+    function literal_pow_pullback(dy)
+        return NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
+    end
+    return y, literal_pow_pullback
+end
