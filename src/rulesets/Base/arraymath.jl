@@ -268,3 +268,19 @@ function rrule(::typeof(-), x::AbstractArray)
     end
     return -x, negation_pullback
 end
+
+
+#####
+##### Addition (Multiarg `+`)
+#####
+
+function rrule(::typeof(+), arrs::AbstractArray...)
+    y = +(arrs...)
+    function add_pullback(dy)
+        return (
+            NoTangent(),
+            ntuple(i -> dy .* ones(eltype(arrs[i]), size(arrs[i])), length(arrs))...
+        )
+    end
+    return y, add_pullback
+end
