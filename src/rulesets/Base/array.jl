@@ -69,12 +69,24 @@ end
 ##### `repeat`
 #####
 
+function rrule(::typeof(repeat), xs::AbstractArray, counts::Integer...)
+
+    S = size(xs)
+    function repeat_pullback(ȳ)
+        dY = unthunk(ȳ)
+        size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
+        reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
+        return (NoTangent(), reshape(reduced, S), map(_->NoTangent(), counts)...)
+    end
+    return repeat(xs, counts...), repeat_pullback
+end
+
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
 
+    S = size(xs)
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
         Δ′ = zero(xs)
-        S = size(xs)
 
         # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
         for (dest_idx, val) in pairs(IndexCartesian(), dY)
@@ -87,35 +99,6 @@ function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)
     end
 
     return repeat(xs; inner = inner, outer = outer), repeat_pullback
-end
-
-function rrule(::typeof(repeat), xs::AbstractVector, m::Integer)
-
-    d1 = size(xs, 1)
-    function repeat_pullback(ȳ)
-        Δ′ = dropdims(sum(reshape(ȳ, d1, :); dims=2); dims=2)
-        return (NoTangent(), Δ′, NoTangent())
-    end
-
-    return repeat(xs, m), repeat_pullback
-end
-
-function rrule(::typeof(repeat), xs::AbstractVecOrMat, m::Integer, n::Integer)
-    d1, d2 = size(xs, 1), size(xs, 2)
-    function repeat_pullback(ȳ)
-        ȳ′ = reshape(ȳ, d1, m, d2, n)
-        return NoTangent(), reshape(sum(ȳ′; dims=(2,4)), (d1, d2)), NoTangent(), NoTangent()
-    end
-
-    return repeat(xs, m, n), repeat_pullback
-end
-
-function rrule(T::typeof(repeat), xs::AbstractVecOrMat, m::Integer)
-
-    # Workaround use of positional default (i.e. repeat(xs, m, n = 1)))
-    y, full_pb = rrule(T, xs, m, 1)
-    repeat_pullback(ȳ) = full_pb(ȳ)[1:3]
-    return y, repeat_pullback
 end
 
 #####

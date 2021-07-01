@@ -43,6 +43,13 @@ end
 end
 
 @testset "repeat" begin
+
+    test_rrule(repeat, rand(1,2,3), 2,3)
+    test_rrule(repeat, rand(1,2,3), 2,3,4)
+    test_rrule(repeat, rand(1,2,3), 2,3,4,2)
+    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5)
+    test_rrule(repeat, rand(0,2,3), 2,0,4)
+
     test_rrule(repeat, rand(4, ))
     test_rrule(repeat, rand(4, ), 2)
     test_rrule(repeat, rand(4, 5))
@@ -56,14 +63,10 @@ end
     test_rrule(repeat, rand(4, 5), 2; check_inferred=VERSION>=v"1.5")
     test_rrule(repeat, rand(4, 5), 2, 3)
 
-    # zero-arrays: broken
-    @test_broken rrule(repeat, fill(1.0), 2) !== nothing
-    @test_broken rrule(repeat, fill(1.0), 2, 3) !== nothing
-
-    # These dispatch but probably needs
-    # https://github.com/JuliaDiff/FiniteDifferences.jl/issues/179
-    # test_rrule(repeat, fill(1.0); fkwargs = (inner=2,))
-    # test_rrule(repeat, fill(1.0); fkwargs = (inner=2, outer=3,))
+    test_rrule(repeat, fill(1.0), 2)
+    test_rrule(repeat, fill(1.0), 2, 3)
+    test_rrule(repeat, fill(1.0); fkwargs = (inner=2,))
+    test_rrule(repeat, fill(1.0); fkwargs = (inner=2, outer=3,))
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
