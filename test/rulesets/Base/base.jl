@@ -69,8 +69,8 @@
         test_scalar(Complex, randn())
         test_scalar(Complex, randn(ComplexF64))
 
-        test_frule(Complex, randn(), randn())
-        test_rrule(Complex, randn(), randn())
+        test_frule(Complex, randn(), randn(Float32))
+        test_rrule(Complex, randn(), randn(Float32); rtol=1.0e-7, atol=1.0e-7)
     end
 
     @testset "*(x, y) (scalar)" begin

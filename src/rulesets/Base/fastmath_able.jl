@@ -213,8 +213,11 @@ let
         end
 
         function rrule(::typeof(*), x::Number, y::Number)
+            #project_x = ProjectTo(x)
+            #project_y = ProjectTo(y)
             function times_pullback(Ω̇)
                 ΔΩ = unthunk(Ω̇)
+                #return (NoTangent(),  project_x(ΔΩ * y'), project_y(x' * ΔΩ))
                 return (NoTangent(),  ΔΩ * y', x' * ΔΩ)
             end
             return x * y, times_pullback
