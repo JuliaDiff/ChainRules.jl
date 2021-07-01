@@ -44,11 +44,9 @@ end
 
 @testset "repeat" begin
 
-    test_rrule(repeat, rand(1,2,3), 2,3)
-    test_rrule(repeat, rand(1,2,3), 2,3,4)
-    test_rrule(repeat, rand(1,2,3), 2,3,4,2)
-    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5)
-    test_rrule(repeat, rand(0,2,3), 2,0,4)
+    test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
+    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
+    test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
 
     test_rrule(repeat, rand(4, ))
     test_rrule(repeat, rand(4, ), 2)
@@ -57,16 +55,23 @@ end
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
 
     if VERSION>=v"1.6"
-        # repeat([1 2; 3 4], inner=(2,4), outer=(1,1,1,3)) fails for v<1.6
+        # These are cases where repeat itself fails in earlier versions
         test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
+        test_rrule(repeat, rand(1,2,3), 2,3)
+        test_rrule(repeat, rand(1,2,3), 2,3,4,2)
+        test_rrule(repeat, fill(1.0), 2)
+        test_rrule(repeat, fill(1.0), 2, 3)
+
+        # These fail for other v1.0 related issues (add!!)
+        # v"1.0": fill(1.0) + fill(1.0) != fill(2.0)
+        # v"1.6: fill(1.0) + fill(1.0) == fill(2.0) # Expected
+        test_rrule(repeat, fill(1.0); fkwargs = (inner=2,))
+        test_rrule(repeat, fill(1.0); fkwargs = (inner=2, outer=3,))
+
     end
+
     test_rrule(repeat, rand(4, 5), 2; check_inferred=VERSION>=v"1.5")
     test_rrule(repeat, rand(4, 5), 2, 3)
-
-    test_rrule(repeat, fill(1.0), 2)
-    test_rrule(repeat, fill(1.0), 2, 3)
-    test_rrule(repeat, fill(1.0); fkwargs = (inner=2,))
-    test_rrule(repeat, fill(1.0); fkwargs = (inner=2, outer=3,))
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
