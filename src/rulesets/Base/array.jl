@@ -180,7 +180,7 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
     sizes = map(size, values)
-    project_Vs = tuple(map(ProjectTo, values)...)
+    project_Vs = map(ProjectTo, values)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
         dXs = map(sizes) do sizeX
@@ -199,8 +199,8 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
             end
             dY[index...]
         end
-        _call((f, x)) = f(x)
-        proj_dXs = _call.(tuple(zip(project_Vs, dXs)...)) # can't make it type infer, e.g. test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3))
+        _call(f, x) = f(x)
+        proj_dXs = map(_call, project_Vs, dXs)
         return (NoTangent(), NoTangent(), proj_dXs...)
     end
     return Y, hvcat_pullback
