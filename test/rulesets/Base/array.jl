@@ -9,15 +9,21 @@ end
     test_rrule(repeat, rand(4, ), 2)
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
-    test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
-    test_rrule(repeat, rand(4, 5), 2)
+    test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+
+    if VERSION>=v"1.6"
+        # repeat([1 2; 3 4], inner=(2,4), outer=(1,1,1,3)) fails for v<1.6
+        test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
+    end
+    test_rrule(repeat, rand(4, 5), 2; check_inferred=VERSION>=v"1.5")
     test_rrule(repeat, rand(4, 5), 2, 3)
 
     # zero-arrays: broken
     @test_broken rrule(repeat, fill(1.0), 2) !== nothing
     @test_broken rrule(repeat, fill(1.0), 2, 3) !== nothing
 
-    # These dispatch but rrule needs to be fixed to zero-arrays
+    # These dispatch but probably needs
+    # https://github.com/JuliaDiff/FiniteDifferences.jl/issues/179
     # test_rrule(repeat, fill(1.0); fkwargs = (inner=2,))
     # test_rrule(repeat, fill(1.0); fkwargs = (inner=2, outer=3,))
 
