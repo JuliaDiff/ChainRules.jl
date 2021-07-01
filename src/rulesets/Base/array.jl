@@ -2,6 +2,8 @@
 ##### `reshape`
 #####
 
+# TODO: need to re-check this whole file
+
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
     A_dims = size(A)
     function reshape_pullback(Ȳ)
@@ -178,6 +180,7 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
     sizes = map(size, values)
+    project_Vs = tuple(map(ProjectTo, values)...)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
         dXs = map(sizes) do sizeX
@@ -196,7 +199,9 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
             end
             dY[index...]
         end
-        return (NoTangent(), NoTangent(), dXs...)
+        _call((f, x)) = f(x)
+        proj_dXs = _call.(tuple(zip(project_Vs, dXs)...)) # can't make it type infer, e.g. test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3))
+        return (NoTangent(), NoTangent(), proj_dXs...)
     end
     return Y, hvcat_pullback
 end

@@ -8,6 +8,8 @@ end
     test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3); check_inferred=VERSION>v"1.1")
     test_rrule(hcat, rand(), rand(1,2), rand(1,2,1); check_inferred=VERSION>v"1.1")
     test_rrule(hcat, rand(3,1,1,2), rand(3,3,1,2); check_inferred=VERSION>v"1.1")
+
+    # test_rrule(hcat, rand(2, 2), rand(2, 2)') TODO: broken, applying project breaks type stability
 end
 
 @testset "reduce hcat" begin
@@ -24,6 +26,9 @@ end
     # test_rrule(reduce, hcat ⊢ NoTangent(), adjs ⊢ map(m -> rand(size(m)), adjs))
     dy = 1 ./ reduce(hcat, adjs)
     @test rrule(reduce, hcat, adjs)[2](dy)[3] ≈ rrule(reduce, hcat, collect.(adjs))[2](dy)[3]
+
+    mats = [randn(2, 2), rand(2, 2)']
+    #test_rrule(reduce, hcat ⊢ NoTangent(), mats) TODO: broken, applying project breaks type stability
 end
 
 @testset "vcat" begin
@@ -31,6 +36,8 @@ end
     test_rrule(vcat, rand(), rand(); check_inferred=VERSION>v"1.1")
     test_rrule(vcat, rand(), rand(3), rand(3,1,1); check_inferred=VERSION>v"1.1")
     test_rrule(vcat, rand(3,1,2), rand(4,1,2); check_inferred=VERSION>v"1.1")
+
+    # test_rrule(vcat, rand(2, 2), rand(2, 2)') TODO: broken, applying project breaks type stability
 end
 
 @testset "reduce vcat" begin
