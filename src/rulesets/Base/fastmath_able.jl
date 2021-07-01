@@ -26,12 +26,12 @@ let
             cos_pullback(Δy) = (NoTangent(), -sinx' * Δy)
             return (cosx, cos_pullback)
         end
-        
+
         function frule((_, Δx), ::typeof(cos), x::Number)
             sinx, cosx = sincos(x)
             return (cosx, -sinx * Δx)
         end
-        
+
         @scalar_rule tan(x) 1 + Ω ^ 2
 
 
@@ -171,6 +171,11 @@ let
         # is undefined, so we adopt subgradient convention and set derivative to 0.
         @scalar_rule(x::Real ^ y::Real,
             (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x)))),
+        )
+        @scalar_rule(
+            Base.literal_pow(op::Any, x, p::Val),
+            (@setup y=_val_param(p)),
+            (NoTangent(), ifelse(iszero(x), zero(Ω), y * Ω / x), NoTangent())
         )
         @scalar_rule(
             rem(x, y),

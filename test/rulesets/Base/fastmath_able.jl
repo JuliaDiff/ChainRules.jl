@@ -182,6 +182,12 @@ const FASTABLE_AST = quote
                 @test ∂y ≈ 0
             end
         end
+
+        @testset "literal_pow" for T in (Float64, ComplexF64)
+            # for real x and n, x must be >0
+            test_frule(Base.literal_pow, ^, rand(T) + 3, Val(3))
+            test_rrule(Base.literal_pow, ^, rand(T) + 3, Val(3); check_inferred=false)
+        end
     end
 
     @testset "sign" begin
