@@ -98,6 +98,7 @@ end
 Adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 Adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
 Adjoint_mat_pullback(ȳ::AbstractThunk) = return Adjoint_mat_pullback(unthunk(ȳ))
+Adjoint_mat_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
     return Adjoint(A), Adjoint_mat_pullback
 end
@@ -105,6 +106,7 @@ end
 _Adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _Adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
 _Adjoint_vec_pullback(ȳ::AbstractThunk) = return _Adjoint_vec_pullback(unthunk(ȳ))
+_Adjoint_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
     return Adjoint(A), _Adjoint_vec_pullback
 end
@@ -112,6 +114,7 @@ end
 _adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 _adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
 _adjoint_mat_pullback(ȳ::AbstractThunk) = return _adjoint_mat_pullback(unthunk(ȳ))
+_adjoint_mat_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
     return adjoint(A), _adjoint_mat_pullback
 end
@@ -119,6 +122,7 @@ end
 _adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
 _adjoint_vec_pullback(ȳ::AbstractThunk) = return _adjoint_vec_pullback(unthunk(ȳ))
+_adjoint_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
     return adjoint(A), _adjoint_vec_pullback
 end
@@ -132,6 +136,7 @@ end
 _Transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 _Transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
 _Transpose_mat_pullback(ȳ::AbstractThunk) = return _Transpose_mat_pullback(unthunk(ȳ))
+_Transpose_mat_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
     return Transpose(A), _Transpose_mat_pullback
 end
@@ -139,6 +144,7 @@ end
 _Transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _Transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(Transpose(ȳ)))
 _Transpose_vec_pullback(ȳ::AbstractThunk) = return _Transpose_vec_pullback(unthunk(ȳ))
+_Transpose_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
     return Transpose(A), _Transpose_vec_pullback
 end
@@ -146,6 +152,7 @@ end
 _transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
 _transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), transpose(ȳ))
 _transpose_mat_pullback(ȳ::AbstractThunk) = return _transpose_mat_pullback(unthunk(ȳ))
+_transpose_mat_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
     return transpose(A), _transpose_mat_pullback
 end
@@ -153,6 +160,7 @@ end
 _transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(transpose(ȳ)))
 _transpose_vec_pullback(ȳ::AbstractThunk) = return _transpose_vec_pullback(unthunk(ȳ))
+_transpose_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(transpose), A::AbstractVector{<:Number})
     return transpose(A), _transpose_vec_pullback
 end

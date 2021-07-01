@@ -30,6 +30,10 @@ println("Testing ChainRules.jl")
     include_test("test_helpers.jl")
     println()
     @testset "rulesets" begin
+        @testset "Core" begin
+            include_test("rulesets/Core/core.jl")
+        end
+
         @testset "Base" begin
             include_test("rulesets/Base/base.jl")
             include_test("rulesets/Base/fastmath_able.jl")
