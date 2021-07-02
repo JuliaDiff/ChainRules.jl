@@ -21,7 +21,7 @@ end
     test_rrule(reduce, hcat ⊢ NoTangent(), vecs)
     
     mix = AbstractVecOrMat[rand(4,2), rand(4)]  # this is weird, but does hit the fast path
-    test_rrule(reduce, hcat ⊢ NoTangent(), mix)
+    test_rrule(reduce, hcat ⊢ NoTangent(), mix; test_types=false)
 
     adjs = vec([randn(2, 4), randn(1, 4), randn(3, 4)]')  # not a Vector
     # test_rrule(reduce, hcat ⊢ NoTangent(), adjs ⊢ map(m -> rand(size(m)), adjs))
@@ -51,7 +51,7 @@ end
     test_rrule(reduce, vcat ⊢ NoTangent(), vecs)
 
     mix = AbstractVecOrMat[rand(4,1), rand(4)]
-    test_rrule(reduce, vcat ⊢ NoTangent(), mix)
+    test_rrule(reduce, vcat ⊢ NoTangent(), mix; test_types=false)
 end
 
 @testset "cat" begin
