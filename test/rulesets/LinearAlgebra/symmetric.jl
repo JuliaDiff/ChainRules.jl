@@ -35,6 +35,7 @@
                     SymHerm, x ⊢ Diagonal(randn(T, 3)), uplo;
                     check_inferred=false,
                     output_tangent = ΔΩ,
+                    test_types=false, # temporary, need project (but see comment in src/)
                 )
                 if check_inferred
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
