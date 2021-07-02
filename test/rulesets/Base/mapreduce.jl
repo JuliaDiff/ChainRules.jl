@@ -26,7 +26,7 @@
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
-        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]])  # array of arrays
+        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; test_types=false)  # array of arrays
         
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
@@ -38,7 +38,7 @@
         x = [-4.0 2.0; 2.0 -1.0]
         test_rrule(sum, inv, x[1, :]')
         test_rrule(sum, inv, x[1:1, :]')
-        test_rrule(sum, inv, transpose(view(x, 1, :)))
+        test_rrule(sum, inv, transpose(view(x, 1, :)); test_types=false)
 
         # Make sure we preserve type for StaticArrays
         ADviaRuleConfig = ChainRulesTestUtils.ADviaRuleConfig
@@ -80,8 +80,8 @@
                 xa = adjoint(rand(T,4,4))
                 test_rrule(prod, xa ⊢ rand(T,4,4))
                 test_rrule(prod, xa ⊢ rand(T,4,4), fkwargs=(dims=2,))
-                @test unthunk(rrule(prod, adjoint(rand(T,3,3)))[2](1.0)[2]) isa Matrix
-                @test unthunk(rrule(prod, adjoint(rand(T,3,3)), dims=1)[2](ones(1,3))[2]) isa Matrix
+                @test unthunk(rrule(prod, adjoint(rand(T,3,3)))[2](1.0)[2]) isa Adjoint
+                @test unthunk(rrule(prod, adjoint(rand(T,3,3)), dims=1)[2](ones(1,3))[2]) isa Adjoint
 
                 # Diagonal -- a stupid thing to do, product of zeros! Shouldn't be an error though:
                 @test iszero(unthunk(rrule(prod, Diagonal(rand(T,3)))[2](1.0)[2]))
@@ -92,11 +92,11 @@
                     hcat(1);
                     rtol=T <: Complex ? 2eps() : 0.0,
                 )
-                @test unthunk(rrule(prod, Diagonal(ones(T,2)), dims=1)[2](ones(1,2))[2]) == [0 1; 1 0]
+                @test unthunk(rrule(prod, Diagonal(ones(T,2)), dims=1)[2](ones(1,2))[2]) == Diagonal([0.0 1; 1 0])
 
                 # Triangular -- almost equally stupud
                 @test iszero(unthunk(rrule(prod, UpperTriangular(rand(T,3,3)))[2](1.0)[2]))
-                @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == [0 0; 1 0]
+                @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == UpperTriangular([0.0 0; 1 0])
 
                 # Symmetric -- at least this doesn't have zeros, still an unlikely combination
                 xs = Symmetric(rand(T,4,4))
