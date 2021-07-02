@@ -440,7 +440,7 @@ VERSION >= v"1.1" && @non_differentiable Sys.isopenbsd(::Symbol)
 
 @non_differentiable similar(::Any...)
 
-@non_differentiable one(::Any...)
+@non_differentiable one(::Any)
 @non_differentiable ones(::Any...)
 @non_differentiable zero(::Any...)
 @non_differentiable zeros(::Any...)
