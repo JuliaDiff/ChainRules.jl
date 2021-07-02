@@ -170,8 +170,6 @@ end
 
 function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
     y = Base.literal_pow(^, x, pv)
-    function literal_pow_pullback(dy)
-        return NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
-    end
+    literal_pow_pullback(dy) = NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
     return y, literal_pow_pullback
 end

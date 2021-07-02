@@ -179,7 +179,7 @@
 
     @testset "literal_pow" begin
         # for real x and n, x must be >0
-        test_frule(Base.literal_pow, ^, rand() + 3, Val(3))
-        test_rrule(Base.literal_pow, ^, rand() + 3, Val(3))
+        test_frule(Base.literal_pow, ^, 3.5, Val(3))
+        test_rrule(Base.literal_pow, ^, 3.5, Val(3))
     end
 end
