@@ -2,19 +2,18 @@
     @testset "/ and \\ on Square Matrixes" begin
         @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(/, randn(5, 10), RHS)
+            test_rrule(/, randn(Float32, 5, 10), RHS; rtol = 1.0e-4, atol = 1.0e-4)
         end
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(\, LHS, randn(10))
-            test_rrule(\, LHS, randn(10, 10))
+            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-4, atol = 1.0e-4)
+            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-4, atol = 1.0e-4)
         end
     end
 
     @testset "Diagonal" begin
         N = 3
-        test_rrule(Diagonal, randn(N); output_tangent=randn(N, N))
         D = Diagonal(randn(N))
         test_rrule(Diagonal, randn(N); output_tangent=D)
         # Concrete type instead of UnionAll
@@ -33,13 +32,13 @@
     end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
-        test_rrule(*, Diagonal(randn(N)), randn(N))
+        test_rrule(*, Diagonal(randn(Float32, N)), randn(N); rtol = 1.0e-7, atol = 1.0e-7)
     end
     @testset "diag" begin
         N = 7
-        test_rrule(diag, randn(N, N))
+        test_rrule(diag, randn(N, N); test_types=false)
         test_rrule(diag, Diagonal(randn(N)))
-        test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
+        test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)); test_types=false)
         test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
         VERSION ≥ v"1.3" && @testset "k=$k" for k in (-1, 0, 2)
             test_rrule(diag, randn(N, N), k)
@@ -112,7 +111,7 @@
             ȳ_mat = randn(T, 1, n)
             ȳ_composite = Tangent{typeof(y)}(parent=collect(f(ȳ_mat)))
 
-            test_rrule(f, a; output_tangent=ȳ_mat)
+            test_rrule(f, a; output_tangent=ȳ_mat, test_types=false)
 
             _, pb = rrule(f, a)
             @test pb(ȳ_mat) == pb(ȳ_composite)
@@ -149,7 +148,7 @@
                 # rand (not randn) so det will be postive, so logdet will be defined
                 X = S(3*rand(T, (n, n)) .+ 1)
                 X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
-                test_rrule(op, X ⊢ X̄_acc)
+                test_rrule(op, X ⊢ X̄_acc; test_types=false)
             end
             @testset "return type" begin
                 X = S(3*rand(6, 6) .+ 1)

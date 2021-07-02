@@ -7,10 +7,12 @@ const SquareMatrix{T} = Union{Diagonal{T}, AbstractTriangular{T}}
 
 function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
     Y = A / B
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function slash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        ∂A = @thunk Ȳ / B'
-        ∂B = @thunk _unionall_wrapper(T)(-Y' * (Ȳ / B'))
+        ∂A = @thunk project_A(Ȳ / B')
+        ∂B = @thunk project_B(_unionall_wrapper(T)(-Y' * (Ȳ / B')))
         return (NoTangent(), ∂A, ∂B)
     end
     return Y, slash_pullback
@@ -18,10 +20,12 @@ end
 
 function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
     Y = A \ B
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        ∂A = @thunk _unionall_wrapper(T)(-(A' \ Ȳ) * Y')
-        ∂B = @thunk A' \ Ȳ
+        ∂A = @thunk project_A(_unionall_wrapper(T)(-(A' \ Ȳ) * Y'))
+        ∂B = @thunk project_B(A' \ Ȳ)
         return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
@@ -33,7 +37,8 @@ end
 
 # these functions are defined outside the rrule because otherwise type inference breaks
 # see https://github.com/JuliaLang/julia/issues/40990
-_Diagonal_pullback(ȳ::AbstractMatrix) = return (NoTangent(), diag(ȳ))
+_Diagonal_pullback(ȳ::AbstractMatrix) = return (NoTangent(), diag(ȳ)) # should we emit a warning here? this shouldn't be called if project works right
+_Diagonal_pullback(ȳ::Diagonal) = return (NoTangent(), diag(ȳ))
 function _Diagonal_pullback(ȳ::Tangent)
     # TODO: Assert about the primal type in the Tangent, It should be Diagonal
     # infact it should be exactly the type of `Diagonal(d)`
@@ -82,9 +87,13 @@ function _diagm_back(p, ȳ)
 end
 
 function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
+    project_D = ProjectTo(D)
+    project_V = ProjectTo(V)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        return (NoTangent(), @thunk(Diagonal(Ȳ .* V)), @thunk(D * Ȳ))
+        dD = @thunk(project_D(Diagonal(Ȳ .* V)))
+        dV = @thunk(project_V(D * Ȳ))
+        return (NoTangent(), dD, dV)
     end
     return D * V, times_pullback
 end
@@ -95,10 +104,12 @@ end
 
 # these functions are defined outside the rrule because otherwise type inference breaks
 # see https://github.com/JuliaLang/julia/issues/40990
-Adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-Adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
-Adjoint_mat_pullback(ȳ::AbstractThunk) = return Adjoint_mat_pullback(unthunk(ȳ))
+_Adjoint_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
+_Adjoint_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(adjoint(ȳ)))
+_Adjoint_mat_pullback(ȳ::AbstractThunk, proj) = return _Adjoint_mat_pullback(unthunk(ȳ), proj)
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
+    project_A = ProjectTo(A)
+    Adjoint_mat_pullback(ȳ) = _Adjoint_mat_pullback(ȳ, project_A)
     return Adjoint(A), Adjoint_mat_pullback
 end
 
@@ -109,11 +120,13 @@ function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
     return Adjoint(A), _Adjoint_vec_pullback
 end
 
-_adjoint_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-_adjoint_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), adjoint(ȳ))
-_adjoint_mat_pullback(ȳ::AbstractThunk) = return _adjoint_mat_pullback(unthunk(ȳ))
+_adjoint_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
+_adjoint_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(adjoint(ȳ)))
+_adjoint_mat_pullback(ȳ::AbstractThunk, proj) = return _adjoint_mat_pullback(unthunk(ȳ), proj)
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
-    return adjoint(A), _adjoint_mat_pullback
+    project_A = ProjectTo(A)
+    adjoint_mat_pullback(ȳ) = _adjoint_mat_pullback(ȳ, project_A)
+    return adjoint(A), adjoint_mat_pullback
 end
 
 _adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
@@ -129,11 +142,13 @@ end
 
 # these functions are defined outside the rrule because otherwise type inference breaks
 # see https://github.com/JuliaLang/julia/issues/40990
-_Transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-_Transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), Transpose(ȳ))
-_Transpose_mat_pullback(ȳ::AbstractThunk) = return _Transpose_mat_pullback(unthunk(ȳ))
+_Transpose_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
+_Transpose_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(Transpose(ȳ)))
+_Transpose_mat_pullback(ȳ::AbstractThunk, proj) = return _Transpose_mat_pullback(unthunk(ȳ), proj)
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
-    return Transpose(A), _Transpose_mat_pullback
+    project_A = ProjectTo(A)
+    Transpose_mat_pullback(ȳ) = _Transpose_mat_pullback(ȳ, project_A)
+    return Transpose(A), Transpose_mat_pullback
 end
 
 _Transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
@@ -143,11 +158,13 @@ function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
     return Transpose(A), _Transpose_vec_pullback
 end
 
-_transpose_mat_pullback(ȳ::Tangent) = (NoTangent(), ȳ.parent)
-_transpose_mat_pullback(ȳ::AbstractVecOrMat) = (NoTangent(), transpose(ȳ))
-_transpose_mat_pullback(ȳ::AbstractThunk) = return _transpose_mat_pullback(unthunk(ȳ))
+_transpose_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
+_transpose_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(transpose(ȳ)))
+_transpose_mat_pullback(ȳ::AbstractThunk, proj) = return _transpose_mat_pullback(unthunk(ȳ), proj)
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
-    return transpose(A), _transpose_mat_pullback
+    project_A = ProjectTo(A)
+    transpose_mat_pullback(ȳ) = _transpose_mat_pullback(ȳ, project_A)
+    return transpose(A), transpose_mat_pullback
 end
 
 _transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
