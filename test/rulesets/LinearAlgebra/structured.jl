@@ -32,7 +32,7 @@
     end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
-        test_rrule(*, Diagonal(randn(Float32, N)), randn(N); rtol = 1.0e-7, atol = 1.0e-7)
+        test_rrule(*, Diagonal(randn(Float32, N)), randn(N); rtol = 1.0e-4, atol = 1.0e-4)
     end
     @testset "diag" begin
         N = 7
