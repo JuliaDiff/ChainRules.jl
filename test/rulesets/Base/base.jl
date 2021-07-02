@@ -176,4 +176,10 @@
         @test frule((NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f) !== nothing
         @test rrule(Base.depwarn, "message", :f) !== nothing
     end
+
+    @testset "literal_pow" begin
+        # for real x and n, x must be >0
+        test_frule(Base.literal_pow, ^, 3.5, Val(3))
+        test_rrule(Base.literal_pow, ^, 3.5, Val(3))
+    end
 end
