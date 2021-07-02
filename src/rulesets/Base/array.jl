@@ -2,8 +2,6 @@
 ##### `reshape`
 #####
 
-# TODO: need to re-check this whole file
-
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
     A_dims = size(A)
     function reshape_pullback(Ȳ)
@@ -30,10 +28,11 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
     sizes = map(size, Xs)   # this avoids closing over Xs
+    project_Xs = map(ProjectTo, Xs)
     function hcat_pullback(ȳ)
         dY = unthunk(ȳ)
         hi = Ref(0)  # Ref avoids hi::Core.Box
-        dXs = map(sizes) do sizeX
+        dXs = map(project_Xs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             lo = hi[] + 1
             hi[] += get(sizeX, 2, 1)
@@ -44,7 +43,7 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            if ndimsX > 0
+            dX = if ndimsX > 0
                 # Here InplaceableThunk breaks @inferred, removed for now
                 # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
                 dY[ind...]
@@ -52,6 +51,7 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
                 # This is a hack to perhaps avoid GPU scalar indexing
                 sum(view(dY, ind...))
             end
+            return project(dX)
         end
         return (NoTangent(), dXs...)
     end
@@ -90,10 +90,11 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     Y = vcat(Xs...)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
+    project_Xs = map(ProjectTo, Xs)
     function vcat_pullback(ȳ)
         dY = unthunk(ȳ)
         hi = Ref(0)
-        dXs = map(sizes) do sizeX
+        dXs = map(project_Xs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             lo = hi[] + 1
             hi[] += get(sizeX, 1, 1)
@@ -104,12 +105,13 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            if ndimsX > 0
+            dX = if ndimsX > 0
                 # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
                 dY[ind...]
             else
                 sum(view(dY, ind...))
             end
+            return project(dX)
         end
         return (NoTangent(), dXs...)
     end
@@ -144,10 +146,11 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
     sizes = map(size, Xs)
+    project_Xs = map(ProjectTo, Xs)
     function cat_pullback(ȳ)
         dY = unthunk(ȳ)
         prev = fill(0, _val(ndimsY))  # note that Y always has 1-based indexing, even if X isa OffsetArray
-        dXs = map(sizes) do sizeX
+        dXs = map(project_Xs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             index = ntuple(ndimsY) do d
                 if d in cdims
@@ -159,12 +162,13 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
             for d in cdims
                 prev[d] += get(sizeX, d, 1)
             end
-            if ndimsX > 0
+            dX = if ndimsX > 0
                 # InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
                 dY[index...]
             else
                 sum(view(dY, index...))
             end
+            return project(dX)
         end
         return (NoTangent(), dXs...)
     end
@@ -183,7 +187,7 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
     project_Vs = map(ProjectTo, values)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
-        dXs = map(sizes) do sizeX
+        dXs = map(project_Vs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             index = ntuple(ndimsY) do d
                 if d in (1, 2)
@@ -197,11 +201,9 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
                 prev[2] = 0
                 prev[1] += get(sizeX, 1, 1)
             end
-            dY[index...]
+            project(dY[index...])
         end
-        _call(f, x) = f(x)
-        proj_dXs = map(_call, project_Vs, dXs)
-        return (NoTangent(), NoTangent(), proj_dXs...)
+        return (NoTangent(), NoTangent(), dXs...)
     end
     return Y, hvcat_pullback
 end
