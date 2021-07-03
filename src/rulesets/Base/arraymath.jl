@@ -276,9 +276,7 @@ end
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
-    function add_pullback(dy)
-        # using ntuple here for type stability
-        return (NoTangent(), ntuple(i -> dy, length(arrs))...)
-    end
+    valN = Val(length(arrs)) # makes add_pullback type-stable without closing over arrs
+    add_pullback(dy) = (NoTangent(), ntuple(_ -> dy, valN)...)
     return y, add_pullback
 end
