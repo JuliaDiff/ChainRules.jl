@@ -276,7 +276,10 @@ end
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
-    valN = Val(length(arrs)) # makes add_pullback type-stable without closing over arrs
-    add_pullback(dy) = (NoTangent(), ntuple(_ -> dy, valN)...)
+    arr_axs = map(axes, arrs)
+    function add_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
+    end
     return y, add_pullback
 end
