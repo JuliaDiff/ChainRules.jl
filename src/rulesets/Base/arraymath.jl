@@ -277,10 +277,8 @@ end
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
     function add_pullback(dy)
-        return (
-            NoTangent(),
-            ntuple(i -> dy .* ones(eltype(arrs[i]), size(arrs[i])), length(arrs))...
-        )
+        # using ntuple here for type stability
+        return (NoTangent(), ntuple(i -> dy, length(arrs))...)
     end
     return y, add_pullback
 end
