@@ -150,10 +150,7 @@
     end
 
     @testset "addition" begin
-        A = randn(4, 4)
-        B = randn(4, 4)
-        C = randn(4, 4)
-
-        test_rrule(+, A, B, C)
+        test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
+        test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
     end
 end
