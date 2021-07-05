@@ -44,15 +44,18 @@ end
 
 @testset "repeat" begin
 
-    test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
-
     test_rrule(repeat, rand(4, ))
-    test_rrule(repeat, rand(4, ), 2)
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+
+    test_rrule(repeat, rand(4, ), 2; check_inferred=VERSION>=v"1.6")
+    test_rrule(repeat, rand(4, 5), 2; check_inferred=VERSION>=v"1.6")
+    test_rrule(repeat, rand(4, 5), 2, 3; check_inferred=VERSION>=v"1.6")
+    test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
+    test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
+    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
+    
 
     if VERSION>=v"1.6"
         # These are cases where repeat itself fails in earlier versions
@@ -70,8 +73,6 @@ end
 
     end
 
-    test_rrule(repeat, rand(4, 5), 2; check_inferred=VERSION>=v"1.5")
-    test_rrule(repeat, rand(4, 5), 2, 3)
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]

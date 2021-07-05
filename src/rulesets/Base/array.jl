@@ -89,14 +89,14 @@ function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)
     return repeat(xs; inner = inner, outer = outer), repeat_pullback
 end
 
-function rrule(::typeof(repeat), xs::AbstractArray{T, N}, counts::Integer...) where {T,N}
+function rrule(::typeof(repeat), xs::AbstractArray, counts::Integer...)
 
     S = size(xs)
-    function repeat_pullback(ȳ::AbstractArray{T2, M}) where {T2, M}
+    function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
         size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
         reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
-        return (NoTangent(), reshape(reduced, S)::Array{T2, N}, map(_->NoTangent(), counts)...)
+        return (NoTangent(), reshape(reduced, S), map(_->NoTangent(), counts)...)
     end
     return repeat(xs, counts...), repeat_pullback
 end
