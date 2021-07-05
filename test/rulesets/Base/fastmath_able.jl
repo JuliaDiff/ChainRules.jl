@@ -132,9 +132,6 @@ const FASTABLE_AST = quote
             test_rrule(f, (rand(0:10) + .6rand() + .2) * base, base)
         end
 
-        # should we add tests where two different types are used together? Got
-        # exception = Non-FastMath compatible rules defined in fastmath_able.jl.
-        # when trying to define rules in fastmathable
         @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
             test_frule(f, 10rand(T), rand(T))
             test_rrule(f, 10rand(T), rand(T))

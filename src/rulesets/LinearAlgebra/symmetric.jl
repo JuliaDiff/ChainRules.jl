@@ -8,11 +8,9 @@ end
 
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
-    project = ProjectTo(Ω)
+    project_A = ProjectTo(A)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NoTangent(), _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
-        #return (NoTangent(), _symherm_back(typeof(Ω), project(ΔΩ), uplo), NoTangent()) # tests break, maybe
-        # https://github.com/JuliaDiff/ChainRulesCore.jl/pull/382#discussion_r658158155
+        return (NoTangent(), project_A(_symherm_back(typeof(Ω), ΔΩ, uplo)), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end
