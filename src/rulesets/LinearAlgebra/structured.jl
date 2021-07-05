@@ -12,7 +12,7 @@ function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatr
     function slash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         ∂A = @thunk project_A(Ȳ / B')
-        ∂B = @thunk project_B(_unionall_wrapper(T)(-Y' * (Ȳ / B')))
+        ∂B = @thunk project_B(-Y' * (Ȳ / B'))
         return (NoTangent(), ∂A, ∂B)
     end
     return Y, slash_pullback
@@ -24,7 +24,7 @@ function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMa
     project_B = ProjectTo(B)
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        ∂A = @thunk project_A(_unionall_wrapper(T)(-(A' \ Ȳ) * Y'))
+        ∂A = @thunk project_A(-(A' \ Ȳ) * Y')
         ∂B = @thunk project_B(A' \ Ȳ)
         return NoTangent(), ∂A, ∂B
     end
