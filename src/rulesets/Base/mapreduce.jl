@@ -39,8 +39,6 @@ function rrule(
     return y, covector_sum_pb
 end
 
-
-# TODO: add project in a way that does not break inference
 function rrule(
     config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
 )
@@ -48,6 +46,8 @@ function rrule(
     y = sum(first, fx_and_pullbacks; dims=dims)
 
     pullbacks = last.(fx_and_pullbacks)
+
+    project = ProjectTo(xs)
 
     function sum_pullback(ȳ)
         call(f, x) = f(x)  # we need to broadcast this to handle dims kwarg
@@ -59,7 +59,7 @@ function rrule(
             sum(first, f̄_and_x̄s)
         end
         x̄s = map(last, f̄_and_x̄s)
-        return NoTangent(), f̄, x̄s
+        return NoTangent(), f̄, project(x̄s)
     end
     return y, sum_pullback
 end

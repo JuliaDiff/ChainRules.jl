@@ -26,7 +26,8 @@
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
-        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; test_types=false)  # array of arrays
+        # inference fails for array of arrays
+        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
         
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
@@ -45,11 +46,9 @@
         _, pb = rrule(ADviaRuleConfig(), sum, abs, @SVector[1.0, -3.0])
         @test pb(1.0) isa Tuple{NoTangent, NoTangent, SVector{2, Float64}}
       
-
-        # For structured sparse matrixes we screw it up, getting dense back
-        # see https://github.com/JuliaDiff/ChainRules.jl/issues/232 etc
+        # make sure we preserve type for Diagonal
         _, pb = rrule(ADviaRuleConfig(), sum, abs, Diagonal([1.0, -3.0]))
-        @test_broken pb(1.0)[3] isa Diagonal
+        @test pb(1.0)[3] isa Diagonal
     end
 
     @testset "prod" begin
