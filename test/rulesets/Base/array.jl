@@ -28,9 +28,9 @@ end
     dy = 1 ./ reduce(hcat, adjs)
     @test rrule(reduce, hcat, adjs)[2](dy)[3] ≈ rrule(reduce, hcat, collect.(adjs))[2](dy)[3]
 
-    # mix types TODO: broken, applying project breaks type stability
-    #mats = [randn(2, 2), rand(2, 2)']
-    #test_rrule(reduce, hcat ⊢ NoTangent(), mats; check_inferred=VERSION>v"1.1")
+    # mix types
+    mats = [randn(2, 2), rand(2, 2)']
+    test_rrule(reduce, hcat ⊢ NoTangent(), mats; check_inferred=VERSION>v"1.1", test_types=false)
 end
 
 @testset "vcat" begin
