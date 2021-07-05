@@ -277,8 +277,7 @@ end
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
     arr_axs = map(axes, arrs)
-    function add_pullback(dy_raw)
-        dy = unthunk(dy_raw)
+    function add_pullback(dy)
         return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
     end
     return y, add_pullback
