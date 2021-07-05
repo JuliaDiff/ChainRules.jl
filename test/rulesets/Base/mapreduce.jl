@@ -36,8 +36,8 @@
 
         # covectors
         x = [-4.0 2.0; 2.0 -1.0]
-        test_rrule(sum, inv, x[1, :]')
-        test_rrule(sum, inv, x[1:1, :]')
+        test_rrule(sum, inv, x[1, :]'; test_types=false)
+        test_rrule(sum, inv, x[1:1, :]', test_types=false)
         test_rrule(sum, inv, transpose(view(x, 1, :)); test_types=false)
 
         # Make sure we preserve type for StaticArrays
