@@ -268,3 +268,17 @@ function rrule(::typeof(-), x::AbstractArray)
     end
     return -x, negation_pullback
 end
+
+
+#####
+##### Addition (Multiarg `+`)
+#####
+
+function rrule(::typeof(+), arrs::AbstractArray...)
+    y = +(arrs...)
+    arr_axs = map(axes, arrs)
+    function add_pullback(dy)
+        return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
+    end
+    return y, add_pullback
+end
