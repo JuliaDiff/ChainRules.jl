@@ -148,4 +148,9 @@
         test_rrule(-, A)
         test_rrule(-, Diagonal(A); output_tangent=Diagonal(Ā))
     end
+
+    @testset "addition" begin
+        test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
+        test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
+    end
 end
