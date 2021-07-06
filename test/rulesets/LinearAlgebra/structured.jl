@@ -36,9 +36,9 @@
     end
     @testset "diag" begin
         N = 7
-        test_rrule(diag, randn(N, N); test_types=false)
+        test_rrule(diag, randn(N, N))
         test_rrule(diag, Diagonal(randn(N)))
-        test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)); test_types=false)
+        test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
         test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
         VERSION ≥ v"1.3" && @testset "k=$k" for k in (-1, 0, 2)
             test_rrule(diag, randn(N, N), k)
@@ -111,7 +111,7 @@
             ȳ_mat = randn(T, 1, n)
             ȳ_composite = Tangent{typeof(y)}(parent=collect(f(ȳ_mat)))
 
-            test_rrule(f, a; output_tangent=ȳ_mat, test_types=false)
+            test_rrule(f, a; output_tangent=ȳ_mat)
 
             _, pb = rrule(f, a)
             @test pb(ȳ_mat) == pb(ȳ_composite)
@@ -148,7 +148,7 @@
                 # rand (not randn) so det will be postive, so logdet will be defined
                 X = S(3*rand(T, (n, n)) .+ 1)
                 X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
-                test_rrule(op, X ⊢ X̄_acc; test_types=false)
+                test_rrule(op, X ⊢ X̄_acc)
             end
             @testset "return type" begin
                 X = S(3*rand(6, 6) .+ 1)

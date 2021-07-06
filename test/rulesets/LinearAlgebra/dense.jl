@@ -113,7 +113,7 @@
     end
     @testset "tr" begin
         test_frule(tr, randn(4, 4))
-        test_rrule(tr, randn(4, 4); test_types=false)
+        test_rrule(tr, randn(4, 4))
     end
     @testset "sylvester" begin
         @testset "T=$T, m=$m, n=$n" for T in (Float64, ComplexF64), m in (2, 3), n in (1, 3)
