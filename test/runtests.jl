@@ -18,6 +18,24 @@ using Test
 # https://juliadiff.org/ChainRulesTestUtils.jl/dev/api.html#ChainRulesTestUtils.enable_tangent_transform!
 ChainRulesTestUtils.enable_tangent_transform!(Thunk)
 
+struct NoForwardModeAD <: RuleConfig{NoForwardsMode} end
+struct ReverseModeOnlyAD <: RuleConfig{Union{HasReverseMode,NoForwardsMode}} end
+struct MixedModeAD <: RuleConfig{Union{HasReverseMode,HasForwardsMode}} end
+
+function ChainRulesCore.rrule_via_ad(config::RuleConfig{>:NoForwardsMode}, f, args...; kwargs...)
+    ret = rrule(config, f, args...; kwargs...)
+    # No AD is done here. Just look up to see if the rrule is defined
+    ret === nothing && throw(MethodError(rrule, (f, args...)))
+    return ret
+end
+
+function ChainRulesCore.frule_via_ad(config::RuleConfig{>:HasForwardsMode}, f, args...; kwargs...)
+    ret = frule(config, f, args...; kwargs...)
+    # No AD is done here. Just look up to see if the frule is defined
+    ret === nothing && throw(MethodError(frule, (f, args...)))
+    return ret
+end
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)
@@ -31,31 +49,31 @@ println("Testing ChainRules.jl")
     println()
     @testset "rulesets" begin
         @testset "Base" begin
-            include_test("rulesets/Base/base.jl")
-            include_test("rulesets/Base/fastmath_able.jl")
-            include_test("rulesets/Base/evalpoly.jl")
-            include_test("rulesets/Base/array.jl")
-            include_test("rulesets/Base/arraymath.jl")
-            include_test("rulesets/Base/indexing.jl")
+            # include_test("rulesets/Base/base.jl")
+            # include_test("rulesets/Base/fastmath_able.jl")
+            # include_test("rulesets/Base/evalpoly.jl")
+            # include_test("rulesets/Base/array.jl")
+            # include_test("rulesets/Base/arraymath.jl")
+            # include_test("rulesets/Base/indexing.jl")
             include_test("rulesets/Base/mapreduce.jl")
-            include_test("rulesets/Base/sort.jl")
+            # include_test("rulesets/Base/sort.jl")
         end
         println()
 
         @testset "Statistics" begin
-            include_test("rulesets/Statistics/statistics.jl")
+            #include_test("rulesets/Statistics/statistics.jl")
         end
         println()
 
         @testset "LinearAlgebra" begin
-            include_test("rulesets/LinearAlgebra/dense.jl")
-            include_test("rulesets/LinearAlgebra/norm.jl")
-            include_test("rulesets/LinearAlgebra/matfun.jl")
-            include_test("rulesets/LinearAlgebra/structured.jl")
-            include_test("rulesets/LinearAlgebra/symmetric.jl")
-            include_test("rulesets/LinearAlgebra/factorization.jl")
-            include_test("rulesets/LinearAlgebra/blas.jl")
-            include_test("rulesets/LinearAlgebra/lapack.jl")
+            # include_test("rulesets/LinearAlgebra/dense.jl")
+            # include_test("rulesets/LinearAlgebra/norm.jl")
+            # include_test("rulesets/LinearAlgebra/matfun.jl")
+            # include_test("rulesets/LinearAlgebra/structured.jl")
+            # include_test("rulesets/LinearAlgebra/symmetric.jl")
+            # include_test("rulesets/LinearAlgebra/factorization.jl")
+            # include_test("rulesets/LinearAlgebra/blas.jl")
+            # include_test("rulesets/LinearAlgebra/lapack.jl")
         end
         println()
 

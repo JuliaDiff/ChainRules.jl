@@ -6,32 +6,16 @@ function ChainRules.rrule(config::RuleConfig{>:NoForwardsMode}, ::typeof(map), f
     pullbacks = last.(ys_and_pullbacks)
 
     function map_pullback(ȳ)
+        Δy = unthunk(ȳ)
         _call(f, x) = f(x)
-        dfs_and_dxs = map(_call, pullbacks, ȳ)
-        df = sum(first.(dfs_and_dxs)) # Why would this be sum?
+        dfs_and_dxs = map(_call, pullbacks, Δy)
+        df = sum(first.(dfs_and_dxs))
         dxs = last.(dfs_and_dxs)
         return NoTangent(), df, dxs
     end
     
     return map(f, xs), map_pullback
 end
-
-# # Reverse by forwards
-# function rrule(config::RuleConfig{>:Union{HasReverseMode, HasForwardsMode}}, ::typeof(map), f, x)
-
-#     # real code would support functors/closures, but in interest of keeping example short we exclude it:
-#     @assert Base.issingletontype(typeof(f)) "Functors/Closures are not supported"
-
-#     y_and_ẏ = map(x) do xi
-#         frule_via_ad(config, (NoTangent(), one(xi)), f, xi)
-#     end
-
-#     y = first.(y_and_ẏ)
-#     ẏ = last.(y_and_ẏ)
-
-#     pullback_map(ȳ) = (NoTangent(), NoTangent(), ȳ .* ẏ)
-#     return y, pullback_map
-# end
 
 # Reverse by forwards
 function rrule(config::RuleConfig{>:Union{HasReverseMode, HasForwardsMode}}, ::typeof(map), f, x)
@@ -40,7 +24,8 @@ function rrule(config::RuleConfig{>:Union{HasReverseMode, HasForwardsMode}}, ::t
     @assert Base.issingletontype(typeof(f)) "Functors/Closures are not supported"
 
     function map_pullback(ȳ)
-        y_and_ẏ = map(x, ȳ) do xi, yi
+        Δy = unthunk(ȳ)
+        y_and_ẏ = map(x, Δy) do xi, yi
             frule_via_ad(config, (NoTangent(), yi), f, xi)
         end
 
