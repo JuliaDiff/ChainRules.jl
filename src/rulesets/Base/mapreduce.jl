@@ -46,7 +46,6 @@ function rrule(config::RuleConfig{>:Union{HasReverseMode, HasForwardsMode}}, ::t
 
         y = first.(y_and_ẏ)
         ẏ = last.(y_and_ẏ)
-        ẏ = ẏ.*one.(x)
         return (NoTangent(), NoTangent(), ẏ)
     end
     
