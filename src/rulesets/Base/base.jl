@@ -53,9 +53,12 @@ function rrule(::Type{T}, x::Real) where {T<:Complex}
     return (T(x), Complex_pullback)
 end
 function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
+    project_x = ProjectTo(x)
+    project_y = ProjectTo(y)
+
     function Complex_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        return (NoTangent(), real(ΔΩ), imag(ΔΩ))
+        return (NoTangent(), project_x(real(ΔΩ)), project_y(imag(ΔΩ)))
     end
     return (T(x, y), Complex_pullback)
 end

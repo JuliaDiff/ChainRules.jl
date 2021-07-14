@@ -25,4 +25,7 @@ VERSION ≥ v"1.4" && @testset "evalpoly" begin
         test_rrule(evalpoly, x, p)
         test_rrule(evalpoly, x, Tuple(p))
     end
+
+    # mixed type inputs
+    test_rrule(evalpoly, rand(ComplexF64), rand(3))
 end

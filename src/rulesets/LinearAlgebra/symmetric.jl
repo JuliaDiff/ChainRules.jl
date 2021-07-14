@@ -8,8 +8,9 @@ end
 
 function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
     Ω = T(A, uplo)
+    project_A = ProjectTo(A)
     @inline function HermOrSym_pullback(ΔΩ)
-        return (NoTangent(), _symherm_back(typeof(Ω), ΔΩ, uplo), NoTangent())
+        return (NoTangent(), project_A(_symherm_back(typeof(Ω), ΔΩ, uplo)), NoTangent())
     end
     return Ω, HermOrSym_pullback
 end

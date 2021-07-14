@@ -6,6 +6,7 @@ using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
+using StaticArrays
 using Statistics
 
 # Basically everything this package does is overloading these, so we make an exception
@@ -21,6 +22,10 @@ end
 
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
+
+# define ProjectTo for StaticArrays here, not in the ChainRulesCore
+(::ProjectTo{T})(dx::AbstractArray) where {T<:StaticArray} = T(dx)
+ProjectTo(x::T) where {T<:StaticArray} = ProjectTo{T}()
 
 include("rulesets/Core/core.jl")
 
