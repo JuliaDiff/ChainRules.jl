@@ -111,30 +111,30 @@ function rrule(::typeof(gemv), tA::Char, α::T, A::AbstractMatrix{T},
         ȳ = unthunk(Ȳ)
         if uppercase(tA) === 'N'
             ∂A = InplaceableThunk(
-                @thunk(α' * ȳ * x'),
                 Ā -> ger!(α', ȳ, x, Ā)
+                @thunk(α' * ȳ * x'),
             )
             ∂x = InplaceableThunk(
-                @thunk(gemv('C', α', A, ȳ)),
                 x̄ -> gemv!('C', α', A, ȳ, one(T), x̄)
+                @thunk(gemv('C', α', A, ȳ)),
             )
         elseif uppercase(tA) === 'C'
             ∂A = InplaceableThunk(
-                @thunk(α * x * ȳ'),
                 Ā -> ger!(α, x, ȳ, Ā)
+                @thunk(α * x * ȳ'),
             )
             ∂x = InplaceableThunk(
-                @thunk(gemv('N', α', A, ȳ)),
                 x̄ -> gemv!('N', α', A, ȳ, one(T), x̄)
+                @thunk(gemv('N', α', A, ȳ)),
             )
         else  # uppercase(tA) === 'T'
             ∂A = InplaceableThunk(
-                @thunk(conj(α * x * ȳ')),
                 Ā -> conj!(ger!(α, x, ȳ, conj!(Ā)))
+                @thunk(conj(α * x * ȳ')),
             )
             ∂x = InplaceableThunk(
-                @thunk(gemv('N', α', conj(A), ȳ)),
                 x̄ -> gemv!('N', α', conj(A), ȳ, one(T), x̄)
+                @thunk(gemv('N', α', conj(A), ȳ)),
             )
         end
         return (NoTangent(), NoTangent(), @thunk(dot(y, ȳ) / α'), ∂A, ∂x)
@@ -167,88 +167,88 @@ function rrule(
         if uppercase(tA) === 'N'
             if uppercase(tB) === 'N'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('N', 'C', α', C̄, B)),
                     Ā -> gemm!('N', 'C', α', C̄, B, β, Ā)
+                    @thunk(gemm('N', 'C', α', C̄, B)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('C', 'N', α', A, C̄)),
                     B̄ -> gemm!('C', 'N', α', A, C̄, β, B̄)
+                    @thunk(gemm('C', 'N', α', A, C̄)),
                 )
             elseif uppercase(tB) === 'C'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('N', 'N', α', C̄, B)),
                     Ā -> gemm!('N', 'N', α', C̄, B, β, Ā)
+                    @thunk(gemm('N', 'N', α', C̄, B)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('C', 'N', α, C̄, A)),
                     B̄ -> gemm!('C', 'N', α, C̄, A, β, B̄)
+                    @thunk(gemm('C', 'N', α, C̄, A)),
                 )
             else  # uppercase(tB) === 'T'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('N', 'N', α', C̄, conj(B))),
                     Ā -> gemm!('N', 'N', α', C̄, conj(B), β, Ā)
+                    @thunk(gemm('N', 'N', α', C̄, conj(B))),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(conj(gemm('C', 'N', α, C̄, A))),
                     B̄ -> conj!(gemm!('C', 'N', α, C̄, A, β, conj!(B̄)))
+                    @thunk(conj(gemm('C', 'N', α, C̄, A))),
                 )
             end
         elseif uppercase(tA) === 'C'
             if uppercase(tB) === 'N'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('N', 'C', α, B, C̄)),
                     Ā -> gemm!('N', 'C', α, B, C̄, β, Ā)
+                    @thunk(gemm('N', 'C', α, B, C̄)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('N', 'N', α', A, C̄)),
                     B̄ -> gemm!('N', 'N', α', A, C̄, β, B̄)
+                    @thunk(gemm('N', 'N', α', A, C̄)),
                 )
             elseif uppercase(tB) === 'C'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('C', 'C', α, B, C̄)),
                     Ā -> gemm!('C', 'C', α, B, C̄, β, Ā)
+                    @thunk(gemm('C', 'C', α, B, C̄)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('C', 'C', α, C̄, A)),
                     B̄ -> gemm!('C', 'C', α, C̄, A, β, B̄)
+                    @thunk(gemm('C', 'C', α, C̄, A)),
                 )
             else  # uppercase(tB) === 'T'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('T', 'C', α, B, C̄)),
                     Ā -> gemm!('T', 'C', α, B, C̄, β, Ā)
+                    @thunk(gemm('T', 'C', α, B, C̄)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('T', 'T', α', C̄, A)),
                     B̄ -> gemm!('T', 'T', α', C̄, A, β, B̄)
+                    @thunk(gemm('T', 'T', α', C̄, A)),
                 )
             end
         else  # uppercase(tA) === 'T'
             if uppercase(tB) === 'N'
                 ∂A = InplaceableThunk(
-                    @thunk(conj(gemm('N', 'C', α, B, C̄))),
                     Ā -> conj!(gemm!('N', 'C', α, B, C̄, β, conj!(Ā)))
+                    @thunk(conj(gemm('N', 'C', α, B, C̄))),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('N', 'N', α', conj(A), C̄)),
                     B̄ -> gemm!('N', 'N', α', conj(A), C̄, β, B̄)
+                    @thunk(gemm('N', 'N', α', conj(A), C̄)),
                 )
             elseif uppercase(tB) === 'C'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('T', 'T', α', B, C̄)),
                     Ā -> gemm!('T', 'T', α', B, C̄, β, Ā)
+                    @thunk(gemm('T', 'T', α', B, C̄)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('C', 'T', α, C̄, A)),
                     B̄ -> gemm!('C', 'T', α, C̄, A, β, B̄)
+                    @thunk(gemm('C', 'T', α, C̄, A)),
                 )
             else  # uppercase(tB) === 'T'
                 ∂A = InplaceableThunk(
-                    @thunk(gemm('C', 'T', α', B, C̄)),
                     Ā -> gemm!('C', 'T', α', B, C̄, β, Ā)
+                    @thunk(gemm('C', 'T', α', B, C̄)),
                 )
                 ∂B = InplaceableThunk(
-                    @thunk(gemm('T', 'C', α', C̄, A)),
                     B̄ -> gemm!('T', 'C', α', C̄, A, β, B̄)
+                    @thunk(gemm('T', 'C', α', C̄, A)),
                 )
             end
         end

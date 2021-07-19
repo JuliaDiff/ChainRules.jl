@@ -10,12 +10,12 @@ function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
         xthunk = InplaceableThunk(
-            @thunk(reshape(y .* ΔΩ', axes(x))),
             dx -> dx .+= reshape(y, axes(x)) .* ΔΩ',
+            @thunk(reshape(y .* ΔΩ', axes(x))),
         )
         ythunk = InplaceableThunk(
-            @thunk(reshape(x .* ΔΩ, axes(y))),
             dy -> dy .+= reshape(x, axes(y)) .* ΔΩ,
+            @thunk(reshape(x .* ΔΩ, axes(y))),
         )
         return (NoTangent(), xthunk, ythunk)
     end

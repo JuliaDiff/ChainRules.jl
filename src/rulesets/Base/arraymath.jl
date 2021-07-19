@@ -29,12 +29,12 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(Ȳ * B'),
                 X̄ -> mul!(X̄, Ȳ, B', true, true)
+                @thunk(Ȳ * B'),
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, A', Ȳ, true, true)
+                @thunk(A' * Ȳ),
             )
         )
     end
@@ -52,12 +52,12 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(Ȳ * vec(B')),
                 X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
+                @thunk(Ȳ * vec(B')),
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, A', Ȳ, true, true)
+                @thunk(A' * Ȳ),
             )
         )
     end
@@ -73,8 +73,8 @@ function rrule(
             NoTangent(),
             @thunk(dot(Ȳ, B)'),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
+                @thunk(A' * Ȳ),
             )
         )
     end
@@ -89,8 +89,8 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
+                @thunk(A' * Ȳ),
             ),
             @thunk(dot(Ȳ, B)'),
         )
@@ -114,12 +114,12 @@ function rrule(
         Ȳ = unthunk(ȳ)
         matmul = (
             InplaceableThunk(
-                @thunk(Ȳ * B'),
                 dA -> mul!(dA, Ȳ, B', true, true)
+                @thunk(Ȳ * B'),
             ),
             InplaceableThunk(
-                @thunk(A' * Ȳ),
                 dB -> mul!(dB, A', Ȳ, true, true)
+                @thunk(A' * Ȳ),
             )
         )
         addon = if z isa Bool
@@ -128,8 +128,8 @@ function rrule(
             @thunk(sum(Ȳ))
         else
             InplaceableThunk(
-                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
                 dz -> sum!(dz, Ȳ; init=false)
+                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
             )
         end
         (NoTangent(), matmul..., addon)
@@ -147,12 +147,12 @@ function rrule(
     function muladd_pullback_2(ȳ)
         dy = unthunk(ȳ)
         ut_thunk = InplaceableThunk(
-            @thunk(v' .* dy),
             dut -> dut .+= v' .* dy
+            @thunk(v' .* dy),
         )
         v_thunk = InplaceableThunk(
-            @thunk(ut' .* dy),
             dv -> dv .+= ut' .* dy
+            @thunk(ut' .* dy),
         )
         (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : dy)
     end
@@ -178,8 +178,8 @@ function rrule(
             @thunk(sum(Ȳ))
         else
             InplaceableThunk(
-                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
                 dz -> sum!(dz, Ȳ; init=false)
+                @thunk(sum!(similar(z, eltype(Ȳ)), Ȳ)),
             )
         end
         (NoTangent(), proj..., addon)
@@ -240,8 +240,8 @@ function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::Commuta
     function slash_pullback_scalar(ȳ)
         Ȳ = unthunk(ȳ)
         Athunk = InplaceableThunk(
-            @thunk(Ȳ / conj(b)),
             dA -> dA .+= Ȳ ./ conj(b),
+            @thunk(Ȳ / conj(b)),
         )
         bthunk = @thunk(-dot(A,Ȳ) / conj(b^2))
         return (NoTangent(), Athunk, bthunk)
@@ -264,7 +264,7 @@ end
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
-        return NoTangent(), InplaceableThunk(@thunk(-ȳ), ā -> ā .-= ȳ)
+        return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
     end
     return -x, negation_pullback
 end
