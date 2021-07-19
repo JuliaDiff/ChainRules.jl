@@ -11,8 +11,8 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
     function sum_pullback(ȳ)
         # broadcasting the two works out the size no-matter `dims`
         x̄ = InplaceableThunk(
+            x -> x .+= ȳ,
             @thunk(broadcast(last∘tuple, x, ȳ)),
-            x -> x .+= ȳ
         )
         return (NoTangent(), x̄)
     end
@@ -93,8 +93,8 @@ function rrule(
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
         x_thunk = InplaceableThunk(
+            dx -> dx .+= 2 .* real.(ȳ) .* x,
             @thunk(2 .* real.(ȳ) .* x),
-            dx -> dx .+= 2 .* real.(ȳ) .* x
         )
         return (NoTangent(), NoTangent(), x_thunk)
     end
@@ -122,16 +122,6 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
     function prod_pullback(ȳ)
         dy = unthunk(ȳ)
         x_thunk = InplaceableThunk(
-            # Out-of-place versions
-            @thunk if dims === (:)
-                ∇prod(x, dy, y)
-            elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
-                vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
-                ∇prod_dims(vald, x, dy, y)  # val(Int(dims)) is about 2x faster than Val(Tuple(dims))
-            else
-                conj.(y ./ x) .* dy
-            end
-            ,
             # In-place versions -- same branching
             dx -> if dims === (:)
                 ∇prod!(dx, x, dy, y)
@@ -140,6 +130,15 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 ∇prod_dims!(dx, vald, x, dy, y)
             else
                 dx .+= conj.(y ./ x) .* dy
+            end,
+            # Out-of-place versions
+            @thunk if dims === (:)
+                ∇prod(x, dy, y)
+            elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
+                vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
+                ∇prod_dims(vald, x, dy, y)  # val(Int(dims)) is about 2x faster than Val(Tuple(dims))
+            else
+                conj.(y ./ x) .* dy
             end
             )
         return (NoTangent(), x_thunk)

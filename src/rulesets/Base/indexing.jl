@@ -17,8 +17,8 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
         end
 
         x̄ = InplaceableThunk(
+            getindex_add!,
             @thunk(getindex_add!(zero(x))),
-            getindex_add!
         )
         īnds = broadcast(_ -> NoTangent(), inds)
         return (NoTangent(), x̄, īnds...)
