@@ -11,7 +11,7 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
     function sum_pullback(ȳ)
         # broadcasting the two works out the size no-matter `dims`
         x̄ = InplaceableThunk(
-            x -> x .+= ȳ
+            x -> x .+= ȳ,
             @thunk(broadcast(last∘tuple, x, ȳ)),
         )
         return (NoTangent(), x̄)
@@ -93,7 +93,7 @@ function rrule(
     y = sum(abs2, x; dims=dims)
     function sum_abs2_pullback(ȳ)
         x_thunk = InplaceableThunk(
-            dx -> dx .+= 2 .* real.(ȳ) .* x
+            dx -> dx .+= 2 .* real.(ȳ) .* x,
             @thunk(2 .* real.(ȳ) .* x),
         )
         return (NoTangent(), NoTangent(), x_thunk)

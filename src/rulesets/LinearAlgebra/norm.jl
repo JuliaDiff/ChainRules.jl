@@ -37,8 +37,8 @@ function rrule(::typeof(norm), x::AbstractArray{<:Number}, p::Real)
                 dx .+= _normInf_back(x, y, Δy)
             else
                 dx .+= _normp_back_x(x, p, y, Δy)
-            end
-            , # out-of-place versions
+            end,
+            # out-of-place versions
             @thunk(if isempty(x) || p == 0
                 zero.(x) .* (zero(y) * zero(real(Δy)))
             elseif p == 2
