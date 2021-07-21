@@ -98,7 +98,7 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
             end
             dX = if ndimsX > 0
                 # Here InplaceableThunk breaks @inferred, removed for now
-                # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
+                # InplaceableThunk(dX -> dX .+= view(dY, ind...), @thunk(dY[ind...]))
                 dY[ind...]
             else
                 # This is a hack to perhaps avoid GPU scalar indexing

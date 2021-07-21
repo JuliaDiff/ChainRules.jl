@@ -29,12 +29,12 @@ function rrule(
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
-            @thunk(project_A(Ȳ * B')),
             X̄ -> mul!(X̄, Ȳ, B', true, true)
+            @thunk(project_A(Ȳ * B')),
         )
         dB = InplaceableThunk(
-            @thunk(project_B(A' * Ȳ)),
             X̄ -> mul!(X̄, A', Ȳ, true, true)
+            @thunk(project_B(A' * Ȳ)),
         )
         return NoTangent(), dA, dB
     end
@@ -54,12 +54,12 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(project_A(Ȳ * vec(B'))),
                 X̄ -> mul!(X̄, Ȳ, vec(B'), true, true)
+                @thunk(project_A(Ȳ * vec(B'))),
             ),
             InplaceableThunk(
-                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, A', Ȳ, true, true)
+                @thunk(project_B(A' * Ȳ)),
             )
         )
     end
@@ -77,8 +77,8 @@ function rrule(
             NoTangent(),
             @thunk(project_A(dot(Ȳ, B)')),
             InplaceableThunk(
-                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
+                @thunk(project_B(A' * Ȳ)),
             )
         )
     end
@@ -95,8 +95,8 @@ function rrule(
         return (
             NoTangent(),
             InplaceableThunk(
-                @thunk(project_B(A' * Ȳ)),
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true)
+                @thunk(project_B(A' * Ȳ)),
             ),
             @thunk(project_A(dot(Ȳ, B)')),
         )
@@ -124,12 +124,12 @@ function rrule(
         Ȳ = unthunk(ȳ)
         matmul = (
             InplaceableThunk(
-                @thunk(project_A(Ȳ * B')),
                 dA -> mul!(dA, Ȳ, B', true, true)
+                @thunk(project_A(Ȳ * B')),
             ),
             InplaceableThunk(
-                @thunk(project_B(A' * Ȳ)),
                 dB -> mul!(dB, A', Ȳ, true, true)
+                @thunk(project_B(A' * Ȳ)),
             )
         )
         addon = if z isa Bool
@@ -138,8 +138,8 @@ function rrule(
             @thunk(project_z(sum(Ȳ)))
         else
             InplaceableThunk(
-                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
                 dz -> sum!(dz, Ȳ; init=false)
+                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
             )
         end
         (NoTangent(), matmul..., addon)
@@ -161,12 +161,12 @@ function rrule(
     function muladd_pullback_2(ȳ)
         dy = unthunk(ȳ)
         ut_thunk = InplaceableThunk(
-            @thunk(project_ut(v' .* dy)),
             dut -> dut .+= v' .* dy
+            @thunk(project_ut(v' .* dy)),
         )
         v_thunk = InplaceableThunk(
-            @thunk(project_v(ut' .* dy)),
             dv -> dv .+= ut' .* dy
+            @thunk(project_v(ut' .* dy)),
         )
         (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : project_z(dy))
     end
@@ -196,8 +196,8 @@ function rrule(
             @thunk(project_z(sum(Ȳ)))
         else
             InplaceableThunk(
-                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
                 dz -> sum!(dz, Ȳ; init=false)
+                @thunk(project_z(sum!(similar(z, eltype(Ȳ)), Ȳ))),
             )
         end
         (NoTangent(), proj..., addon)
@@ -261,8 +261,8 @@ function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::Commuta
     function slash_pullback_scalar(ȳ)
         Ȳ = unthunk(ȳ)
         Athunk = InplaceableThunk(
-            @thunk(Ȳ / conj(b)),
             dA -> dA .+= Ȳ ./ conj(b),
+            @thunk(Ȳ / conj(b)),
         )
         bthunk = @thunk(-dot(A,Ȳ) / conj(b^2))
         return (NoTangent(), Athunk, bthunk)
@@ -285,7 +285,7 @@ end
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
-        return NoTangent(), InplaceableThunk(@thunk(-ȳ), ā -> ā .-= ȳ)
+        return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
     end
     return -x, negation_pullback
 end
