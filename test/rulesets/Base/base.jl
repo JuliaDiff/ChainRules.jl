@@ -125,6 +125,24 @@
         )
     end
 
+    @testset "copy" for T in (Float64, ComplexF64)
+        test_frule(copy, randn(T))
+        test_frule(copy, randn(T, 4))
+        test_frule(
+            copy,
+            #Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...)
+            Tuple(randn(T, 3))
+        )
+
+        test_rrule(copy, randn(T))
+        test_rrule(copy, randn(T, 4))
+        test_rrule(
+            copy,
+            Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...);
+            output_tangent = Tangent{Tuple{T, T, T}}(randn(T, 3)...)
+        )
+    end
+
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)

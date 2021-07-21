@@ -146,14 +146,21 @@ end
 @scalar_rule x \ y (-(Ω / x), one(y) / x)
 
 function frule((_, ẏ), ::typeof(identity), x)
-    return (x, ẏ)
+    return x, ẏ
 end
 
 function rrule(::typeof(identity), x)
-    function identity_pullback(ȳ)
-        return (NoTangent(), ȳ)
-    end
-    return (x, identity_pullback)
+    identity_pullback(ȳ)= NoTangent(), ȳ
+    return x, identity_pullback
+end
+
+function frule((_, ẏ), ::typeof(copy), x)
+    return x, ẏ
+end
+
+function ChainRulesCore.rrule(::typeof(copy), x)
+    copy_pullback(ȳ) = NoTangent(), ȳ
+    return copy(x), copy_pullback
 end
 
 # rouding related,
