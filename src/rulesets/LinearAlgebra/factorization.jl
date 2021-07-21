@@ -556,6 +556,25 @@ end
 ##### `qr`
 #####
 
+# QR struct that explicitly store matrices Q and R. This is much easier to
+# work with in the tests than LinearAlgebra.QRCompactWY, so we do all tests
+# with that one and then test that it gives the same end results than
+# using qr directly.
+struct ExplicitQR{T} <: LinearAlgebra.Factorization{T}
+    Q::Matrix{T}
+    R::Matrix{T}
+end
+
+function ExplicitQR(X::AbstractMatrix)
+    Q, R = qr(X)
+    return ExplicitQR(Matrix(Q), R)
+end
+
+Base.collect(F::ExplicitQR) = (F.Q, F.R)
+Base.iterate(F::ExplicitQR) = (F.Q, Val(:R))
+Base.iterate(F::ExplicitQR, ::Val{:R}) = (F.R, Val(:done))
+Base.iterate(F::ExplicitQR, ::Val{:done}) = nothing
+
 const QR_TYPE = Union{QR, QRPivoted, LinearAlgebra.QRCompactWY}
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: QR_TYPE
@@ -568,11 +587,23 @@ end
 
 function rrule(::typeof(qr), X::AbstractMatrix{<:Real})
     F = qr(X)
+    if size(F.R, 2) != size(F.R, 1)
+        throw(ArgumentError("Pullback for QR decomposition is only supported for m × n matrices with m >= n"))
+    end
     qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
     return F, qr_pullback
 end
 
-function qr_rev(QR_::QR_TYPE, Q̄, R̄)
+function rrule(::typeof(ExplicitQR), X::AbstractMatrix{<:Real})
+    F = ExplicitQR(X)
+    if size(F.R, 2) != size(F.R, 1)
+        throw(ArgumentError("Pullback for QR decomposition is only supported for m × n matrices with m >= n"))
+    end
+    qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
+    return F, qr_pullback
+end
+
+function qr_rev(QR_, Q̄, R̄)
     Q, R = QR_
     Q = Matrix(Q)
     Q̄ = Q̄ isa ZeroTangent ? Q̄ : @view Q̄[:, axes(Q, 2)]
