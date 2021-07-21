@@ -132,7 +132,7 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 ∇prod_dims!(dx, vald, x, dy, y)
             else
                 dx .+= conj.(y ./ x) .* dy
-            end
+            end,
             # Out-of-place versions
             @thunk project_x(if dims === (:)
                 ∇prod(x, dy, y)
