@@ -2,7 +2,7 @@ using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
-using ChainRulesTestUtils: rand_tangent, _fdm
+using ChainRulesTestUtils: _fdm
 using Compat: hasproperty, only, cispi, eachcol
 using FiniteDifferences
 using FiniteDifferences: rand_tangent
