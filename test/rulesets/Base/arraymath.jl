@@ -109,7 +109,7 @@
             for n in 3:5, m in 3:5
                 A = randn(m, n)
                 B = randn(m, n)
-                test_rrule(f, A, B)
+                test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
             end
         end
         @testset "Vector" begin
