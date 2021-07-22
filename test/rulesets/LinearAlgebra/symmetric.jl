@@ -22,7 +22,7 @@
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
-                if check_inferred
+                if check_inferred && false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -36,7 +36,7 @@
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )
-                if check_inferred
+                if check_inferred && false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
