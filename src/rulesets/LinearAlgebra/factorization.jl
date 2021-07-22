@@ -558,7 +558,7 @@ end
 
 # QR struct that explicitly store matrices Q and R. This is much easier to
 # work with in the tests than LinearAlgebra.QRCompactWY, so we do all tests
-# with that one and then test that it gives the same end results than
+# with that one and then test that it gives the same end results that
 # using qr directly.
 struct ExplicitQR{T} <: LinearAlgebra.Factorization{T}
     Q::Matrix{T}
@@ -587,35 +587,46 @@ end
 
 function rrule(::typeof(qr), X::AbstractMatrix{<:Real})
     F = qr(X)
-    if size(F.R, 2) != size(F.R, 1)
-        throw(ArgumentError("Pullback for QR decomposition is only supported for m × n matrices with m >= n"))
-    end
     qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
     return F, qr_pullback
 end
 
 function rrule(::typeof(ExplicitQR), X::AbstractMatrix{<:Real})
     F = ExplicitQR(X)
-    if size(F.R, 2) != size(F.R, 1)
-        throw(ArgumentError("Pullback for QR decomposition is only supported for m × n matrices with m >= n"))
-    end
     qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
     return F, qr_pullback
 end
 
+# QR backpropagation according to https://arxiv.org/pdf/2009.10071.pdf
 function qr_rev(QR_, Q̄, R̄)
     Q, R = QR_
     Q = Matrix(Q)
     Q̄ = Q̄ isa ZeroTangent ? Q̄ : @view Q̄[:, axes(Q, 2)]
-    V = R̄*R' - Q'*Q̄
 
-    if V isa ZeroTangent
-        Ā = Q̄ / R'
-    else
-        Ā = (Q̄ + Q * Hermitian(V)) / R'
+    m, n = size(R̄)
+
+    # Square and deep matrices
+    if m >= n
+        M = R̄*R' - Q'*Q̄
+        Ā = (Q̄ + Q * Hermitian(M)) / R'
+
+        return Ā
+    else # Wide matrices
+        A = Q * R
+        Y = @view A[:, (m+1):end]
+        U = @view R[:, 1:m]
+        Ū = @view R̄[:, 1:m]
+        V̄ = @view R̄[:, (m+1):end]
+
+        Q̄prime = Q̄ + Y * V̄'
+        M = Ū*U' - Q'*Q̄prime
+
+        X̄ = (Q̄prime + Q * Hermitian(M)) / U'
+
+        Ȳ = Q * V̄
+
+        return hcat(X̄, Ȳ)
     end
-
-    return Ā
 end
 
 function _qr_pullback(Ȳ::Tangent, F)

@@ -468,26 +468,23 @@ end
             @testset "($m x $n) qr" begin
                 X = randn(m, n)
 
-                if m < n
-                    @test_throws ArgumentError rrule(qr, X)
-                    @test_throws ArgumentError rrule(ChainRules.ExplicitQR, X)
-                else
-                    test_rrule(ChainRules.ExplicitQR, X)
+                # Test with explicit QR type
+                test_rrule(ChainRules.ExplicitQR, X)
 
-                    F = qr(randn(m, n))
-                    tangent = Tangent{typeof(F)}(; Q = Matrix(F.Q), R = F.R)
+                # Compare with LinearAlgebra.qr to ensure correctness
+                F = qr(randn(m, n))
+                tangent = Tangent{typeof(F)}(; Q = Matrix(F.Q), R = F.R)
 
-                    F_explicit, pb_explicit = rrule(ChainRules.ExplicitQR, X)
-                    F, pb = rrule(qr, X)
+                F_explicit, pb_explicit = rrule(ChainRules.ExplicitQR, X)
+                F, pb = rrule(qr, X)
 
-                    @test F_explicit.Q == Matrix(F.Q)
-                    @test F_explicit.R == F.R
+                @test F_explicit.Q == Matrix(F.Q)
+                @test F_explicit.R == F.R
 
-                    y_explicit = pb_explicit(tangent)
-                    y = pb(tangent)
+                y_explicit = pb_explicit(tangent)
+                y = pb(tangent)
 
-                    @test y_explicit == y
-                end
+                @test y_explicit == y
             end
         end
     end
