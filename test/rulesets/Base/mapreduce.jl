@@ -79,8 +79,8 @@
                 xa = adjoint(rand(T,4,4))
                 test_rrule(prod, xa ⊢ rand(T,4,4))
                 test_rrule(prod, xa ⊢ rand(T,4,4), fkwargs=(dims=2,))
-                @test unthunk(rrule(prod, adjoint(rand(T,3,3)))[2](1.0)[2]) isa Adjoint
-                @test unthunk(rrule(prod, adjoint(rand(T,3,3)), dims=1)[2](ones(1,3))[2]) isa Adjoint
+                @test unthunk(rrule(prod, adjoint(rand(T,3,3)))[2](1.0)[2]) isa Matrix
+                @test unthunk(rrule(prod, adjoint(rand(T,3,3)), dims=1)[2](ones(1,3))[2]) isa Matrix
 
                 # Diagonal -- a stupid thing to do, product of zeros! Shouldn't be an error though:
                 @test iszero(unthunk(rrule(prod, Diagonal(rand(T,3)))[2](1.0)[2]))
