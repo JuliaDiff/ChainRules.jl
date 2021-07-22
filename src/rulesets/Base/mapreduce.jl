@@ -58,7 +58,7 @@ function rrule(
         else
             sum(first, f̄_and_x̄s)
         end
-        x̄s = map(last, f̄_and_x̄s)
+        x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
         return NoTangent(), f̄, project(x̄s)
     end
     return y, sum_pullback

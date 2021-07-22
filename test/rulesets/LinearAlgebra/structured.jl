@@ -99,7 +99,7 @@
             Ȳ_mat = randn(T, m, n)
             Ȳ_composite = Tangent{typeof(Y)}(parent=collect(f(Ȳ_mat)))
 
-            test_rrule(f, A; output_tangent=Ȳ_mat; check_inferred=false) # ChainRulesCore #407
+            test_rrule(f, A; output_tangent=Ȳ_mat, check_inferred=false) # ChainRulesCore #407
 
             _, pb = rrule(f, A)
             @test pb(Ȳ_mat) == pb(Ȳ_composite)
