@@ -220,7 +220,7 @@ function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
 
         ∂A = last(dA_pb(unthunk(dAᵀ)))
-        ∂B = last(dA_pb(unthunk(dBᵀ)))
+        ∂B = last(dB_pb(unthunk(dBᵀ)))
 
         (NoTangent(), ∂A, ∂B)
     end

@@ -128,6 +128,10 @@
                 Y = randn(10, 4)
                 test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
             end
+        else
+            A = rand(2, 4)
+            B = rand(4, 4)
+            test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
         end
     end
 
