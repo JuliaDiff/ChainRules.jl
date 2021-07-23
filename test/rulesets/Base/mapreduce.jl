@@ -100,12 +100,12 @@
                 @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == UpperTriangular([0.0 0; 1 0])
 
                 # Symmetric -- at least this doesn't have zeros, still an unlikely combination
-                # TODO: these are actually broken, is ProjectTo{Symmetric} wrong?
+
                 xs = Symmetric(rand(T,4,4))
+                @test unthunk(rrule(prod, Symmetric(T[1 2; -333 4]))[2](1.0)[2]) == [16 8; 8 4]
+                # TODO debug why these fail  https://github.com/JuliaDiff/ChainRules.jl/issues/475
                 @test_skip test_rrule(prod, xs)
                 @test_skip test_rrule(prod, xs, fkwargs=(dims=2,))
-
-                @test unthunk(rrule(prod, Symmetric(T[1 2; -333 4]))[2](1.0)[2]) == [16 8; 8 4]
             end
         end
         @testset "Array{Float32}, no zero entries" begin
