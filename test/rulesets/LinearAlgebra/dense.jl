@@ -27,9 +27,11 @@
             test_rrule(dot, rand(T, 3), A, rand(T, 4); rtol=1f-3)
         end
         @testset "different types" begin
-            test_rrule(dot, Diagonal(rand(2)), rand(2, 2); check_inferred=false) # ChainRulesCore #407
             test_rrule(dot, rand(2), rand(2, 2), rand(ComplexF64, 2))
             test_rrule(dot, rand(2), Diagonal(rand(2)), rand(ComplexF64, 2))
+
+            # Inference failure due to https://github.com/JuliaDiff/ChainRulesCore.jl/issues/407
+            test_rrule(dot, Diagonal(rand(2)), rand(2, 2); check_inferred=false)
         end
     end
 
