@@ -119,14 +119,12 @@
 
         @testset "$f(::Adjoint{$T, Vector{$T})" begin
             a = randn(T, n)'
-            ā = randn(T, n)'
-            test_rrule(f, a ⊢ ā; output_tangent=randn(T, n))
+            test_rrule(f, a; output_tangent=randn(T, n))
         end
 
         @testset "$f(::Transpose{$T, Vector{$T})" begin
             a = transpose(randn(T, n))
-            ā = transpose(randn(T, n))
-            test_rrule(f, a ⊢ ā; output_tangent=randn(T, n))
+            test_rrule(f, a; output_tangent=randn(T, n))
         end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)

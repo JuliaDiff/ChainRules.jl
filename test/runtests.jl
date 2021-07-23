@@ -5,7 +5,6 @@ using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
 using Compat: hasproperty, only, cispi, eachcol
 using FiniteDifferences
-using FiniteDifferences: rand_tangent
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
@@ -13,10 +12,6 @@ using Random
 using StaticArrays
 using Statistics
 using Test
-
-# Transitional feature, see
-# https://juliadiff.org/ChainRulesTestUtils.jl/dev/api.html#ChainRulesTestUtils.enable_tangent_transform!
-ChainRulesTestUtils.enable_tangent_transform!(Thunk)
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 

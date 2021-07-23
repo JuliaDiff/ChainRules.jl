@@ -61,7 +61,7 @@
         end
 
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
-            test_frule(pinv, F(randn(T, 3)) ⊢ F(randn(T, 3)))
+            test_frule(pinv, F(randn(T, 3)))
             check_inferred = VERSION ≥ v"1.5"
             test_rrule(pinv, F(randn(T, 3)); check_inferred=check_inferred)
 

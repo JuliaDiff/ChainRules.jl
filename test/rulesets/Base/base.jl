@@ -110,19 +110,11 @@
     @testset "identity" for T in (Float64, ComplexF64)
         test_frule(identity, randn(T))
         test_frule(identity, randn(T, 4))
-        test_frule(
-            identity,
-            #Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...)
-            Tuple(randn(T, 3))
-        )
+        test_frule(identity, Tuple(randn(T, 3)))
 
         test_rrule(identity, randn(T))
         test_rrule(identity, randn(T, 4))
-        test_rrule(
-            identity,
-            Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...);
-            output_tangent = Tangent{Tuple{T, T, T}}(randn(T, 3)...)
-        )
+        test_rrule(identity, Tuple(randn(T, 3)))
     end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)

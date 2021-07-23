@@ -53,9 +53,9 @@
         x = SymHerm(randn(T, 3, 3), uplo)
         test_rrule(f, x)
 
-        # intentionally specifying tangents here to test both Matrix and SymHerm tangents
+        # intentionally specifying tangents here to test both SymHerm (default) and Matrix
+        test_frule(f, x, uplo)
         test_frule(f, x ⊢ randn(T, 3, 3))
-        test_frule(f, x ⊢ SymHerm(randn(T, 3, 3), uplo))
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention

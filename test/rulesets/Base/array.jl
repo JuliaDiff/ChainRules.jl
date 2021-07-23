@@ -1,5 +1,5 @@
 @testset "reshape" begin
-    test_rrule(reshape, rand(4, 5), (2, 10) ⊢ NoTangent())
+    test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
     test_rrule(reshape, rand(4, 5), 2, :)
 end
@@ -43,22 +43,22 @@ end
 
 @testset "reduce hcat" begin
     mats = [randn(3, 2), randn(3, 1), randn(3, 3)]
-    test_rrule(reduce, hcat ⊢ NoTangent(), mats)
+    test_rrule(reduce, hcat, mats)
     
     vecs = [rand(3) for _ in 1:4]
-    test_rrule(reduce, hcat ⊢ NoTangent(), vecs)
+    test_rrule(reduce, hcat, vecs)
     
     mix = AbstractVecOrMat[rand(4,2), rand(4)]  # this is weird, but does hit the fast path
-    test_rrule(reduce, hcat ⊢ NoTangent(), mix)
+    test_rrule(reduce, hcat, mix)
 
     adjs = vec([randn(2, 4), randn(1, 4), randn(3, 4)]')  # not a Vector
-    # test_rrule(reduce, hcat ⊢ NoTangent(), adjs ⊢ map(m -> rand(size(m)), adjs))
+    # test_rrule(reduce, hcat, adjs ⊢ map(m -> rand(size(m)), adjs))
     dy = 1 ./ reduce(hcat, adjs)
     @test rrule(reduce, hcat, adjs)[2](dy)[3] ≈ rrule(reduce, hcat, collect.(adjs))[2](dy)[3]
 
     # mix types
     mats = [randn(2, 2), rand(2, 2)']
-    test_rrule(reduce, hcat ⊢ NoTangent(), mats; check_inferred=VERSION>v"1.1")
+    test_rrule(reduce, hcat, mats; check_inferred=VERSION>v"1.1")
 end
 
 @testset "vcat" begin
@@ -73,13 +73,13 @@ end
 
 @testset "reduce vcat" begin
     mats = [randn(2, 4), randn(1, 4), randn(3, 4)]
-    test_rrule(reduce, vcat ⊢ NoTangent(), mats)
+    test_rrule(reduce, vcat, mats)
 
     vecs = [rand(2), rand(3), rand(4)]
-    test_rrule(reduce, vcat ⊢ NoTangent(), vecs)
+    test_rrule(reduce, vcat, vecs)
 
     mix = AbstractVecOrMat[rand(4,1), rand(4)]
-    test_rrule(reduce, vcat ⊢ NoTangent(), mix)
+    test_rrule(reduce, vcat, mix)
 end
 
 @testset "cat" begin
@@ -92,10 +92,10 @@ end
 end
 
 @testset "hvcat" begin
-    test_rrule(hvcat, 2 ⊢ NoTangent(), rand(ComplexF64, 6)...; check_inferred=VERSION>v"1.1")
-    test_rrule(hvcat, (2, 1) ⊢ NoTangent(), rand(), rand(1,1), rand(2,2); check_inferred=VERSION>v"1.1")
-    test_rrule(hvcat, 1 ⊢ NoTangent(), rand(3)' ⊢ rand(1,3), transpose(rand(3)) ⊢ rand(1,3); check_inferred=VERSION>v"1.1")
-    test_rrule(hvcat, 1 ⊢ NoTangent(), rand(0,3), rand(2,3), rand(1,3,1); check_inferred=VERSION>v"1.1")
+    test_rrule(hvcat, 2, rand(ComplexF64, 6)...; check_inferred=VERSION>v"1.1")
+    test_rrule(hvcat, (2, 1), rand(), rand(1,1), rand(2,2); check_inferred=VERSION>v"1.1")
+    test_rrule(hvcat, 1, rand(3)' ⊢ rand(1,3), transpose(rand(3)) ⊢ rand(1,3); check_inferred=VERSION>v"1.1")
+    test_rrule(hvcat, 1, rand(0,3), rand(2,3), rand(1,3,1); check_inferred=VERSION>v"1.1")
 
     # mix types (adjoint and transpose)
     test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3); check_inferred=VERSION>v"1.1")
@@ -103,5 +103,5 @@ end
 
 @testset "fill" begin
     test_rrule(fill, 44.0, 4; check_inferred=false)
-    test_rrule(fill, 2.0, (3, 3, 3) ⊢ NoTangent())
+    test_rrule(fill, 2.0, (3, 3, 3))
 end
