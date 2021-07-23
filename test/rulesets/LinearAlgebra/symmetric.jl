@@ -54,7 +54,7 @@
         test_rrule(f, x)
 
         # intentionally specifying tangents here to test both SymHerm (default) and Matrix
-        test_frule(f, x, uplo)
+        test_frule(f, x)
         test_frule(f, x ⊢ randn(T, 3, 3))
     end
 
@@ -477,7 +477,7 @@
                         frule((ZeroTangent(), ΔA), cos, A)[2],
                     )
                     # not exact because evaluated in a more efficient way
-                    @test ∂Y_ad ≈ ∂Y_ad2
+                    ChainRulesTestUtils.test_approx(∂Y_ad, ∂Y_ad2)
                 end
             end
 
