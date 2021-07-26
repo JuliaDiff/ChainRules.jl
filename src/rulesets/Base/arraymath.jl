@@ -19,6 +19,7 @@ end
 ##### `*`
 #####
 
+
 function rrule(
     ::typeof(*),
     A::AbstractVecOrMat{<:CommutativeMulNumber},
@@ -28,18 +29,38 @@ function rrule(
     project_B = ProjectTo(B)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
+        dA = @thunk(project_A(Ȳ * B'))
+        dB = @thunk(project_B(A' * Ȳ))
+        return NoTangent(), dA, dB
+    end
+    return A * B, times_pullback
+end
+
+# Optimized case for StridedMatrixes
+# no need to project as already dense, and we are allowed to use InplaceableThunk because
+# we know the destination will also be dense. TODO workout how to apply this generally:
+# https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
+function rrule(
+    ::typeof(*),
+    A::StridedMatrix{<:CommutativeMulNumber},
+    B::StridedVecOrMat{<:CommutativeMulNumber},
+)
+    function times_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
             X̄ -> mul!(X̄, Ȳ, B', true, true),
-            @thunk(project_A(Ȳ * B')),
+            @thunk(Ȳ * B'),
         )
         dB = InplaceableThunk(
             X̄ -> mul!(X̄, A', Ȳ, true, true),
-            @thunk(project_B(A' * Ȳ)),
+            @thunk(A' * Ȳ),
         )
         return NoTangent(), dA, dB
     end
     return A * B, times_pullback
 end
+
+
 
 function rrule(
     ::typeof(*),
@@ -65,6 +86,9 @@ function rrule(
     end
     return A * B, times_pullback
 end
+
+
+
 
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
