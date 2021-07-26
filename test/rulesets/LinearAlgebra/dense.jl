@@ -26,6 +26,13 @@
             test_frule(dot, rand(T, 3), A, rand(T, 4); rtol=1f-3)
             test_rrule(dot, rand(T, 3), A, rand(T, 4); rtol=1f-3)
         end
+        @testset "different types" begin
+            test_rrule(dot, rand(2), rand(2, 2), rand(ComplexF64, 2))
+            test_rrule(dot, rand(2), Diagonal(rand(2)), rand(ComplexF64, 2))
+
+            # Inference failure due to https://github.com/JuliaDiff/ChainRulesCore.jl/issues/407
+            test_rrule(dot, Diagonal(rand(2)), rand(2, 2); check_inferred=false)
+        end
     end
 
     @testset "cross" begin
@@ -33,6 +40,9 @@
         test_frule(cross, randn(ComplexF64, 3), randn(ComplexF64, 3))
         test_rrule(cross, randn(3), randn(3))
         # No complex support for rrule(cross,...
+
+        # mix types
+        test_rrule(cross, rand(3), rand(Float32, 3); rtol = 1.0e-7, atol = 1.0e-7)
     end
     @testset "pinv" begin
         @testset "$T" for T in (Float64, ComplexF64)
@@ -53,7 +63,7 @@
         end
 
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
-            test_frule(pinv, F(randn(T, 3)) ⊢ F(randn(T, 3)))
+            test_frule(pinv, F(randn(T, 3)))
             check_inferred = VERSION ≥ v"1.5"
             test_rrule(pinv, F(randn(T, 3)); check_inferred=check_inferred)
 

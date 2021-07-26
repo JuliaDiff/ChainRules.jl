@@ -109,13 +109,13 @@
             for n in 3:5, m in 3:5
                 A = randn(m, n)
                 B = randn(m, n)
-                test_rrule(f, A, B)
+                test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
             end
         end
         @testset "Vector" begin
             x = randn(10)
             y = randn(10)
-            test_rrule(f, x, y)
+            test_rrule(f, x, y; check_inferred=false) # ChainRulesCore #407
         end
         if f == (\)
             @testset "Matrix $f Vector" begin
@@ -128,6 +128,10 @@
                 Y = randn(10, 4)
                 test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
             end
+        else
+            A = rand(2, 4)
+            B = rand(4, 4)
+            test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
         end
     end
 
