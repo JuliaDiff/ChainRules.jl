@@ -342,3 +342,76 @@ function rrule(::typeof(fill), x::Any, dims...)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
 end
+
+#####
+##### `extrema`, `findmax`, `maximum`, etc.
+#####
+
+function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
+    yplus, iplus = findmax(x; dims=dims)
+    yminus, imminus = findmin(x; dims=dims)
+    project = ProjectTo(x)
+    function extrema_pullback((dyplus, dyminus))
+        x_thunk = @thunk begin
+            dx = fill!(similar(x, eltype(dy)), false)
+            view(dx, iplus) .= dyplus
+            view(dx, iminus) .+= dyminus
+            project(dx)
+        end
+        x_ithunk = InplaceableThunk(x_thunk) do dx
+            view(dx, iplus) .+= dyplus
+            view(dx, iminus) .+= dyminus
+            dx
+        end
+        return (NoTangent(), x_ithunk)
+    end
+    return (yplus, yminus), extrema_pullback
+end
+
+function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
+    y, ind = findmax(x; dims=dims)
+    project = ProjectTo(x)
+    function findmax_pullback((dy, _))
+        x_thunk = @thunk begin
+            dx = fill!(similar(x, eltype(dy)), false)
+            view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array cases
+            project(dx)
+        end
+        x_ithunk = InplaceableThunk(x_thunk) do dx
+            view(dx, ind) .+= dy
+            dx
+        end
+        return (NoTangent(), x_ithunk)
+    end
+    return (y, ind), findmax_pullback
+end
+
+function rrule(::typeof(findmin), x::AbstractArray{<:Number}; dims=:)
+    y, ind = findmin(x; dims=dims)
+    project = ProjectTo(x)
+    function findmin_pullback((dy, _))
+        x_thunk = @thunk begin
+            dx = fill!(similar(x, eltype(dy)), false)
+            view(dx, ind) .= dy
+            project(dx)
+        end
+        x_ithunk = InplaceableThunk(x_thunk) do dx
+            view(dx, ind) .+= dy
+            dx
+        end
+        return (NoTangent(), x_ithunk)
+    end
+    return (y, ind), findmin_pullback
+end
+
+function rrule(::typeof(maximum), x::AbstractArray{<:Number}; dims=:)
+    (y, _), back = rrule(findmax, x; dims=dims)
+    maximum_pullback(dy) = back((dy, nothing))
+    return y, maximum_pullback
+end
+
+function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
+    (y, _), back = rrule(findmin, x; dims=dims)
+    minimum_pullback(dy) = back((dy, nothing))
+    return y, minimum_pullback
+end

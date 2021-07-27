@@ -198,3 +198,15 @@ end
     test_rrule(fill, 55 + 0.5im, 5)
     test_rrule(fill, 3.3, (3, 3, 3))
 end
+
+@testset "extrema" begin
+    @testset "$f" for f in [maximum, minimum]
+        test_rrule(f, rand(10))
+        test_rrule(f, rand(3,4))
+        test_rrule(f, rand(3,4), fkwargs=(dims=1,))
+        test_rrule(f, rand(3,4,5), fkwargs=(dims=(1,3),))
+        test_rrule(f, rand(1))  # both extrema are the same index
+        @test_skip test_rrule(f, Float64[1,2,-1,-2,0,2,-2])  # attains max twice -- finite diff picks another subgradient
+    end
+end
+
