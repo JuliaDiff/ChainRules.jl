@@ -121,6 +121,10 @@
         test_rrule(copy, randn(T))
         test_rrule(copy, randn(T, 4))
     end
+            
+    @testset "copy dict" begin
+        @test rrule(copy, Dict(1=>2)) !== nothing    
+    end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
