@@ -69,8 +69,8 @@
         test_scalar(Complex, randn())
         test_scalar(Complex, randn(ComplexF64))
 
-        test_frule(Complex, randn(), randn())
-        test_rrule(Complex, randn(), randn())
+        test_frule(Complex, randn(), randn(Float32))
+        test_rrule(Complex, randn(), randn(Float32); rtol=1.0e-7, atol=1.0e-7)
     end
 
     @testset "*(x, y) (scalar)" begin
@@ -110,19 +110,11 @@
     @testset "identity" for T in (Float64, ComplexF64)
         test_frule(identity, randn(T))
         test_frule(identity, randn(T, 4))
-        test_frule(
-            identity,
-            #Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...)
-            Tuple(randn(T, 3))
-        )
+        test_frule(identity, Tuple(randn(T, 3)))
 
         test_rrule(identity, randn(T))
         test_rrule(identity, randn(T, 4))
-        test_rrule(
-            identity,
-            Tuple(randn(T, 3)) ⊢ Tangent{Tuple{T, T, T}}(randn(T, 3)...);
-            output_tangent = Tangent{Tuple{T, T, T}}(randn(T, 3)...)
-        )
+        test_rrule(identity, Tuple(randn(T, 3)))
     end
 
     @testset "copy" for T in (Float64, ComplexF64)

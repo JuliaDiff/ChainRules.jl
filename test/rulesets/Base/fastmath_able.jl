@@ -151,11 +151,11 @@ const FASTABLE_AST = quote
                 # Issue #233
                 @test frule((ZeroTangent(), Δx, Δy), f, x, 2) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
-                @test (∂x, ∂y) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{T, Float64}
 
                 @test frule((ZeroTangent(), Δx, Δy), f, 2, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
-                @test (∂x, ∂y) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{Float64, T}
             end
         end
 

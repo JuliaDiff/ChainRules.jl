@@ -49,7 +49,7 @@
                 PermutedDimsArray(x, (1,2,3))
             end
             @test !(xp isa StridedArray)
-            test_rrule(fnorm, xp ⊢ rand(T, size(xp)))
+            test_rrule(fnorm, xp)
         end
         T == Float64 && ndims(x) == 1 && @testset "Integer input" begin
             x = [1,2,3]
@@ -92,9 +92,9 @@
             elseif x isa Array{T,3}
                 PermutedDimsArray(x, (1,2,3))
             end
-            @test !(xp isa StridedArray)
-            test_frule(norm, xp ⊢ rand(T, size(xp)))
-            test_rrule(norm, xp ⊢ rand(T, size(xp)))  # rand_tangent does not work here because eltype(xp)==Int
+            @assert !(xp isa StridedArray)
+            test_frule(norm, xp)
+            test_rrule(norm, xp)
         end
     end
     @testset "$fnorm(x::Array{$T,$(length(sz))}, $p) with size $sz" for

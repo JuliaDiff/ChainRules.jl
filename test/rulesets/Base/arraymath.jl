@@ -27,31 +27,38 @@
             end
         end
 
-        @testset "AbstractMatrix-AbstractMatrix" begin
-            @testset "Matrix * Matrix n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
-                @testset "Array" begin
-                    test_rrule(*, (n⋆m), (m⋆p))
-                end
-
-                @testset "SubArray - $indexname" for (indexname, m_index) in (
-                    ("fast", :), ("slow", m:-1:1)
-                )
-                    test_rrule(*, view(n⋆m, :, m_index), view(m⋆p, m_index, :))
-                    test_rrule(*, n⋆m, view(m⋆p, m_index, :))
-                    test_rrule(*, view(n⋆m, :, m_index), m⋆p)
-                end
-
-                @testset "Adjoints and Transposes" begin
-                    test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), Transpose(p⋆m) ⊢ Transpose(p⋆m))
-                    test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
-
-                    test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), (m⋆p))
-                    test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), (m⋆p))
-
-                    test_rrule(*, (n⋆m), Transpose(p⋆m) ⊢ Transpose(p⋆m))
-                    test_rrule(*, (n⋆m), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
-                end
+        @testset "dense-matrix n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
+            @testset "Array" begin
+                test_rrule(*, (n⋆m), (m⋆p))
             end
+
+            @testset "SubArray - $indexname" for (indexname, m_index) in (
+                ("fast", :), ("slow", m:-1:1)
+            )
+                test_rrule(*, view(n⋆m, :, m_index), view(m⋆p, m_index, :))
+                test_rrule(*, n⋆m, view(m⋆p, m_index, :))
+                test_rrule(*, view(n⋆m, :, m_index), m⋆p)
+            end
+
+            @testset "Adjoints and Transposes" begin
+                test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), Transpose(p⋆m) ⊢ Transpose(p⋆m))
+                test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
+
+                test_rrule(*, Transpose(m⋆n) ⊢ Transpose(m⋆n), (m⋆p))
+                test_rrule(*, Adjoint(m⋆n) ⊢ Adjoint(m⋆n), (m⋆p))
+
+                test_rrule(*, (n⋆m), Transpose(p⋆m) ⊢ Transpose(p⋆m))
+                test_rrule(*, (n⋆m), Adjoint(p⋆m) ⊢ Adjoint(p⋆m))
+            end
+        end
+
+        @testset "Diagonal" begin
+            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
+
+            # Needs to not try and inplace, as `mul!` will do wrong.
+            # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
+            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3,3))
         end
 
         @testset "Covector * Vector n=$n" for n in (3, 5)
@@ -109,13 +116,13 @@
             for n in 3:5, m in 3:5
                 A = randn(m, n)
                 B = randn(m, n)
-                test_rrule(f, A, B)
+                test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
             end
         end
         @testset "Vector" begin
             x = randn(10)
             y = randn(10)
-            test_rrule(f, x, y)
+            test_rrule(f, x, y; check_inferred=false) # ChainRulesCore #407
         end
         if f == (\)
             @testset "Matrix $f Vector" begin
@@ -128,6 +135,10 @@
                 Y = randn(10, 4)
                 test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
             end
+        else
+            A = rand(2, 4)
+            B = rand(4, 4)
+            test_rrule(f, A, B; check_inferred=false) # ChainRulesCore #407
         end
     end
 

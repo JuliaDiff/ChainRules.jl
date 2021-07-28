@@ -2,19 +2,18 @@
     @testset "/ and \\ on Square Matrixes" begin
         @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             RHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(/, randn(5, 10), RHS)
+            test_rrule(/, randn(Float32, 5, 10), RHS; rtol = 1.0e-4, atol = 1.0e-4)
         end
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(\, LHS, randn(10))
-            test_rrule(\, LHS, randn(10, 10))
+            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-4, atol = 1.0e-4)
+            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-4, atol = 1.0e-4)
         end
     end
 
     @testset "Diagonal" begin
         N = 3
-        test_rrule(Diagonal, randn(N); output_tangent=randn(N, N))
         D = Diagonal(randn(N))
         test_rrule(Diagonal, randn(N); output_tangent=D)
         # Concrete type instead of UnionAll
@@ -33,7 +32,7 @@
     end
     @testset "::Diagonal * ::AbstractVector" begin
         N = 3
-        test_rrule(*, Diagonal(randn(N)), randn(N))
+        test_rrule(*, Diagonal(randn(Float32, N)), randn(N); rtol = 1.0e-4, atol = 1.0e-4)
     end
     @testset "diag" begin
         N = 7
@@ -100,7 +99,7 @@
             Ȳ_mat = randn(T, m, n)
             Ȳ_composite = Tangent{typeof(Y)}(parent=collect(f(Ȳ_mat)))
 
-            test_rrule(f, A; output_tangent=Ȳ_mat)
+            test_rrule(f, A; output_tangent=Ȳ_mat, check_inferred=false) # ChainRulesCore #407
 
             _, pb = rrule(f, A)
             @test pb(Ȳ_mat) == pb(Ȳ_composite)
@@ -120,14 +119,12 @@
 
         @testset "$f(::Adjoint{$T, Vector{$T})" begin
             a = randn(T, n)'
-            ā = randn(T, n)'
-            test_rrule(f, a ⊢ ā; output_tangent=randn(T, n))
+            test_rrule(f, a; output_tangent=randn(T, n))
         end
 
         @testset "$f(::Transpose{$T, Vector{$T})" begin
             a = transpose(randn(T, n))
-            ā = transpose(randn(T, n))
-            test_rrule(f, a ⊢ ā; output_tangent=randn(T, n))
+            test_rrule(f, a; output_tangent=randn(T, n))
         end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)

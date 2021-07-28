@@ -39,7 +39,6 @@ function rrule(
     return y, covector_sum_pb
 end
 
-
 function rrule(
     config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
 )
@@ -47,6 +46,8 @@ function rrule(
     y = sum(first, fx_and_pullbacks; dims=dims)
 
     pullbacks = last.(fx_and_pullbacks)
+
+    project = ProjectTo(xs)
 
     function sum_pullback(ȳ)
         call(f, x) = f(x)  # we need to broadcast this to handle dims kwarg
@@ -57,8 +58,8 @@ function rrule(
         else
             sum(first, f̄_and_x̄s)
         end
-        x̄s = map(last, f̄_and_x̄s)
-        return NoTangent(), f̄, x̄s
+        x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
+        return NoTangent(), f̄, project(x̄s)
     end
     return y, sum_pullback
 end
@@ -118,6 +119,7 @@ end
 
 function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:CommutativeMulNumber}
     y = prod(x; dims=dims)
+    project_x = ProjectTo(x)
     # vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
     function prod_pullback(ȳ)
         dy = unthunk(ȳ)
@@ -132,15 +134,15 @@ function rrule(::typeof(prod), x::AbstractArray{T}; dims=:) where {T<:Commutativ
                 dx .+= conj.(y ./ x) .* dy
             end,
             # Out-of-place versions
-            @thunk if dims === (:)
+            @thunk project_x(if dims === (:)
                 ∇prod(x, dy, y)
             elseif any(iszero, x)  # Then, and only then, will ./x lead to NaN
                 vald = dims isa Colon ? nothing : dims isa Integer ? Val(Int(dims)) : Val(Tuple(dims))
                 ∇prod_dims(vald, x, dy, y)  # val(Int(dims)) is about 2x faster than Val(Tuple(dims))
             else
                 conj.(y ./ x) .* dy
-            end
-            )
+            end)
+        )
         return (NoTangent(), x_thunk)
     end
     return y, prod_pullback
