@@ -390,7 +390,7 @@ end
             D = Diagonal(rand(5) .+ 0.1)
             C = cholesky(D)
             test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false) ⊢ NoTangent();
+                cholesky, D ⊢ Diagonal(randn(5)), Val(false);
                 output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
             )
         end

@@ -98,7 +98,8 @@
 @non_differentiable codeunit(::SubString)
 @non_differentiable codeunits(::AbstractString)
 @non_differentiable copy(::Base.GenericIOBuffer)
-@non_differentiable count(::Union{Regex, AbstractString}, ::AbstractString)
+@non_differentiable count(::Any)
+@non_differentiable count(::Any, ::Any)
 @non_differentiable countlines(::AbstractString)
 @non_differentiable countlines(::IO)
 @non_differentiable cp(::AbstractString, ::AbstractString)
@@ -440,3 +441,8 @@ VERSION >= v"1.1" && @non_differentiable Sys.isopenbsd(::Symbol)
 
 @non_differentiable similar(::Any...)
 @non_differentiable eltype(::Type)
+
+@non_differentiable one(::Any)
+@non_differentiable ones(::Any...)
+@non_differentiable zero(::Any)
+@non_differentiable zeros(::Any...)

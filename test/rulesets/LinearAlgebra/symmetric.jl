@@ -22,7 +22,7 @@
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
-                if check_inferred
+                if check_inferred && false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -36,7 +36,7 @@
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )
-                if check_inferred
+                if check_inferred && false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -53,9 +53,9 @@
         x = SymHerm(randn(T, 3, 3), uplo)
         test_rrule(f, x)
 
-        # intentionally specifying tangents here to test both Matrix and SymHerm tangents
+        # intentionally specifying tangents here to test both SymHerm (default) and Matrix
+        test_frule(f, x)
         test_frule(f, x ⊢ randn(T, 3, 3))
-        test_frule(f, x ⊢ SymHerm(randn(T, 3, 3), uplo))
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention
@@ -477,7 +477,7 @@
                         frule((ZeroTangent(), ΔA), cos, A)[2],
                     )
                     # not exact because evaluated in a more efficient way
-                    @test ∂Y_ad ≈ ∂Y_ad2
+                    ChainRulesTestUtils.test_approx(∂Y_ad, ∂Y_ad2)
                 end
             end
 

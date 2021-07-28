@@ -53,9 +53,12 @@ function rrule(::Type{T}, x::Real) where {T<:Complex}
     return (T(x), Complex_pullback)
 end
 function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
+    project_x = ProjectTo(x)
+    project_y = ProjectTo(y)
+
     function Complex_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        return (NoTangent(), real(ΔΩ), imag(ΔΩ))
+        return (NoTangent(), project_x(real(ΔΩ)), project_y(imag(ΔΩ)))
     end
     return (T(x, y), Complex_pullback)
 end
@@ -161,3 +164,15 @@ end
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)
+
+# note: rules for ^ are defined in the fastmath_able.jl
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
+    y = Base.literal_pow(^, x, pv)
+    return y, (p * y / x * Δx)
+end
+
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
+    y = Base.literal_pow(^, x, pv)
+    literal_pow_pullback(dy) = NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
+    return y, literal_pow_pullback
+end

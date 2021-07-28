@@ -7,17 +7,13 @@ function frule((_, Δx, Δy), ::typeof(dot), x, y)
 end
 
 function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
+    project_x = ProjectTo(x)
+    project_y = ProjectTo(y)
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        xthunk = InplaceableThunk(
-            @thunk(reshape(y .* ΔΩ', axes(x))),
-            dx -> dx .+= reshape(y, axes(x)) .* ΔΩ',
-        )
-        ythunk = InplaceableThunk(
-            @thunk(reshape(x .* ΔΩ, axes(y))),
-            dy -> dy .+= reshape(x, axes(y)) .* ΔΩ,
-        )
-        return (NoTangent(), xthunk, ythunk)
+        x̄ = @thunk(project_x(reshape(y .* ΔΩ', axes(x))))
+        ȳ = @thunk(project_y(reshape(x .* ΔΩ, axes(y))))
+        return (NoTangent(), x̄, ȳ)
     end
     return dot(x, y), dot_pullback
 end
@@ -31,13 +27,16 @@ function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector{<:Number}, A
 end
 
 function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    project_x = ProjectTo(x)
+    project_A = ProjectTo(A)
+    project_y = ProjectTo(y)
     Ay = A * y
     z = adjoint(x) * Ay
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        dx = @thunk conj(ΔΩ) .* Ay
-        dA = @thunk ΔΩ .* x .* adjoint(y)
-        dy = @thunk ΔΩ .* (adjoint(A) * x)
+        dx = @thunk project_x(conj(ΔΩ) .* Ay)
+        dA = @thunk project_A(ΔΩ .* x .* adjoint(y))
+        dy = @thunk project_y(ΔΩ .* (adjoint(A) * x))
         return (NoTangent(), dx, dA, dy)
     end
     dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
@@ -45,12 +44,15 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
 end
 
 function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}, y::AbstractVector{<:Number})
+    project_x = ProjectTo(x)
+    project_A = ProjectTo(A)
+    project_y = ProjectTo(y)
     z = dot(x,A,y)
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        dx = @thunk conj(ΔΩ) .* A.diag .* y  # A*y is this broadcast, can be fused
-        dA = @thunk Diagonal(ΔΩ .* x .* conj(y))  # calculate N not N^2 elements
-        dy = @thunk ΔΩ .* conj.(A.diag) .* x
+        dx = @thunk project_x(conj(ΔΩ) .* A.diag .* y)  # A*y is this broadcast, can be fused
+        dA = @thunk project_A(Diagonal(ΔΩ .* x .* conj(y)))  # calculate N not N^2 elements
+        dy = @thunk project_y(ΔΩ .* conj.(A.diag) .* x)
         return (NoTangent(), dx, dA, dy)
     end
     dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
@@ -67,10 +69,14 @@ end
 
 # TODO: support complex vectors
 function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+    project_a = ProjectTo(a)
+    project_b = ProjectTo(b)
     Ω = cross(a, b)
     function cross_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        return (NoTangent(), @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
+        da = @thunk(project_a(cross(b, ΔΩ)))
+        db = @thunk(project_b(cross(ΔΩ, a)))
+        return (NoTangent(), da, db)
     end
     return Ω, cross_pullback
 end
