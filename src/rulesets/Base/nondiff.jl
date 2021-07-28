@@ -1,3 +1,7 @@
+#####
+##### Operators
+#####
+
 @non_differentiable !(::Any)
 @non_differentiable *(::Union{Regex, AbstractChar, AbstractString}...)
 @non_differentiable -(::AbstractChar, ::AbstractChar)
@@ -12,6 +16,10 @@
 @non_differentiable ==(::Any)
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
+
+#####
+##### Boolean
+#####
 
 @non_differentiable Bool(::Any)
 
@@ -74,6 +82,10 @@
 
 @non_differentiable Array(::AbstractArray{Bool})
 @non_differentiable IndexStyle(::AbstractArray{Bool})
+
+#####
+##### Exported functions, alphabetically
+#####
 
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
@@ -161,6 +173,8 @@ VERSION >= v"1.1" && @non_differentiable fieldtypes(T)
 @non_differentiable getpid(::Base.Process)
 
 @non_differentiable haskey(::Any, ::Any)
+@non_differentiable hasfield(::Type, ::Symbol)
+@non_differentiable hasproperty(::Any, ::Symbol)
 @non_differentiable hash(::Any)
 @non_differentiable hash(::Any, ::UInt)
 @non_differentiable hex2bytes(::AbstractString)
@@ -185,6 +199,7 @@ VERSION >= v"1.6" && @non_differentiable insorted(::Any, ::AbstractRange)
 @non_differentiable isconcretetype(::Any)
 @non_differentiable isconst(::Module, ::Symbol)
 @non_differentiable isdigit(::AbstractChar)
+@non_differentiable isdefined(::Any...)
 @non_differentiable isdir(::Any...)
 @non_differentiable isdirpath(::AbstractString)
 VERSION >= v"1.5" && @non_differentiable isdisjoint(::Any, ::Any)
@@ -290,6 +305,8 @@ VERSION >= v"1.3" && @non_differentiable istaskfailed(::Task)
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
+@non_differentiable one(::Any)
+@non_differentiable ones(::Any...)
 VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable open(::Any)
 
@@ -350,6 +367,7 @@ end
 @non_differentiable show(::Any)
 @non_differentiable show(::Any, ::Any)
 @non_differentiable showerror(::IO, ::Exception)
+@non_differentiable similar(::Any...)
 @non_differentiable size(::Any)
 @non_differentiable size(::Any, ::Any)
 @non_differentiable sizeof(::Any)
@@ -403,7 +421,13 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable xor(::Any...)
 @non_differentiable typejoin(::Any...)
 
-# Non-public Base
+@non_differentiable zero(::Any)
+@non_differentiable zeros(::Any...)
+
+#####
+##### Non-exported functions
+#####
+
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
@@ -438,10 +462,3 @@ VERSION >= v"1.1" && @non_differentiable Sys.isopenbsd(::Symbol)
 @non_differentiable Threads.nthreads()
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
-
-@non_differentiable similar(::Any...)
-
-@non_differentiable one(::Any)
-@non_differentiable ones(::Any...)
-@non_differentiable zero(::Any)
-@non_differentiable zeros(::Any...)
