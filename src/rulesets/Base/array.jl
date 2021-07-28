@@ -348,24 +348,26 @@ end
 #####
 
 function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
-    yplus, iplus = findmax(x; dims=dims)
-    yminus, imminus = findmin(x; dims=dims)
+    ylo, ilo = findmin(x; dims=dims)
+    yhi, ihi = findmax(x; dims=dims)
     project = ProjectTo(x)
-    function extrema_pullback((dyplus, dyminus))
+    function extrema_pullback((dylo, dyhi))
+        T = promote_type(eltype(dylo), eltype(dyhi))
+        # @show T  # often Any, when dyhi == NoTangent()
         x_thunk = @thunk begin
-            dx = fill!(similar(x, eltype(dy)), false)
-            view(dx, iplus) .= dyplus
-            view(dx, iminus) .+= dyminus
+            dx = fill!(similar(x, T), false)
+            view(dx, ilo) .+= dylo
+            view(dx, ihi) .+= dyhi
             project(dx)
         end
         x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, iplus) .+= dyplus
-            view(dx, iminus) .+= dyminus
+            view(dx, ilo) .+= dylo
+            view(dx, ihi) .+= dyhi
             dx
         end
         return (NoTangent(), x_ithunk)
     end
-    return (yplus, yminus), extrema_pullback
+    return (ylo, yhi), extrema_pullback
 end
 
 function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
