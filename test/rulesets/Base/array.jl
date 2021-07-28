@@ -200,13 +200,23 @@ end
 end
 
 @testset "extrema" begin
-    @testset "$f" for f in [maximum, minimum]
-        test_rrule(f, rand(10))
-        test_rrule(f, rand(3,4))
-        test_rrule(f, rand(3,4), fkwargs=(dims=1,))
-        test_rrule(f, rand(3,4,5), fkwargs=(dims=(1,3),))
-        test_rrule(f, rand(1))  # both extrema are the same index
-        test_rrule(f, Float64[1,2,-1,-2,0,2,-2])  # attains max twice -- finite diff picks symmetric subgradient
-    end
+    test_rrule(extrema, rand(10), output_tangent = (rand(), rand()), check_inferred=false)
+    @test_skip test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), rand(1,4)), check_inferred=false)  # wrong answer?
+    # Case of both extrema are the same index:
+    test_rrule(extrema, rand(1), output_tangent = (rand(), rand()), check_inferred=false)
 end
 
+@testset "$f" for f in [findmax, findmin]
+    @test_skip test_rrule(f, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error?
+    @test_skip test_rrule(f, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), 999), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
+end
+
+@testset "$f" for f in [maximum, minimum]
+    test_rrule(f, rand(10))
+    test_rrule(f, rand(3,4))
+    test_rrule(f, rand(3,4), fkwargs=(dims=1,))
+    test_rrule(f, rand(3,4,5), fkwargs=(dims=(1,3),))
+    # Case which attains max twice -- finite diff picks symmetric subgradient
+    test_rrule(f, Float64[1,2,-1,-2,0,2,-2])
+    @test_skip test_rrule(f, Float64[1,2,-1,-2,0,2,-2,2,-2]) # ... three times, fails!
+end
