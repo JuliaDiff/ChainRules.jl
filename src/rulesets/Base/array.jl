@@ -13,7 +13,7 @@ end
 function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
     A_dims = size(A)
     function reshape_pullback(Ȳ)
-        ∂A = reshape(unthunk(Ȳ), A_dims)
+        ∂A = reshape(Ȳ, A_dims)
         ∂dims = broadcast(_ -> NoTangent(), dims)
         return (NoTangent(), ∂A, ∂dims...)
     end
