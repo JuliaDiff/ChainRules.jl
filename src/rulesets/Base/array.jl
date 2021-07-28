@@ -460,3 +460,14 @@ function rrule(::typeof(minimum), x::AbstractArray; dims=:)
     end
     return y, minimum_pullback
 end
+
+# function rrule(::typeof(argmax), x::AbstractArray{<:Number}; dims=:)
+#     argmax_pullback(dy) = (NoTangent(), NoTangent())
+#     return argmax(x), argmax_pullback
+# end
+
+# function rrule(::typeof(argmin), x::AbstractArray{<:Number}; dims=:)
+#     argmin_pullback(dy) = (NoTangent(), NoTangent())
+#     return argmin(x), argmin_pullback
+# end
+
