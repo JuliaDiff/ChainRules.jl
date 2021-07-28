@@ -351,12 +351,20 @@ function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
     ylo, ilo = findmin(x; dims=dims)
     yhi, ihi = findmax(x; dims=dims)
     project = ProjectTo(x)
+    extrema_pullback(dys::Tuple{AbstractZero, AbstractZero}) = (NoTangent(), NoTangent())
     function extrema_pullback((dylo, dyhi))
-        T = promote_type(eltype(dylo), eltype(dyhi))
+        # T = promote_type(eltype(dylo), eltype(dyhi))
         # @show T  # often Any, when dyhi == NoTangent()
+        T = if dylo isa AbstractZero
+            eltype(dyhi)
+        elseif dyhi isa AbstractZero
+            eltype(dylo)
+        else
+            promote_type(eltype(dylo), eltype(dyhi))
+        end
         x_thunk = @thunk begin
             dx = fill!(similar(x, T), false)
-            view(dx, ilo) .+= dylo
+            view(dx, ilo) .= dylo
             view(dx, ihi) .+= dyhi
             project(dx)
         end
@@ -420,7 +428,8 @@ end
 #     return y, minimum_pullback
 # end
 
-# These variants pick the symmetric convention:
+# These variants pick the symmetric convention,
+# they are a bit slower.
 
 function rrule(::typeof(maximum), x::AbstractArray; dims=:)
     y = maximum(x; dims=dims)
