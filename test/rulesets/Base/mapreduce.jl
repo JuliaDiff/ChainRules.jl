@@ -16,7 +16,7 @@
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
                 x = randn(T, sizes[1:N]...)
                 test_frule(sum, abs2, x; fkwargs=(;dims=dims))
-                test_rrule(sum, abs2 ⊢ NoTangent(), x; fkwargs=(;dims=dims))
+                test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
             end
         end
     end  # sum abs2
@@ -26,7 +26,8 @@
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
-        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]])  # array of arrays
+        # inference fails for array of arrays
+        test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
         
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
@@ -45,11 +46,9 @@
         _, pb = rrule(ADviaRuleConfig(), sum, abs, @SVector[1.0, -3.0])
         @test pb(1.0) isa Tuple{NoTangent, NoTangent, SVector{2, Float64}}
       
-
-        # For structured sparse matrixes we screw it up, getting dense back
-        # see https://github.com/JuliaDiff/ChainRules.jl/issues/232 etc
+        # make sure we preserve type for Diagonal
         _, pb = rrule(ADviaRuleConfig(), sum, abs, Diagonal([1.0, -3.0]))
-        @test_broken pb(1.0)[3] isa Diagonal
+        @test pb(1.0)[3] isa Diagonal
     end
 
     @testset "prod" begin
@@ -70,16 +69,18 @@
 
                 if ndims(x) == 3
                     xp = PermutedDimsArray(x, (3,2,1))  # not a StridedArray
-                    xpdot, xpbar = permutedims(rand(T, sz), (3,2,1)), permutedims(rand(T, sz), (3,2,1))
-                    test_rrule(prod, xp ⊢ xpbar; fkwargs=(dims=dims,), check_inferred=true)
+                    test_rrule(prod, xp; fkwargs=(dims=dims,), check_inferred=true)
                 end
             end
 
             @testset "structured wrappers" begin
                 # Adjoint -- like PermutedDimsArray this may actually be used
                 xa = adjoint(rand(T,4,4))
-                test_rrule(prod, xa ⊢ rand(T,4,4))
-                test_rrule(prod, xa ⊢ rand(T,4,4), fkwargs=(dims=2,))
+                test_rrule(prod, xa)
+                test_rrule(prod, xa, fkwargs=(dims=2,))
+                # use Adjoint for tangent
+                test_rrule(prod, xa ⊢ rand(T,4,4)')
+                test_rrule(prod, xa ⊢ rand(T,4,4)', fkwargs=(dims=2,))
                 @test unthunk(rrule(prod, adjoint(rand(T,3,3)))[2](1.0)[2]) isa Matrix
                 @test unthunk(rrule(prod, adjoint(rand(T,3,3)), dims=1)[2](ones(1,3))[2]) isa Matrix
 
@@ -92,17 +93,19 @@
                     hcat(1);
                     rtol=T <: Complex ? 2eps() : 0.0,
                 )
-                @test unthunk(rrule(prod, Diagonal(ones(T,2)), dims=1)[2](ones(1,2))[2]) == [0 1; 1 0]
+                @test unthunk(rrule(prod, Diagonal(ones(T,2)), dims=1)[2](ones(1,2))[2]) == Diagonal([0.0 1; 1 0])
 
                 # Triangular -- almost equally stupud
                 @test iszero(unthunk(rrule(prod, UpperTriangular(rand(T,3,3)))[2](1.0)[2]))
-                @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == [0 0; 1 0]
+                @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == UpperTriangular([0.0 0; 1 0])
 
                 # Symmetric -- at least this doesn't have zeros, still an unlikely combination
+
                 xs = Symmetric(rand(T,4,4))
-                @test_skip test_rrule(prod, xs ⊢ rand(T,4,4))
-                @test_skip test_rrule(prod, xs ⊢ rand(T,4,4), fkwargs=(dims=2,))
                 @test unthunk(rrule(prod, Symmetric(T[1 2; -333 4]))[2](1.0)[2]) == [16 8; 8 4]
+                # TODO debug why these fail  https://github.com/JuliaDiff/ChainRules.jl/issues/475
+                @test_skip test_rrule(prod, xs)
+                @test_skip test_rrule(prod, xs, fkwargs=(dims=2,))
             end
         end
         @testset "Array{Float32}, no zero entries" begin

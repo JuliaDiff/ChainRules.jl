@@ -14,6 +14,17 @@ if VERSION ≥ v"1.4"
 
     function rrule(::typeof(evalpoly), x, p)
         y, ys = _evalpoly_intermediates(x, p)
+        project_x = ProjectTo(x)
+        project_p = p isa Tuple ? identity : ProjectTo(p)
+        function evalpoly_pullback(Δy)
+            ∂x, ∂p = _evalpoly_back(x, p, ys, Δy)
+            return NoTangent(), project_x(∂x), project_p(∂p)
+        end
+        return y, evalpoly_pullback
+    end
+
+    function rrule(::typeof(evalpoly), x, p::Vector{<:Matrix}) # does not type infer with ProjectTo
+        y, ys = _evalpoly_intermediates(x, p)
         function evalpoly_pullback(Δy)
             ∂x, ∂p = _evalpoly_back(x, p, ys, Δy)
             return NoTangent(), ∂x, ∂p
