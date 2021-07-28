@@ -15,16 +15,12 @@
     @testset "Diagonal" begin
         N = 3
         D = Diagonal(randn(N))
+        T = Tangent{Diagonal}(diag=rand(3))
         test_rrule(Diagonal, randn(N); output_tangent=D)
+        test_rrule(Diagonal, randn(N); output_tangent=T)
         # Concrete type instead of UnionAll
         test_rrule(typeof(D), randn(N); output_tangent=D)
-
-        # TODO: replace this with a `rrule_test` once we have that working
-        # see https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/24
-        res, pb = rrule(Diagonal, [1, 4])
-        @test pb(10*res) == (NoTangent(), [10, 40])
-        comp = Tangent{typeof(res)}(; diag=10*res.diag)  # this is the structure of Diagonal
-        @test pb(comp) == (NoTangent(), [10, 40])
+        test_rrule(typeof(D), randn(N); output_tangent=T)
     end
     @testset "dot(x, ::Diagonal, y)" begin
         N = 4
