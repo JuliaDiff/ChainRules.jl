@@ -98,20 +98,6 @@
 @non_differentiable any(::Any, ::Any)
 @non_differentiable argmax(::Any)
 @non_differentiable argmin(::Any)
-#=
-
-julia> gradient(argmax, rand(5))
-ERROR: MethodError: Cannot `convert` an object of type Bool to an object of type ChainRulesCore.ZeroTangent
-Closest candidates are:
-  convert(::Type{T}, ::T) where T at essentials.jl:218
-Stacktrace:
-  [1] fill!(dest::Vector{ChainRulesCore.ZeroTangent}, x::Bool)
-    @ Base ./array.jl:351
-  [2] (::ChainRules.var"#1191#1194"{ChainRulesCore.ZeroTangent, Vector{Float64}, ChainRulesCore.ProjectTo{AbstractArray, NamedTuple{(:element, :axes), Tuple{ChainRulesCore.ProjectTo{Float64, NamedTuple{(), Tuple{}}}, Tuple{Base.OneTo{Int64}}}}}, Int64})()
-    @ ChainRules ~/.julia/dev/ChainRules/src/rulesets/Base/array.jl:312
-  [3] unthunk
-
-=#
 @non_differentiable ascii(::AbstractString)
 @non_differentiable axes(::Any)
 @non_differentiable axes(::Any, ::Any)
