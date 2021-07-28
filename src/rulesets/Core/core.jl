@@ -18,3 +18,8 @@ function rrule(::typeof(ifelse), c, a, b)
     ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, ZeroTangent()), ifelse(c, ZeroTangent(), Δ))
     return ifelse(c, a, b), ifelse_pullback
 end
+# ensure type stability for numbers
+function rrule(::typeof(ifelse), c, a::Number, b::Number)
+    ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, zero(Δ)), ifelse(c, zero(Δ), Δ))
+    return ifelse(c, a, b), ifelse_pullback
+end
