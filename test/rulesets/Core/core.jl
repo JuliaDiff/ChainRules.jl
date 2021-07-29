@@ -7,6 +7,6 @@ end
     test_rrule(ifelse, true ⊢ NoTangent(), 1.0, 2.0)
     test_frule(ifelse, false ⊢ NoTangent(), 1.0, 2.0)
 
-    test_rrule(ifelse, true ⊢ NoTangent(), [1.0], [2.0])
-    test_frule(ifelse, false ⊢ NoTangent(), [1.0], [2.0])
+    test_rrule(ifelse, true ⊢ NoTangent(), [1.0], [2.0]; check_inferred=false)
+    test_frule(ifelse, false ⊢ NoTangent(), [1.0], [2.0]; check_inferred=false)
 end
