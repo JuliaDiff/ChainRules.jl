@@ -7,7 +7,7 @@
 @non_differentiable Core.isdefined(::Any, ::Any)
 @non_differentiable Core.:(<:)(::Any, ::Any)
 
-@non_differentiable Core.apply_type(::Type, ::Any...)
+@non_differentiable Core.apply_type(::Any, ::Any...)
 @non_differentiable Core.typeof(::Any)
 
 frule((_, ẋ, _), ::typeof(typeassert), x, T) = (typeassert(x, T), ẋ)
