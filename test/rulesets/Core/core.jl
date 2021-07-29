@@ -4,9 +4,9 @@
 end
 
 @testset "ifelse" begin
-    test_rrule(typeassert, true ⊢ NoTangent(), 1.0, 2.0)
-    test_frule(typeassert, false ⊢ NoTangent(), 1.0, 2.0)
+    test_rrule(ifelse, true ⊢ NoTangent(), 1.0, 2.0)
+    test_frule(ifelse, false ⊢ NoTangent(), 1.0, 2.0)
 
-    test_rrule(typeassert, true ⊢ NoTangent(), [1.0], [2.0])
-    test_frule(typeassert, false ⊢ NoTangent(), [1.0], [2.0])
+    test_rrule(ifelse, true ⊢ NoTangent(), [1.0], [2.0])
+    test_frule(ifelse, false ⊢ NoTangent(), [1.0], [2.0])
 end
