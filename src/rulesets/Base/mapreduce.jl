@@ -225,19 +225,20 @@ end
 
 function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims::Integer=1)
     y = cumprod(x; dims=dims)  # does nothing unless dims == 1
+    project_x = ProjectTo(x)
     function cumprod_pullback_1(dy)
         dx_thunk = InplaceableThunk(
-            @thunk if dims == 1
-                ∇cumprod(x, dy, y)
-            else
-                dy
-            end
-            ,
             dx -> if dims == 1
                 ∇cumprod!(dx, x, dy, y)
             else
                 dx .+= dy
             end
+            ,
+            @thunk project_x(if dims == 1
+                ∇cumprod(x, dy, y)
+            else
+                dy
+            end)
             )
         return (NO_FIELDS, dx_thunk)
     end
@@ -246,21 +247,22 @@ end
 
 function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims::Integer)
     y = cumprod(x; dims=dims)
+    project_x = ProjectTo(x)
     function cumprod_pullback_2(dy)
         dx_thunk = InplaceableThunk(
-            @thunk if dims <= ndims(x)
-                vald = Val(Int(dims))
-                ∇cumprod_dim(vald, x, dy, y)
-            else
-                dy
-            end
-            ,
             dx -> if dims <= ndims(x)
                 vald = Val(Int(dims))
                 ∇cumprod_dim!(dx, vald, x, dy, y)
             else
                 dx .+= dy
             end
+            ,
+            @thunk project_x(if dims <= ndims(x)
+                vald = Val(Int(dims))
+                ∇cumprod_dim(vald, x, dy, y)
+            else
+                dy
+            end)
             )
         return (NO_FIELDS, dx_thunk)
     end
