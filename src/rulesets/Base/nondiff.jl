@@ -462,8 +462,8 @@ VERSION >= v"1.1" && @non_differentiable Sys.isopenbsd(::Symbol)
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
 
-@non_differentiable similar(::Any...)
 @non_differentiable eltype(::Type)
+@non_differentiable similar(::Any...)
 
 @non_differentiable one(::Any)
 @non_differentiable ones(::Any...)
