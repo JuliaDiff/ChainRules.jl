@@ -418,58 +418,47 @@ end
 
 # These functions pick the same subgradient as findmax:
 
-# function rrule(::typeof(maximum), x::AbstractArray{<:Number}; dims=:)
-#     (y, _), back = rrule(findmax, x; dims=dims)
-#     maximum_pullback(dy) = back((dy, nothing))
-#     return y, maximum_pullback
-# end
+function rrule(::typeof(maximum), x::AbstractArray{<:Number}; dims=:)
+    (y, _), back = rrule(findmax, x; dims=dims)
+    maximum_pullback(dy) = back((dy, nothing))
+    return y, maximum_pullback
+end
 
-# function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
-#     (y, _), back = rrule(findmin, x; dims=dims)
-#     minimum_pullback(dy) = back((dy, nothing))
-#     return y, minimum_pullback
-# end
+function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
+    (y, _), back = rrule(findmin, x; dims=dims)
+    minimum_pullback(dy) = back((dy, nothing))
+    return y, minimum_pullback
+end
 
 # These variants pick the symmetric convention,
 # they are a bit slower.
 
-function rrule(::typeof(maximum), x::AbstractArray; dims=:)
-    y = maximum(x; dims=dims)
-    mask = (y .== x)  # allocates & closes over a BitArray thefull  size of x
-    count = sum(mask; dims=dims)  # similar allocations to storing ind, if dims=1 etc.
-    project = ProjectTo(x)
-    function maximum_pullback(dy)
-        x_ithunk = InplaceableThunk(
-            dx -> dx .+= mask .* dy ./ count,
-            @thunk(project(mask .* dy ./ count),)
-        )
-        return (NoTangent(), x_ithunk)
-    end
-    return y, maximum_pullback
-end
-
-function rrule(::typeof(minimum), x::AbstractArray; dims=:)
-    y = minimum(x; dims=dims)
-    mask = (y .== x)
-    count = sum(mask; dims=dims)
-    project = ProjectTo(x)
-    function minimum_pullback(dy)
-        x_ithunk = InplaceableThunk(
-            dx -> dx .+= mask .* dy ./ count,
-            @thunk(project(mask .* dy ./ count),)
-        )
-        return (NoTangent(), x_ithunk)
-    end
-    return y, minimum_pullback
-end
-
-# function rrule(::typeof(argmax), x::AbstractArray{<:Number}; dims=:)
-#     argmax_pullback(dy) = (NoTangent(), NoTangent())
-#     return argmax(x), argmax_pullback
+# function rrule(::typeof(maximum), x::AbstractArray; dims=:)
+#     y = maximum(x; dims=dims)
+#     mask = (y .== x)  # allocates & closes over a BitArray thefull  size of x
+#     count = sum(mask; dims=dims)  # similar allocations to storing ind, if dims=1 etc.
+#     project = ProjectTo(x)
+#     function maximum_pullback(dy)
+#         x_ithunk = InplaceableThunk(
+#             dx -> dx .+= mask .* dy ./ count,
+#             @thunk(project(mask .* dy ./ count),)
+#         )
+#         return (NoTangent(), x_ithunk)
+#     end
+#     return y, maximum_pullback
 # end
 
-# function rrule(::typeof(argmin), x::AbstractArray{<:Number}; dims=:)
-#     argmin_pullback(dy) = (NoTangent(), NoTangent())
-#     return argmin(x), argmin_pullback
+# function rrule(::typeof(minimum), x::AbstractArray; dims=:)
+#     y = minimum(x; dims=dims)
+#     mask = (y .== x)
+#     count = sum(mask; dims=dims)
+#     project = ProjectTo(x)
+#     function minimum_pullback(dy)
+#         x_ithunk = InplaceableThunk(
+#             dx -> dx .+= mask .* dy ./ count,
+#             @thunk(project(mask .* dy ./ count),)
+#         )
+#         return (NoTangent(), x_ithunk)
+#     end
+#     return y, minimum_pullback
 # end
-
