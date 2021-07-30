@@ -6,23 +6,26 @@ end
 Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
 @testset "random" begin
-    @testset "MersenneTwister" begin
+    rng_types = [MersenneTwister]
+    isdefined(Random, :Xoshiro) && push!(rng_types, getfield(Random, :Xoshiro))
+    
+    @testset "$Rng" for Rng in rng_types
         @testset "no args" begin
-            rng, dΩ = frule((5.0,), MersenneTwister)
-            @test rng isa MersenneTwister
+            rng, dΩ = frule((5.0,), Rng)
+            @test rng isa Rng
             @test dΩ isa ZeroTangent
 
-            rng, pb = rrule(MersenneTwister)
-            @test rng isa MersenneTwister
+            rng, pb = rrule(Rng)
+            @test rng isa Rng
             @test first(pb(10)) isa typeof(NoTangent())
         end
         @testset "unary" begin
-            rng, dΩ = frule((5.0, 4.0), MersenneTwister, 123)
-            @test rng isa MersenneTwister
+            rng, dΩ = frule((5.0, 4.0), Rng, 123)
+            @test rng isa Rng
             @test dΩ isa ZeroTangent
 
-            rng, pb = rrule(MersenneTwister, 123)
-            @test rng isa MersenneTwister
+            rng, pb = rrule(Rng, 123)
+            @test rng isa Rng
             @test all(map(x -> x isa AbstractZero, pb(10)))
         end
     end
@@ -37,6 +40,11 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             ((Float32,(2,2)), Matrix{<:Float32}),
             ((2,2), Matrix{<:Float64}),
         ]
+        if isdefined(Random, :Xoshiro)
+            Xoshiro = getfield(Random, :Xoshiro)
+            push!(non_differentiables, ((Xoshiro(123),), Float64))
+            push!(non_differentiables, ((Xoshiro(123),2,2), Matrix{<:Float64}))
+        end
 
         for (args, xType) in non_differentiables
             x, dΩ = frule((ZeroTangent(), randn(args...)), rand, args...)

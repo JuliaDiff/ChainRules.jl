@@ -1,10 +1,10 @@
-frule(Δargs, ::Type{MersenneTwister}, args...) = MersenneTwister(args...), ZeroTangent()
+frule(Δargs, T::Type{<:AbstractRNG}, args...) = T(args...), ZeroTangent()
 
-function rrule(::Type{MersenneTwister}, args...)
-    function MersenneTwister_pullback(ΔΩ)
+function rrule(T::Type{<:AbstractRNG}, args...)
+    function AbstractRNG_pullback(ΔΩ)
         return (NoTangent(), map(_ -> ZeroTangent(), args)...)
     end
-    return MersenneTwister(args...), MersenneTwister_pullback
+    return T(args...), AbstractRNG_pullback
 end
 
 @non_differentiable Broadcast.broadcastable(::AbstractRNG)
