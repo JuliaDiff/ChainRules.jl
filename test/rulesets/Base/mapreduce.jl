@@ -187,7 +187,7 @@ end
             @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1) # forward pass fails, so can't test gradient
 
             back = rrule(cumprod, Diagonal([1, 2]); dims=1)[2]
-            @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 3/2; 1/2 0]
+            @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 0; 0 0]  # ProjectTo'd to Diagonal now
         end
     end
 end
