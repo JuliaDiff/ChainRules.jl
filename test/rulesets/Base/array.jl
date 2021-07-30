@@ -206,17 +206,26 @@ end
     test_rrule(extrema, rand(1), output_tangent = (rand(), rand()), check_inferred=false)
 end
 
-@testset "$f" for f in [findmax, findmin]
-    @test_skip test_rrule(f, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error?
-    @test_skip test_rrule(f, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), 999), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
+@testset "$findm" for findm in [findmax, findmin]
+    @test_skip test_rrule(findm, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error?
+    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), 999), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
 end
+    @test rrule(findmax, [1,2,33])[1] == (33, 3)
+    @test rrule(findmin, [11,22,33])[1] == (11, 1)
 
-@testset "$f" for f in [maximum, minimum]
-    test_rrule(f, rand(10))
-    test_rrule(f, rand(3,4))
-    test_rrule(f, rand(3,4), fkwargs=(dims=1,))
-    test_rrule(f, rand(3,4,5), fkwargs=(dims=(1,3),))
-    # Case which attains max twice -- finite diff picks symmetric subgradient
-    test_rrule(f, Float64[1,2,-1,-2,0,2,-2])
-    @test_skip test_rrule(f, Float64[1,2,-1,-2,0,2,-2,2,-2]) # ... three times, fails!
+    @test [0,0,1] == @inferred unthunk(rrule(findmax, [1,2,3])[2]((1.0, nothing))[2])
+    @test [1,0,0] == @inferred unthunk(rrule(findmin, [1,2,3])[2]((1.0, nothing))[2])
+
+    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5, nothing))[2])
+    @test [5 0; 0 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4])[2]((5, nothing))[2])
+
+
+@testset "$imum" for imum in [maximum, minimum]
+    test_rrule(imum, rand(10))
+    test_rrule(imum, rand(3,4))
+    test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
+    test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
+    # Case which attains max twice:
+    @test_skip test_rrule(imum, Float64[1,2,-1,-2,0,2,-2])  # finite diff picks symmetric subgradient?
+    @test_skip test_rrule(imum, Float64[1,2,-1,-2,0,2,-2,2,-2])  # finite diff does something else.
 end
