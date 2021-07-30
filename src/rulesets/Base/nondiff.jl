@@ -128,6 +128,7 @@
 @non_differentiable eachline(::AbstractString)
 @non_differentiable eachline(::IO)
 @non_differentiable eachmatch(::Regex, ::AbstractString)
+@non_differentiable eltype(::Type)
 @non_differentiable endswith(::AbstractString, ::AbstractString)
 @non_differentiable endswith(::AbstractString, ::Regex)
 @non_differentiable eof(::Any)

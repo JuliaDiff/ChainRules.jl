@@ -7,5 +7,22 @@
 @non_differentiable Core.isdefined(::Any, ::Any)
 @non_differentiable Core.:(<:)(::Any, ::Any)
 
-@non_differentiable Core.apply_type(::Any, ::Any)
+@non_differentiable Core.apply_type(::Any, ::Any...)
 @non_differentiable Core.typeof(::Any)
+
+frule((_, ẋ, _), ::typeof(typeassert), x, T) = (typeassert(x, T), ẋ)
+function rrule(::typeof(typeassert), x, T)
+    typeassert_pullback(Δ) = (NoTangent(), Δ, NoTangent())
+    return typeassert(x, T), typeassert_pullback
+end
+
+frule((_, _, ȧ, ḃ), ::typeof(ifelse), c, a, b) = (ifelse(c, a, b), ifelse(c, ȧ, ḃ))
+function rrule(::typeof(ifelse), c, a, b)
+    ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, ZeroTangent()), ifelse(c, ZeroTangent(), Δ))
+    return ifelse(c, a, b), ifelse_pullback
+end
+# ensure type stability for numbers
+function rrule(::typeof(ifelse), c, a::Number, b::Number)
+    ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, zero(Δ)), ifelse(c, zero(Δ), Δ))
+    return ifelse(c, a, b), ifelse_pullback
+end
