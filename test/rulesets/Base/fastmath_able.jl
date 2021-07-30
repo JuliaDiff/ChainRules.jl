@@ -182,6 +182,15 @@ const FASTABLE_AST = quote
                 @test ∂y ≈ 0
             end
         end
+
+        @testset "edge cases with ^" begin
+            # FIXME
+            @test_skip test_frule(^, 0.0, rand() + 3 ⊢ NoTangent(); fdm=forward_fdm(5,1))
+            test_rrule(^, 0.0, rand() + 3; fdm=forward_fdm(5,1))
+
+            test_frule(^, 0.0, 1.0 ⊢ NoTangent(); fdm=forward_fdm(5,1))
+            test_rrule(^, 0.0, 1.0; fdm=forward_fdm(5,1))
+        end
     end
 
     @testset "sign" begin

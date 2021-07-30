@@ -168,11 +168,18 @@ end
 # note: rules for ^ are defined in the fastmath_able.jl
 function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
     y = Base.literal_pow(^, x, pv)
-    return y, (p * y / x * Δx)
+    return y, ifelse(iszero(x), zero(y), p * y / x * Δx)
 end
+frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{1}) = x^1, Δx
 
 function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
     y = Base.literal_pow(^, x, pv)
-    literal_pow_pullback(dy) = NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
+    function literal_pow_pullback(dy)
+        return NoTangent(), NoTangent(), ifelse(iszero(x), zero(y), p * y / x * dy), NoTangent()
+    end
     return y, literal_pow_pullback
+end
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{1})
+    literal_pow_one_pullback(dy) = NoTangent(), NoTangent(), dy, NoTangent()
+    return x^1, literal_pow_one_pullback
 end
