@@ -10,6 +10,12 @@
 @non_differentiable Core.apply_type(::Any, ::Any...)
 @non_differentiable Core.typeof(::Any)
 
+if isdefined(Core, :_typevar)
+    @non_differentiable Core._typevar(::Any...)
+end
+@non_differentiable TypeVar(::Any...)
+@non_differentiable UnionAll(::Any, ::Any)
+
 frule((_, ẋ, _), ::typeof(typeassert), x, T) = (typeassert(x, T), ẋ)
 function rrule(::typeof(typeassert), x, T)
     typeassert_pullback(Δ) = (NoTangent(), Δ, NoTangent())
