@@ -164,14 +164,16 @@ let
         @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
         #log(complex(x)) is required so it gives correct complex answer for x<0
-        @scalar_rule(x ^ y,
-            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
-        )
+        @scalar_rule(x ^ y, (
+            ifelse(iszero(x), ifelse(isone(y), one(Ω), zero(Ω)), y * Ω / x),
+            Ω * log(complex(x)),
+        ))
         # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
         # is undefined, so we adopt subgradient convention and set derivative to 0.
-        @scalar_rule(x::Real ^ y::Real,
-            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x)))),
-        )
+        @scalar_rule(x::Real ^ y::Real, (
+            ifelse(iszero(x), ifelse(isone(y), one(Ω), zero(Ω)), y * Ω / x),
+            Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x))),
+        ))
         @scalar_rule(
             rem(x, y),
             @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),

@@ -192,6 +192,15 @@
         # for real x and n, x must be >0
         test_frule(Base.literal_pow, ^, 3.5, Val(3))
         test_rrule(Base.literal_pow, ^, 3.5, Val(3))
+
+        test_frule(Base.literal_pow, ^, 0.0, Val(3))
+        test_rrule(Base.literal_pow, ^, 0.0, Val(3))
+
+        test_frule(Base.literal_pow, ^, 3.5, Val(1))
+        test_rrule(Base.literal_pow, ^, 3.5, Val(1))
+
+        test_frule(Base.literal_pow, ^, 0.0, Val(1))
+        test_rrule(Base.literal_pow, ^, 0.0, Val(1))
     end
 
     @testset "Float conversions" begin
