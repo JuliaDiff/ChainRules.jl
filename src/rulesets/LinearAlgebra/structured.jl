@@ -107,6 +107,7 @@ end
 _Adjoint_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
 _Adjoint_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(adjoint(ȳ)))
 _Adjoint_mat_pullback(ȳ::AbstractThunk, proj) = return _Adjoint_mat_pullback(unthunk(ȳ), proj)
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _Adjoint_mat_pullback(ȳ::AbstractZero, proj) = (NoTangent(), proj(ȳ))
 function rrule(::Type{<:Adjoint}, A::AbstractMatrix{<:Number})
     project_A = ProjectTo(A)
@@ -117,6 +118,7 @@ end
 _Adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _Adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
 _Adjoint_vec_pullback(ȳ::AbstractThunk) = return _Adjoint_vec_pullback(unthunk(ȳ))
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _Adjoint_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Adjoint}, A::AbstractVector{<:Number})
     return Adjoint(A), _Adjoint_vec_pullback
@@ -125,6 +127,7 @@ end
 _adjoint_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
 _adjoint_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(adjoint(ȳ)))
 _adjoint_mat_pullback(ȳ::AbstractThunk, proj) = return _adjoint_mat_pullback(unthunk(ȳ), proj)
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _adjoint_mat_pullback(ȳ::AbstractZero, proj) = (NoTangent(), proj(ȳ))
 function rrule(::typeof(adjoint), A::AbstractMatrix{<:Number})
     project_A = ProjectTo(A)
@@ -135,6 +138,7 @@ end
 _adjoint_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _adjoint_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(adjoint(ȳ)))
 _adjoint_vec_pullback(ȳ::AbstractThunk) = return _adjoint_vec_pullback(unthunk(ȳ))
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _adjoint_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(adjoint), A::AbstractVector{<:Number})
     return adjoint(A), _adjoint_vec_pullback
@@ -149,6 +153,7 @@ end
 _Transpose_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
 _Transpose_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(Transpose(ȳ)))
 _Transpose_mat_pullback(ȳ::AbstractThunk, proj) = return _Transpose_mat_pullback(unthunk(ȳ), proj)
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _Transpose_mat_pullback(ȳ::AbstractZero, proj) = (NoTangent(), proj(ȳ))
 function rrule(::Type{<:Transpose}, A::AbstractMatrix{<:Number})
     project_A = ProjectTo(A)
@@ -159,6 +164,7 @@ end
 _Transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _Transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(Transpose(ȳ)))
 _Transpose_vec_pullback(ȳ::AbstractThunk) = return _Transpose_vec_pullback(unthunk(ȳ))
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _Transpose_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::Type{<:Transpose}, A::AbstractVector{<:Number})
     return Transpose(A), _Transpose_vec_pullback
@@ -167,6 +173,7 @@ end
 _transpose_mat_pullback(ȳ::Tangent, proj) = (NoTangent(), proj(ȳ.parent))
 _transpose_mat_pullback(ȳ::AbstractVecOrMat, proj) = (NoTangent(), proj(transpose(ȳ)))
 _transpose_mat_pullback(ȳ::AbstractThunk, proj) = return _transpose_mat_pullback(unthunk(ȳ), proj)
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _transpose_mat_pullback(ȳ::AbstractZero, proj) = (NoTangent(), proj(ȳ))
 function rrule(::typeof(transpose), A::AbstractMatrix{<:Number})
     project_A = ProjectTo(A)
@@ -177,6 +184,7 @@ end
 _transpose_vec_pullback(ȳ::Tangent) = (NoTangent(), vec(ȳ.parent))
 _transpose_vec_pullback(ȳ::AbstractMatrix) = (NoTangent(), vec(transpose(ȳ)))
 _transpose_vec_pullback(ȳ::AbstractThunk) = return _transpose_vec_pullback(unthunk(ȳ))
+# currently needed by Diffractor (ref https://github.com/JuliaDiff/Diffractor.jl/issues/25)
 _transpose_vec_pullback(ȳ::AbstractZero) = (NoTangent(), ȳ)
 function rrule(::typeof(transpose), A::AbstractVector{<:Number})
     return transpose(A), _transpose_vec_pullback
