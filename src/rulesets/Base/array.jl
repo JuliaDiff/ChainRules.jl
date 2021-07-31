@@ -350,7 +350,6 @@ end
 function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
     y, ind = findmax(x; dims=dims)
     project = ProjectTo(x)
-    findmax_pullback(::Tuple{AbstractZero, Any}) = (NoTangent(), NoTangent())
     function findmax_pullback((dy, _))
         x_thunk = @thunk begin
             dx = fill!(similar(x, eltype(dy)), false)
@@ -363,13 +362,15 @@ function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
         end
         return (NoTangent(), x_ithunk)
     end
+    function findmax_pullback(::Tuple{AbstractZero, Any})
+        return (NoTangent(), NoTangent())
+    end
     return (y, ind), findmax_pullback
 end
 
 function rrule(::typeof(findmin), x::AbstractArray{<:Number}; dims=:)
     y, ind = findmin(x; dims=dims)
     project = ProjectTo(x)
-    findmin_pullback(::Tuple{AbstractZero, Any}) = (NoTangent(), NoTangent())
     function findmin_pullback((dy, _))
         x_thunk = @thunk begin
             dx = fill!(similar(x, eltype(dy)), false)
@@ -381,6 +382,9 @@ function rrule(::typeof(findmin), x::AbstractArray{<:Number}; dims=:)
             dx
         end
         return (NoTangent(), x_ithunk)
+    end
+    function findmin_pullback(::Tuple{AbstractZero, Any})
+        return (NoTangent(), NoTangent())
     end
     return (y, ind), findmin_pullback
 end
@@ -403,10 +407,7 @@ function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
     ylo, ilo = findmin(x; dims=dims)
     yhi, ihi = findmax(x; dims=dims)
     project = ProjectTo(x)
-    extrema_pullback(::Tuple{AbstractZero, AbstractZero}) = (NoTangent(), NoTangent())
     function extrema_pullback((dylo, dyhi))
-        # T = promote_type(eltype(dylo), eltype(dyhi))
-        # @show T  # often Any, when dyhi == NoTangent()
         T = if dylo isa AbstractZero
             eltype(dyhi)
         elseif dyhi isa AbstractZero
@@ -427,6 +428,9 @@ function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
             dx
         end
         return (NoTangent(), x_ithunk)
+    end
+    function extrema_pullback(::Tuple{AbstractZero, AbstractZero})
+        return (NoTangent(), NoTangent())
     end
     return (ylo, yhi), extrema_pullback
 end
