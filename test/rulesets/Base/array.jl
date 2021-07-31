@@ -122,6 +122,9 @@ end
     if VERSION >= v"1.6"
         test_rrule(reverse, rand(3,4))
         test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+        # Structured
+        @test unthunk(rrule(reverse, Diagonal([1,2,3]))[2](rand(3,3))[2]) isa Diagonal
     end
 end
 
