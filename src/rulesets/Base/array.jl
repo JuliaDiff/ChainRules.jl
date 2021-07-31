@@ -404,33 +404,63 @@ function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
 end
 
 function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
-    ylo, ilo = findmin(x; dims=dims)
-    yhi, ihi = findmax(x; dims=dims)
+    if dims isa Colon
+        return _extrema_colon(x)
+    else
+        return _extrema_dims(x, dims)
+    end
+end
+
+function _extrema_colon(x)
+    ylo, ilo = findmin(x)
+    yhi, ihi = findmax(x)
     project = ProjectTo(x)
     function extrema_pullback((dylo, dyhi))
-        T = if dylo isa AbstractZero
-            eltype(dyhi)
-        elseif dyhi isa AbstractZero
-            eltype(dylo)
-        else
-            promote_type(eltype(dylo), eltype(dyhi))
-        end
-        x_thunk = @thunk begin
+        # One argument may be AbstractZero here, promote_type allows *, hence gives Any:
+        T = Base.promote_op(+, typeof(dylo), typeof(dyhi))
+        x_nothunk = let
+        # x_thunk = @thunk begin  # this doesn't infer
             dx = fill!(similar(x, T), false)
             view(dx, ilo) .= dylo
-            # view(dx, ihi) .+= dyhi  # illegal on 1.0!
             view(dx, ihi) .= view(dx, ihi) .+ dyhi
             project(dx)
         end
-        x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ilo) .= view(dx, ilo) .+ dylo
-            view(dx, ihi) .= view(dx, ihi) .+ dyhi
-            dx
-        end
-        return (NoTangent(), x_ithunk)
+        # x_ithunk = InplaceableThunk(x_thunk) do dx
+        #     view(dx, ilo) .= view(dx, ilo) .+ dylo
+        #     view(dx, ihi) .= view(dx, ihi) .+ dyhi
+        #     dx
+        # end
+        return (NoTangent(), x_nothunk)
     end
     function extrema_pullback(::Tuple{AbstractZero, AbstractZero})
         return (NoTangent(), NoTangent())
     end
     return (ylo, yhi), extrema_pullback
+end
+
+function _extrema_dims(x, dims)
+    ylo, ilo = findmin(x; dims=dims)
+    yhi, ihi = findmax(x; dims=dims)
+    y = similar(ylo, Tuple{eltype(ylo), eltype(yhi)})
+    map!(tuple, y, ylo, yhi)  # this is a GPU-friendly version of collect(zip(ylo, yhi))
+    project = ProjectTo(x)
+    function extrema_pullback_dims(dy_raw)
+        dy = unthunk(dy_raw)
+        @assert dy isa AbstractArray{<:Tuple{Any,Any}}
+        T = Base.promote_op(+, eltype(dy).parameters...)  # can we actually get Array{Tuple{Float64,ZeroTangent}} here?
+        x_nothunk = let
+        # x_thunk = @thunk begin  # this doesn't infer
+            dx = fill!(similar(x, T), false)
+            view(dx, ilo) .= first.(dy)
+            view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
+            project(dx)
+        end
+        # x_ithunk = InplaceableThunk(x_thunk) do dx
+        #     view(dx, ilo) .= first.(dy)
+        #     view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
+        #     dx
+        # end
+        return (NoTangent(), x_nothunk)
+    end
+    return y, extrema_pullback_dims
 end

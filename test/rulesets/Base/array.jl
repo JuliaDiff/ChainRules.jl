@@ -218,14 +218,15 @@ end
     test_rrule(imum, rand(3,4))
     test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
-    # Case which attains max twice:
-    @test_skip test_rrule(imum, Float64[1,2,-1,-2,0,2,-2])  # finite diff picks symmetric subgradient?
-    @test_skip test_rrule(imum, Float64[1,2,-1,-2,0,2,-2,2,-2])  # finite diff does something else.
+    # Case which attains max twice -- can't use FiniteDifferences for this
+    res = imum == maximum ? [0,1,0,0,0,0] : [1,0,0,0,0,0]
+    @test res == @inferred unthunk(rrule(imum, [1,2,1,2,1,2])[2](1.0)[2])
 end
 
 @testset "extrema" begin
-    test_rrule(extrema, rand(10), output_tangent = (rand(), rand()), check_inferred=false)
-    @test_skip test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), rand(1,4)), check_inferred=false)  # wrong answer?
-    # Case of both extrema are the same index:
-    test_rrule(extrema, rand(1), output_tangent = (rand(), rand()), check_inferred=false)
+    test_rrule(extrema, rand(10), output_tangent = (rand(), rand()))
+    test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = collect(zip(rand(1,4), rand(1,4))))  # wrong answer?
+    # Case of both extrema are the same index, to check accumulation:
+    test_rrule(extrema, rand(1), output_tangent = (rand(), rand()))
+    test_rrule(extrema, rand(1,1), fkwargs=(dims=2,), output_tangent = hcat((rand(), rand())))
 end
