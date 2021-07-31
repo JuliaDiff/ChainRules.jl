@@ -350,10 +350,11 @@ end
 for findm in (:findmin, :findmax)
     findm_pullback = Symbol(findm, :_pullback)
 
-    # @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
-    #     y, ind = $findm(x; dims=dims)
-    #     return (y, ind), (xdot[ind], NoTangent()) # needs to be some Tangent?
-    # end
+    @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
+        y, ind = $findm(x; dims=dims)
+        ydot = (xdot[ind], NoTangent())
+        return (y, ind), Tangent{typeof((y, ind)),typeof(ydot)}(ydot)
+    end
 
     @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
         y, ind = $findm(x; dims=dims)

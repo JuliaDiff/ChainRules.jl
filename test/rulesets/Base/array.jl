@@ -200,13 +200,20 @@ end
 end
 
 @testset "findmin & findmax" begin
+    # Forward
+    test_frule(findmin, rand(10))
+    test_frule(findmax, rand(10))
+    @test_skip test_frule(findmin, rand(3,4)) # StackOverflowError, TypeError: in new, expected Tuple{Int64, Int64}, got a value of type Tuple{Float64, Float64}
+    @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
+
+    # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
     @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
     @test_skip test_rrule(findmin, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error from FiniteDifferences
     @test_skip test_rrule(findmax, rand(5,3), output_tangent = (rand(), false), check_inferred=false)  # error from FiniteDifferences
 
-    # With dims:
+    # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
     @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
@@ -216,6 +223,7 @@ end
 @testset "$imum" for imum in [maximum, minimum]
     # Forward
     test_frule(imum, rand(10))
+    test_frule(imum, rand(3,4))
     test_frule(imum, rand(3,4), fkwargs=(dims=1,))
     # Reverse
     test_rrule(imum, rand(10))
