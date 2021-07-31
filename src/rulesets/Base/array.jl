@@ -272,7 +272,8 @@ function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractVector, start::Int
 end
 
 function rrule(::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
-    reverse_pullback_1(dy) = (NoTangent(), @thunk(reverse(unthunk(dy), start, stop)), NoTangent(), NoTangent())
+    project = ProjectTo(x)
+    reverse_pullback_1(dy) = (NoTangent(), @thunk(project(reverse(unthunk(dy), start, stop))), NoTangent(), NoTangent())
     return reverse(x, start, stop), reverse_pullback_1
 end
 
@@ -284,24 +285,43 @@ function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=:)
 end
 
 function rrule(::typeof(reverse), x::AbstractArray; dims=:)
-    reverse_pullback_2(dy) = (NoTangent(), @thunk reverse(unthunk(dy); dims=dims))
+    project = ProjectTo(x)
+    reverse_pullback_2(dy) = (NoTangent(), @thunk project(reverse(unthunk(dy); dims=dims)))
+    # Note that reverse! is useless for InplaceableThunk, as it takes only one argument
     return reverse(x; dims=dims), reverse_pullback_2
+end
+
+#####
+##### `circshift`
+#####
+
+function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
+    return circshift(x, shifts), circshift(xdot, shifts)
+end
+
+function rrule(::typeof(circshift), x::AbstractArray, shifts)
+    project = ProjectTo(x)
+    function circshift_pullback(dy)
+        dx = @thunk project(circshift(unthunk(dy), map(-, shifts)))
+        # Note that circshift! is useless for InplaceableThunk, as it overwrites completely
+        return (NoTangent(), dx, NoTangent())
+    end
+    return circshift(x, shifts), circshift_pullback
 end
 
 #####
 ##### `fill`
 #####
 
-function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
-    function fill_pullback(Ȳ)
-        return (NoTangent(), sum(Ȳ), NoTangent())
-    end
-    return fill(value, dims), fill_pullback
+function frule((_, xdot), ::typeof(fill), x::Any, dims...)
+    return fill(x, dims...), fill(xdot, dims...)
 end
 
-function rrule(::typeof(fill), value::Any, dims::Int...)
+function rrule(::typeof(fill), x::Any, dims...)
+    valn = Val(length(dims))
+    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
     function fill_pullback(Ȳ)
-        return (NoTangent(), sum(Ȳ), ntuple(_->NoTangent(), length(dims))...)
+        return (NoTangent(), project(sum(Ȳ)), ntuple(_->NoTangent(), valn)...)
     end
-    return fill(value, dims), fill_pullback
+    return fill(x, dims...), fill_pullback
 end

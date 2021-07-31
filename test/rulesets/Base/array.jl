@@ -125,7 +125,24 @@ end
     end
 end
 
+@testset "circshift" begin
+    # Forward
+    test_frule(circshift, rand(10), 1)
+    test_frule(circshift, rand(10), (1,) ⊢ NoTangent())  # surely it's a bug that omitting this gives InexactError: Int64(0.99) and many screens of [34] _make_j′vp_call(fdm::FiniteDifferences.AdaptedFiniteDifferenceMethod{5, 1, ...
+    test_frule(circshift, rand(3,4), (-7,2) ⊢ NoTangent())
+
+    # Reverse
+    test_rrule(circshift, rand(10), 1)
+    test_rrule(circshift, rand(10) .+ im, -2)
+    test_rrule(circshift, rand(10), (1,) ⊢ NoTangent())  # surely it's a bug that omitting this gives InexactError: Int64(0.99) and many screens of [34] _make_j′vp_call(fdm::FiniteDifferences.AdaptedFiniteDifferenceMethod{5, 1, ...
+    test_rrule(circshift, rand(3,4), (-7,2) ⊢ NoTangent())
+end
+
 @testset "fill" begin
-    test_rrule(fill, 44.0, 4; check_inferred=false)
-    test_rrule(fill, 2.0, (3, 3, 3))
+    test_frule(fill, 12.3, 4)
+    test_frule(fill, 5.0, (6, 7) ⊢ NoTangent())
+
+    test_rrule(fill, 44.4, 4)
+    test_rrule(fill, 55 + 0.5im, 5)
+    test_rrule(fill, 3.3, (3, 3, 3) ⊢ NoTangent())
 end
