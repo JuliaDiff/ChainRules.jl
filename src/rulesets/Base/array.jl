@@ -344,49 +344,33 @@ function rrule(::typeof(fill), x::Any, dims...)
 end
 
 #####
-##### `findmax`, `maximum`, `extrema`, etc.
+##### `findmax`, `maximum`, etc.
 #####
 
-function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
-    y, ind = findmax(x; dims=dims)
-    project = ProjectTo(x)
-    function findmax_pullback((dy, _))
-        x_thunk = @thunk begin
-            dx = fill!(similar(x, eltype(dy)), false)
-            view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array cases
-            project(dx)
-        end
-        x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
-            dx
-        end
-        return (NoTangent(), x_ithunk)
-    end
-    function findmax_pullback(::Tuple{AbstractZero, Any})
-        return (NoTangent(), NoTangent())
-    end
-    return (y, ind), findmax_pullback
-end
+for findm in (:findmin, :findmax)
+    findm_pullback = Symbol(findm, :_pullback)
 
-function rrule(::typeof(findmin), x::AbstractArray{<:Number}; dims=:)
-    y, ind = findmin(x; dims=dims)
-    project = ProjectTo(x)
-    function findmin_pullback((dy, _))
-        x_thunk = @thunk begin
-            dx = fill!(similar(x, eltype(dy)), false)
-            view(dx, ind) .= dy
-            project(dx)
+    @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
+        y, ind = $findm(x; dims=dims)
+        project = ProjectTo(x)
+        function $findm_pullback((dy, _))
+            x_thunk = @thunk begin
+                dx = fill!(similar(x, eltype(dy)), false)
+                view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array cases
+                project(dx)
+            end
+            x_ithunk = InplaceableThunk(x_thunk) do dx
+                view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
+                dx
+            end
+            return (NoTangent(), x_ithunk)
         end
-        x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ind) .= view(dx, ind) .+ dy
-            dx
+        function findmax_pullback(::Tuple{AbstractZero, Any})
+            return (NoTangent(), NoTangent())
         end
-        return (NoTangent(), x_ithunk)
+        return (y, ind), $findm_pullback
     end
-    function findmin_pullback(::Tuple{AbstractZero, Any})
-        return (NoTangent(), NoTangent())
-    end
-    return (y, ind), findmin_pullback
+
 end
 
 # These functions pick the same subgradient as findmax:
@@ -402,6 +386,10 @@ function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
     minimum_pullback(dy) = back((dy, nothing))
     return y, minimum_pullback
 end
+
+#####
+##### `extrema`
+#####
 
 function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
     if dims isa Colon

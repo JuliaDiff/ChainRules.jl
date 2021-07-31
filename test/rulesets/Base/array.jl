@@ -199,14 +199,19 @@ end
     test_rrule(fill, 3.3, (3, 3, 3))
 end
 
-@testset "$findm" for findm in [findmax, findmin]
-    @test_skip test_rrule(findm, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error from FiniteDifferences
-    test_rrule(findm, rand(10), output_tangent = (rand(), false))
-    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
-    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
-end
+@testset "findmin & findmax" begin
+    test_rrule(findmin, rand(10), output_tangent = (rand(), false))
+    test_rrule(findmax, rand(10), output_tangent = (rand(), false))
+    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test_skip test_rrule(findmin, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error from FiniteDifferences
+    @test_skip test_rrule(findmax, rand(5,3), output_tangent = (rand(), false), check_inferred=false)  # error from FiniteDifferences
+
+    # With dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
+    @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
+    @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
+end
 
 @testset "$imum" for imum in [maximum, minimum]
     test_rrule(imum, rand(10))
