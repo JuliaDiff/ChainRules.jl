@@ -214,6 +214,10 @@ end
 end
 
 @testset "$imum" for imum in [maximum, minimum]
+    # Forward
+    test_frule(imum, rand(10))
+    test_frule(imum, rand(3,4), fkwargs=(dims=1,))
+    # Reverse
     test_rrule(imum, rand(10))
     test_rrule(imum, rand(3,4))
     test_rrule(imum, rand(3,4), fkwargs=(dims=1,))

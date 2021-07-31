@@ -350,13 +350,18 @@ end
 for findm in (:findmin, :findmax)
     findm_pullback = Symbol(findm, :_pullback)
 
+    # @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
+    #     y, ind = $findm(x; dims=dims)
+    #     return (y, ind), (xdot[ind], NoTangent()) # needs to be some Tangent?
+    # end
+
     @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
         y, ind = $findm(x; dims=dims)
         project = ProjectTo(x)
         function $findm_pullback((dy, _))
             x_thunk = @thunk begin
                 dx = fill!(similar(x, eltype(dy)), false)
-                view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array cases
+                view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
                 project(dx)
             end
             x_ithunk = InplaceableThunk(x_thunk) do dx
@@ -365,7 +370,7 @@ for findm in (:findmin, :findmax)
             end
             return (NoTangent(), x_ithunk)
         end
-        function findmax_pullback(::Tuple{AbstractZero, Any})
+        function $findm_pullback(::Tuple{AbstractZero, Any})
             return (NoTangent(), NoTangent())
         end
         return (y, ind), $findm_pullback
@@ -373,12 +378,22 @@ for findm in (:findmin, :findmax)
 
 end
 
-# These functions pick the same subgradient as findmax:
+# These rules for maximum pick the same subgradient as findmax:
+
+function frule((_, xdot), ::typeof(maximum), x; dims=:)
+    y, ind = findmax(x; dims=dims)
+    return y, xdot[ind]
+end
 
 function rrule(::typeof(maximum), x::AbstractArray{<:Number}; dims=:)
     (y, _), back = rrule(findmax, x; dims=dims)
     maximum_pullback(dy) = back((dy, nothing))
     return y, maximum_pullback
+end
+
+function frule((_, xdot), ::typeof(minimum), x; dims=:)
+    y, ind = findmin(x; dims=dims)
+    return y, xdot[ind]
 end
 
 function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
