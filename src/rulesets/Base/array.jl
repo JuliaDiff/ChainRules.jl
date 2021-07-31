@@ -277,14 +277,15 @@ function rrule(::typeof(reverse), x::AbstractVector, start::Integer, stop::Integ
     return reverse(x, start, stop), reverse_pullback_1
 end
 
-# N-dim case takes dims keyword, which in Julia 1.6 defaults to (:).
-# In Julia 1.0 this has no default and must be an integer.
+# N-dim case takes dims keyword
 
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=:)
+const _REV_DIMS = VERSION >= v"1.6-" ? Colon() : 1
+
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=_REV_DIMS)
     return reverse(x; dims=dims), reverse(xdot; dims=dims)
 end
 
-function rrule(::typeof(reverse), x::AbstractArray; dims=:)
+function rrule(::typeof(reverse), x::AbstractArray; dims=_REV_DIMS)
     project = ProjectTo(x)
     reverse_pullback_2(dy) = (NoTangent(), @thunk project(reverse(unthunk(dy); dims=dims)))
     # Note that reverse! is useless for InplaceableThunk, as it takes only one argument
