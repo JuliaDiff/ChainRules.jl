@@ -205,15 +205,8 @@ end
     @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
     @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
 end
-    @test rrule(findmax, [1,2,33])[1] == (33, 3)
-    @test rrule(findmin, [11,22,33])[1] == (11, 1)
-
-    @test [0,0,1] == @inferred unthunk(rrule(findmax, [1,2,3])[2]((1.0, nothing))[2])
-    @test [1,0,0] == @inferred unthunk(rrule(findmin, [1,2,3])[2]((1.0, nothing))[2])
-
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5, nothing))[2])
-    @test [5 0; 0 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4])[2]((5, nothing))[2])
-
+    @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
+    @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
 
 @testset "$imum" for imum in [maximum, minimum]
     test_rrule(imum, rand(10))
