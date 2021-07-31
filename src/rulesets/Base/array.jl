@@ -262,6 +262,33 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
 end
 
 #####
+##### `reverse`
+#####
+
+# 1-dim case allows start/stop
+
+function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
+    return reverse(x, start, stop), reverse(xdot, start, stop)
+end
+
+function rrule(::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
+    reverse_pullback_1(dy) = (NoTangent(), @thunk(reverse(unthunk(dy), start, stop)), NoTangent(), NoTangent())
+    return reverse(x, start, stop), reverse_pullback_1
+end
+
+# N-dim case takes dims keyword, which in Julia 1.6 defaults to (:).
+# In Julia 1.0 this has no default and must be an integer.
+
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=:)
+    return reverse(x; dims=dims), reverse(xdot; dims=dims)
+end
+
+function rrule(::typeof(reverse), x::AbstractArray; dims=:)
+    reverse_pullback_2(dy) = (NoTangent(), @thunk reverse(unthunk(dy); dims=dims))
+    return reverse(x; dims=dims), reverse_pullback_2
+end
+
+#####
 ##### `fill`
 #####
 
