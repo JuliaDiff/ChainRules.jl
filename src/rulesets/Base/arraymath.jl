@@ -145,12 +145,12 @@ if VERSION > v"1.7.0-DEV.1284"
         AB  = mat_mat_scalar(A, B, one(γ))  # one(γ) allows for γ having a wider type than A, B
         function mat_mat_scalar_back(Ȳ)
             Athunk = InplaceableThunk(
-                @thunk(mat_mat_scalar(Ȳ, B', conj(γ))),
                 dA -> mul!(dA, Ȳ, B', conj(γ), true),
+                @thunk(mat_mat_scalar(Ȳ, B', conj(γ))),
             )
             Bthunk = InplaceableThunk(
-                @thunk(mat_mat_scalar(A', Ȳ, conj(γ))),
                 dB -> mul!(dB, A', Ȳ, conj(γ), true),
+                @thunk(mat_mat_scalar(A', Ȳ, conj(γ))),
             )
             γthunk = @thunk if iszero(γ)
                 dot(AB, Ȳ)
@@ -176,12 +176,12 @@ if VERSION > v"1.7.0-DEV.1284"
         Ab  = mat_vec_scalar(A, b, one(γ))
         function mat_vec_scalar_back(dy)
             Athunk = InplaceableThunk(
-                @thunk(mat_mat_scalar(dy, b', conj(γ))),
                 dA -> mul!(dA, dy, b', conj(γ), true),
+                @thunk(mat_mat_scalar(dy, b', conj(γ))),
             )
             Bthunk = InplaceableThunk(
-                @thunk(mat_mat_scalar(A', dy, conj(γ))),
                 db -> mul!(db, A', dy, conj(γ), true),
+                @thunk(mat_mat_scalar(A', dy, conj(γ))),
             )
             γthunk = @thunk if iszero(γ)
                 dot(Ab, dy)
