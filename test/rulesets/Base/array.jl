@@ -203,15 +203,17 @@ end
     # Forward
     test_frule(findmin, rand(10))
     test_frule(findmax, rand(10))
-    @test_skip test_frule(findmin, rand(3,4)) # StackOverflowError, TypeError: in new, expected Tuple{Int64, Int64}, got a value of type Tuple{Float64, Float64}
+    @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4))) isa Tuple{Tuple{Float64, CartesianIndex}, Tangent}
+    @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4), dims=1)) isa Tuple{Tuple{Matrix, Matrix}, Tangent}
+    @test_skip test_frule(findmin, rand(3,4)) # StackOverflowError, CartesianIndex{2}(index::Tuple{Float64, Float64}) (repeats 79984 times) & TypeError: in new, expected Tuple{Int64, Int64}, got a value of type Tuple{Float64, Float64}
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
     @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test_skip test_rrule(findmin, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error from FiniteDifferences
-    @test_skip test_rrule(findmax, rand(5,3), output_tangent = (rand(), false), check_inferred=false)  # error from FiniteDifferences
+    @test_skip test_rrule(findmin, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # DimensionMismatch from FiniteDifferences
+    @test_skip test_rrule(findmax, rand(5,3), output_tangent = (rand(), false), check_inferred=false)  # DimensionMismatch from FiniteDifferences
 
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])

@@ -352,8 +352,7 @@ for findm in (:findmin, :findmax)
 
     @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
         y, ind = $findm(x; dims=dims)
-        ydot = (xdot[ind], NoTangent())
-        return (y, ind), Tangent{typeof((y, ind)),typeof(ydot)}(ydot)
+        return (y, ind), Tangent{typeof((y, ind))}(xdot[ind], NoTangent())
     end
 
     @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
