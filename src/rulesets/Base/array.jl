@@ -365,12 +365,13 @@ function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
         x_thunk = @thunk begin
             dx = fill!(similar(x, T), false)
             view(dx, ilo) .= dylo
-            view(dx, ihi) .+= dyhi
+            # view(dx, ihi) .+= dyhi  # illegal on 1.0!
+            view(dx, ihi) .= view(dx, ihi) .+ dyhi
             project(dx)
         end
         x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ilo) .+= dylo
-            view(dx, ihi) .+= dyhi
+            view(dx, ilo) .= view(dx, ilo) .+ dylo
+            view(dx, ihi) .= view(dx, ihi) .+ dyhi
             dx
         end
         return (NoTangent(), x_ithunk)
@@ -389,7 +390,7 @@ function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
             project(dx)
         end
         x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ind) .+= dy
+            view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
             dx
         end
         return (NoTangent(), x_ithunk)
@@ -408,7 +409,7 @@ function rrule(::typeof(findmin), x::AbstractArray{<:Number}; dims=:)
             project(dx)
         end
         x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ind) .+= dy
+            view(dx, ind) .= view(dx, ind) .+ dy
             dx
         end
         return (NoTangent(), x_ithunk)
