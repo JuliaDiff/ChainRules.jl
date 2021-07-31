@@ -344,40 +344,8 @@ function rrule(::typeof(fill), x::Any, dims...)
 end
 
 #####
-##### `extrema`, `findmax`, `maximum`, etc.
+##### `findmax`, `maximum`, `extrema`, etc.
 #####
-
-function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
-    ylo, ilo = findmin(x; dims=dims)
-    yhi, ihi = findmax(x; dims=dims)
-    project = ProjectTo(x)
-    extrema_pullback(::Tuple{AbstractZero, AbstractZero}) = (NoTangent(), NoTangent())
-    function extrema_pullback((dylo, dyhi))
-        # T = promote_type(eltype(dylo), eltype(dyhi))
-        # @show T  # often Any, when dyhi == NoTangent()
-        T = if dylo isa AbstractZero
-            eltype(dyhi)
-        elseif dyhi isa AbstractZero
-            eltype(dylo)
-        else
-            promote_type(eltype(dylo), eltype(dyhi))
-        end
-        x_thunk = @thunk begin
-            dx = fill!(similar(x, T), false)
-            view(dx, ilo) .= dylo
-            # view(dx, ihi) .+= dyhi  # illegal on 1.0!
-            view(dx, ihi) .= view(dx, ihi) .+ dyhi
-            project(dx)
-        end
-        x_ithunk = InplaceableThunk(x_thunk) do dx
-            view(dx, ilo) .= view(dx, ilo) .+ dylo
-            view(dx, ihi) .= view(dx, ihi) .+ dyhi
-            dx
-        end
-        return (NoTangent(), x_ithunk)
-    end
-    return (ylo, yhi), extrema_pullback
-end
 
 function rrule(::typeof(findmax), x::AbstractArray{<:Number}; dims=:)
     y, ind = findmax(x; dims=dims)
@@ -431,3 +399,34 @@ function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
     return y, minimum_pullback
 end
 
+function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
+    ylo, ilo = findmin(x; dims=dims)
+    yhi, ihi = findmax(x; dims=dims)
+    project = ProjectTo(x)
+    extrema_pullback(::Tuple{AbstractZero, AbstractZero}) = (NoTangent(), NoTangent())
+    function extrema_pullback((dylo, dyhi))
+        # T = promote_type(eltype(dylo), eltype(dyhi))
+        # @show T  # often Any, when dyhi == NoTangent()
+        T = if dylo isa AbstractZero
+            eltype(dyhi)
+        elseif dyhi isa AbstractZero
+            eltype(dylo)
+        else
+            promote_type(eltype(dylo), eltype(dyhi))
+        end
+        x_thunk = @thunk begin
+            dx = fill!(similar(x, T), false)
+            view(dx, ilo) .= dylo
+            # view(dx, ihi) .+= dyhi  # illegal on 1.0!
+            view(dx, ihi) .= view(dx, ihi) .+ dyhi
+            project(dx)
+        end
+        x_ithunk = InplaceableThunk(x_thunk) do dx
+            view(dx, ilo) .= view(dx, ilo) .+ dylo
+            view(dx, ihi) .= view(dx, ihi) .+ dyhi
+            dx
+        end
+        return (NoTangent(), x_ithunk)
+    end
+    return (ylo, yhi), extrema_pullback
+end
