@@ -200,8 +200,10 @@ end
 end
 
 @testset "$findm" for findm in [findmax, findmin]
-    @test_skip test_rrule(findm, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error?
-    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), 999), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
+    @test_skip test_rrule(findm, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # error from FiniteDifferences
+    test_rrule(findm, rand(10), output_tangent = (rand(), false))
+    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
+    @test_skip test_rrule(findm, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
 end
     @test rrule(findmax, [1,2,33])[1] == (33, 3)
     @test rrule(findmin, [11,22,33])[1] == (11, 1)
@@ -225,8 +227,14 @@ end
 
 @testset "extrema" begin
     test_rrule(extrema, rand(10), output_tangent = (rand(), rand()))
-    test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = collect(zip(rand(1,4), rand(1,4))))  # wrong answer?
-    # Case of both extrema are the same index, to check accumulation:
+    test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = collect(zip(rand(1,4), rand(1,4))))
+    # Case where both extrema are the same index, to check accumulation:
     test_rrule(extrema, rand(1), output_tangent = (rand(), rand()))
     test_rrule(extrema, rand(1,1), fkwargs=(dims=2,), output_tangent = hcat((rand(), rand())))
+    test_rrule(extrema, rand(3,1), fkwargs=(dims=2,), output_tangent = collect(zip(rand(3,1), rand(3,1))))
+    # Double-check the forward pass
+    A = randn(3,4,5)
+    @test extrema(A, dims=(1,3)) == rrule(extrema, A, dims=(1,3))[1]
+    B = hcat(A[:,:,1], A[:,:,1])
+    @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
 end
