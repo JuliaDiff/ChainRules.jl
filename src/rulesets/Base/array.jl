@@ -265,31 +265,23 @@ end
 ##### `reverse`
 #####
 
-# 1-dim case allows start/stop
+# 1-dim case allows start/stop, N-dim case takes dims keyword, whose defaults changes in Julia 1.6.
 
+# function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractArray, args...; kw...)
+#     return reverse(x, args...; kw...), reverse(xdot, args...; kw...) # seems not to work
+# end
 function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
     return reverse(x, start, stop), reverse(xdot, start, stop)
 end
-
-function rrule(::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
-    project = ProjectTo(x)
-    reverse_pullback_1(dy) = (NoTangent(), @thunk(project(reverse(unthunk(dy), start, stop))), NoTangent(), NoTangent())
-    return reverse(x, start, stop), reverse_pullback_1
-end
-
-# N-dim case takes dims keyword
-
-const _REV_DIMS = VERSION >= v"1.6-" ? Colon() : 1
-
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=_REV_DIMS)
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=VERSION >= v"1.6-" ? Colon() : 1)
     return reverse(x; dims=dims), reverse(xdot; dims=dims)
 end
 
-function rrule(::typeof(reverse), x::AbstractArray; dims=_REV_DIMS)
+function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
     project = ProjectTo(x)
-    reverse_pullback_2(dy) = (NoTangent(), @thunk project(reverse(unthunk(dy); dims=dims)))
-    # Note that reverse! is useless for InplaceableThunk, as it takes only one argument
-    return reverse(x; dims=dims), reverse_pullback_2
+    nots = map(_ -> NoTangent(), args)
+    reverse_pullback(dy) = (NoTangent(), @thunk(project(reverse(unthunk(dy), args...; kw...))), nots...)
+    return reverse(x, args...; kw...), reverse_pullback
 end
 
 #####
@@ -319,10 +311,8 @@ function frule((_, xdot), ::typeof(fill), x::Any, dims...)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)
-    valn = Val(length(dims))
     project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
-    function fill_pullback(Ȳ)
-        return (NoTangent(), project(sum(Ȳ)), ntuple(_->NoTangent(), valn)...)
-    end
+    nots = map(_ -> NoTangent(), dims)
+    fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
 end
