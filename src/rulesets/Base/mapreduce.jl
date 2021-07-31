@@ -232,6 +232,95 @@ end
 rrule(::typeof(cumsum), x::AbstractVector) = rrule(cumsum, x; dims=1)
 
 #####
+##### `maximum`, `minimum`
+#####
+
+for mimum in (:minimum, :maximum)
+    mimum_pullback = Symbol(mimum, :_pullback_f)
+    findm = Symbol(:find, string(mimum)[1:3])
+
+    @eval function rrule(
+        config::RuleConfig{>:HasReverseMode}, ::typeof($mimum), f::F, xs::AbstractArray{<:Number}; dims=:
+    ) where {F}
+        if dims isa Colon && VERSION >= v"1.7-"
+            # Best case, we can use findmax to get index:
+            y, imax = $findm(f, xs)
+        elseif dims isa Colon
+            # Explicitly figure out where it attains the max:
+            y = $mimum(f, xs; dims=dims)
+            mask = y .== f.(xs)
+            imax = findfirst(mask)
+        else
+            y = $mimum(f, xs; dims=dims)
+            mask = y .== f.(xs)  # this is N^2 more calls to f, that's a lot!
+            mask .= (mask .== cumsum(mask; dims=dims) .== true)
+            imax = findall(mask)
+        end
+        project = ProjectTo(xs)
+
+        function $mimum_pullback(dys)
+            if dims isa Colon
+                # Notice that this does evaluate `f` one more time, but will this matter 
+                # unless `f` is sateful? In which case both this and `maximum(f.(xs))` give undefined results.
+                _, back = rrule_via_ad(config, f, xs[imax])
+                dfs, _dxmax = back(unthunk(dys))
+                dxmax = unthunk(_dxmax)
+            elseif Base.issingletontype(F)
+                # Then we need not accumulate the gradient with respect to `f`.
+                dfs = NoTangent()
+                # On a matrix we called `f` 2*N^2 times, now call it N more with `rrule_via_ad`:
+                dxmax = map(view(xs, imax), unthunk(dys)) do x, dy
+                    _, bk = rrule_via_ad(config, f, x)
+                    df, dx = bk(dy)
+                    unthunk(dx)
+                end
+            else
+                # This could perhaps accumulate df more smartly...
+                call(g, x) = g(x)
+                backs = map(x -> last(rrule_via_ad(config, f, x)), view(xs, imax))
+                dfs_and_dxs = map(unthunk∘last∘call, backs, unthunk(dys))
+                dfs = sum(first, dfs_and_dxs)
+                dxmax = map(unthunk∘last, dfs_and_dxs)
+            end
+            x_thunk = @thunk begin
+                dxs = fill!(similar(xs, eltype(dxmax)), false)
+                view(dxs, imax) .= dxmax
+                project(dxs)
+            end
+            x_ithunk = InplaceableThunk(x_thunk) do dxs
+                view(dxs, imax) .= view(dxs, imax) .+ dxmax
+                dxs
+            end
+            return NoTangent(), dfs, x_ithunk
+        end
+
+        return y, $mimum_pullback
+    end
+
+end
+
+#=
+
+julia> @btime gradient(x -> maximum(sqrt, x), $(rand(30,30)));
+  5.632 μs (51 allocations: 8.39 KiB)
+
+julia> @btime gradient(x -> sum(maximum(sqrt, x, dims=1)), $(rand(30,30)));
+  9.792 μs (34 allocations: 13.92 KiB)
+
+julia> @btime gradient(x -> maximum(sqrt.(x)), $(rand(30,30)));
+  4.321 μs (16 allocations: 35.97 KiB)
+
+# bigger, nastier
+
+julia> @btime gradient(x -> maximum(log∘exp, x), $(rand(300,300)));
+  1.714 ms (132 allocations: 706.33 KiB)
+
+julia> @btime gradient(x -> maximum((log∘exp).(x)), $(rand(300,300)));
+  1.595 ms (20 allocations: 3.43 MiB)
+
+=#
+
+#####
 ##### `prod`
 #####
 

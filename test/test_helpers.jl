@@ -97,6 +97,14 @@ function ChainRulesCore.rrule(::typeof(make_two_vec), x)
     return make_two_vec(x), make_two_vec_pullback
 end
 
+# Trivial rule configurations, allowing `rrule_via_ad` with simple functions:
+struct TestConfigReverse <: RuleConfig{HasReverseMode} end
+ChainRulesCore.rrule_via_ad(::TestConfigReverse, f, args...) = rrule(f, args...)
+
+struct TestConfigForwards <: RuleConfig{HasForwardsMode} end
+ChainRulesCore.frule_via_ad(::TestConfigReverse, args...) = frule(args...)
+
+
 @testset "test_helpers.jl" begin
 
     @testset "Multiplier" begin

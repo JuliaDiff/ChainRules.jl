@@ -67,7 +67,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
         test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
-        test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
+        test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])  # Multiplier defined in test_helpers.jl
 
         # Complex numbers
         test_rrule(sum, log, rand(ComplexF64, 5))
@@ -134,6 +134,26 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         weights = rand(5)
 
         @test rrule(SumRuleConfig(), Base.sum, xs, weights) isa Nothing
+    end
+
+    @testset "maximum(f, xs)" begin
+        # This calls back into AD
+        test_rrule(maximum, abs, [-4.0, 2.0, 2.0], check_inferred=false)
+        test_rrule(minimum, sqrt, Float64[1 2; 3 4], check_inferred=false)
+        test_rrule(maximum, Multiplier(2.0), [2.0, 4.0, 8.0], check_inferred=false)  # Multiplier defined in test_helpers.jl
+
+        # dims keyword
+        test_rrule(maximum, sqrt, Float64[1 2; 3 4], fkwargs=(;dims=1), check_inferred=false)
+        test_rrule(minimum, abs, randn(3,3), fkwargs=(;dims=2), check_inferred=false)
+
+        # repeated -- can't use FiniteDifferences
+        y1, bk1 = rrule(TestConfigReverse(), maximum, abs, [-4.0, 2.0, 4.0, 2.0])  # TestConfigReverse defined in test_helpers.jl
+        @test y1 === 4.0
+        @test unthunk(bk1(10.0)[3]) == [-10, 0, 0, 0]
+
+        y2, bk2 = rrule(TestConfigReverse(), minimum, abs, [1 2 3; -5 -4 -4], dims=2)
+        @test y2 == hcat([1, 4])
+        @test unthunk(bk2(hcat([10, 20]))[3]) == [10 0 0; 0 -20 0]
     end
 
     @testset "prod" begin
