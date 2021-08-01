@@ -6,6 +6,9 @@
     @testset "from existing array" begin
         test_rrule(Array, randn(2, 5))
         test_rrule(Array, Diagonal(randn(5)))
+        test_rrule(Matrix, Diagonal(randn(5)))
+        test_rrule(Matrix, transpose(randn(4)))
+        test_rrule(Array{ComplexF64}, randn(3))
     end
 end
 
