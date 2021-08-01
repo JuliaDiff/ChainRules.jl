@@ -3,6 +3,7 @@
     # We can't use test_rrule here (as it's currently implemented) because the elements of
     # the array have arbitrary values. The only thing we can do is ensure that we're getting
     # `ZeroTangent`s back, and that the forwards pass produces the correct thing still.
+    # Issue: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/202
     @testset "undef" begin
         val, pullback = rrule(Array{Float64}, undef, 5)
         @test size(val) == (5, )
