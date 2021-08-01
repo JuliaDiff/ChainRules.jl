@@ -18,10 +18,20 @@ end
 
 # Don't worry about projection here. The data passes straight through, so if a cotangent has
 # the wrong type for some reason, it must be the fault of another rule somewhere.
-function rrule(::typeof(Base.vect), X::T...) where {T}
-    l = length(X)
+function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     function vect_pullback(ȳ)
-        X̄ = ntuple(n -> ȳ[n], l)
+        X̄ = ntuple(n -> ȳ[n], N)
+        return (NoTangent(), X̄...)
+    end
+    return Base.vect(X...), vect_pullback
+end
+
+# Numbers need to be projected because they don't pass straight through the function.
+# More generally, we would ideally project everything.
+function rrule(::typeof(Base.vect), X::Vararg{Number, N}) where {N}
+    projects = map(ProjectTo, X)
+    function vect_pullback(ȳ)
+        X̄ = ntuple(n -> projects[n](ȳ[n]), N)
         return (NoTangent(), X̄...)
     end
     return Base.vect(X...), vect_pullback
