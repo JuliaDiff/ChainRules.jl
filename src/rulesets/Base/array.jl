@@ -28,7 +28,7 @@ end
 
 # Numbers need to be projected because they don't pass straight through the function.
 # More generally, we would ideally project everything.
-function rrule(::typeof(Base.vect), X::Vararg{Number, N}) where {N}
+function rrule(::typeof(Base.vect), X::Vararg{Union{Number,AbstractArray{<:Number}}, N}) where {N}
     projects = map(ProjectTo, X)
     function vect_pullback(ȳ)
         X̄ = ntuple(n -> projects[n](ȳ[n]), N)
