@@ -1,6 +1,12 @@
 @testset "constructors" begin
-    test_rrule(Array{Float64, 1}, undef, 5)
-    test_rrule(Array{Float32, 3}, undef, 5, 4, 3)
+    @testset "undef" begin
+        test_rrule(Array{Float64, 1}, undef, 5)
+        test_rrule(Array{Float32, 3}, undef, 5, 4, 3)
+    end
+    @testset "from existing array" begin
+        test_rrule(Array, randn(2, 5))
+        test_rrule(Array, Diagonal(randn(5)))
+    end
 end
 
 @testset "reshape" begin

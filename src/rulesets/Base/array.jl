@@ -1,4 +1,14 @@
+#####
+##### constructors
+#####
+
 ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
+
+function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
+    project_x = ProjectTo(x)
+    Array_pullback(ȳ) = (NoTangent(), project_x(ȳ))
+    return T(x), Array_pullback
+end
 
 #####
 ##### `reshape`
