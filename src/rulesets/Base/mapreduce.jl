@@ -72,30 +72,66 @@ function rrule(
 end
 
 function rrule(
-    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
-)
-    fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
-    y = sum(first, fx_and_pullbacks; dims=dims)
+    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::AbstractArray; dims=:
+) where {F}
+    # fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
+    # y = sum(first, fx_and_pullbacks; dims=dims)
+    # pullbacks = last.(fx_and_pullbacks)
 
-    pullbacks = last.(fx_and_pullbacks)
+    y = sum(f, xs; dims=dims)
 
     project = ProjectTo(xs)
 
-    function sum_pullback(ȳ)
-        call(f, x) = f(x)
-        # if dims is :, then need only left-handed only broadcast
-        broadcast_ȳ = dims isa Colon  ? (ȳ,) : ȳ
-        f̄_and_x̄s = call.(pullbacks, broadcast_ȳ)
-        # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
-        f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
-            NoTangent()
+    # function sum_pullback(ȳ)
+    #     call(f, x) = f(x)
+    #     # if dims is :, then need only left-handed only broadcast
+    #     broadcast_ȳ = dims isa Colon  ? (ȳ,) : ȳ
+    #     f̄_and_x̄s = call.(pullbacks, broadcast_ȳ)
+    #     # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
+    #     f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
+    #         NoTangent()
+
+    # function sum_pullback(ȳ)
+    #     call(b, x) = b(x)  # we need to broadcast this to handle dims kwarg
+    #     f̄_and_x̄s = call.(pullbacks, ȳ)
+    #     # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
+    #     f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
+    #         NoTangent()
+    #     else
+    #         sum(first, f̄_and_x̄s)
+    #     end
+    #     x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
+    #     return NoTangent(), f̄, project(x̄s)
+    # end
+
+    function sum_pullback_f(dys_raw)
+        dys = unthunk(dys_raw)
+        if Base.issingletontype(F)
+            dfs = NoTangent()
+            # Best case. We evaluate `f` a second time, then immediately its pullback, so that
+            # we don't need to save an array of these. The point of `sum(f, xs)` is memory-saving.
+            dxs = broadcast(xs, dys) do x, dy
+                _, bk = rrule_via_ad(config,f,x)
+                df, dx = bk(dy)
+                unthunk(dx)
+            end
         else
-            sum(first, f̄_and_x̄s)
+            # We need to accumulate the gradient with respect to `f`. To avoid making a big array
+            # and unzipping, can we accumulate from inside the broadcast needed for `dxs`?
+            _, bk1 = rrule_via_ad(config,f,first(xs))
+            dy1 = dims isa Colon ? dys : first(dys)
+            df_ref = Ref(zero(bk1(dy1)))
+            dxs = broadcast(xs, dys) do x, dy
+                _, bk = rrule_via_ad(config,f,x)
+                df, dx = bk(dy)
+                df_ref[] += df  # not sure this will work!
+                unthunk(dx)
+            end
+            dfs = df_ref[]  # s for sum, not plural!
         end
-        x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
-        return NoTangent(), f̄, project(x̄s)
+        return (NoTangent(), dfs, project(dxs))
     end
-    return y, sum_pullback
+    return y, sum_pullback_f
 end
 
 # https://github.com/JuliaDiff/ChainRules.jl/issues/522
@@ -108,6 +144,73 @@ end
     y::AbstractArray;
     dims=:
 )
+
+#=
+
+# Timing this change. 
+
+
+julia> @btime sum(sqrt, x) setup=(x=$(rand(30,30)));
+  833.333 ns (0 allocations: 0 bytes)
+
+julia> @btime gradient(x -> sum(sqrt, x), $(rand(30,30)));
+  4.173 μs (16 allocations: 50.02 KiB)  # before
+  1.954 μs (2 allocations: 7.20 KiB)    # after
+
+julia> @btime sum(sqrt, x, dims=1) setup=(x=$(rand(30,30)));
+  772.174 ns (1 allocation: 336 bytes)
+
+julia> @btime gradient(x -> sum(sum(sqrt, x, dims=1)), $(rand(30,30)));
+  10.625 μs (42 allocations: 51.47 KiB)  # before
+  2.704 μs (18 allocations: 8.20 KiB)    # after
+
+# compare broadcasting:
+
+julia> @btime sum(sqrt.(x)) setup=(x=$(rand(30,30)));
+  873.544 ns (1 allocation: 7.19 KiB)
+
+julia> @btime gradient(x -> sum(sqrt.(x)), $(rand(30,30)));
+  2.616 μs (10 allocations: 28.70 KiB)
+
+julia> @btime sum(sqrt.(x), dims=1) setup=(x=$(rand(30,30)));
+  953.667 ns (2 allocations: 7.52 KiB)
+
+julia> @btime gradient(x -> sum(sum(sqrt.(x), dims=1)), $(rand(30,30)));
+  3.542 μs (26 allocations: 36.81 KiB)
+
+
+# Bigger example, slower function?
+
+
+julia> @btime sum(log∘exp, x) setup=(x=$(rand(300,300)));
+  1.348 ms (0 allocations: 0 bytes)
+
+julia> @btime gradient(x -> sum(log∘exp, x), $(rand(300,300)));
+  930.421 ms (8460059 allocations: 206.68 MiB)  # before
+  873.300 ms (7740033 allocations: 187.46 MiB)  # after
+
+julia> @btime sum(log∘exp, x, dims=1) setup=(x=$(rand(300,300)));
+  1.349 ms (1 allocation: 2.50 KiB)
+
+julia> @btime gradient(x -> sum(sum(log∘exp, x, dims=1)), $(rand(300,300)));
+  935.160 ms (8460088 allocations: 206.69 MiB)  # before
+  890.860 ms (7740037 allocations: 187.46 MiB)  # after
+
+# compare broadcasting:
+
+julia> @btime sum((log∘exp).(x)) setup=(x=$(rand(300,300)));
+  1.342 ms (2 allocations: 703.20 KiB)
+
+julia> @btime gradient(x -> sum((log∘exp).(x)), $(rand(300,300)));
+  1.449 ms (27 allocations: 2.75 MiB)
+
+julia> @btime sum((log∘exp).(x), dims=1) setup=(x=$(rand(300,300)));
+  1.380 ms (3 allocations: 705.70 KiB)
+
+julia> @btime gradient(x -> sum(sum((log∘exp).(x), dims=1)), $(rand(300,300)));
+  1.490 ms (16 allocations: 3.44 MiB)
+
+=#
 
 function frule(
     (_, _, Δx),
