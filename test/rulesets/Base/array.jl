@@ -25,7 +25,7 @@ end
         test_rrule(Base.vect, randn(2, 2), randn(3, 3))
     end
     @testset "inhomogeneous type" begin
-        test_rrule(Base.vect, 5.0, 4)
+        test_rrule(Base.vect, 5.0, 3f0; atol=1e-6, rtol=1e-6) # tolerance due to Float32.
     end
 end
 
