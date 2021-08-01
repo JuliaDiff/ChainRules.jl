@@ -21,7 +21,7 @@ end
 function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     function vect_pullback(ȳ)
         X̄ = ntuple(n -> ȳ[n], N)
-        return (NoTangent(), X̄...)
+        return (NoTangent(), NTuple{N}(ȳ)...)
     end
     return Base.vect(X...), vect_pullback
 end
