@@ -18,11 +18,9 @@ end
 
 # Don't worry about projection here. The data passes straight through, so if a cotangent has
 # the wrong type for some reason, it must be the fault of another rule somewhere.
-function rrule(::typeof(Base.vect), X::T...) where {T}
-    l = length(X)
+function rrule(::typeof(Base.vect), X::Vararg{T,N}) where {T,N}
     function vect_pullback(ȳ)
-        X̄ = ntuple(n -> ȳ[n], l)
-        return (NoTangent(), X̄...)
+        return (NoTangent(), NTuple{N}(ȳ)...)
     end
     return Base.vect(X...), vect_pullback
 end
