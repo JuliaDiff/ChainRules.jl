@@ -27,6 +27,7 @@ end
     end
     @testset "inhomogeneous type" begin
         test_rrule(Base.vect, 5.0, 3f0; atol=1e-6, rtol=1e-6) # tolerance due to Float32.
+        test_rrule(Base.vect, 5.0, randn(3, 3); check_inferred=false)
     end
 end
 
