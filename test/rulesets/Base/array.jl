@@ -20,8 +20,13 @@ end
 
 @testset "vect" begin
     test_rrule(Base.vect)
-    test_rrule(Base.vect, 5.0, 4.0, 3.0)
-    test_rrule(Base.vect, randn(2, 2), randn(3, 3); check_inferred=false)
+    @testset "homogeneous type" begin
+        test_rrule(Base.vect, 5.0, 4.0, 3.0)
+        test_rrule(Base.vect, randn(2, 2), randn(3, 3))
+    end
+    @testset "inhomogeneous type" begin
+        test_rrule(Base.vect, 5.0, 4)
+    end
 end
 
 @testset "reshape" begin

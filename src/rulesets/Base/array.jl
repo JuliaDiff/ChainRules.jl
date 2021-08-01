@@ -18,22 +18,14 @@ end
 
 # Don't worry about projection here. The data passes straight through, so if a cotangent has
 # the wrong type for some reason, it must be the fault of another rule somewhere.
-function rrule(::typeof(Base.vect), X...)
+function rrule(::typeof(Base.vect), X::T...) where {T}
+    l = length(X)
     function vect_pullback(ȳ)
-        X̄ = ntuple(n -> ȳ[n], length(X))
+        X̄ = ntuple(n -> ȳ[n], l)
         return (NoTangent(), X̄...)
     end
     return Base.vect(X...), vect_pullback
 end
-
-# # Edge case: Numbers get promoted to other numbers, so we need to project.
-# function rrule(::typeof(Base.vect), X::Number...)
-#     project
-#     function vect_pullback(ȳ)
-#         X̄ = ntuple(n -> )
-#     end
-#     return Base.vect(X...), vect_pullback
-# end
 
 #####
 ##### `reshape`
