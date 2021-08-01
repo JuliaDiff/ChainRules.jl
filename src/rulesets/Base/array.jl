@@ -1,3 +1,5 @@
+ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
+
 #####
 ##### `reshape`
 #####

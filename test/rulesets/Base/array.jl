@@ -1,3 +1,8 @@
+@testset "constructors" begin
+    test_rrule(Array{Float64, 1}, undef, 5)
+    test_rrule(Array{Float32, 3}, undef, 5, 4, 3)
+end
+
 @testset "reshape" begin
     test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
