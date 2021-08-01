@@ -1,7 +1,13 @@
 @testset "constructors" begin
+
+    # We can't use test_rrule here (as it's currently implemented) because the elements of
+    # the array have arbitrary values. The only thing we can do is ensure that we're getting
+    # `ZeroTangent`s back, and that the forwards pass produces the correct thing still.
     @testset "undef" begin
-        test_rrule(Array{Float64, 1}, undef, 5)
-        test_rrule(Array{Float64, 3}, undef, 5, 4, 3)
+        val, pullback = rrule(Array{Float64}, undef, 5)
+        @test size(val) == (5, )
+        @test val isa Array{Float64, 1}
+        @test pullback(randn(5)) == (NoTangent(), NoTangent(), NoTangent())
     end
     @testset "from existing array" begin
         test_rrule(Array, randn(2, 5))
