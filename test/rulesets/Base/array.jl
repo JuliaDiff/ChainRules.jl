@@ -9,6 +9,12 @@
     end
 end
 
+@testset "vect" begin
+    test_rrule(Base.vect)
+    test_rrule(Base.vect, 5.0, 4.0, 3.0)
+    test_rrule(Base.vect, randn(2, 2), randn(3, 3); check_inferred=false)
+end
+
 @testset "reshape" begin
     test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
