@@ -124,7 +124,8 @@ end
         test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
 
         # Structured
-        @test unthunk(rrule(reverse, Diagonal([1,2,3]))[2](rand(3,3))[2]) isa Diagonal
+        y, pb = rrule(reverse, Diagonal([1,2,3]))
+        @test unthunk(pb(rand(3,3))[2]) isa Diagonal
     end
 end
 
