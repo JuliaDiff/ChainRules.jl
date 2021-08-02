@@ -6,7 +6,35 @@ function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
 
-function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
+# Internal helper for filling while maintaining array type.
+# TODO: Ideallty we'd only need typeof(x) here, but Base doesn't have the
+# interfaces for that.
+function _typed_fill(x, ȳ, axes)
+    fill!(similar(x, typeof(ȳ), axes), ȳ)
+end
+
+function rrule(::typeof(_typed_fill), x, ȳ, axes)
+    function _typed_fill_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), sum(Ȳ), NoTangent())
+    end
+    return _typed_fill(x, ȳ, axes), _typed_fill_pullback
+end
+
+function sum_rrule(x, dims::Colon)
+    y = sum(x; dims=dims)
+    let xdims=size(x)
+        function sum_pullback(ȳ)
+            x̄ = InplaceableThunk(
+                x -> x .+= ȳ,
+                @thunk(_typed_fill(x, ȳ, xdims...)),
+            )
+            return (NoTangent(), x̄)
+        end
+        y, sum_pullback
+    end
+end
+
+function sum_rrule(x, dims)
     y = sum(x; dims=dims)
     function sum_pullback(ȳ)
         # broadcasting the two works out the size no-matter `dims`
@@ -17,6 +45,10 @@ function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
         return (NoTangent(), x̄)
     end
     return y, sum_pullback
+end
+
+function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
+    return sum_rrule(x, dims)
 end
 
 # Can't map over Adjoint/Transpose Vector
