@@ -16,7 +16,8 @@ end
 
 @non_differentiable Base.vect()
 
-# Case of uniform type `T`: the data passes straight through, so no projection should be required.
+# Case of uniform type `T`: the data passes straight through,
+# so no projection should be required.
 function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     vect_pullback(ȳ) = (NoTangent(), NTuple{N}(ȳ)...)
     return Base.vect(X...), vect_pullback
