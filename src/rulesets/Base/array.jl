@@ -24,7 +24,10 @@ function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
 end
 
 # Numbers and arrays are often promoted, to make a uniform vector; ProjectTo here reverses this
-function rrule(::typeof(Base.vect), X::Vararg{Union{Number,AbstractArray{<:Number}}, N}) where {N}
+function rrule(
+    ::typeof(Base.vect),
+    X::Vararg{Union{Number,AbstractArray{<:Number}}, N},
+) where {N}
     projects = map(ProjectTo, X)
     function vect_pullback(ȳ)
         X̄ = ntuple(n -> projects[n](ȳ[n]), N)
