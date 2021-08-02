@@ -265,17 +265,18 @@ end
 ##### `reverse`
 #####
 
-# 1-dim case allows start/stop, N-dim case takes dims keyword, whose defaults changes in Julia 1.6.
+# 1-dim case allows start/stop, N-dim case takes dims keyword, whose defaults changed in Julia 1.6.
 
-# function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractArray, args...; kw...)
-#     return reverse(x, args...; kw...), reverse(xdot, args...; kw...) # seems not to work
-# end
 function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractVector, start::Integer, stop::Integer)
     return reverse(x, start, stop), reverse(xdot, start, stop)
 end
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=VERSION >= v"1.6-" ? Colon() : 1)
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray; dims=VERSION >= v"1.6" ? Colon() : 1)
     return reverse(x; dims=dims), reverse(xdot; dims=dims)
 end
+# More compact `frule` with splats, should work but doesn't?
+# function frule((_, xdot, _, _), ::typeof(reverse), x::AbstractArray, args...; kw...)
+#     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
+# end
 
 function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
     project = ProjectTo(x)
