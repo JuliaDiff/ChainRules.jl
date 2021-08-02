@@ -23,8 +23,7 @@ function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     return Base.vect(X...), vect_pullback
 end
 
-# Numbers need to be projected because they don't pass straight through the function.
-# More generally, we would ideally project everything.
+# Numbers and arrays are often promoted, to make a uniform vector; ProjectTo here reverses this
 function rrule(::typeof(Base.vect), X::Vararg{Union{Number,AbstractArray{<:Number}}, N}) where {N}
     projects = map(ProjectTo, X)
     function vect_pullback(ȳ)
