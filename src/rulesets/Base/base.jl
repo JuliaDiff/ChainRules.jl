@@ -200,3 +200,38 @@ function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
     cube_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
     return x2 * x, cube_pullback
 end
+
+#####
+##### `map`
+#####
+
+# Ideally reverse mode should always iterate in reverse order. For `map` and broadcasting
+# this may matter with a stateful `f`, but in general their order isn't guaranteed anyway,
+# so it's unclear how much effort should be spent on that. But `map` on Tuples normally
+# gets unrolled, so perhaps it does guarantee order, and reversing it should be cheap too.
+
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tuple...) where {F}
+    length_y = minimum(length, xs)
+    hobbits = ntuple(length_y) do i
+        args = getindex.(xs, i)
+        rrule_via_ad(config, f, args...)
+    end
+    y = map(first, hobbits)
+    num_xs = Val(length(xs))
+    paddings = map(x -> ntuple(i -> NoTangent(), (length(x) - length_y)), xs)
+    function map_back(dy)
+        # We want to call the pullbacks in `rrule_via_ad` in reverse sequence to the forward pass:
+        backevals = ntuple(length_y) do i
+            rev_i = length_y - i + 1
+            last(hobbits[rev_i])(dy[rev_i])
+        end |> reverse
+        # Now unzip that. Because `map` like `zip` stops when any `x` stops, some `dx`s may need padding.
+        df = sum(first, backevals)
+        dxs = ntuple(num_xs) do k
+            dx_short = map(bv -> bv[k+1], backevals)
+            (dx_short..., paddings[k]...)
+        end
+        return (NoTangent(), df, dxs...)
+    end
+    return y, map_back
+end
