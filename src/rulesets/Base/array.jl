@@ -358,8 +358,11 @@ for findm in (:findmin, :findmax)
     @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
         y, ind = $findm(x; dims=dims)
         project = ProjectTo(x)
+        # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             x_thunk = @thunk begin
+                # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
+                # allow `eltype(dy)`, nor does it work for many structured matrices.
                 dx = fill!(similar(x, eltype(dy), axes(x)), false)
                 view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
                 project(dx)
@@ -419,7 +422,8 @@ function _extrema_colon(x)
     yhi, ihi = findmax(x)
     project = ProjectTo(x)
     function extrema_pullback((dylo, dyhi))
-        # One argument may be AbstractZero here, promote_type allows *, hence gives Any:
+        # One argument may be AbstractZero here. Use promote_op because 
+        # promote_type allows for * as well as +, hence gives Any.
         T = Base.promote_op(+, typeof(dylo), typeof(dyhi))
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
@@ -450,7 +454,8 @@ function _extrema_dims(x, dims)
     function extrema_pullback_dims(dy_raw)
         dy = unthunk(dy_raw)
         @assert dy isa AbstractArray{<:Tuple{Any,Any}}
-        T = Base.promote_op(+, eltype(dy).parameters...)  # can we actually get Array{Tuple{Float64,ZeroTangent}} here?
+        # Can we actually get Array{Tuple{Float64,ZeroTangent}} here? Not sure.
+        T = Base.promote_op(+, eltype(dy).parameters...)
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
             dx = fill!(similar(x, T, axes(x)), false)

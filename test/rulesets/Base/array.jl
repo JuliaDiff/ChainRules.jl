@@ -206,6 +206,7 @@ end
     @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4))) isa Tuple{Tuple{Float64, CartesianIndex}, Tangent}
     @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4), dims=1)) isa Tuple{Tuple{Matrix, Matrix}, Tangent}
     @test_skip test_frule(findmin, rand(3,4)) # StackOverflowError, CartesianIndex{2}(index::Tuple{Float64, Float64}) (repeats 79984 times) & TypeError: in new, expected Tuple{Int64, Int64}, got a value of type Tuple{Float64, Float64}
+    @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
 
     # Reverse
