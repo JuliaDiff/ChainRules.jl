@@ -360,6 +360,7 @@ for findm in (:findmin, :findmax)
         project = ProjectTo(x)
         # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
+            dy isa AbstractZero && return (NoTangent(), NoTangent())
             x_thunk = @thunk begin
                 # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
                 # allow `eltype(dy)`, nor does it work for many structured matrices.
@@ -372,9 +373,6 @@ for findm in (:findmin, :findmax)
                 dx
             end
             return (NoTangent(), x_ithunk)
-        end
-        function $findm_pullback(::Tuple{AbstractZero, Any})
-            return (NoTangent(), NoTangent())
         end
         return (y, ind), $findm_pullback
     end
@@ -421,7 +419,10 @@ function _extrema_colon(x)
     ylo, ilo = findmin(x)
     yhi, ihi = findmax(x)
     project = ProjectTo(x)
-    function extrema_pullback((dylo, dyhi))
+    function extrema_pullback((dylo, dyhi))  # accepts Tangent
+        if (dylo, dyhi) isa Tuple{AbstractZero, AbstractZero}
+            return (NoTangent(), NoTangent())
+        end
         # One argument may be AbstractZero here. Use promote_op because 
         # promote_type allows for * as well as +, hence gives Any.
         T = Base.promote_op(+, typeof(dylo), typeof(dyhi))
@@ -438,9 +439,6 @@ function _extrema_colon(x)
         #     dx
         # end
         return (NoTangent(), x_nothunk)
-    end
-    function extrema_pullback(::Tuple{AbstractZero, AbstractZero})
-        return (NoTangent(), NoTangent())
     end
     return (ylo, yhi), extrema_pullback
 end
