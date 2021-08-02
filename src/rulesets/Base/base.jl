@@ -26,6 +26,13 @@ function rrule(::typeof(real), z::Number)
     return (real(z), real_pullback)
 end
 
+# Conversions to Float
+
+@scalar_rule float(x) true
+@scalar_rule Float64(x::Real) true
+@scalar_rule Float32(x::Real) true
+@scalar_rule AbstractFloat(x::Real) true
+
 # `imag`
 
 @scalar_rule imag(x::Real) ZeroTangent()
