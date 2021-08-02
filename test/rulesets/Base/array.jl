@@ -143,9 +143,9 @@ end
 
 @testset "fill" begin
     test_frule(fill, 12.3, 4)
-    test_frule(fill, 5.0, (6, 7) ⊢ NoTangent())
+    test_frule(fill, 5.0, (6, 7))
 
     test_rrule(fill, 44.4, 4)
     test_rrule(fill, 55 + 0.5im, 5)
-    test_rrule(fill, 3.3, (3, 3, 3) ⊢ NoTangent())
+    test_rrule(fill, 3.3, (3, 3, 3))
 end

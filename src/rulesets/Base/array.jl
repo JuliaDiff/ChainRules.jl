@@ -267,7 +267,7 @@ end
 
 # 1-dim case allows start/stop, N-dim case takes dims keyword, whose defaults changed in Julia 1.6.
 
-function frule((_, xdot, _...), ::typeof(reverse), x::AbstractArray, args...; kw...)
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
 end
 
