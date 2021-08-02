@@ -265,7 +265,8 @@ end
 ##### `reverse`
 #####
 
-# 1-dim case allows start/stop, N-dim case takes dims keyword, whose defaults changed in Julia 1.6.
+# 1-dim case allows start/stop, N-dim case takes dims keyword
+# whose defaults changed in Julia 1.6... just pass them all through:
 
 function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
@@ -274,7 +275,10 @@ end
 function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
     project = ProjectTo(x)
     nots = map(_ -> NoTangent(), args)
-    reverse_pullback(dy) = (NoTangent(), @thunk(project(reverse(unthunk(dy), args...; kw...))), nots...)
+    function reverse_pullback(dy)
+        dx = @thunk project(reverse(unthunk(dy), args...; kw...))
+        return (NoTangent(), dx, nots...)
+    end
     return reverse(x, args...; kw...), reverse_pullback
 end
 
