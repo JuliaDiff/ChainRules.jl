@@ -101,7 +101,52 @@ end
     test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3); check_inferred=VERSION>v"1.1")
 end
 
+@testset "reverse" begin
+    # Forward
+    test_frule(reverse, rand(5))
+    test_frule(reverse, rand(5), 2, 4)
+    test_frule(reverse, rand(5), fkwargs=(dims=1,))
+
+    test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
+    if VERSION >= v"1.6"
+        test_frule(reverse, rand(3,4))
+        test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+    end
+
+    # Reverse
+    test_rrule(reverse, rand(5))
+    test_rrule(reverse, rand(5), 2, 4)
+    test_rrule(reverse, rand(5), fkwargs=(dims=1,))
+
+    test_rrule(reverse, rand(3,4), fkwargs=(dims=2,))
+    if VERSION >= v"1.6"
+        test_rrule(reverse, rand(3,4))
+        test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+        # Structured
+        y, pb = rrule(reverse, Diagonal([1,2,3]))
+        @test unthunk(pb(rand(3,3))[2]) isa Diagonal
+    end
+end
+
+@testset "circshift" begin
+    # Forward
+    test_frule(circshift, rand(10), 1)
+    test_frule(circshift, rand(10), (1,))
+    test_frule(circshift, rand(3,4), (-7,2))
+
+    # Reverse
+    test_rrule(circshift, rand(10), 1)
+    test_rrule(circshift, rand(10) .+ im, -2)
+    test_rrule(circshift, rand(10), (1,))
+    test_rrule(circshift, rand(3,4), (-7,2))
+end
+
 @testset "fill" begin
-    test_rrule(fill, 44.0, 4; check_inferred=false)
-    test_rrule(fill, 2.0, (3, 3, 3))
+    test_frule(fill, 12.3, 4)
+    test_frule(fill, 5.0, (6, 7))
+
+    test_rrule(fill, 44.4, 4)
+    test_rrule(fill, 55 + 0.5im, 5)
+    test_rrule(fill, 3.3, (3, 3, 3))
 end

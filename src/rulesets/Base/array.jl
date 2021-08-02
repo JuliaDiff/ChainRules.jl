@@ -262,19 +262,55 @@ function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
 end
 
 #####
+##### `reverse`
+#####
+
+# 1-dim case allows start/stop, N-dim case takes dims keyword
+# whose defaults changed in Julia 1.6... just pass them all through:
+
+function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
+    return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
+end
+
+function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
+    project = ProjectTo(x)
+    nots = map(_ -> NoTangent(), args)
+    function reverse_pullback(dy)
+        dx = @thunk project(reverse(unthunk(dy), args...; kw...))
+        return (NoTangent(), dx, nots...)
+    end
+    return reverse(x, args...; kw...), reverse_pullback
+end
+
+#####
+##### `circshift`
+#####
+
+function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
+    return circshift(x, shifts), circshift(xdot, shifts)
+end
+
+function rrule(::typeof(circshift), x::AbstractArray, shifts)
+    project = ProjectTo(x)
+    function circshift_pullback(dy)
+        dx = @thunk project(circshift(unthunk(dy), map(-, shifts)))
+        # Note that circshift! is useless for InplaceableThunk, as it overwrites completely
+        return (NoTangent(), dx, NoTangent())
+    end
+    return circshift(x, shifts), circshift_pullback
+end
+
+#####
 ##### `fill`
 #####
 
-function rrule(::typeof(fill), value::Any, dims::Tuple{Vararg{Int}})
-    function fill_pullback(Ȳ)
-        return (NoTangent(), sum(Ȳ), NoTangent())
-    end
-    return fill(value, dims), fill_pullback
+function frule((_, xdot), ::typeof(fill), x::Any, dims...)
+    return fill(x, dims...), fill(xdot, dims...)
 end
 
-function rrule(::typeof(fill), value::Any, dims::Int...)
-    function fill_pullback(Ȳ)
-        return (NoTangent(), sum(Ȳ), ntuple(_->NoTangent(), length(dims))...)
-    end
-    return fill(value, dims), fill_pullback
+function rrule(::typeof(fill), x::Any, dims...)
+    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
+    nots = map(_ -> NoTangent(), dims)
+    fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
+    return fill(x, dims...), fill_pullback
 end
