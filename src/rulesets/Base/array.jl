@@ -1,4 +1,43 @@
 #####
+##### constructors
+#####
+
+ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
+
+function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
+    project_x = ProjectTo(x)
+    Array_pullback(ȳ) = (NoTangent(), project_x(ȳ))
+    return T(x), Array_pullback
+end
+
+#####
+##### `vect`
+#####
+
+@non_differentiable Base.vect()
+
+# Case of uniform type `T`: the data passes straight through,
+# so no projection should be required.
+function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
+    vect_pullback(ȳ) = (NoTangent(), NTuple{N}(ȳ)...)
+    return Base.vect(X...), vect_pullback
+end
+
+# Numbers and arrays are often promoted, to make a uniform vector.
+# ProjectTo here reverses this
+function rrule(
+    ::typeof(Base.vect),
+    X::Vararg{Union{Number,AbstractArray{<:Number}}, N},
+) where {N}
+    projects = map(ProjectTo, X)
+    function vect_pullback(ȳ)
+        X̄ = ntuple(n -> projects[n](ȳ[n]), N)
+        return (NoTangent(), X̄...)
+    end
+    return Base.vect(X...), vect_pullback
+end
+
+#####
 ##### `reshape`
 #####
 

@@ -1,3 +1,40 @@
+@testset "constructors" begin
+
+    # We can't use test_rrule here (as it's currently implemented) because the elements of
+    # the array have arbitrary values. The only thing we can do is ensure that we're getting
+    # `ZeroTangent`s back, and that the forwards pass produces the correct thing still.
+    # Issue: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/202
+    @testset "undef" begin
+        val, pullback = rrule(Array{Float64}, undef, 5)
+        @test size(val) == (5, )
+        @test val isa Array{Float64, 1}
+        @test pullback(randn(5)) == (NoTangent(), NoTangent(), NoTangent())
+    end
+    @testset "from existing array" begin
+        test_rrule(Array, randn(2, 5))
+        test_rrule(Array, Diagonal(randn(5)))
+        test_rrule(Matrix, Diagonal(randn(5)))
+        test_rrule(Matrix, transpose(randn(4)))
+        test_rrule(Array{ComplexF64}, randn(3))
+    end
+end
+
+@testset "vect" begin
+    test_rrule(Base.vect)
+    @testset "homogeneous type" begin
+        test_rrule(Base.vect, (5.0, ), (4.0, ))
+        test_rrule(Base.vect, 5.0, 4.0, 3.0)
+        test_rrule(Base.vect, randn(2, 2), randn(3, 3))
+    end
+    @testset "inhomogeneous type" begin
+        test_rrule(
+            Base.vect, 5.0, 3f0;
+            atol=1e-6, rtol=1e-6, check_inferred=VERSION>=v"1.6",
+        ) # tolerance due to Float32.
+        test_rrule(Base.vect, 5.0, randn(3, 3); check_inferred=false)
+    end
+end
+
 @testset "reshape" begin
     test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
