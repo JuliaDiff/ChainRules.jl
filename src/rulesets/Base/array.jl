@@ -23,7 +23,8 @@ function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     return Base.vect(X...), vect_pullback
 end
 
-# Numbers and arrays are often promoted, to make a uniform vector; ProjectTo here reverses this
+# Numbers and arrays are often promoted, to make a uniform vector.
+# ProjectTo here reverses this
 function rrule(
     ::typeof(Base.vect),
     X::Vararg{Union{Number,AbstractArray{<:Number}}, N},
