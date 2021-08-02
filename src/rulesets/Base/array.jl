@@ -358,9 +358,9 @@ for findm in (:findmin, :findmax)
     @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
         y, ind = $findm(x; dims=dims)
         project = ProjectTo(x)
-        function $findm_pullback((dy, _))
+        function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             x_thunk = @thunk begin
-                dx = fill!(similar(x, eltype(dy)), false)
+                dx = fill!(similar(x, eltype(dy), axes(x)), false)
                 view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
                 project(dx)
             end
@@ -423,7 +423,7 @@ function _extrema_colon(x)
         T = Base.promote_op(+, typeof(dylo), typeof(dyhi))
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
-            dx = fill!(similar(x, T), false)
+            dx = fill!(similar(x, T, axes(x)), false)
             view(dx, ilo) .= dylo
             view(dx, ihi) .= view(dx, ihi) .+ dyhi
             project(dx)
@@ -453,7 +453,7 @@ function _extrema_dims(x, dims)
         T = Base.promote_op(+, eltype(dy).parameters...)  # can we actually get Array{Tuple{Float64,ZeroTangent}} here?
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
-            dx = fill!(similar(x, T), false)
+            dx = fill!(similar(x, T, axes(x)), false)
             view(dx, ilo) .= first.(dy)
             view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
             project(dx)
