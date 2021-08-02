@@ -16,8 +16,7 @@ end
 
 @non_differentiable Base.vect()
 
-# Don't worry about projection here. The data passes straight through, so if a cotangent has
-# the wrong type for some reason, it must be the fault of another rule somewhere.
+# Case of uniform type `T`: the data passes straight through, so no projection should be required.
 function rrule(::typeof(Base.vect), X::Vararg{T, N}) where {T, N}
     vect_pullback(ȳ) = (NoTangent(), NTuple{N}(ȳ)...)
     return Base.vect(X...), vect_pullback
