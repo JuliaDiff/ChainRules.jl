@@ -1,12 +1,32 @@
 @testset "Maps and Reductions" begin
-    @testset "sum" begin
-        sizes = (3, 4, 7)
-        @testset "dims = $dims" for dims in (:, 1)
-            @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
-                x = randn(T, sizes[1:N]...)
-                test_frule(sum, x; fkwargs=(;dims=dims))
-                test_rrule(sum, x; fkwargs=(;dims=dims))
-            end
+    @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
+        # Forward
+        test_frule(sum, rand(5); fkwargs=(;dims=dims))
+        test_frule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+
+        # Reverse
+        test_rrule(sum, rand(5); fkwargs=(;dims=dims))
+        test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+
+        # Structured matrices
+        test_rrule(sum, rand(5)'; fkwargs=(;dims=dims))
+        y, back = rrule(sum, UpperTriangular(rand(5,5)); dims=dims)
+        unthunk(back(y*(1+im))[2]) isa UpperTriangular{Float64}
+
+        # Function allowing for 2nd derivatives
+        for x in (rand(5), rand(2,3,4))
+            dy = maximum(x; dims=dims)
+            test_frule(ChainRules._unsum, x, dy, dims)
+            test_rrule(ChainRules._unsum, x, dy, dims)
+        end
+
+        # Arrays of arrays
+        for x  in ([rand(ComplexF64, 3) for _ in 1:4], [rand(3) for _ in 1:2, _ in 1:3, _ in 1:4])
+            test_rrule(sum, x; fkwargs=(;dims=dims), check_inferred=false)
+
+            dy = sum(x; dims=dims)
+            ddy = rrule(ChainRules._unsum, x, dy, dims)[2](x)[3]
+            @test size(ddy) == size(dy)
         end
     end
 
