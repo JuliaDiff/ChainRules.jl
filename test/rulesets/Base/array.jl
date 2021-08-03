@@ -223,6 +223,7 @@ end
     @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
 
     # Second derivatives
+    @test_broken test_frule(ChainRules._writezero, [1 2; 3 4], 5, CartesianIndex(2, 2), :)
     test_rrule(ChainRules._writezero, [1 2; 3 4], 5, CartesianIndex(2, 2), :)
     test_rrule(ChainRules._writezero, [1 2; 3 4], 5, [CartesianIndex(2, 1) CartesianIndex(2, 2)], 1)
 end

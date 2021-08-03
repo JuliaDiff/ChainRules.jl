@@ -381,6 +381,12 @@ function _writezero(x, dy, ind, dims)
     dx
 end
 
+# Allow for second derivatives:
+
+function frule((_, _, dydot, _, _), ::typeof(_writezero), x, dy, ind, dims)
+    return _writezero(x, dy, ind, dims), _writezero(x, dydot, ind, dims)
+end
+
 function rrule(::typeof(_writezero), x, dy, ind, dims)
     z = _writezero(x, dy, ind, dims)
     _writezero_pullback(dz) = (NoTangent(), NoTangent(), sum(view(unthunk(dz), ind); dims=dims), NoTangent(), NoTangent())
