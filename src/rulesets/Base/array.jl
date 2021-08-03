@@ -381,7 +381,7 @@ function _writezero(x, dy, ind, dims)
     dx
 end
 
-# Allow for second derivatives:
+# Allow for second derivatives, by writing rules for `_writezero`:
 
 function frule((_, _, dydot, _, _), ::typeof(_writezero), x, dy, ind, dims)
     return _writezero(x, dy, ind, dims), _writezero(x, dydot, ind, dims)
@@ -393,10 +393,7 @@ function rrule(::typeof(_writezero), x, dy, ind, dims)
     return z, _writezero_pullback
 end
 
-Base.view(z::AbstractZero, ind...) = z  # TODO move to ChainRulesCore
-Base.sum(z::AbstractZero; dims=:) = z   # TODO move to ChainRulesCore
-
-# These rules for `maximum` pick the same subgradient as findmax:
+# These rules for `maximum` pick the same subgradient as `findmax`:
 
 function frule((_, xdot), ::typeof(maximum), x; dims=:)
     y, ind = findmax(x; dims=dims)
@@ -423,6 +420,8 @@ end
 #####
 ##### `extrema`
 #####
+
+# This won't be twice-differentiable, could do something similar to `_writezero` above.
 
 function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
     if dims isa Colon
@@ -473,7 +472,7 @@ function _extrema_dims(x, dims)
         T = Base.promote_op(+, eltype(dy).parameters...)
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
-            dx = fill!(similar(x, T, axes(x)), false)  # This won't be twice-differentiable
+            dx = fill!(similar(x, T, axes(x)), false)
             view(dx, ilo) .= first.(dy)
             view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
             project(dx)
