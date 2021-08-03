@@ -361,13 +361,7 @@ for findm in (:findmin, :findmax)
         # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk begin
-                # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-                # allow `eltype(dy)`, nor does it work for many structured matrices.
-                dx = fill!(similar(x, eltype(dy), axes(x)), false)
-                view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-                project(dx)
-            end
+            x_thunk = @thunk project(_writezero(x, dy, ind, dims))
             x_ithunk = InplaceableThunk(x_thunk) do dx
                 view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
                 dx
@@ -379,7 +373,24 @@ for findm in (:findmin, :findmax)
 
 end
 
-# These rules for maximum pick the same subgradient as findmax:
+function _writezero(x, dy, ind, dims)
+    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
+    # allow `eltype(dy)`, nor does it work for many structured matrices.
+    dx = fill!(similar(x, eltype(dy), axes(x)), false)
+    view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
+    dx
+end
+
+function rrule(::typeof(_writezero), x, dy, ind, dims)
+    z = _writezero(x, dy, ind, dims)
+    _writezero_pullback(dz) = (NoTangent(), NoTangent(), sum(view(unthunk(dz), ind); dims=dims), NoTangent(), NoTangent())
+    return z, _writezero_pullback
+end
+
+Base.view(z::AbstractZero, ind...) = z  # TODO move to ChainRulesCore
+Base.sum(z::AbstractZero; dims=:) = z   # TODO move to ChainRulesCore
+
+# These rules for `maximum` pick the same subgradient as findmax:
 
 function frule((_, xdot), ::typeof(maximum), x; dims=:)
     y, ind = findmax(x; dims=dims)
@@ -456,7 +467,7 @@ function _extrema_dims(x, dims)
         T = Base.promote_op(+, eltype(dy).parameters...)
         x_nothunk = let
         # x_thunk = @thunk begin  # this doesn't infer
-            dx = fill!(similar(x, T, axes(x)), false)
+            dx = fill!(similar(x, T, axes(x)), false)  # This won't be twice-differentiable
             view(dx, ilo) .= first.(dy)
             view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
             project(dx)

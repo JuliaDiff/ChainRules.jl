@@ -221,6 +221,10 @@ end
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
     @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
     @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
+
+    # Second derivatives
+    test_rrule(ChainRules._writezero, [1 2; 3 4], 5, CartesianIndex(2, 2), :)
+    test_rrule(ChainRules._writezero, [1 2; 3 4], 5, [CartesianIndex(2, 1) CartesianIndex(2, 2)], 1)
 end
 
 @testset "$imum" for imum in [maximum, minimum]
