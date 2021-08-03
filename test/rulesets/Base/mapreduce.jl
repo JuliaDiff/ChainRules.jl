@@ -12,7 +12,11 @@
         test_rrule(sum, rand(5)'; fkwargs=(;dims=dims))
         y, back = rrule(sum, UpperTriangular(rand(5,5)); dims=dims)
         unthunk(back(y*(1+im))[2]) isa UpperTriangular{Float64}
+        @test_skip test_rrule(sum, UpperTriangular(rand(5,5)) ⊢ randn(5,5); fkwargs=(;dims=dims), check_inferred=false) # Problem: in add!!  Evaluated: isapprox
 
+        # Boolean -- via @non_differentiable
+        test_rrule(sum, randn(5) .> 0; fkwargs=(;dims=dims))
+        
         # Function allowing for 2nd derivatives
         for x in (rand(5), rand(2,3,4))
             dy = maximum(x; dims=dims)
@@ -39,6 +43,9 @@
                 test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
             end
         end
+
+        # Boolean -- via @non_differentiable, test that this isn't ambiguous
+        test_rrule(sum, abs2, randn(5) .> 0; fkwargs=(;dims=dims))
     end  # sum abs2
 
     @testset "sum(f, xs)" begin
@@ -69,6 +76,9 @@
         # make sure we preserve type for Diagonal
         _, pb = rrule(ADviaRuleConfig(), sum, abs, Diagonal([1.0, -3.0]))
         @test pb(1.0)[3] isa Diagonal
+
+        # Boolean -- via @non_differentiable, test that this isn't ambiguous
+        @test_skip test_rrule(sum, sqrt, randn(5) .> 0; fkwargs=(;dims=dims)) # MethodError: no method matching real(::NoTangent)
     end
 
     @testset "prod" begin
@@ -120,7 +130,6 @@
                 @test unthunk(rrule(prod, UpperTriangular(ones(T,2,2)))[2](1.0)[2]) == UpperTriangular([0.0 0; 1 0])
 
                 # Symmetric -- at least this doesn't have zeros, still an unlikely combination
-
                 xs = Symmetric(rand(T,4,4))
                 @test unthunk(rrule(prod, Symmetric(T[1 2; -333 4]))[2](1.0)[2]) == [16 8; 8 4]
                 # TODO debug why these fail  https://github.com/JuliaDiff/ChainRules.jl/issues/475
