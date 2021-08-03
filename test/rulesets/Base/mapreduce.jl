@@ -42,16 +42,21 @@
                 test_frule(sum, abs2, x; fkwargs=(;dims=dims))
                 test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
             end
-        end
 
-        # Boolean -- via @non_differentiable, test that this isn't ambiguous
-        test_rrule(sum, abs2, randn(5) .> 0; fkwargs=(;dims=dims))
+            # Boolean -- via @non_differentiable, test that this isn't ambiguous
+            test_rrule(sum, abs2, randn(5) .> 0; fkwargs=(;dims=dims))
+        end
     end  # sum abs2
 
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
+
+        # Complex numbers
+        test_rrule(sum, sqrt, rand(ComplexF64, 5))
+        test_rrule(sum, abs, rand(ComplexF64, 3, 4))  # complex -> real
 
         # inference fails for array of arrays
         test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
@@ -59,6 +64,7 @@
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=2))
+        test_rrule(sum, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
 
@@ -78,7 +84,10 @@
         @test pb(1.0)[3] isa Diagonal
 
         # Boolean -- via @non_differentiable, test that this isn't ambiguous
-        @test_skip test_rrule(sum, sqrt, randn(5) .> 0; fkwargs=(;dims=dims)) # MethodError: no method matching real(::NoTangent)
+        test_rrule(sum, sqrt, randn(5) .> 0) 
+        test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
+        # ... and Bool produced by function
+        @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
     end
 
     @testset "prod" begin
