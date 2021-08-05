@@ -223,9 +223,12 @@ end
     @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
 
     # Second derivatives
-    @test_broken test_frule(ChainRules._writezero, [1 2; 3 4], 5, CartesianIndex(2, 2), :)
-    test_rrule(ChainRules._writezero, [1 2; 3 4], 5, CartesianIndex(2, 2), :)
-    test_rrule(ChainRules._writezero, [1 2; 3 4], 5, [CartesianIndex(2, 1) CartesianIndex(2, 2)], 1)
+    test_frule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+    test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+    @test_skip test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching +(::Float64, ::Matrix{Float64})
+    y, bk = rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
+    @test y == [0 0; 5 5]
+    @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
 end
 
 @testset "$imum" for imum in [maximum, minimum]

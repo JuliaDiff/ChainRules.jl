@@ -361,7 +361,7 @@ for findm in (:findmin, :findmax)
         # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk project(_writezero(x, dy, ind, dims))
+            x_thunk = @thunk project(_zerolike_writeat(x, dy, dims, ind))
             x_ithunk = InplaceableThunk(x_thunk) do dx
                 view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
                 dx
@@ -370,27 +370,32 @@ for findm in (:findmin, :findmax)
         end
         return (y, ind), $findm_pullback
     end
-
 end
 
-function _writezero(x, dy, ind, dims)
+# This is roughly `setindex!(zero(x), dy, inds...)`
+function _zerolike_writeat(x, dy, dims, inds...)
     # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
     # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), false)
-    view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
+    dx = fill!(similar(x, eltype(dy), axes(x)), false) # zero(eltype(dy)))
+    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
     dx
 end
 
-# Allow for second derivatives, by writing rules for `_writezero`:
+# Allow for second derivatives, by writing rules for `_zerolike_writeat`;
+# these rules are the reason it takes a `dims` argument.
 
-function frule((_, _, dydot, _, _), ::typeof(_writezero), x, dy, ind, dims)
-    return _writezero(x, dy, ind, dims), _writezero(x, dydot, ind, dims)
+function frule((_, _, dydot), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dydot, dims, inds...)
 end
 
-function rrule(::typeof(_writezero), x, dy, ind, dims)
-    z = _writezero(x, dy, ind, dims)
-    _writezero_pullback(dz) = (NoTangent(), NoTangent(), sum(view(unthunk(dz), ind); dims=dims), NoTangent(), NoTangent())
-    return z, _writezero_pullback
+function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    z = _zerolike_writeat(x, dy, dims, inds...)
+    function _zerolike_writeat_pullback(dz)
+        dx = sum(view(unthunk(dz), inds...); dims=dims)
+        nots = map(_ -> NoTangent(), inds)
+        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
+    end
+    return z, _zerolike_writeat_pullback
 end
 
 # These rules for `maximum` pick the same subgradient as `findmax`:
@@ -420,8 +425,6 @@ end
 #####
 ##### `extrema`
 #####
-
-# This won't be twice-differentiable, could do something similar to `_writezero` above.
 
 function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
     if dims isa Colon
