@@ -178,7 +178,7 @@
     @testset "Float conversions" begin
         for f in (float, Float32, Float64, AbstractFloat)
             test_frule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
-            test_frule(f, 1⊢1.7; rtol=1.0e-3, atol=1.0e-3)
+            test_frule(f, 1; rtol=1.0e-3, atol=1.0e-3)
             test_rrule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
 
             # test_rrule doesn't like integers, so test that case manually
