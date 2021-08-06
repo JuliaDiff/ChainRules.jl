@@ -1,23 +1,47 @@
 #####
-##### `sum`
+##### `sum(x)`
 #####
 
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
 
-function rrule(::typeof(sum), x::AbstractArray{T}; dims=:) where {T<:Number}
+function rrule(::typeof(sum), x::AbstractArray; dims=:)
+    project = ProjectTo(x)
     y = sum(x; dims=dims)
-    function sum_pullback(ȳ)
-        # broadcasting the two works out the size no-matter `dims`
-        x̄ = InplaceableThunk(
-            x -> x .+= ȳ,
-            @thunk(broadcast(last∘tuple, x, ȳ)),
+    function sum_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        x_thunk = InplaceableThunk(
+            # Protect `dy` from broadcasting, for when `x` is an array of arrays:
+            dx -> dx .+= (dims isa Colon ? Ref(dy) : dy),
+            @thunk project(_unsum(x, dy, dims))  # `_unsum` handles Ref internally
         )
-        return (NoTangent(), x̄)
+        return (NoTangent(), x_thunk)
     end
     return y, sum_pullback
 end
+
+# This broadcasts `dy` to the shape of `x`, and should preserve e.g. CuArrays, StaticArrays.
+# Ideally this would only need `typeof(x)` not `x`, but `similar` only has a suitable method
+# when `eltype(x) == eltype(dy)`, which isn't guaranteed.
+_unsum(x, dy, dims) = broadcast(last∘tuple, x, dy)
+_unsum(x, dy, ::Colon) = broadcast(last∘tuple, x, Ref(dy))
+
+# Allow for second derivatives of `sum`, by writing rules for `_unsum`:
+
+function frule((_, _, dydot, _), ::typeof(_unsum), x, dy, dims)
+    return _unsum(x, dy, dims), _unsum(x, dydot, dims)
+end
+
+function rrule(::typeof(_unsum), x, dy, dims)
+    z = _unsum(x, dy, dims)
+    _unsum_pullback(dz) = (NoTangent(), NoTangent(), sum(unthunk(dz); dims=dims), NoTangent())
+    return z, _unsum_pullback
+end
+
+#####
+##### `sum(f, x)`
+#####
 
 # Can't map over Adjoint/Transpose Vector
 function rrule(

@@ -8,6 +8,9 @@ function ChainRulesCore.rrule(m::Multiplier, y)
     return m(y), Multiplier_pullback
 end
 
+# NoRules - has no rules defined
+struct NoRules; end
+
 @testset "test_helpers.jl" begin
     @testset "Multiplier functor test-helper" begin
         test_rrule(Multiplier(4.0), 3.0)

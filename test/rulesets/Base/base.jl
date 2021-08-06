@@ -183,4 +183,21 @@
         test_frule(Base.literal_pow, ^, 3.5, Val(3))
         test_rrule(Base.literal_pow, ^, 3.5, Val(3))
     end
+
+    @testset "Float conversions" begin
+        for f in (float, Float32, Float64, AbstractFloat)
+            test_frule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
+            test_frule(f, 1⊢1.7; rtol=1.0e-3, atol=1.0e-3)
+            test_rrule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
+
+            # test_rrule doesn't like integers, so test that case manually
+            let y = rand(Int), x = randn()
+                @test rrule(f, y)[2](x)[2] == x
+            end
+        end
+
+        # Make sure that we didn't accidentally define a rule for all DataTypes
+        @test frule(NoRules, 1.0) === nothing
+        @test rrule(NoRules, 1.0) === nothing
+    end
 end

@@ -1,3 +1,7 @@
+#####
+##### Operators
+#####
+
 @non_differentiable !(::Any)
 @non_differentiable *(::Union{Regex, AbstractChar, AbstractString}...)
 @non_differentiable -(::AbstractChar, ::AbstractChar)
@@ -12,6 +16,10 @@
 @non_differentiable ==(::Any)
 @non_differentiable ==(::Any, ::Any)
 @non_differentiable ===(::Any, ::Any)
+
+#####
+##### Boolean
+#####
 
 @non_differentiable Bool(::Any)
 
@@ -68,12 +76,19 @@
 @non_differentiable similar(::AbstractArray{Bool}, ::Any...)
 @non_differentiable stride(::AbstractArray{Bool}, ::Any)
 @non_differentiable strides(::AbstractArray{Bool})
+@non_differentiable sum(::AbstractArray{Bool})
+@non_differentiable sum(::Any, ::AbstractArray{Bool})
+@non_differentiable sum(::typeof(abs2), ::AbstractArray{Bool})  # avoids an ambiguity
 @non_differentiable vcat(::AbstractArray{Bool}...)
 @non_differentiable vec(::AbstractArray{Bool})
 @non_differentiable Vector(::AbstractArray{Bool})
 
 @non_differentiable Array(::AbstractArray{Bool})
 @non_differentiable IndexStyle(::AbstractArray{Bool})
+
+#####
+##### Exported functions, alphabetically
+#####
 
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
@@ -116,6 +131,7 @@
 @non_differentiable eachline(::AbstractString)
 @non_differentiable eachline(::IO)
 @non_differentiable eachmatch(::Regex, ::AbstractString)
+@non_differentiable eltype(::Type)
 @non_differentiable endswith(::AbstractString, ::AbstractString)
 @non_differentiable endswith(::AbstractString, ::Regex)
 @non_differentiable eof(::Any)
@@ -161,6 +177,8 @@ VERSION >= v"1.1" && @non_differentiable fieldtypes(T)
 @non_differentiable getpid(::Base.Process)
 
 @non_differentiable haskey(::Any, ::Any)
+@non_differentiable hasfield(::Type, ::Symbol)
+@non_differentiable hasproperty(::Any, ::Symbol)
 @non_differentiable hash(::Any)
 @non_differentiable hash(::Any, ::UInt)
 @non_differentiable hex2bytes(::AbstractString)
@@ -290,6 +308,8 @@ VERSION >= v"1.3" && @non_differentiable istaskfailed(::Task)
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
+@non_differentiable one(::Any)
+@non_differentiable ones(::Any...)
 VERSION >= v"1.4" && @non_differentiable only(::Char)
 @non_differentiable open(::Any)
 
@@ -350,6 +370,7 @@ end
 @non_differentiable show(::Any)
 @non_differentiable show(::Any, ::Any)
 @non_differentiable showerror(::IO, ::Exception)
+@non_differentiable similar(::Any...)
 @non_differentiable size(::Any)
 @non_differentiable size(::Any, ::Any)
 @non_differentiable sizeof(::Any)
@@ -403,7 +424,13 @@ VERSION >= v"1.1" && @non_differentiable splitpath(::AbstractString)
 @non_differentiable xor(::Any...)
 @non_differentiable typejoin(::Any...)
 
-# Non-public Base
+@non_differentiable zero(::Any)
+@non_differentiable zeros(::Any...)
+
+#####
+##### Non-exported functions
+#####
+
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
@@ -438,10 +465,3 @@ VERSION >= v"1.1" && @non_differentiable Sys.isopenbsd(::Symbol)
 @non_differentiable Threads.nthreads()
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
-
-@non_differentiable similar(::Any...)
-
-@non_differentiable one(::Any)
-@non_differentiable ones(::Any...)
-@non_differentiable zero(::Any)
-@non_differentiable zeros(::Any...)
