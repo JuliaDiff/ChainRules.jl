@@ -52,7 +52,7 @@ let
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
         @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)
+        @scalar_rule sqrt(x) inv(2Ω)  # gradient +Inf at x==0
         @scalar_rule exp(x) Ω
         @scalar_rule exp10(x) Ω * log(oftype(x, 10))
         @scalar_rule exp2(x) Ω * log(oftype(x, 2))
@@ -137,8 +137,7 @@ let
 
         # Binary functions
 
-        # `hypot`
-
+        ## `hypot`
         function frule(
             (_, Δx, Δy),
             ::typeof(hypot),
@@ -163,17 +162,52 @@ let
         @scalar_rule x + y (true, true)
         @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
-        #log(complex(x)) is required so it gives correct complex answer for x<0
-        @scalar_rule(x ^ y, (
-            ifelse(iszero(x), ifelse(isone(y), one(Ω), zero(Ω)), y * Ω / x),
-            Ω * log(complex(x)),
-        ))
-        # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
-        # is undefined, so we adopt subgradient convention and set derivative to 0.
-        @scalar_rule(x::Real ^ y::Real, (
-            ifelse(iszero(x), ifelse(isone(y), one(Ω), zero(Ω)), y * Ω / x),
-            Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x))),
-        ))
+
+        ## power
+        # literal_pow is in base.jl
+        function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
+            yox = x ^ (p-1)
+            y = yox * x
+            thelog = if Δp isa AbstractZero
+                # Then don't waste time computing log
+                NoTangent()
+            elseif x isa Real && p isa Real
+                # For positive x we'd like a real answer, including any Δp.
+                # For negative x, this is a DomainError unless isinteger(p)...
+                # could decide that implues that p is non-differentiable:
+                # log(ifelse(x<0, one(x), x))
+
+                # or we could match what the rrule with ProjectTo gives:
+                real(log(complex(x)))
+#=
+
+julia> frule((0,0,1), ^, -4, 3.0), unthunk.(rrule(^, -4, 3.0)[2](1))
+((-64.0, 0.0), (NoTangent(), 48.0, -88.722839111673))
+
+julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
+((64.0, 88.722839111673), (NoTangent(), 48.0, 88.722839111673))
+=#
+            else
+                # This promotion handles e.g. real x & complex p
+                log(oftype(y, x))
+            end
+            return y, muladd(y * thelog, Δp, p * yox * Δx)
+        end
+        function rrule(::typeof(^), x::Number, p::Number)
+            yox = x ^ (p-1)
+            project_x, project_p = ProjectTo(x), ProjectTo(p)
+            @inline function power_pullback(dy)
+                dx = project_x(conj(p * yox) * dy)
+                dp = @thunk if x isa Real && p isa Real
+                    project_p(conj(yox * x * log(complex(x))) * dy)
+                else
+                    project_p(conj(yox * x * log(oftype(yox, x))) * dy)
+                end
+                return (NoTangent(), dx, dp)
+            end
+            return yox * x, power_pullback
+        end
+
         @scalar_rule(
             rem(x, y),
             @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
@@ -235,9 +269,10 @@ let
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
-        error(
-            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
-            join(non_transformed_definitions, "\n")
+        @warn(
+            "Non-FastMath compatible rules defined in fastmath_able.jl.", # \n Definitions:\n" *
+            # join(non_transformed_definitions, "\n")
+            non_transformed_definitions
         )
     end
 
