@@ -99,11 +99,22 @@ end
 
 # Trivial rule configurations, allowing `rrule_via_ad` with simple functions:
 struct TestConfigReverse <: RuleConfig{HasReverseMode} end
-ChainRulesCore.rrule_via_ad(::TestConfigReverse, f, args...) = rrule(f, args...)
+function ChainRulesCore.rrule_via_ad(::TestConfigReverse, args...; kw...)
+    if hasmethod(rrule, typeof(args), keys(kw))
+        rrule(args...; kw...)
+    else
+        error("TestConfigReverse can only handle `rrule_via_ad(f, args...)` when there is an rrule method")
+    end
+end
 
 struct TestConfigForwards <: RuleConfig{HasForwardsMode} end
-ChainRulesCore.frule_via_ad(::TestConfigReverse, args...) = frule(args...)
-
+function ChainRulesCore.frule_via_ad(::TestConfigReverse, args...; kw...)
+    if hasmethod(frule, typeof(args), keys(kw))
+        frule(args...; kw...)
+    else
+        error("TestConfigForwards can only handle `frule_via_ad(f, args...)` when there is an frule method")
+    end
+end
 
 @testset "test_helpers.jl" begin
 
