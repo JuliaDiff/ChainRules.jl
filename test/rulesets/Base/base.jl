@@ -98,11 +98,16 @@
         @testset "($x) * ($y)" for
             x in test_points, y in test_points
 
-            # ensure all complex if any complex for FiniteDifferences
-            x, y = Base.promote(x, y)
+            # all complex if any complex, was a limitation of FiniteDifferences?
+            xx, yy = Base.promote(x, y)
+            test_frule(*, xx, yy)
+            test_rrule(*, xx, yy)
 
+            # explicitly allow mixed types
             test_frule(*, x, y)
             test_rrule(*, x, y)
+            rrule(*, x, y)[2](1)[2] isa typeof(x)
+            rrule(*, x, y)[2](1)[3] isa typeof(y)
         end
     end
 
@@ -136,14 +141,17 @@
         test_rrule(identity, Tuple(randn(T, 3)))
     end
 
-    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
+    @testset "one(::Number), zero(::Number)" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
+
+        rrule(one, x)[2](1) === (NoTangent(), zero(x))
+        rrule(zero, x)[2](1) === (NoTangent(), zero(x))
     end
 
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        test_frule(muladd, 10randn(), randn(), randn())
-        test_rrule(muladd, 10randn(), randn(), randn())
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
     end
 
     @testset "fma" begin
@@ -163,6 +171,13 @@
         # to right
         test_frule(clamp, 4., 2., 3.)
         test_rrule(clamp, 4., 2., 3.)
+
+        # nonzero gradient at the boundaries
+        @test frule((0,1,0,0), clamp, 2, 2, 3) == (2, 1)
+        @test rrule(clamp, 2.0, 2, 3)[2](1)[2] == 1.0
+
+        @test frule((0,1,0,0), clamp, 3, 2, 3) == (3, 1)
+        @test rrule(clamp, 3, 2, 3)[2](1)[2] == 1.0
     end
 
     @testset "rounding" begin
