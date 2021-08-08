@@ -179,21 +179,48 @@ end
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)
 
-# note: rules for ^ are defined in the fastmath_able.jl
-function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
-    y = Base.literal_pow(^, x, pv)
-    return y, ifelse(iszero(x), zero(y), p * y / x * Δx)
+# `literal_pow`
+# Note that rules for `^` are defined in the fastmath_able.jl
+
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{p}) where p
+    yox = Base.literal_pow(^, x, Val(p-1))
+    if p < 0 && iseven(p)
+        # When p<0 and x==0, using yox * x for the primal gives NaN instead of +-Inf
+        y = ifelse(iszero(x), oftype(yox, Inf), yox * x)
+    elseif p < 0
+        y = ifelse(iszero(x), copysign(oftype(yox, Inf), x), yox * x)
+    else
+        y = yox * x
+    end
+    return y, p * yox * Δx
 end
 frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{1}) = x^1, Δx
+frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{0}) = x^0, zero(Δx)
 
-function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
-    y = Base.literal_pow(^, x, pv)
-    function literal_pow_pullback(dy)
-        return NoTangent(), NoTangent(), ifelse(iszero(x), zero(y), p * y / x * dy), NoTangent()
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{p}) where p
+    yox = Base.literal_pow(^, x, Val(p-1))
+    project = ProjectTo(x)
+    @inline function literal_pow_pullback(dy)
+        return NoTangent(), NoTangent(), project(p * yox * dy), NoTangent()
+    end
+    if p < 0 && iseven(p)
+        # When p<0 and x==0, using yox * x for the primal gives NaN instead of +-Inf
+        y = ifelse(iszero(x), oftype(yox, Inf), yox * x)
+    elseif p < 0
+        y = ifelse(iszero(x), copysign(oftype(yox, Inf), x), yox * x)
+    else
+        y = yox * x
     end
     return y, literal_pow_pullback
 end
-function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{1})
-    literal_pow_one_pullback(dy) = NoTangent(), NoTangent(), dy, NoTangent()
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{1})
+    project = ProjectTo(x)
+    literal_pow_one_pullback(dy) = NoTangent(), NoTangent(), project(dy), NoTangent()
     return x^1, literal_pow_one_pullback
+end
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{0})
+    # Since 0^0 == 1 == 0.001^0, this gradient should not be NaN at x==0
+    project = ProjectTo(x)
+    literal_pow_zero_pullback(dy) = NoTangent(), NoTangent(), project(zero(dy)), NoTangent()
+    return x^0, literal_pow_zero_pullback
 end

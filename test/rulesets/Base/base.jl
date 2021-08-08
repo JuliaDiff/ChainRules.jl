@@ -189,18 +189,38 @@
     end
 
     @testset "literal_pow" begin
-        # for real x and n, x must be >0
         test_frule(Base.literal_pow, ^, 3.5, Val(3))
         test_rrule(Base.literal_pow, ^, 3.5, Val(3))
 
-        test_frule(Base.literal_pow, ^, 0.0, Val(3))
-        test_rrule(Base.literal_pow, ^, 0.0, Val(3))
+        @testset "$x^$p" for x in [-1.5, 0.0, 3.5], p in [-3, -1, 0, 1, 3]
+            x == 0 && p < 0 && continue
+            test_frule(Base.literal_pow, ^, -1.5, Val(3))
+            test_rrule(Base.literal_pow, ^, -1.5, Val(3))
+        end
 
-        test_frule(Base.literal_pow, ^, 3.5, Val(1))
-        test_rrule(Base.literal_pow, ^, 3.5, Val(1))
+        @testset "singularities" begin
+            # Trivial one: 0^0 == 1 in Julia
+            @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(0)) == ((0.0)^0, 0)
+            @test rrule(Base.literal_pow, ^, 0.0, Val(0))[2](1.0)[3] == 0.0
+            
+            # Odd power, 1/x
+            @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(-1)) == ((0.0)^-1, -Inf)
+            @test rrule(Base.literal_pow, ^, 0.0, Val(-1))[1] == (0.0)^-1 == Inf
+            @test rrule(Base.literal_pow, ^, 0.0, Val(-1))[2](1.0)[3] == -Inf
 
-        test_frule(Base.literal_pow, ^, 0.0, Val(1))
-        test_rrule(Base.literal_pow, ^, 0.0, Val(1))
+            @test frule((1,1,1,1), Base.literal_pow, ^, -0.0, Val(-1)) == ((-0.0)^-1, -Inf)
+            @test rrule(Base.literal_pow, ^, -0.0, Val(-1))[1] == (-0.0)^-1 == -Inf
+            @test rrule(Base.literal_pow, ^, -0.0, Val(-1))[2](1.0)[3] == -Inf
+
+            # Even power, 1/x^2
+            @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(-2)) == ((0.0)^-2, -Inf)
+            @test rrule(Base.literal_pow, ^, 0.0, Val(-2))[1] == (0.0)^-2 == Inf
+            @test rrule(Base.literal_pow, ^, 0.0, Val(-2))[2](1.0)[3] == -Inf
+
+            @test frule((1,1,1,1), Base.literal_pow, ^, -0.0, Val(-2)) == ((-0.0)^-2, +Inf)
+            @test rrule(Base.literal_pow, ^, -0.0, Val(-2))[1] == (-0.0)^-2 == Inf
+            @test rrule(Base.literal_pow, ^, -0.0, Val(-2))[2](1.0)[3] == +Inf
+        end
     end
 
     @testset "Float conversions" begin
