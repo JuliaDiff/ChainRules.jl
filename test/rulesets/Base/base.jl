@@ -192,13 +192,13 @@
         test_frule(Base.literal_pow, ^, 3.5, Val(3))
         test_rrule(Base.literal_pow, ^, 3.5, Val(3))
 
-        @testset "$x^$p" for x in [-1.5, 0.0, 3.5], p in [-3, -1, 0, 1, 3]
+        @testset "regular: $x^$p" for x in [-1.5, 0.0, 3.5], p in [-3, -1, 0, 1, 3]
             x == 0 && p < 0 && continue
-            test_frule(Base.literal_pow, ^, -1.5, Val(3))
-            test_rrule(Base.literal_pow, ^, -1.5, Val(3))
+            test_frule(Base.literal_pow, ^, x, Val(p))
+            test_rrule(Base.literal_pow, ^, x, Val(p))
         end
 
-        @testset "singularities" begin
+        @testset "singularities: 0^0, 0^-1, 0^-2" begin
             # Trivial one: 0^0 == 1 in Julia
             @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(0)) == ((0.0)^0, 0)
             @test rrule(Base.literal_pow, ^, 0.0, Val(0))[2](1.0)[3] == 0.0
@@ -220,6 +220,13 @@
             @test frule((1,1,1,1), Base.literal_pow, ^, -0.0, Val(-2)) == ((-0.0)^-2, +Inf)
             @test rrule(Base.literal_pow, ^, -0.0, Val(-2))[1] == (-0.0)^-2 == Inf
             @test rrule(Base.literal_pow, ^, -0.0, Val(-2))[2](1.0)[3] == +Inf
+
+            # Not singluar, but ^ messed these up: x^1 and x^2
+            @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(2)) == (0.0, 0)
+            @test rrule(Base.literal_pow, ^, 0.0, Val(2))[2](1.0)[3] == 0.0
+
+            @test frule((1,1,1,1), Base.literal_pow, ^, 0.0, Val(1)) == (0.0, 1)
+            @test rrule(Base.literal_pow, ^, 0.0, Val(1))[2](1.0)[3] == 1.0
         end
     end
 

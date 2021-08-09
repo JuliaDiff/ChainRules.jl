@@ -166,10 +166,61 @@ const FASTABLE_AST = quote
             # then x must be positive to avoid a DomainError
             test_frule(^, rand(T) + 3, rand(T) + 3)
             test_rrule(^, rand(T) + 3, rand(T) + 3)
+       
+            T <: Real && S <: Real && continue
+            test_frule(^, randn(T), rand(T))
+            test_rrule(^, rand(T), rand(T))
         end
+
         # @testset "^(x::$T, $p::Int)" for T in (Float64, ComplexF64), p in -2:2
-        #     x = rand(T) .+ 3
+        #     test_frule(^, randn(T) + 3, p ⊢ NoTangent())  # this doesn't just skip p's tangent
+        #     test_rrule(^, randn(T) + 3, p ⊢ NoTangent())
         # end
+
+        @testset "^(x::Float64, p::$S) near x=0, p=1,0,-1,-2" for S in (Int, Float64)
+            p = S(+2)
+            @test frule((1,1,1), ^, 0.0, p)[1] == 0
+            @test_broken frule((1,1,1), ^, 0.0, p)[2] == 0
+            @test rrule(^, 0.0, p)[1] == 0
+            @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == 0
+
+            # Identity function x^1, at zero
+            p = S(+1)
+            @test frule((1,1,1), ^, 0.0, p)[1] == 0
+            @test_broken frule((1,1,1), ^, 0.0, p)[2] == 1
+            @test rrule(^, 0.0, p)[1] == 0
+            @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == 1
+
+            # Trivial singularity: 0^0 == 1 in Julia
+            p = S(0)
+            @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^0
+            @test_broken frule((1,1,1), ^, 0.0, p)[2] == 0
+            @test_broken unthunk(rrule(^, 0.0, p)[2](1.0)[3]) == 0.0
+            
+            # Odd power, 1/x
+            p = S(-1)
+            @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^-1
+            @test_broken frule((1,1,1), ^, 0.0, p)[2] == -Inf
+            @test_skip rrule(^, 0.0, p)[1] == (0.0)^-1 == Inf
+            @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == -Inf
+
+            @test_skip frule((1,1,1), ^, -0.0, p)[1] == (-0.0)^-1
+            @test_broken frule((1,1,1), ^, -0.0, p)[2] == -Inf
+            @test_skip rrule(^, -0.0, p)[1] == (-0.0)^-1 == -Inf
+            @test unthunk(rrule(^, -0.0, p)[2](1.0)[2]) == -Inf
+
+            # Even power, 1/x^2
+            p = S(-2)
+            @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^-2
+            @test_broken frule((1,1,1), ^, 0.0, p)[2] == -Inf
+            @test_skip rrule(^, 0.0, p)[1] == (0.0)^-2 == Inf
+            @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == -Inf
+
+            @test_skip frule((1,1,1), ^, -0.0, p)[1] == (-0.0)^-2
+            @test_broken frule((1,1,1), ^, -0.0, p)[2] == +Inf
+            @test_skip rrule(^, -0.0, p)[1] == (-0.0)^-2 == Inf
+            @test unthunk(rrule(^, -0.0, p)[2](1.0)[2]) == +Inf
+        end
 
         #     T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
         #         # finite differences doesn't work for x < 0, so we check manually
@@ -188,15 +239,6 @@ const FASTABLE_AST = quote
         #         @test ∂x ≈ 0
         #         @test ∂y ≈ 0
         #     end
-        # end
-
-        # @testset "edge cases with ^" begin
-        #     # FIXME
-        #     @test_skip test_frule(^, 0.0, rand() + 3 ⊢ NoTangent(); fdm=forward_fdm(5,1))
-        #     test_rrule(^, 0.0, rand() + 3; fdm=forward_fdm(5,1))
-
-        #     test_frule(^, 0.0, 1.0 ⊢ NoTangent(); fdm=forward_fdm(5,1))
-        #     test_rrule(^, 0.0, 1.0; fdm=forward_fdm(5,1))
         # end
     end
 
