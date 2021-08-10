@@ -38,8 +38,8 @@ function rrule(
 end
 
 # This rule isn't always correct, but Zygote and Diffractor fall over completely without it.
-function rrule(::typeof(Base.vect), X...)
-    vect_pullback(ȳ) = (NoTangent(), ȳ...)
+function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
+    vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
     return Base.vect(X...), vect_pullback
 end
 
