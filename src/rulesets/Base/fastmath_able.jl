@@ -166,14 +166,23 @@ let
         ## power
         # literal_pow is in base.jl
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
-            yox = x ^ (p-1)
-            y = yox * x
+            y = x ^ p
+            thegrad = (p * y / x)
+            thelog = Δp isa AbstractZero ? Δp : log(oftype(y, x))
+            return y, muladd(y * thelog, Δp, thegrad * Δx)
+        end
+        function frule((_, Δx, Δp), ::typeof(^), x::Real, p::Real)
+            y = x ^ p
+            thegrad = ifelse(!iszero(x) | (p<0), (p * y / x),
+                        ifelse(isone(p), one(y),
+                          ifelse(0<p<1,  oftype(y, Inf), zero(y) )))
             thelog = if Δp isa AbstractZero
                 # Then don't waste time computing log
-                NoTangent()
-            elseif x isa Real && p isa Real
+                Δp
+            else# if x isa Real && p isa Real
                 # For positive x we'd like a real answer, including any Δp.
                 # For negative x, this is a DomainError unless isinteger(p)...
+
                 # could decide that implues that p is non-differentiable:
                 # log(ifelse(x<0, one(x), x))
 
@@ -187,25 +196,26 @@ julia> frule((0,0,1), ^, -4, 3.0), unthunk.(rrule(^, -4, 3.0)[2](1))
 julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
 ((64.0, 88.722839111673), (NoTangent(), 48.0, 88.722839111673))
 =#
-            else
-                # This promotion handles e.g. real x & complex p
-                log(oftype(y, x))
             end
-            return y, muladd(y * thelog, Δp, p * yox * Δx)
+            return y, muladd(y * thelog, Δp, thegrad * Δx)
         end
+
         function rrule(::typeof(^), x::Number, p::Number)
-            yox = x ^ (p-1)
+            y = x^p
             project_x, project_p = ProjectTo(x), ProjectTo(p)
             @inline function power_pullback(dy)
-                dx = project_x(conj(p * yox) * dy)
-                dp = @thunk if x isa Real && p isa Real
-                    project_p(conj(yox * x * log(complex(x))) * dy)
+                if x isa Real && p isa Real
+                    thegrad = ifelse(!iszero(x) | (p<0), (p * y / x),
+                                ifelse(isone(p), one(y),
+                                  ifelse(0<p<1,  oftype(y, Inf), zero(y) )))
                 else
-                    project_p(conj(yox * x * log(oftype(yox, x))) * dy)
+                    thegrad = (p * y / x)
                 end
+                dx = project_x(conj(thegrad) * dy)
+                dp = @thunk project_p(conj(y * log(complex(x))) * dy)
                 return (NoTangent(), dx, dp)
             end
-            return yox * x, power_pullback
+            return y, power_pullback
         end
 
         @scalar_rule(
