@@ -37,6 +37,14 @@ function rrule(
     return Base.vect(X...), vect_pullback
 end
 
+# This rule isn't always correct, but Zygote and Diffractor fall over completely without it.
+function rrule(::typeof(Base.vect), X...)
+    vect_pullback(ȳ) = (NoTangent(), ȳ...)
+    return Base.vect(X...), vect_pullback
+end
+
+
+
 #####
 ##### `reshape`
 #####
