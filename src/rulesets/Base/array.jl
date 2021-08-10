@@ -43,8 +43,6 @@ function rrule(::typeof(Base.vect), X...)
     return Base.vect(X...), vect_pullback
 end
 
-
-
 #####
 ##### `reshape`
 #####
