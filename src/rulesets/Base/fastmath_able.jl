@@ -49,7 +49,7 @@ let
         @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
         @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
         # the position of the minus sign below warrants the correct type for π  
-        @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix, π * (-sinpix))
+        @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
