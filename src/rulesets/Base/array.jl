@@ -37,7 +37,10 @@ function rrule(
     return Base.vect(X...), vect_pullback
 end
 
-# This rule isn't always correct, but Zygote and Diffractor fall over completely without it.
+# This rule isn't certain to be correct, if someone has overloaded `Base.vect` for their type
+# in a way that has a non-identity derivative; but that is a very weird thing to do.
+# so we are confident that this is safe.
+#  Zygote and Diffractor fall over completely without this rule.
 function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
     vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
     return Base.vect(X...), vect_pullback
