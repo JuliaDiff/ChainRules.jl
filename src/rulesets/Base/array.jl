@@ -68,22 +68,24 @@ end
 #####
 ##### `repeat`
 #####
+function _repeat_pullback_accum(dY)
+    Δ′ = zero(xs)
+    # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
+    for (dest_idx, val) in pairs(IndexCartesian(), dY)
+        # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
+        # wrap around based on original size S.
+        src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
+        Δ′[src_idx...] += val
+    end
+end
 
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
 
+    project_Xs = ProjectTo(xs)
     S = size(xs)
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
-        Δ′ = zero(xs)
-
-        # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
-        for (dest_idx, val) in pairs(IndexCartesian(), dY)
-            # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
-            # wrap around based on original size S.
-            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
-            Δ′[src_idx...] += val
-        end
-        return (NoTangent(), Δ′)
+        return (NoTangent(), @thunk project_Xs(_repeat_pullback_accum(dY)))
     end
 
     return repeat(xs; inner = inner, outer = outer), repeat_pullback
@@ -91,12 +93,16 @@ end
 
 function rrule(::typeof(repeat), xs::AbstractArray, counts::Integer...)
 
+    project_Xs = ProjectTo(xs)
     S = size(xs)
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
-        size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
-        reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
-        return (NoTangent(), reshape(reduced, S), map(_->NoTangent(), counts)...)
+        x̄ = @thunk begin
+            size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
+            reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
+            project_Xs(reshape(reduced, S), map(_->NoTangent(), counts)...)
+        end
+        return (NoTangent(), x̄)
     end
     return repeat(xs, counts...), repeat_pullback
 end
