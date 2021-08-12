@@ -64,11 +64,13 @@ const FASTABLE_AST = quote
                 test_frule(sincos, randn(T))
                 test_rrule(sincos, randn(T); output_tangent=Δz)
             end
-            @testset "sincospi(x::$T)" for T in (Float64, ComplexF64)
-                Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
+            if VERSION ≥ v"1.6"
+                @testset "sincospi(x::$T)" for T in (Float64, ComplexF64)
+                    Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
 
-                test_frule(sincospi, randn(T))
-                test_rrule(sincospi, randn(T); output_tangent=Δz)
+                    test_frule(sincospi, randn(T))
+                    test_rrule(sincospi, randn(T); output_tangent=Δz)
+                end
             end
         end
     end
