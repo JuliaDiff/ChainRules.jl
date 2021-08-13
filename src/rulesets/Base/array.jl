@@ -37,13 +37,7 @@ function rrule(
     return Base.vect(X...), vect_pullback
 end
 
-# This rule isn't certain to be correct.
-# This rule _is_ correct when elements of `X` pass straight through into the output without
-# modification. e.g. if the output type of `vect` is a `Vector{Any}`, then this should be
-# correct. If, however, the type of some elements of `X` change in this operation in such a
-# way that their cotangents require projection on the reverse pass of AD, this projection
-# won't happen, possibly causing problems later on in the reverse pass.
-# Zygote and Diffractor fall over completely without this rule.
+# Data is unmodified, so no need to project.
 function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
     vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
     return Base.vect(X...), vect_pullback
