@@ -37,6 +37,12 @@ function rrule(
     return Base.vect(X...), vect_pullback
 end
 
+# Data is unmodified, so no need to project.
+function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
+    vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
+    return Base.vect(X...), vect_pullback
+end
+
 #####
 ##### `reshape`
 #####
