@@ -13,9 +13,11 @@ using StaticArrays
 using Statistics
 using Test
 
+@nospecialize
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
-function include_test(path)
+function include_test(path::String)
     println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
     @time include(path)  # show basic timing, (this will print a newline at end)
 end
