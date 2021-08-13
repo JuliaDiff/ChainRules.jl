@@ -1,3 +1,14 @@
+using Test, ChainRulesCore, ChainRulesTestUtils
+
+@nospecialize
+
+# don't interpret this, since this breaks some inference tests
+@time include("test_helpers.jl")
+println()
+
+module Tests
+
+using ..Main: Multiplier, NoRules
 using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
@@ -13,17 +24,21 @@ using StaticArrays
 using Statistics
 using Test
 
+@nospecialize
+
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@compiler_options"))
+    @eval Base.Experimental.@compiler_options compile=min optimize=0 infer=no
+end
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
-function include_test(path)
+function include_test(path::String)
     println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
     @time include(path)  # show basic timing, (this will print a newline at end)
 end
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
-    include_test("test_helpers.jl")
-    println()
     @testset "rulesets" begin
         @testset "Core" begin
             include_test("rulesets/Core/core.jl")
@@ -63,4 +78,6 @@ println("Testing ChainRules.jl")
         end
         println()
     end
+end
+
 end
