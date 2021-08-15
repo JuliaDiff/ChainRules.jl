@@ -22,15 +22,11 @@ union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, Line
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
-function include_test(path::String; interpret=true)
+function include_test(path::String)
     println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
-    if interpret
-        @time Base.include(@__MODULE__(), path) do ex
-            Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
-            return :(@interpret (() -> $ex)()) # interpret testsets using JuliaInterpreter
-        end
-    else
-        @time include(path)  # show basic timing, (this will print a newline at end)
+    @time Base.include(@__MODULE__(), path) do ex
+        Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
+        return :(@interpret (() -> $ex)()) # interpret testsets using JuliaInterpreter
     end
 end
 
