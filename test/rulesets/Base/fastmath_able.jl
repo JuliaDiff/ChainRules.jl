@@ -253,11 +253,13 @@ const FASTABLE_AST = quote
 end
 
 # Now we generate tests for fast and nonfast versions
-@eval @testset "fastmath_able Base functions" begin
-    $FASTABLE_AST
-end
-
-
-@eval @testset "fastmath_able FastMath functions" begin
-    $(Base.FastMath.make_fastmath(FASTABLE_AST))
-end
+@eval @interpret (function()
+    @testset "fastmath_able Base functions" begin
+        $FASTABLE_AST
+    end
+    
+    
+    @testset "fastmath_able FastMath functions" begin
+        $(Base.FastMath.make_fastmath(FASTABLE_AST))
+    end
+end)()

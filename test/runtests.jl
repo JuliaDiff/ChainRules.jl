@@ -2,19 +2,12 @@ using Test, ChainRulesCore, ChainRulesTestUtils
 
 @nospecialize
 
-# don't interpret this, since this breaks some inference tests
-@time include("test_helpers.jl")
-println()
-
-module Tests
-
-using ..Main: Multiplier, NoRules
 using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: hasproperty, only, cispi, eachcol
+using Compat: Compat, hasproperty, only, cispi, eachcol
 using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -23,22 +16,24 @@ using Random
 using StaticArrays
 using Statistics
 using Test
+using JuliaInterpreter
 
-@nospecialize
-
-if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@compiler_options"))
-    @eval Base.Experimental.@compiler_options compile=min optimize=0 infer=no
-end
+union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, LinearAlgebra, Random, StaticArrays, Statistics])
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path::String)
     println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
-    @time include(path)  # show basic timing, (this will print a newline at end)
+    @time Base.include(@__MODULE__(), path) do ex
+        Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
+        return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
+    end
 end
 
 println("Testing ChainRules.jl")
 @testset "ChainRules" begin
+    include_test("test_helpers.jl")
+    println()
     @testset "rulesets" begin
         @testset "Core" begin
             include_test("rulesets/Core/core.jl")
@@ -78,6 +73,4 @@ println("Testing ChainRules.jl")
         end
         println()
     end
-end
-
 end
