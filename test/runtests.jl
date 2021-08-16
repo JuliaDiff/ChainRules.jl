@@ -26,7 +26,7 @@ function include_test(path::String)
     println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
     @time Base.include(@__MODULE__(), path) do ex
         Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
-        return :(@interpret (() -> $ex)()) # interpret testsets using JuliaInterpreter
+        return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
     end
 end
 
