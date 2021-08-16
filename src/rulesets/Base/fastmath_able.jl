@@ -184,6 +184,8 @@ let
         @scalar_rule max(x, y) @setup(gt = x > y) (gt, !gt)
         @scalar_rule min(x, y) @setup(gt = x > y) (!gt, gt)
 
+        @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
+
         # Unary functions
         @scalar_rule +x true
         @scalar_rule -x -1
