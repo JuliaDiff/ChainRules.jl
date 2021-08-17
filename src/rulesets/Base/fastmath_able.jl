@@ -48,10 +48,6 @@ let
         # Trig-Multivariate
         @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
         @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
-        # the position of the minus sign below warrants the correct type for π  
-        if VERSION ≥ v"1.6"
-            @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
-        end
 
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
@@ -184,8 +180,6 @@ let
         @scalar_rule max(x, y) @setup(gt = x > y) (gt, !gt)
         @scalar_rule min(x, y) @setup(gt = x > y) (!gt, gt)
 
-        @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
-
         # Unary functions
         @scalar_rule +x true
         @scalar_rule -x -1
@@ -233,6 +227,9 @@ let
     fast_ast = Base.FastMath.make_fastmath(fastable_ast)
 
     # Guard against mistakenly defining something as fast-able when it isn't.
+    # NOTE: this check is not infallible, it will be tricked if a function itself is not
+    # fastmath_able but it's pullback uses something that is. So manual check should also be
+    # done.
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
