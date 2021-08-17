@@ -64,14 +64,6 @@ const FASTABLE_AST = quote
                 test_frule(sincos, randn(T))
                 test_rrule(sincos, randn(T); output_tangent=Δz)
             end
-            if VERSION ≥ v"1.6"
-                @testset "sincospi(x::$T)" for T in (Float64, ComplexF64)
-                    Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
-
-                    test_frule(sincospi, randn(T))
-                    test_rrule(sincospi, randn(T); output_tangent=Δz)
-                end
-            end
         end
     end
 
@@ -188,16 +180,6 @@ const FASTABLE_AST = quote
                 _, ∂x, ∂y = rrule(^, zero(x), y)[2](Δz)
                 @test ∂x ≈ 0
                 @test ∂y ≈ 0
-            end
-        end
-    end
-
-    @testset "copysign" begin
-        # don't go too close to zero as the numerics may jump over it yielding wrong results
-        @testset "at $y" for y in (-1.1, 0.1, 100.0)  
-            @testset "at $x" for x in (-1.1, -0.1, 33.0)
-                test_frule(copysign, y, x)
-                test_rrule(copysign, y, x)
             end
         end
     end

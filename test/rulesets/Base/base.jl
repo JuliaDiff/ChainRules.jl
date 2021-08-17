@@ -1,4 +1,14 @@
 @testset "base" begin
+    @testset "copysign" begin
+        # don't go too close to zero as the numerics may jump over it yielding wrong results
+        @testset "at $y" for y in (-1.1, 0.1, 100.0)  
+            @testset "at $x" for x in (-1.1, -0.1, 33.0)
+                test_frule(copysign, y, x)
+                test_rrule(copysign, y, x)
+            end
+        end
+    end
+    
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
             test_scalar(sec, x)
@@ -46,6 +56,15 @@
 
         @testset "sinc" for x = (0.0, 0.434, Complex(0.434, 0.25))
             test_scalar(sinc, x)
+        end
+
+        if VERSION ≥ v"1.6"
+            @testset "sincospi" for T in (Float64, ComplexF64)
+                Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
+
+                test_frule(sincospi, randn(T))
+                test_rrule(sincospi, randn(T); output_tangent=Δz)
+            end
         end
     end  # Trig
 

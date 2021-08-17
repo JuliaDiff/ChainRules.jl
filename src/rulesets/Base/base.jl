@@ -1,6 +1,8 @@
 # See also fastmath_able.jl for where rules are defined simple base functions
 # that also have FastMath versions.
 
+@scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
+
 @scalar_rule one(x) zero(x)
 @scalar_rule zero(x) zero(x)
 @scalar_rule transpose(x) true
@@ -144,6 +146,11 @@ end
 @scalar_rule tand(x) (π / oftype(x, 180)) * (1 + Ω ^ 2)
 
 @scalar_rule sinc(x) cosc(x)
+
+# the position of the minus sign below warrants the correct type for π  
+if VERSION ≥ v"1.6"
+    @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
+end
 
 @scalar_rule(
     clamp(x, low, high),
