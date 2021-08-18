@@ -74,17 +74,15 @@ function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)
     S = size(xs)
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
-        x̄ = @thunk begin
-                Δ′ = zero(xs)
-                # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
-                for (dest_idx, val) in pairs(IndexCartesian(), dY)
-                    # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
-                    # wrap around based on original size S.
-                    src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
-                    Δ′[src_idx...] += val
-                end
-                return project_Xs(Δ′)
+        Δ′ = zero(xs)
+        # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
+        for (dest_idx, val) in pairs(IndexCartesian(), dY)
+            # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
+            # wrap around based on original size S.
+            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
+            Δ′[src_idx...] += val
         end
+        x̄ = project_Xs(Δ′)
         return (NoTangent(), x̄)
     end
 
@@ -97,11 +95,9 @@ function rrule(::typeof(repeat), xs::AbstractArray, counts::Integer...)
     S = size(xs)
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
-        x̄ = @thunk begin
-                size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
-                reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
-                project_Xs(reshape(reduced, S))
-        end
+        size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
+        reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
+        x̄ = project_Xs(reshape(reduced, S))
         return (NoTangent(), x̄, map(_->NoTangent(), counts)...)
     end
     return repeat(xs, counts...), repeat_pullback
