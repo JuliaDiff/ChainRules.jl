@@ -35,10 +35,10 @@ end
 ##### `Diagonal`
 #####
 
-_sqrt_pullback(Δ::ChainRules.Tangent, y) = return NoTangent(), Δ / (2y)
+_sqrt_pullback(Δ::Tangent, y) = return NoTangent(), Δ / (2y)
 _sqrt_pullback(Δ::Diagonal, y) = return NoTangent(), Δ / (2y)
 _sqrt_pullback(Δ::Matrix, y) = return NoTangent(), Diagonal(Δ) / (2y)
-_sqrt_pullback(Δ::ChainRules.AbstractThunk, y) = return _sqrt_pullback(unthunk(Δ), y)
+_sqrt_pullback(Δ::AbstractThunk, y) = return _sqrt_pullback(unthunk(Δ), y)
 function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal)
     y = sqrt(d)
     sqrt_pullback(Δ) = _sqrt_pullback(Δ, y)
