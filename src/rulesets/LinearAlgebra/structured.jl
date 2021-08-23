@@ -35,13 +35,17 @@ end
 ##### `Diagonal`
 #####
 
-_sqrt_pullback(Δ::Tangent, y) = return NoTangent(), Δ / (2y)
-_sqrt_pullback(Δ::Diagonal, y) = return NoTangent(), Δ / (2y)
-_sqrt_pullback(Δ::Matrix, y) = return NoTangent(), Diagonal(Δ) / (2y)
-_sqrt_pullback(Δ::AbstractThunk, y) = return _sqrt_pullback(unthunk(Δ), y)
+_diagview(x::Diagonal) = x.diag
+_diagview(x::AbstractMatrix) = view(x, diagind(x))
+_diagview(x::Tangent{<:Diagonal}) = x.diag
 function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal)
     y = sqrt(d)
-    sqrt_pullback(Δ) = _sqrt_pullback(Δ, y)
+    @assert y isa Diagonal
+    function sqrt_pullback(Δ_raw)
+      Δ = unthunk(Δ_raw)
+      Δ_diag = _diagview(Δ)
+      return NoTangent(), Diagonal(Δ_diag ./ (2 .* y.diag))
+    end
     return y, sqrt_pullback
 end
 
