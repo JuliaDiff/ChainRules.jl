@@ -41,10 +41,9 @@ _diagview(x::Tangent{<:Diagonal}) = x.diag
 function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal)
     y = sqrt(d)
     @assert y isa Diagonal
-    function sqrt_pullback(Δ_raw)
-      Δ = unthunk(Δ_raw)
-      Δ_diag = _diagview(Δ)
-      return NoTangent(), Diagonal(Δ_diag ./ (2 .* y.diag))
+    function sqrt_pullback(Δ)
+        Δ_diag = _diagview(unthunk(Δ))
+        return NoTangent(), Diagonal(Δ_diag ./ (2 .* y.diag))
     end
     return y, sqrt_pullback
 end
