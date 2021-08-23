@@ -87,6 +87,9 @@
             end
         end
     end
+    @testset "sqrt, diag" begin
+        test_rrule(sqrt, Diagonal([1,2,3]))
+    end
     @testset "$f, $T" for
         f in (Adjoint, adjoint, Transpose, transpose),
         T in (Float64, ComplexF64)
