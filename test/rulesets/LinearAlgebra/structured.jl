@@ -89,7 +89,7 @@
     end
     @testset "sqrt(::Diagonal)" begin
         test_rrule(sqrt, Diagonal(rand(3)))
-        test_rrule(sqrt, Diagonal(10*rand(3)); output_tangent=10*rand(3, 3))
+        test_rrule(sqrt, Diagonal([1.0, 2]); output_tangent=[1.2 3.4; 1.2 4.3])
     end
     @testset "$f, $T" for
         f in (Adjoint, adjoint, Transpose, transpose),
