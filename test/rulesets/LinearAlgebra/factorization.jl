@@ -1,3 +1,4 @@
+using Core: Argument
 # TODO: move this to FiniteDifferences
 function FiniteDifferences.to_vec(X::LU)
     x_vec, back = to_vec(Matrix(X.factors))
@@ -100,6 +101,7 @@ end
             end
         end
     end
+    
     @testset "svd" begin
         for n in [4, 6, 10], m in [3, 5, 9]
             @testset "($n x $m) svd" begin
@@ -432,6 +434,58 @@ end
             Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+        end
+    end
+
+    @testset "qr" begin
+        for n in [4, 6, 10], m in [3, 5, 10]
+            @testset "($n x $m) getproperty" begin
+                X = randn(n, m)
+                F = qr(X)
+
+                test_rrule(getproperty, F, :Q; check_inferred=false)
+
+                k = min(n, m)
+                R̄ = randn(k, m)
+                
+                # Set the lower triangle to zero
+                for i in 2:k, j in 1:i-1
+                    R̄[i, j] = 0
+                end
+
+                test_rrule(
+                    getproperty, F, :R;
+                    check_inferred=false,
+                    output_tangent=R̄)
+            end
+        end
+
+        # Dirty trick to have test_rrule run
+        Base.collect(F::ChainRules.QR_TYPE) = (F.Q, F.R)
+        ChainRulesCore._zeroed_backing(::Type{<:ChainRules.QR_TYPE}) = (Q=ZeroTangent(), R=ZeroTangent())
+
+        for m in [3, 5, 10], n in [3, 5, 10]
+            @testset "($m x $n) qr" begin
+                X = randn(m, n)
+
+                # Test with explicit QR type
+                test_rrule(ChainRules.ExplicitQR, X)
+
+                # Compare with LinearAlgebra.qr to ensure correctness
+                F = qr(randn(m, n))
+                tangent = Tangent{typeof(F)}(; Q = Matrix(F.Q), R = F.R)
+
+                F_explicit, pb_explicit = rrule(ChainRules.ExplicitQR, X)
+                F, pb = rrule(qr, X)
+
+                @test F_explicit.Q == Matrix(F.Q)
+                @test F_explicit.R == F.R
+
+                y_explicit = pb_explicit(tangent)
+                y = pb(tangent)
+
+                @test y_explicit == y
+            end
         end
     end
 end

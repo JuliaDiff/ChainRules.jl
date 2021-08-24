@@ -551,3 +551,86 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end
+
+#####
+##### `qr`
+#####
+
+# QR struct that explicitly store matrices Q and R. This is much easier to
+# work with in the tests than LinearAlgebra.QRCompactWY, so we do all tests
+# with that one and then test that it gives the same end results that
+# using qr directly.
+struct ExplicitQR{T} <: LinearAlgebra.Factorization{T}
+    Q::Matrix{T}
+    R::Matrix{T}
+end
+
+function ExplicitQR(X::AbstractMatrix)
+    Q, R = qr(X)
+    return ExplicitQR(Matrix(Q), R)
+end
+
+Base.collect(F::ExplicitQR) = (F.Q, F.R)
+Base.iterate(F::ExplicitQR) = (F.Q, Val(:R))
+Base.iterate(F::ExplicitQR, ::Val{:R}) = (F.R, Val(:done))
+Base.iterate(F::ExplicitQR, ::Val{:done}) = nothing
+
+const QR_TYPE = Union{QR, QRPivoted, LinearAlgebra.QRCompactWY}
+
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: QR_TYPE
+    function getproperty_qr_pullback(Ȳ)
+        ∂F = Tangent{T}(; x => Ȳ)
+        return NoTangent(), ∂F, NoTangent()
+    end
+    return getproperty(F, x), getproperty_qr_pullback
+end
+
+function rrule(::typeof(qr), X::AbstractMatrix{<:Real})
+    F = qr(X)
+    qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
+    return F, qr_pullback
+end
+
+function rrule(::typeof(ExplicitQR), X::AbstractMatrix{<:Real})
+    F = ExplicitQR(X)
+    qr_pullback(Ȳ) = _qr_pullback(Ȳ, F)
+    return F, qr_pullback
+end
+
+# QR backpropagation according to https://arxiv.org/pdf/2009.10071.pdf
+function qr_rev(QR_, Q̄, R̄)
+    Q, R = QR_
+    Q = Matrix(Q)
+    Q̄ = Q̄ isa ZeroTangent ? Q̄ : @view Q̄[:, axes(Q, 2)]
+
+    m, n = size(R̄)
+
+    # Square and deep matrices
+    if m >= n
+        M = R̄*R' - Q'*Q̄
+        Ā = (Q̄ + Q * Hermitian(M)) / R'
+
+        return Ā
+    else # Wide matrices
+        A = Q * R
+        Y = @view A[:, (m+1):end]
+        U = @view R[:, 1:m]
+        Ū = @view R̄[:, 1:m]
+        V̄ = @view R̄[:, (m+1):end]
+
+        Q̄prime = Q̄ + Y * V̄'
+        M = Ū*U' - Q'*Q̄prime
+
+        X̄ = (Q̄prime + Q * Hermitian(M)) / U'
+
+        Ȳ = Q * V̄
+
+        return hcat(X̄, Ȳ)
+    end
+end
+
+function _qr_pullback(Ȳ::Tangent, F)
+    ∂X = qr_rev(F, Ȳ.Q, Ȳ.R)
+    return (NoTangent(), ∂X)
+end
+_qr_pullback(Ȳ::AbstractThunk, F) = _qr_pullback(unthunk(Ȳ), F)
