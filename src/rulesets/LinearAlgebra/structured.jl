@@ -35,6 +35,19 @@ end
 ##### `Diagonal`
 #####
 
+_diagview(x::Diagonal) = x.diag
+_diagview(x::AbstractMatrix) = view(x, diagind(x))
+_diagview(x::Tangent{<:Diagonal}) = x.diag
+function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal)
+    y = sqrt(d)
+    @assert y isa Diagonal
+    function sqrt_pullback(Δ)
+        Δ_diag = _diagview(unthunk(Δ))
+        return NoTangent(), Diagonal(Δ_diag ./ (2 .* y.diag))
+    end
+    return y, sqrt_pullback
+end
+
 # these functions are defined outside the rrule because otherwise type inference breaks
 # see https://github.com/JuliaLang/julia/issues/40990
 _Diagonal_pullback(ȳ::AbstractMatrix) = return (NoTangent(), diag(ȳ)) # should we emit a warning here? this shouldn't be called if project works right
