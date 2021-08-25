@@ -22,24 +22,29 @@ union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, Line
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
-function include_test(path::String)
-    println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
-    @time Base.include(@__MODULE__(), path) do ex
-        Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
-        return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
+function include_test(path)
+    if isempty(ARGS) || any(occursin(a, w) for w in split(path, '/'), a in ARGS)
+        println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
+        @time include(path)  # show basic timing, (this will print a newline at end)
+    else
+        # If you provide ARGS like so, then it runs only matching testsets: 
+        # Pkg.test("ChainRules", test_args = ["index", "LinearAlgebra"])
+        println("(Not testing $path)")
     end
 end
 
-println("Testing ChainRules.jl")
-@testset "ChainRules" begin
-    include_test("test_helpers.jl")
-    println()
-    @testset "rulesets" begin
-        @testset "Core" begin
-            include_test("rulesets/Core/core.jl")
-        end
+if isempty(ARGS)
+    println("Testing ChainRules.jl")
+else
+    println("Testing ChainRules.jl with test_args = ", ARGS)
+end
 
-        @testset "Base" begin
+@testset "ChainRules" begin  # one overall @testset ensures it keeps going after failures
+    include("test_helpers.jl")
+    println()
+    # @testset "rulesets" begin
+        # @testset "Base" begin
+            # Each file puts all tests inside one or more @testset blocks
             include_test("rulesets/Base/base.jl")
             include_test("rulesets/Base/fastmath_able.jl")
             include_test("rulesets/Base/evalpoly.jl")
@@ -48,15 +53,15 @@ println("Testing ChainRules.jl")
             include_test("rulesets/Base/indexing.jl")
             include_test("rulesets/Base/mapreduce.jl")
             include_test("rulesets/Base/sort.jl")
-        end
+        # end
         println()
 
-        @testset "Statistics" begin
+        # @testset "Statistics" begin
             include_test("rulesets/Statistics/statistics.jl")
-        end
+        # end
         println()
 
-        @testset "LinearAlgebra" begin
+        # @testset "LinearAlgebra" begin
             include_test("rulesets/LinearAlgebra/dense.jl")
             include_test("rulesets/LinearAlgebra/norm.jl")
             include_test("rulesets/LinearAlgebra/matfun.jl")
@@ -65,12 +70,12 @@ println("Testing ChainRules.jl")
             include_test("rulesets/LinearAlgebra/factorization.jl")
             include_test("rulesets/LinearAlgebra/blas.jl")
             include_test("rulesets/LinearAlgebra/lapack.jl")
-        end
+        # end
         println()
 
-        @testset "Random" begin
+        # @testset "Random" begin
             include_test("rulesets/Random/random.jl")
-        end
+        # end
         println()
-    end
+    # end
 end
