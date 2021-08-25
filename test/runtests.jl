@@ -23,9 +23,12 @@ union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, Line
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)
-    if isempty(ARGS) || any(occursin(a, w) for w in split(path, '/'), a in ARGS)
+    if isempty(ARGS) || any(occursin(a, path) for a in ARGS)
         println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
-        @time include(path)  # show basic timing, (this will print a newline at end)
+        @time Base.include(@__MODULE__(), path) do ex
+            Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
+            return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
+        end
     else
         # If you provide ARGS like so, then it runs only matching testsets: 
         # Pkg.test("ChainRules", test_args = ["index", "LinearAlgebra"])
