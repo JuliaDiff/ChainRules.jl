@@ -5,7 +5,7 @@ struct NormalDistribution
 end
 Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
-@testset "random" begin
+@testset "Random" begin
     rng_types = [MersenneTwister]
     isdefined(Random, :Xoshiro) && push!(rng_types, getfield(Random, :Xoshiro))
     

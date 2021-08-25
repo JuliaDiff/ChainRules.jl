@@ -1,4 +1,4 @@
-@testset "dense" begin
+@testset "dense LinearAlgebra" begin
     @testset "dot" begin
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
             test_frule(dot, randn(T, 3), randn(T, 3))
