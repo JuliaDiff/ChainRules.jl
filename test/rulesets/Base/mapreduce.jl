@@ -31,6 +31,7 @@
             dy = sum(x; dims=dims)
             ddy = rrule(ChainRules._unsum, x, dy, dims)[2](x)[3]
             @test size(ddy) == size(dy)
+        end
     end
 
     @testset "sum abs2" begin
