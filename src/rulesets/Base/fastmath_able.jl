@@ -199,11 +199,11 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
         end
 
         function rrule(::typeof(^), x::Number, p::Number)
-            y = x^p
+            y = float(x^p)
             project_x, project_p = ProjectTo(x), ProjectTo(p)
             @inline function power_pullback(dy)
                 dx = project_x(conj(_pow_grad_x(x,p,y)) * dy)
-                dp = @thunk project_p(conj(y * log(complex(x))) * dy)
+                dp = @thunk project_p(conj(_pow_grad_p(x,p,y)) * dy)
                 return (NoTangent(), dx, dp)
             end
             return y, power_pullback
@@ -214,6 +214,12 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
                      ifelse(isone(p), one(y),
                        ifelse(0<p<1, oftype(y, Inf), zero(y) )))
         end
+        _pow_grad_p(x, p, y) = y * log(complex(x))
+        function _pow_grad_p(x::Real, p::Real, y)
+            return ifelse(!iszero(x), y * real(log(complex(x))),
+                     ifelse(p>0, zero(y), oftype(y, NaN) ))
+        end
+
 
         @scalar_rule(
             rem(x, y),
