@@ -177,77 +177,76 @@ const FASTABLE_AST = quote
         #     test_rrule(^, randn(T) + 3, p ⊢ NoTangent())
         # end
 
-# Tests for power functions, at values near to zero.
+        # Tests for power functions, at values near to zero.
 
-POWERGRADS = [ # (x,p) => (dx,dp)
-# Some regular points, sanity checks
-  (1.0, 2)   => (2.0, 0.0),
-  (2.0, 2)   => (4.0, 2.772588722239781),
-# At x=0, gradients for x seem clear, 
-# for p I've just written here what it gives 
-  (0.0, 2)   => (0.0, NaN),
-  (-0.0, 2)  => (-0.0, NaN),
-  (0.0, 1)   => (1.0, NaN), # or zero?
-  (-0.0, 1)  => (1.0, NaN),
-  (0.0, 0)   => (0.0, -Inf),
-  (-0.0, 0)  => (0.0, -Inf),
-  (0.0, -1)  => (-Inf, -Inf),
-  (-0.0, -1) => (-Inf, Inf),
-  (0.0, -2)  => (-Inf, -Inf),
-  (-0.0, -2) => (Inf, -Inf),
-# Non-integer powers:
-  (0.0, 0.5)   => (Inf, NaN),
-  (0.0, 3.5)   => (0.0, NaN),
-]
+        POWERGRADS = [ # (x,p) => (dx,dp)
+        # Some regular points, as sanity checks:
+          (1.0, 2)   => (2.0, 0.0),
+          (2.0, 2)   => (4.0, 2.772588722239781),
+        # At x=0, gradients for x seem clear, 
+        # for p less certain but I think 0 or NaN right?
+          (0.0, 2)   => (0.0, 0.0),
+          (-0.0, 2)  => (-0.0, 0.0),
+          (0.0, 1)   => (1.0, 0.0),
+          (-0.0, 1)  => (1.0, 0.0),
+          (0.0, 0)   => (0.0, NaN),
+          (-0.0, 0)  => (0.0, NaN),
+          (0.0, -1)  => (-Inf, NaN),
+          (-0.0, -1) => (-Inf, NaN),
+          (0.0, -2)  => (-Inf, NaN),
+          (-0.0, -2) => (Inf, NaN),
+        # Non-integer powers:
+          (0.0, 0.5)   => (Inf, 0.0),
+          (0.0, 3.5)   => (0.0, 0.0),
+          (0.0, -1.5)  => (-Inf, NaN),
+        ]
 
-for ((x,p), (gx, gp)) in POWERGRADS  # power ^
-    y = x^p
+        @testset "$x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
+            y = x^p
 
-    # Forward
-    y_f = frule((1,1,1), ^, x, p)[1]
-    isequal(y, y_f) || println("^ forward value for $x^$p: got $y_f, expected $y")
+            # Forward
+            y_f = frule((1,1,1), ^, x, p)[1]
+            @test isequal(y, y_f) # || println("^ forward value for $x^$p: got $y_f, expected $y")
 
-    gx_f = frule((0,1,0), ^, x, p)[1]
-    gp_f = frule((0,0,1), ^, x, p)[2]
-    # isequal(gx, gx_f) || println("^ forward `x` gradient for $x^$p: got $gx_f, expected $gx, maybe")
-    # isequal(gp, gp_f) || println("^ forward `p` gradient for $x^$p: got $gp_f, expected $gp, maybe")
+            ∂x_fwd = frule((0,1,0), ^, x, p)[1]
+            ∂p_fwd = frule((0,0,1), ^, x, p)[2]
+            # isequal(∂x, ∂x_fwd) || println("^ forward `x` gradient for $y = $x^$p: got $∂x_fwd, expected $∂x, maybe!")
+            # isequal(∂p, ∂p_fwd) || println("^ forward `p` gradient for $x^$p: got $∂p_fwd, expected $∂p, maybe")
 
-    # Reverse
-    y_r = rrule(^, x, p)[1]
-    isequal(y, y_r) || println("^ reverse value for $x^$p: got $y_r, expected $y")
-    
-    gx_r, gp_r = unthunk.(rrule(^, x, p)[2](1))[2:3]
-    if x === -0.0 && p === 2
-        @test 0.0 == gx_r # POWERGRADS says -0.0
-    else
-        isequal(gx, gx_r) || println("^ reverse `x` gradient for $x^$p: got $gx_r, expected $gx")
+            # Reverse
+            y_r = rrule(^, x, p)[1]
+            @test isequal(y, y_r) # || println("^ reverse value for $x^$p: got $y_r, expected $y")
+            
+            ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
+            if ∂x === -0.0 # happens at at x === -0.0 && p === 2, ignore the sign
+                @test 0.0 == ∂x_rev
+            else
+                @test isequal(∂x, ∂x_rev) # || println("^ reverse `x` gradient for $x^$p: got $∂x_rev, expected $∂x")
+            end
+            @test isequal(∂p, ∂p_rev) # || println("^ reverse `p` gradient for $x^$p: got $∂p_rev, expected $∂p")
+        end
+
+        @testset "literal_pow $x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
+            # p isa Int || continue
+            # x isa Real || continue
+
+            y = x^p
+
+            # Forward
+            y_f = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
+            @test isequal(y, y_f) # || println("literal_pow forward value for $x^$p: got $y_f, expected $y")
+
+            ∂x_fwd = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
+            # isequal(∂x, ∂x_fwd) || println("literal_pow forward `x` gradient for $x^$p: got $∂x_fwd, expected $∂x, maybe, y=$y")
+
+            # Reverse
+            y_r = rrule(Base.literal_pow, ^, x, Val(p))[1]
+            @test isequal(y, y_r) # || println("literal_pow reverse value for $x^$p: got $y_r, expected $y")
+
+            ∂x_rev = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
+            @test isequal(∂x, ∂x_rev) # || println("literal_pow `x` gradient for $x^$p: got $∂x_rev, expected $∂x")
+        end
     end
-    isequal(gp, gp_r) || println("^ reverse `p` gradient for $x^$p: got $gp_r, expected $gp")
-end
-
-for ((x,p), (gx, gp)) in POWERGRADS  # literal_pow
-    p isa Int || continue
-    x isa Real || continue
-
-    y = x^p
-
-    # Forward
-    y_f = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
-    isequal(y, y_f) || println("literal_pow forward value for $x^$p: got $y_f, expected $y")
-
-    gx_f = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
-    # isequal(gx, gx_f) || println("literal_pow forward `x` gradient for $x^$p: got $gx_f, expected $gx, maybe, y=$y")
-
-    # Reverse
-    y_r = rrule(Base.literal_pow, ^, x, Val(p))[1]
-    isequal(y, y_r) || println("literal_pow reverse value for $x^$p: got $y_r, expected $y")
-
-    gx_r = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
-    isequal(gx, gx_r) || println("literal_pow `x` gradient for $x^$p: got $gx_r, expected $gx")
-
-    # @info "all" x y p gx_f gx_r
-end
-
 
     @testset "sign" begin
         @testset "real" begin
