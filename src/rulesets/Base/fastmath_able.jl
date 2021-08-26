@@ -167,35 +167,16 @@ let
         # literal_pow is in base.jl
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
             y = x ^ p
-        #     thegrad = (p * y / x)
-        #     thelog = Δp isa AbstractZero ? Δp : log(oftype(y, x))
-        #     return y, muladd(y * thelog, Δp, thegrad * Δx)
-        # end
-        # function frule((_, Δx, Δp), ::typeof(^), x::Real, p::Real)
-        #     y = x ^ p
             thegrad = _pow_grad_x(x, p, float(y))
             thelog = if Δp isa AbstractZero
                 # Then don't waste time computing log
                 Δp
-            else# if x isa Real && p isa Real
-                # For positive x we'd like a real answer, including any Δp.
-                # For negative x, this is a DomainError unless isinteger(p)...
-
-                # could decide that implues that p is non-differentiable:
-                # log(ifelse(x<0, one(x), x))
-
-                # or we could match what the rrule with ProjectTo gives:
-                real(log(complex(x)))
-#=
-
-julia> frule((0,0,1), ^, -4, 3.0), unthunk.(rrule(^, -4, 3.0)[2](1))
-((-64.0, 0.0), (NoTangent(), 48.0, -88.722839111673))
-
-julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
-((64.0, 88.722839111673), (NoTangent(), 48.0, 88.722839111673))
-=#
+            else
+                # When x < 0 && isinteger(p), could decide p is non-differentiable,
+                # isolated points, or could match what the rrule with ProjectTo gives:
+                _pow_grad_p(x, p, float(y))
             end
-            return y, muladd(y * thelog, Δp, thegrad * Δx)
+            return y, muladd(thelog, Δp, thegrad * Δx)
         end
 
         function rrule(::typeof(^), x::Number, p::Number)
@@ -208,6 +189,7 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
             end
             return y, power_pullback
         end
+
         _pow_grad_x(x, p, y) = (p * y / x)
         function _pow_grad_x(x::Real, p::Real, y)
             return ifelse(!iszero(x) | (p<0), (p * y / x),
@@ -219,7 +201,6 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
             return ifelse(!iszero(x), y * real(log(complex(x))),
                      ifelse(p>0, zero(y), oftype(y, NaN) ))
         end
-
 
         @scalar_rule(
             rem(x, y),
