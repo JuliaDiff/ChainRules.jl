@@ -167,15 +167,13 @@ let
         # literal_pow is in base.jl
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
             y = x ^ p
-            thegrad = (p * y / x)
-            thelog = Δp isa AbstractZero ? Δp : log(oftype(y, x))
-            return y, muladd(y * thelog, Δp, thegrad * Δx)
-        end
-        function frule((_, Δx, Δp), ::typeof(^), x::Real, p::Real)
-            y = x ^ p
-            thegrad = ifelse(!iszero(x) | (p<0), (p * y / x),
-                        ifelse(isone(p), one(y),
-                          ifelse(0<p<1,  oftype(y, Inf), zero(y) )))
+        #     thegrad = (p * y / x)
+        #     thelog = Δp isa AbstractZero ? Δp : log(oftype(y, x))
+        #     return y, muladd(y * thelog, Δp, thegrad * Δx)
+        # end
+        # function frule((_, Δx, Δp), ::typeof(^), x::Real, p::Real)
+        #     y = x ^ p
+            thegrad = _pow_grad_x(x, p, y)
             thelog = if Δp isa AbstractZero
                 # Then don't waste time computing log
                 Δp
@@ -204,18 +202,17 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
             y = x^p
             project_x, project_p = ProjectTo(x), ProjectTo(p)
             @inline function power_pullback(dy)
-                if x isa Real && p isa Real
-                    thegrad = ifelse(!iszero(x) | (p<0), (p * y / x),
-                                ifelse(isone(p), one(y),
-                                  ifelse(0<p<1,  oftype(y, Inf), zero(y) )))
-                else
-                    thegrad = (p * y / x)
-                end
-                dx = project_x(conj(thegrad) * dy)
+                dx = project_x(conj(_pow_grad_x(x,p,y)) * dy)
                 dp = @thunk project_p(conj(y * log(complex(x))) * dy)
                 return (NoTangent(), dx, dp)
             end
             return y, power_pullback
+        end
+        _pow_grad_x(x, p, y) = (p * y / x)
+        function _pow_grad_x(x::Real, p::Real, y)
+            return ifelse(!iszero(x) | (p<0), (p * y / x),
+                     ifelse(isone(p), one(y),
+                       ifelse(0<p<1, oftype(y, Inf), zero(y) )))
         end
 
         @scalar_rule(

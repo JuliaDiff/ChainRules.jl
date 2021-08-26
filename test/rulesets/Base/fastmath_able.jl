@@ -138,8 +138,6 @@ const FASTABLE_AST = quote
         end
 
         @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot), T in (Float32, Float64)
-            # ^ removed for now!
-
             x, Δx, x̄ = 10rand(T, 3)
             y, Δy, ȳ = rand(T, 3)
             @assert T == typeof(f(x, y))
@@ -162,12 +160,14 @@ const FASTABLE_AST = quote
         end
 
         @testset "^(x::$T, p::$S)" for T in (Float64, ComplexF64), S in (Float64, ComplexF64)
-            # When both x & p are Real, and !(isinteger(p)), 
-            # then x must be positive to avoid a DomainError
             test_frule(^, rand(T) + 3, rand(T) + 3)
             test_rrule(^, rand(T) + 3, rand(T) + 3)
-       
+
+            # When both x & p are Real, and !(isinteger(p)), 
+            # then x must be positive to avoid a DomainError
             T <: Real && S <: Real && continue
+            # In other cases, we can test values near zero:
+
             test_frule(^, randn(T), rand(T))
             test_rrule(^, rand(T), rand(T))
         end
@@ -177,77 +177,13 @@ const FASTABLE_AST = quote
         #     test_rrule(^, randn(T) + 3, p ⊢ NoTangent())
         # end
 
-        # @testset "^(x::Float64, p::$S) near x=0, p=1,0,-1,-2" for S in (Int, Float64)
-        #     # x^2. Easy to get NaN here by mistake.
-        #     p = S(+2)
-        #     @test frule((1,1,1), ^, 0.0, p)[1] == 0         # value
-        #     @test_broken frule((1,1,1), ^, 0.0, p)[2] == 0  # gradient, forwards
-        #     @test rrule(^, 0.0, p)[1] == 0                  # value
-        #     @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == 0 # gradient, reverse
-
-        #     # Identity function x^1, at zero
-        #     p = S(+1)
-        #     @test frule((1,1,1), ^, 0.0, p)[1] == 0
-        #     @test_broken frule((1,1,1), ^, 0.0, p)[2] == 1
-        #     @test rrule(^, 0.0, p)[1] == 0
-        #     @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == 1
-
-        #     # Trivial singularity: 0^0 == 1 in Julia
-        #     p = S(0)
-        #     @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^0
-        #     @test_broken frule((1,1,1), ^, 0.0, p)[2] == 0
-        #     @test_broken unthunk(rrule(^, 0.0, p)[2](1.0)[3]) == 0.0
-            
-        #     # Odd power, 1/x
-        #     p = S(-1)
-        #     @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^-1
-        #     @test_broken frule((1,1,1), ^, 0.0, p)[2] == -Inf
-        #     @test_skip rrule(^, 0.0, p)[1] == (0.0)^-1 == Inf
-        #     @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == -Inf
-
-        #     @test_skip frule((1,1,1), ^, -0.0, p)[1] == (-0.0)^-1
-        #     @test_broken frule((1,1,1), ^, -0.0, p)[2] == -Inf
-        #     @test_skip rrule(^, -0.0, p)[1] == (-0.0)^-1 == -Inf
-        #     @test unthunk(rrule(^, -0.0, p)[2](1.0)[2]) == -Inf
-
-        #     # Even power, 1/x^2
-        #     p = S(-2)
-        #     @test_skip frule((1,1,1), ^, 0.0, p)[1] == (0.0)^-2
-        #     @test_broken frule((1,1,1), ^, 0.0, p)[2] == -Inf
-        #     @test_skip rrule(^, 0.0, p)[1] == (0.0)^-2 == Inf
-        #     @test unthunk(rrule(^, 0.0, p)[2](1.0)[2]) == -Inf
-
-        #     @test_skip frule((1,1,1), ^, -0.0, p)[1] == (-0.0)^-2
-        #     @test_broken frule((1,1,1), ^, -0.0, p)[2] == +Inf
-        #     @test_skip rrule(^, -0.0, p)[1] == (-0.0)^-2 == Inf
-        #     @test unthunk(rrule(^, -0.0, p)[2](1.0)[2]) == +Inf
-        # end
-
-        #     T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
-        #         # finite differences doesn't work for x < 0, so we check manually
-        #         x = -rand(T) .- 3
-        #         y = 3
-        #         Δx = randn(T)
-        #         Δy = randn(T)
-        #         Δz = randn(T)
-
-        #         @test frule((ZeroTangent(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
-        #         @test frule((ZeroTangent(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
-        #         _, ∂x, ∂y = rrule(^, x, y)[2](Δz)
-        #         @test ∂x ≈ Δz * y * x^(y - 1)
-        #         @test ∂y ≈ 0
-        #         _, ∂x, ∂y = rrule(^, zero(x), y)[2](Δz)
-        #         @test ∂x ≈ 0
-        #         @test ∂y ≈ 0
-        #     end
-        # end
-    end
+# Tests for power functions, at values near to zero.
 
 POWERGRADS = [ # (x,p) => (dx,dp)
-# some regular points, sanity checks
+# Some regular points, sanity checks
   (1.0, 2)   => (2.0, 0.0),
   (2.0, 2)   => (4.0, 2.772588722239781),
-# at x=0, gradients for x seem clear, 
+# At x=0, gradients for x seem clear, 
 # for p I've just written here what it gives 
   (0.0, 2)   => (0.0, NaN),
   (-0.0, 2)  => (-0.0, NaN),
@@ -259,72 +195,58 @@ POWERGRADS = [ # (x,p) => (dx,dp)
   (-0.0, -1) => (-Inf, Inf),
   (0.0, -2)  => (-Inf, -Inf),
   (-0.0, -2) => (Inf, -Inf),
-# non-integer powers
+# Non-integer powers:
   (0.0, 0.5)   => (Inf, NaN),
   (0.0, 3.5)   => (0.0, NaN),
-
 ]
-for ((x,p), (gx, gp)) in POWERGRADS
+
+for ((x,p), (gx, gp)) in POWERGRADS  # power ^
     y = x^p
 
+    # Forward
     y_f = frule((1,1,1), ^, x, p)[1]
     isequal(y, y_f) || println("^ forward value for $x^$p: got $y_f, expected $y")
-
-    y_r = rrule(^, x, p)[1]
-    isequal(y, y_r) || println("^ reverse value for $x^$p: got $y_r, expected $y")
 
     gx_f = frule((0,1,0), ^, x, p)[1]
     gp_f = frule((0,0,1), ^, x, p)[2]
     # isequal(gx, gx_f) || println("^ forward `x` gradient for $x^$p: got $gx_f, expected $gx, maybe")
     # isequal(gp, gp_f) || println("^ forward `p` gradient for $x^$p: got $gp_f, expected $gp, maybe")
 
+    # Reverse
+    y_r = rrule(^, x, p)[1]
+    isequal(y, y_r) || println("^ reverse value for $x^$p: got $y_r, expected $y")
+    
     gx_r, gp_r = unthunk.(rrule(^, x, p)[2](1))[2:3]
-    isequal(gx, gx_r) || println("^ reverse `x` gradient for $x^$p: got $gx_r, expected $gx")
+    if x === -0.0 && p === 2
+        @test 0.0 == gx_r # POWERGRADS says -0.0
+    else
+        isequal(gx, gx_r) || println("^ reverse `x` gradient for $x^$p: got $gx_r, expected $gx")
+    end
     isequal(gp, gp_r) || println("^ reverse `p` gradient for $x^$p: got $gp_r, expected $gp")
-
 end
-for ((x,p), (gx, gp)) in POWERGRADS
+
+for ((x,p), (gx, gp)) in POWERGRADS  # literal_pow
     p isa Int || continue
     x isa Real || continue
 
     y = x^p
 
+    # Forward
     y_f = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
     isequal(y, y_f) || println("literal_pow forward value for $x^$p: got $y_f, expected $y")
 
+    gx_f = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
+    # isequal(gx, gx_f) || println("literal_pow forward `x` gradient for $x^$p: got $gx_f, expected $gx, maybe, y=$y")
+
+    # Reverse
     y_r = rrule(Base.literal_pow, ^, x, Val(p))[1]
     isequal(y, y_r) || println("literal_pow reverse value for $x^$p: got $y_r, expected $y")
 
     gx_r = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
     isequal(gx, gx_r) || println("literal_pow `x` gradient for $x^$p: got $gx_r, expected $gx")
 
-    gx_f = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
-    # isequal(gx, gx_f) || println("literal_pow forward `x` gradient for $x^$p: got $gx_f, expected $gx, maybe")
+    # @info "all" x y p gx_f gx_r
 end
-
-
-for x in Any[0.0, -0.0, 0.0+0im], p in Any[2, 1.5, 1, 0.5, 0, -0.5, -1, -1.5, -2]
-
-    y = x^p
-    yr = rrule(^, x, p)[1]
-    # isequal(y, yr) || printstyled("runtime $x^$p = $y, but rrule gives $yr \n", color=:red)
-
-    gx, gp = unthunk.(rrule(^, x, p)[2](1)[2:3])
-    println("runtime $x^$p gradient from rrule: $gx, $gp")
-
-    p isa Int || continue  # e.g. Meta.@lower x^5.0
-    x isa Real || continue # limitation of methods here?
-    y = Base.literal_pow(^, x, Val(p))
-
-    # yr = rrule(Base.literal_pow, ^, x, Val(p))[1]
-    # isequal(y, yr) || printstyled("literal $x^$p = $y, but rrule gives $yr\n", color=:red)
-
-    # gx = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
-    # println("literal $x^$p gradient from rrule: $gx")
-
-    # gg[(x,p)] = (gx, nothing)
-end
-
 
 
     @testset "sign" begin
