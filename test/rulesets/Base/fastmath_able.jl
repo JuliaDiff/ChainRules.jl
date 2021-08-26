@@ -195,6 +195,12 @@ const FASTABLE_AST = quote
           (-0.0, -1) => (-Inf, NaN),
           (0.0, -2)  => (-Inf, NaN),
           (-0.0, -2) => (Inf, NaN),
+        # Integer x & p, check no InexactErrors
+          (0, 2)    => (0.0, 0.0),
+          (0, 1)    => (1.0, 0.0),
+          (0, 0)    => (0.0, NaN),
+          (0, -1)   => (-Inf, NaN),
+          (0, -2)   => (-Inf, NaN),
         # Non-integer powers:
           (0.0, 0.5)   => (Inf, 0.0),
           (0.0, 3.5)   => (0.0, 0.0),
@@ -202,20 +208,24 @@ const FASTABLE_AST = quote
         ]
 
         @testset "$x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
+            if x isa Integer && p isa Integer && p < 0
+                @test_throws DomainError x^p
+                continue
+            end
             y = x^p
 
             # Forward
-            y_f = frule((1,1,1), ^, x, p)[1]
-            @test isequal(y, y_f) # || println("^ forward value for $x^$p: got $y_f, expected $y")
+            y_fwd = frule((1,1,1), ^, x, p)[1]
+            @test y === y_fwd # || println("^ forward value for $x^$p: got $y_fwd, expected $y")
 
-            ∂x_fwd = frule((0,1,0), ^, x, p)[1]
-            ∂p_fwd = frule((0,0,1), ^, x, p)[2]
+            # ∂x_fwd = frule((0,1,0), ^, x, p)[1]
+            # ∂p_fwd = frule((0,0,1), ^, x, p)[2]
             # isequal(∂x, ∂x_fwd) || println("^ forward `x` gradient for $y = $x^$p: got $∂x_fwd, expected $∂x, maybe!")
             # isequal(∂p, ∂p_fwd) || println("^ forward `p` gradient for $x^$p: got $∂p_fwd, expected $∂p, maybe")
 
             # Reverse
-            y_r = rrule(^, x, p)[1]
-            @test isequal(y, y_r) # || println("^ reverse value for $x^$p: got $y_r, expected $y")
+            y_rev = rrule(^, x, p)[1]
+            @test y === y_rev # || println("^ reverse value for $x^$p: got $y_rev, expected $y")
             
             ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
             if ∂x === -0.0 # happens at at x === -0.0 && p === 2, ignore the sign
@@ -227,21 +237,18 @@ const FASTABLE_AST = quote
         end
 
         @testset "literal_pow $x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
-            # p isa Int || continue
-            # x isa Real || continue
-
-            y = x^p
+            y = Base.literal_pow(^, x, Val(p))
 
             # Forward
-            y_f = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
-            @test isequal(y, y_f) # || println("literal_pow forward value for $x^$p: got $y_f, expected $y")
+            y_fwd = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
+            @test y === y_fwd # || println("literal_pow forward value for $x^$p: got $y_fwd, expected $y")
 
             ∂x_fwd = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
             # isequal(∂x, ∂x_fwd) || println("literal_pow forward `x` gradient for $x^$p: got $∂x_fwd, expected $∂x, maybe, y=$y")
 
             # Reverse
-            y_r = rrule(Base.literal_pow, ^, x, Val(p))[1]
-            @test isequal(y, y_r) # || println("literal_pow reverse value for $x^$p: got $y_r, expected $y")
+            y_rev = rrule(Base.literal_pow, ^, x, Val(p))[1]
+            @test y === y_rev # || println("literal_pow reverse value for $x^$p: got $y_rev, expected $y")
 
             ∂x_rev = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
             @test isequal(∂x, ∂x_rev) # || println("literal_pow `x` gradient for $x^$p: got $∂x_rev, expected $∂x")

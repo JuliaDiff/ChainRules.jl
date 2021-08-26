@@ -173,7 +173,7 @@ let
         # end
         # function frule((_, Δx, Δp), ::typeof(^), x::Real, p::Real)
         #     y = x ^ p
-            thegrad = _pow_grad_x(x, p, y)
+            thegrad = _pow_grad_x(x, p, float(y))
             thelog = if Δp isa AbstractZero
                 # Then don't waste time computing log
                 Δp
@@ -199,11 +199,11 @@ julia> frule((0,0,1), ^, 4, 3.0), unthunk.(rrule(^, 4, 3.0)[2](1))
         end
 
         function rrule(::typeof(^), x::Number, p::Number)
-            y = float(x^p)
+            y = x^p
             project_x, project_p = ProjectTo(x), ProjectTo(p)
             @inline function power_pullback(dy)
-                dx = project_x(conj(_pow_grad_x(x,p,y)) * dy)
-                dp = @thunk project_p(conj(_pow_grad_p(x,p,y)) * dy)
+                dx = project_x(conj(_pow_grad_x(x,p,float(y))) * dy)
+                dp = @thunk project_p(conj(_pow_grad_p(x,p,float(y))) * dy)
                 return (NoTangent(), dx, dp)
             end
             return y, power_pullback
