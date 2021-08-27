@@ -1,4 +1,4 @@
-@testset "arraymath" begin
+@testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
         test_frule(inv, B)

@@ -1,4 +1,4 @@
-@testset "base" begin
+@testset "base.jl" begin
     @testset "copysign" begin
         # don't go too close to zero as the numerics may jump over it yielding wrong results
         @testset "at $y" for y in (-1.1, 0.1, 100.0)  

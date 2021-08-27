@@ -1,4 +1,4 @@
-@testset "constructors" begin
+@testset "Array constructors" begin
 
     # We can't use test_rrule here (as it's currently implemented) because the elements of
     # the array have arbitrary values. The only thing we can do is ensure that we're getting
