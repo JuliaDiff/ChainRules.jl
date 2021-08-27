@@ -44,18 +44,22 @@ end
 
 function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
     axes_x = axes(x)
-    project = ProjectTo(x)
     y = unique(x; dims=dims)  # accepts only dims=: or dims::Integer
-    if dims isa Colon
-        xs, ys = vec(x), y
-    else
-        xs, ys = collect(eachslice(x; dims=dims)), collect(eachslice(y; dims=dims))
-    end
-    mask = isequal.(permutedims(ys), xs)  # unique([0.0, -0.0, NaN, NaN])
-    mask .= (mask .== cumsum(mask, dims=1) .== true)
-    keep = map(I -> I[1], findall(mask))
     function unique_pullback(dy_raw)
         dy = unthunk(dy_raw)
+        if length(x) == length(y)
+            # Short-circuit for the case of all unique, since `mask` is fairly expensive:
+            dx = reshape(dy, axes_x)
+            return (NoTangent(), ProjectTo(x)(dx))
+        end
+        if dims isa Colon
+            xs, ys = vec(x), y
+        else
+            xs, ys = collect(eachslice(x; dims=dims)), collect(eachslice(y; dims=dims))
+        end
+        mask = isequal.(permutedims(ys), xs)  # unique([0.0, -0.0, NaN, NaN])
+        mask .= (mask .== cumsum(mask, dims=1) .== true)
+        keep = map(I -> I[1], findall(mask))
         if dims isa Colon
             # The function `_zerolike_writeat` is defined near `maximum`, allows
             # second derivatives. Should perhaps eventually be shared with `getindex`.
@@ -63,8 +67,8 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
         else
             inds = ntuple(d -> d==dims ? keep : (:), length(axes_x))
             dx = _zerolike_writeat(x, dy, (), inds...)
-        end            
-        return (NoTangent(), project(dx))
+        end
+        return (NoTangent(), ProjectTo(x)(dx))
     end
     return y, unique_pullback
 end
@@ -76,14 +80,3 @@ function _zerolike_writeat(x, dy, dims, ind...)
     view(dx, ind...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
     dx
 end
-
-#=
-
-rrule(unique, [1,1,2,3])[2]([10,20,30]) == (NoTangent(), [10, 0, 20, 30])
-rrule(unique, [1 2; 1 4])[2]([10,20,30]) == (NoTangent(), [10 20; 0 30])
-
-rrule(unique, [1 2 1 2; 1 2 1 4], dims=2)[2]([10 20 30; 40 50 60])[2] == [10 20 0 30; 40 50 0 60]
-
-rrule(unique, Diagonal([1,2,3]))[2]([10 20 30 40])[2] == [10.0 0.0 0.0; 0.0 30.0 0.0; 0.0 0.0 40.0]
-
-=#
