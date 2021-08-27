@@ -154,3 +154,41 @@
         end
     end # prod
 end
+
+@testset "Accumulations" begin
+    @testset "cumprod" begin
+        v = round.(10 .* randn(9), sigdigits=3)
+        test_rrule(cumprod, v)
+        v[3] = 0
+        test_rrule(cumprod, v)
+        v[6] = 0
+        test_rrule(cumprod, v)
+
+        @testset "higher dimensions, dims=$dims" for dims in (1,2,3)
+            m = round.(10 .* randn(4,5), sigdigits=3)
+            test_rrule(cumprod, m; fkwargs=(;dims=dims), atol=0.1)
+            m[2,2] = 0
+            m[2,4] = 0
+            test_rrule(cumprod, m; fkwargs=(;dims=dims))
+
+            t = round.(10 .* randn(3,3,3), sigdigits=3)
+            test_rrule(cumprod, t; fkwargs=(;dims=dims))
+            t[2,2,2] = 0
+            t[2,3,3] = 0
+            test_rrule(cumprod, t; fkwargs=(;dims=dims))
+        end
+
+        @testset "types" begin
+            back = rrule(cumprod, [1, 2, 3])[2]  # rule allows integer input, but test_rrule does not
+            @test unthunk(back(fill(0.5, 3))[2]) == [9/2, 2, 1]
+
+            back = rrule(cumprod, PermutedDimsArray([1 2; 3 4], (2,1)); dims=1)[2]
+            @test unthunk(back(ones(Float32, 2,2))[2]) == [3 5; 1 3]
+
+            @test_throws Exception cumprod(Symmetric([1 2; 3 4]), dims=1) # forward pass fails, so can't test gradient
+
+            back = rrule(cumprod, Diagonal([1, 2]); dims=1)[2]
+            @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 0; 0 0]  # ProjectTo'd to Diagonal now
+        end
+    end
+end
