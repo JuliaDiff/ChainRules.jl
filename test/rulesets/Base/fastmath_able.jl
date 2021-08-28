@@ -172,13 +172,7 @@ const FASTABLE_AST = quote
             test_rrule(^, rand(T), rand(T))
         end
 
-        # @testset "^(x::$T, $p::Int)" for T in (Float64, ComplexF64), p in -2:2
-        #     test_frule(^, randn(T) + 3, p ⊢ NoTangent())  # this doesn't just skip p's tangent
-        #     test_rrule(^, randn(T) + 3, p ⊢ NoTangent())
-        # end
-
         # Tests for power functions, at values near to zero.
-
         POWERGRADS = [ # (x,p) => (dx,dp)
         # Some regular points, as sanity checks:
           (1.0, 2)   => (2.0, 0.0),
@@ -234,24 +228,6 @@ const FASTABLE_AST = quote
                 @test isequal(∂x, ∂x_rev) # || println("^ reverse `x` gradient for $x^$p: got $∂x_rev, expected $∂x")
             end
             @test isequal(∂p, ∂p_rev) # || println("^ reverse `p` gradient for $x^$p: got $∂p_rev, expected $∂p")
-        end
-
-        @testset "literal_pow $x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
-            y = Base.literal_pow(^, x, Val(p))
-
-            # Forward
-            y_fwd = frule((1,1,1,1), Base.literal_pow, ^, x, Val(p))[1]
-            @test y === y_fwd # || println("literal_pow forward value for $x^$p: got $y_fwd, expected $y")
-
-            ∂x_fwd = frule((0,0,1,0), Base.literal_pow, ^, x, Val(p))[1]
-            # isequal(∂x, ∂x_fwd) || println("literal_pow forward `x` gradient for $x^$p: got $∂x_fwd, expected $∂x, maybe, y=$y")
-
-            # Reverse
-            y_rev = rrule(Base.literal_pow, ^, x, Val(p))[1]
-            @test y === y_rev # || println("literal_pow reverse value for $x^$p: got $y_rev, expected $y")
-
-            ∂x_rev = unthunk(rrule(Base.literal_pow, ^, x, Val(p))[2](1))[3]
-            @test isequal(∂x, ∂x_rev) # || println("literal_pow `x` gradient for $x^$p: got $∂x_rev, expected $∂x")
         end
     end
 

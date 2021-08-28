@@ -180,26 +180,23 @@ end
 @scalar_rule ceil(x) zero(x)
 
 # `literal_pow`
+# This is mostly handled by AD; it's a micro-optimisation to provide a gradient for x*x*x
 # Note that rules for `^` are defined in the fastmath_able.jl
 
-function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{p}) where p
-    y = Base.literal_pow(^, x, Val(p))
-    yox = Base.literal_pow(^, x, Val(p-1))
-    return y, p * yox * Δx
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{2})
+    return x * x, 2 * x * Δx
 end
-frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{0}) = x^0, zero(Δx)
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
+    x2 = x * x
+    return x2 * x, 3 * x2 * Δx
+end
 
-function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{p}) where p
-    y = Base.literal_pow(^, x, Val(p))
-    @inline function literal_pow_pullback(dy)
-        # Calling literal_pow a 2nd time is the easy way to get all the edge cases right.
-        # It should be cheap up to p=4, which is the main use of literal powers, right?
-        yox = Base.literal_pow(^, x, Val(p-1))
-        return (NoTangent(), NoTangent(), ProjectTo(x)(p * yox * dy), NoTangent())
-    end
-    return y, literal_pow_pullback
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{2})
+    @inline pow2_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(2 * x * dy), NoTangent())
+    return x * x, pow2_pullback
 end
-function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{0})
-    literal_pow_zero_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(zero(dy)), NoTangent())
-    return x^0, literal_pow_zero_pullback
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
+    x2 = x * x
+    @inline pow3_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
+    return x2 * x, pow3_pullback
 end
