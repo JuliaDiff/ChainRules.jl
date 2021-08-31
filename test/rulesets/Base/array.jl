@@ -171,7 +171,9 @@ end
 
         # Structured
         y, pb = rrule(reverse, Diagonal([1,2,3]))
-        @test unthunk(pb(rand(3,3))[2]) isa Diagonal
+        # We only preserve structure in this case if given structured tangent (no ProjectTo)
+        @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
+        @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
     end
 end
 
