@@ -303,10 +303,9 @@ function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
 end
 
 function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
-    project = ProjectTo(x)
     nots = map(_ -> NoTangent(), args)
     function reverse_pullback(dy)
-        dx = @thunk project(reverse(unthunk(dy), args...; kw...))
+        dx = @thunk reverse(unthunk(dy), args...; kw...)
         return (NoTangent(), dx, nots...)
     end
     return reverse(x, args...; kw...), reverse_pullback
@@ -321,9 +320,8 @@ function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
 end
 
 function rrule(::typeof(circshift), x::AbstractArray, shifts)
-    project = ProjectTo(x)
     function circshift_pullback(dy)
-        dx = @thunk project(circshift(unthunk(dy), map(-, shifts)))
+        dx = @thunk circshift(unthunk(dy), map(-, shifts))
         # Note that circshift! is useless for InplaceableThunk, as it overwrites completely
         return (NoTangent(), dx, NoTangent())
     end
