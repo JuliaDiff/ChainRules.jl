@@ -95,7 +95,7 @@ end
 
 function _diagm_back(p, ȳ)
     k, v = p
-    d = diag(ȳ, k)[1:length(v)] # handle if diagonal was smaller than matrix
+    d = diag(unthunk(ȳ), k)[1:length(v)] # handle if diagonal was smaller than matrix
     return Tangent{typeof(p)}(second = d)
 end
 
