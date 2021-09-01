@@ -342,3 +342,15 @@ function rrule(::typeof(fill), x::Any, dims...)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
 end
+
+
+#####
+##### `fill!`
+#####
+
+function rrule(::typeof(fill!), A, x)
+    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
+    fill!_pullback(Ȳ) = (NoTangent(), ZeroTangent(), project(sum(Ȳ)))
+    return fill!(A, x), fill!_pullback
+end
+

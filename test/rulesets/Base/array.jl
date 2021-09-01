@@ -198,3 +198,8 @@ end
     test_rrule(fill, 55 + 0.5im, 5)
     test_rrule(fill, 3.3, (3, 3, 3))
 end
+
+@testset "fill!" begin
+    test_rrule(fill!, rand(2), 1)
+    test_rrule(fill!, rand(2) + im*rand(2), 1)
+end
