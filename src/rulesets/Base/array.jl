@@ -343,7 +343,6 @@ function rrule(::typeof(fill), x::Any, dims...)
     return fill(x, dims...), fill_pullback
 end
 
-
 #####
 ##### `fill!`
 #####
