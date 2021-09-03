@@ -160,16 +160,16 @@ const FASTABLE_AST = quote
         end
 
         @testset "^(x::$T, p::$S)" for T in (Float64, ComplexF64), S in (Float64, ComplexF64)
-            test_frule(^, rand(T) + 3, rand(T) + 3)
-            test_rrule(^, rand(T) + 3, rand(T) + 3)
+            test_frule(^, rand(T) + 3, rand(S) + 3)
+            test_rrule(^, rand(T) + 3, rand(S) + 3)
 
             # When both x & p are Real, and !(isinteger(p)), 
             # then x must be positive to avoid a DomainError
             T <: Real && S <: Real && continue
             # In other cases, we can test values near zero:
 
-            test_frule(^, randn(T), rand(T))
-            test_rrule(^, rand(T), rand(T))
+            test_frule(^, randn(T), rand(S))
+            test_rrule(^, rand(T), rand(S))
         end
 
         # Tests for power functions, at values near to zero.
