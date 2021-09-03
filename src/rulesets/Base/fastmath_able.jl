@@ -256,12 +256,12 @@ let
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
-        @error(
-            "Non-FastMath compatible rules defined in fastmath_able.jl.", # \n Definitions:\n" *
-            # join(non_transformed_definitions, "\n")
-            non_transformed_definitions
+        error(
+            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
+            join(non_transformed_definitions, "\n")
         )
-        # This is @error not error() because that doesn't play well with Revise, locally
+        # This error() may not play well with Revise. But a wanring @error does:
+        # @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
     eval(fast_ast)
