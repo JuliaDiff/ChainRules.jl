@@ -178,7 +178,7 @@ const FASTABLE_AST = quote
           (1.0, 2)   => (2.0, 0.0),
           (2.0, 2)   => (4.0, 2.772588722239781),
         # At x=0, gradients for x seem clear, 
-        # for p less certain but I think 0 or NaN right?
+        # for p less certain what's best.
           (0.0, 2)   => (0.0, 0.0),
           (-0.0, 2)  => (-0.0, 0.0),
           (0.0, 1)   => (1.0, 0.0),

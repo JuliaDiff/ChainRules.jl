@@ -167,16 +167,11 @@ let
         # literal_pow is in base.jl
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
             y = x ^ p
-            thegrad = _pow_grad_x(x, p, float(y))
-            thelog = if Δp isa AbstractZero
-                # Then don't waste time computing log
-                Δp
-            else
-                # When x < 0 && isinteger(p), could decide p is non-differentiable,
-                # isolated points, or could match what the rrule with ProjectTo gives:
-                _pow_grad_p(x, p, float(y))
-            end
-            return y, muladd(thelog, Δp, thegrad * Δx)
+            dx = _pow_grad_x(x, p, float(y))
+            # When x < 0 && isinteger(p), could decide p is non-differentiable, isolated
+            # points, but chose to match what the rrule with ProjectTo gives, real(log(...)):
+            dp = Δp isa AbstractZero ? Δp : _pow_grad_p(x, p, float(y))
+            return y, muladd(dp, Δp, dx * Δx)
         end
 
         function rrule(::typeof(^), x::Number, p::Number)
@@ -188,18 +183,6 @@ let
                 return (NoTangent(), dx, dp)
             end
             return y, power_pullback
-        end
-
-        _pow_grad_x(x, p, y) = (p * y / x)
-        function _pow_grad_x(x::Real, p::Real, y)
-            return ifelse(!iszero(x) | (p<0), (p * y / x),
-                     ifelse(isone(p), one(y),
-                       ifelse(0<p<1, oftype(y, Inf), zero(y) )))
-        end
-        _pow_grad_p(x, p, y) = y * log(complex(x))
-        function _pow_grad_p(x::Real, p::Real, y)
-            return ifelse(!iszero(x), y * real(log(complex(x))),
-                     ifelse(p>0, zero(y), oftype(y, NaN) ))
         end
 
         @scalar_rule(
@@ -263,14 +246,51 @@ let
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
-        @warn(
+        @error(
             "Non-FastMath compatible rules defined in fastmath_able.jl.", # \n Definitions:\n" *
             # join(non_transformed_definitions, "\n")
             non_transformed_definitions
         )
+        # This is @error not error() because that doesn't play well with Revise, locally
     end
 
     eval(fast_ast)
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
+end
+
+## power
+# Thes functions need to be defined outside the eval() block.
+# The special cases they aim to hit are in POWERGRADS in tests.
+_pow_grad_x(x, p, y) = (p * y / x)
+# function _pow_grad_x(x::Real, p::Real, y)
+#     return ifelse(!iszero(x) | (p<0), (p * y / x),
+#              ifelse(isone(p), one(y),
+#                ifelse((0<p) | (p<1), oftype(y, Inf), zero(y) )))
+# end
+function _pow_grad_x(x::Real, p::Real, y)
+    return if !iszero(x) || p < 0
+        p * y / x
+    elseif isone(p)
+        one(y)
+    elseif iszero(p) || p > 1
+        zero(y)
+    else
+        oftype(y, Inf)
+    end
+end
+
+_pow_grad_p(x, p, y) = y * log(complex(x))
+# function _pow_grad_p(x::Real, p::Real, y)
+#     return ifelse(!iszero(x), y * real(log(complex(x))),
+#              ifelse(p>0, zero(y), oftype(y, NaN) ))
+# end
+function _pow_grad_p(x::Real, p::Real, y)
+    return if !iszero(x)
+        y * real(log(complex(x)))
+    elseif p > 0
+        zero(y)
+    else
+        oftype(y, NaN)
+    end
 end
