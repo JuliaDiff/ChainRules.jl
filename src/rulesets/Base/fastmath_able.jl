@@ -168,10 +168,14 @@ let
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
             y = x ^ p
             _dx = _pow_grad_x(x, p, float(y))
-            # When x < 0 && isinteger(p), could decide p is non-differentiable, isolated
-            # points, but chose to match what the rrule with ProjectTo gives, real(log(...)):
-            _dp = Δp isa AbstractZero ? Δp : _pow_grad_p(x, p, float(y))
-            return y, muladd(_dp, Δp, _dx * Δx)
+            if iszero(Δp)
+                # Treat this as a strong zero, to avoid NaN, and save the cost of log
+                return y, _dx * Δx
+            else
+                # This may do real(log(complex(...))) which matches ProjectTo in rrule
+                _dp = _pow_grad_p(x, p, float(y))
+                return y, muladd(_dp, Δp, _dx * Δx)
+            end
         end
 
         function rrule(::typeof(^), x::Number, p::Number)

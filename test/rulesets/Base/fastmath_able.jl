@@ -212,10 +212,17 @@ const FASTABLE_AST = quote
             y_fwd = frule((1,1,1), ^, x, p)[1]
             @test isequal(y, y_fwd)
 
-            # ∂x_fwd = frule((0,1,0), ^, x, p)[1]
-            # ∂p_fwd = frule((0,0,1), ^, x, p)[2]
-            # isequal(∂x, ∂x_fwd) || println("^ forward `x` gradient for $y = $x^$p: got $∂x_fwd, expected $∂x, maybe!")
-            # isequal(∂p, ∂p_fwd) || println("^ forward `p` gradient for $x^$p: got $∂p_fwd, expected $∂p, maybe")
+            ∂x_fwd = frule((0,1,0), ^, x, p)[2]
+            ∂p_fwd = frule((0,0,1), ^, x, p)[2]
+            @test isequal(∂x, ∂x_fwd)
+            if x===0.0 && p===0.5
+                @test_broken isequal(∂p, ∂p_fwd)
+            else
+                @test isequal(∂p, ∂p_fwd)
+            end
+
+            ∂x_fwd = frule((0,1,ZeroTangent()), ^, x, p)[2] # easier, strong zero
+            @test isequal(∂x, ∂x_fwd)
 
             # Reverse
             y_rev = rrule(^, x, p)[1]
