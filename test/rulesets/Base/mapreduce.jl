@@ -90,6 +90,16 @@
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
     end
 
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/522
+    @begin "sum(xs, weights) (#522)" begin
+        xs = rand(5)
+        weights = rand(5)
+        Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
+        struct MyRuleConfig <: RuleConfig{Union{HasReverseMode}} end
+
+        @test rrule(MyRuleConfig(), Base.sum, xs, weights) isa Nothing
+    end
+
     @testset "prod" begin
         @testset "Array{$T}" for T in [Float64, ComplexF64]
             @testset "size = $sz, dims = $dims" for (sz, dims) in [

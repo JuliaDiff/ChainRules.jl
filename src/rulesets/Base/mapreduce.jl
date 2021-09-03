@@ -88,6 +88,9 @@ function rrule(
     return y, sum_pullback
 end
 
+# https://github.com/JuliaDiff/ChainRules.jl/issues/522
+@opt_out ChainRulesCore.rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(sum), x::AbstractArray, y::AbstractArray; dims=:)
+
 function frule(
     (_, _, Δx),
     ::typeof(sum),
