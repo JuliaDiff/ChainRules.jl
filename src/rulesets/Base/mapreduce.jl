@@ -154,6 +154,53 @@ for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
 end
 
 #####
+##### `cumsum`
+#####
+
+function rrule(::typeof(cumsum), x::AbstractArray; dims=nothing)
+    if dims === nothing
+        ndims(x) > 1 && throw(UndefKeywordError(:dims))
+        dims = 1
+    end
+    project = eltype(x) <: Number ? ProjectTo(x) : identity
+    function cumsum_pullback(dy)
+        step1 = reverse(unthunk(dy))
+        if ChainRulesCore.is_inplaceable_destination(step1)
+            step2 = cumsum!(step1, step1; dims=dims)
+            step3 = reverse!(step2; dims=dims)
+        else
+            step2 = cumsum(step1; dims=dims)
+            step3 = reverse(step2; dims=dims)
+        end
+        return (NoTangent(), project(step3))
+    end
+    cumsum(x; dims=dims), cumsum_pullback
+end
+
+function rrule(::typeof(cumsum), x::AbstractVector)
+    function cumsum_pullback(dy)
+        step1 = Iterators.reverse(unthunk(dy))
+        step2 = collect(Iterators.accumulate(+, step1))
+        step3 = reverse!(step2)
+        return (NoTangent(), step3)
+    end
+    cumsum(x), cumsum_pullback
+end
+
+#=
+
+julia> @btime gradient(x -> sum(cumsum(x)), $(rand(1000)));  # Iterators.reverse
+  2.361 μs (6 allocations: 23.92 KiB)
+
+julia> @btime gradient(x -> sum(cumsum(x, dims=1)), $(rand(1000,1)));
+  5.611 μs (14 allocations: 24.00 KiB)
+
+julia> @btime gradient(x -> sum(cumsum(x, dims=1)), $(rand(1000,1)));
+  5.910 μs (16 allocations: 39.88 KiB)
+
+=#
+
+#####
 ##### `prod`
 #####
 

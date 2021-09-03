@@ -238,6 +238,13 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 end
 
 @testset "Accumulations" begin
+    @testset "cumsum" begin
+        v = round.(10 .* randn(9), sigdigits=3)
+        m = round.(10 .* randn(4,5), sigdigits=3)
+        test_rrule(cumsum, v)
+        test_rrule(cumsum, m, fkwargs=(;dims=1))
+        test_rrule(cumsum, m, fkwargs=(;dims=2))
+    end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)
         test_rrule(cumprod, v)
