@@ -192,11 +192,11 @@ function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real,
 end
 
 function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{2})
-    @inline pow2_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(2 * x * dy), NoTangent())
-    return x * x, pow2_pullback
+    square_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(2 * x * dy), NoTangent())
+    return x * x, square_pullback
 end
 function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
     x2 = x * x
-    @inline pow3_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
-    return x2 * x, pow3_pullback
+    cube_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
+    return x2 * x, cube_pullback
 end

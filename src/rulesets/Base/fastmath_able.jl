@@ -178,14 +178,14 @@ let
             y = x^p
             project_x = ProjectTo(x)
             project_p = ProjectTo(p)
-            @inline function power_pullback(dy)
+            function power_pullback(dy)
                 _dx = _pow_grad_x(x, p, float(y))
                 _dy = _pow_grad_p(x, p, float(y))
                 return (
                     NoTangent(), 
                     project_x(conj(_dx) * dy),
                     @thunk project_p(conj(_dy) * dy)
-                    )
+                )
             end
             return y, power_pullback
         end
