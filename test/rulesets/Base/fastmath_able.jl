@@ -180,7 +180,7 @@ const FASTABLE_AST = quote
         # At x=0, gradients for x seem clear, 
         # for p less certain what's best.
           (0.0, 2)   => (0.0, 0.0),
-          (-0.0, 2)  => (-0.0, 0.0),
+          (-0.0, 2)  => (0.0, 0.0),  # probably (-0.0, 0.0) would be ideal
           (0.0, 1)   => (1.0, 0.0),
           (-0.0, 1)  => (1.0, 0.0),
           (0.0, 0)   => (0.0, NaN),
@@ -210,7 +210,7 @@ const FASTABLE_AST = quote
 
             # Forward
             y_fwd = frule((1,1,1), ^, x, p)[1]
-            @test y === y_fwd # || println("^ forward value for $x^$p: got $y_fwd, expected $y")
+            @test isequal(y, y_fwd)
 
             # ∂x_fwd = frule((0,1,0), ^, x, p)[1]
             # ∂p_fwd = frule((0,0,1), ^, x, p)[2]
@@ -219,15 +219,11 @@ const FASTABLE_AST = quote
 
             # Reverse
             y_rev = rrule(^, x, p)[1]
-            @test y === y_rev # || println("^ reverse value for $x^$p: got $y_rev, expected $y")
+            @test isequal(y, y_rev)
             
             ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
-            if ∂x === -0.0 # happens at at x === -0.0 && p === 2, ignore the sign
-                @test 0.0 == ∂x_rev
-            else
-                @test isequal(∂x, ∂x_rev) # || println("^ reverse `x` gradient for $x^$p: got $∂x_rev, expected $∂x")
-            end
-            @test isequal(∂p, ∂p_rev) # || println("^ reverse `p` gradient for $x^$p: got $∂p_rev, expected $∂p")
+            @test isequal(∂x, ∂x_rev)
+            @test isequal(∂p, ∂p_rev)
         end
     end
 

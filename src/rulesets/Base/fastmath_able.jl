@@ -167,29 +167,36 @@ let
         # literal_pow is in base.jl
         function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
             y = x ^ p
-            dx = _pow_grad_x(x, p, float(y))
+            _dx = _pow_grad_x(x, p, float(y))
             # When x < 0 && isinteger(p), could decide p is non-differentiable, isolated
             # points, but chose to match what the rrule with ProjectTo gives, real(log(...)):
-            dp = Δp isa AbstractZero ? Δp : _pow_grad_p(x, p, float(y))
-            return y, muladd(dp, Δp, dx * Δx)
+            _dp = Δp isa AbstractZero ? Δp : _pow_grad_p(x, p, float(y))
+            return y, muladd(_dp, Δp, _dx * Δx)
         end
 
         function rrule(::typeof(^), x::Number, p::Number)
             y = x^p
-            project_x, project_p = ProjectTo(x), ProjectTo(p)
+            project_x = ProjectTo(x)
+            project_p = ProjectTo(p)
             @inline function power_pullback(dy)
-                dx = project_x(conj(_pow_grad_x(x,p,float(y))) * dy)
-                dp = @thunk project_p(conj(_pow_grad_p(x,p,float(y))) * dy)
-                return (NoTangent(), dx, dp)
+                _dx = _pow_grad_x(x, p, float(y))
+                _dy = _pow_grad_p(x, p, float(y))
+                return (
+                    NoTangent(), 
+                    project_x(conj(_dx) * dy),
+                    @thunk project_p(conj(_dy) * dy)
+                    )
             end
             return y, power_pullback
         end
 
+        ## `rem`
         @scalar_rule(
             rem(x, y),
             @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
             (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))),
         )
+        ## `min`, `max`
         @scalar_rule max(x, y) @setup(gt = x > y) (gt, !gt)
         @scalar_rule min(x, y) @setup(gt = x > y) (!gt, gt)
 
@@ -197,8 +204,7 @@ let
         @scalar_rule +x true
         @scalar_rule -x -1
 
-        # `sign`
-
+        ## `sign`
         function frule((_, Δx), ::typeof(sign), x)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
@@ -263,11 +269,6 @@ end
 # Thes functions need to be defined outside the eval() block.
 # The special cases they aim to hit are in POWERGRADS in tests.
 _pow_grad_x(x, p, y) = (p * y / x)
-# function _pow_grad_x(x::Real, p::Real, y)
-#     return ifelse(!iszero(x) | (p<0), (p * y / x),
-#              ifelse(isone(p), one(y),
-#                ifelse((0<p) | (p<1), oftype(y, Inf), zero(y) )))
-# end
 function _pow_grad_x(x::Real, p::Real, y)
     return if !iszero(x) || p < 0
         p * y / x
@@ -281,10 +282,6 @@ function _pow_grad_x(x::Real, p::Real, y)
 end
 
 _pow_grad_p(x, p, y) = y * log(complex(x))
-# function _pow_grad_p(x::Real, p::Real, y)
-#     return ifelse(!iszero(x), y * real(log(complex(x))),
-#              ifelse(p>0, zero(y), oftype(y, NaN) ))
-# end
 function _pow_grad_p(x::Real, p::Real, y)
     return if !iszero(x)
         y * real(log(complex(x)))
