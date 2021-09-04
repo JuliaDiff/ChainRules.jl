@@ -184,11 +184,11 @@ let
             project_p = ProjectTo(p)
             function power_pullback(dy)
                 _dx = _pow_grad_x(x, p, float(y))
-                _dy = _pow_grad_p(x, p, float(y))
                 return (
                     NoTangent(), 
                     project_x(conj(_dx) * dy),
-                    @thunk project_p(conj(_dy) * dy)
+                    # _pow_grad_p contains log, perhaps worth thunking:
+                    @thunk project_p(conj(_pow_grad_p(x, p, float(y))) * dy)
                 )
             end
             return y, power_pullback
