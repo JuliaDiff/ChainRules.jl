@@ -137,7 +137,7 @@ const FASTABLE_AST = quote
             test_rrule(f, 10rand(T), rand(T))
         end
 
-        @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
+        @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot), T in (Float32, Float64)
             x, Δx, x̄ = 10rand(T, 3)
             y, Δy, ȳ = rand(T, 3)
             @assert T == typeof(f(x, y))
@@ -159,28 +159,78 @@ const FASTABLE_AST = quote
             end
         end
 
-        @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
-            # for real x and n, x must be >0
-            test_frule(^, rand(T) + 3, rand(T) + 3)
-            test_rrule(^, rand(T) + 3, rand(T) + 3)
+        @testset "^(x::$T, p::$S)" for T in (Float64, ComplexF64), S in (Float64, ComplexF64)
+            test_frule(^, rand(T) + 3, rand(S) + 3)
+            test_rrule(^, rand(T) + 3, rand(S) + 3)
 
-            T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
-                # finite differences doesn't work for x < 0, so we check manually
-                x = -rand(T) .- 3
-                y = 3
-                Δx = randn(T)
-                Δy = randn(T)
-                Δz = randn(T)
+            # When both x & p are Real, and !(isinteger(p)), 
+            # then x must be positive to avoid a DomainError
+            T <: Real && S <: Real && continue
+            # In other cases, we can test values near zero:
 
-                @test frule((ZeroTangent(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
-                @test frule((ZeroTangent(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
-                _, ∂x, ∂y = rrule(^, x, y)[2](Δz)
-                @test ∂x ≈ Δz * y * x^(y - 1)
-                @test ∂y ≈ 0
-                _, ∂x, ∂y = rrule(^, zero(x), y)[2](Δz)
-                @test ∂x ≈ 0
-                @test ∂y ≈ 0
+            test_frule(^, randn(T), rand(S))
+            test_rrule(^, rand(T), rand(S))
+        end
+
+        # Tests for power functions, at values near to zero.
+        POWERGRADS = [ # (x,p) => (dx,dp)
+        # Some regular points, as sanity checks:
+          (1.0, 2)   => (2.0, 0.0),
+          (2.0, 2)   => (4.0, 2.772588722239781),
+        # At x=0, gradients for x seem clear, 
+        # for p less certain what's best.
+          (0.0, 2)   => (0.0, 0.0),
+          (-0.0, 2)  => (0.0, 0.0),  # probably (-0.0, 0.0) would be ideal
+          (0.0, 1)   => (1.0, 0.0),
+          (-0.0, 1)  => (1.0, 0.0),
+          (0.0, 0)   => (0.0, NaN),
+          (-0.0, 0)  => (0.0, NaN),
+          (0.0, -1)  => (-Inf, NaN),
+          (-0.0, -1) => (-Inf, NaN),
+          (0.0, -2)  => (-Inf, NaN),
+          (-0.0, -2) => (Inf, NaN),
+        # Integer x & p, check no InexactErrors
+          (0, 2)    => (0.0, 0.0),
+          (0, 1)    => (1.0, 0.0),
+          (0, 0)    => (0.0, NaN),
+          (0, -1)   => (-Inf, NaN),
+          (0, -2)   => (-Inf, NaN),
+        # Non-integer powers:
+          (0.0, 0.5)   => (Inf, 0.0),
+          (0.0, 3.5)   => (0.0, 0.0),
+          (0.0, -1.5)  => (-Inf, NaN),
+        ]
+
+        @testset "$x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
+            if x isa Integer && p isa Integer && p < 0
+                @test_throws DomainError x^p
+                continue
             end
+            y = x^p
+
+            # Forward
+            y_fwd = frule((1,1,1), ^, x, p)[1]
+            @test isequal(y, y_fwd)
+
+            ∂x_fwd = frule((0,1,0), ^, x, p)[2]
+            ∂p_fwd = frule((0,0,1), ^, x, p)[2]
+            @test isequal(∂x, ∂x_fwd)
+            if x===0.0 && p===0.5
+                @test_broken isequal(∂p, ∂p_fwd)
+            else
+                @test isequal(∂p, ∂p_fwd)
+            end
+
+            ∂x_fwd = frule((0,1,ZeroTangent()), ^, x, p)[2] # easier, strong zero
+            @test isequal(∂x, ∂x_fwd)
+
+            # Reverse
+            y_rev = rrule(^, x, p)[1]
+            @test isequal(y, y_rev)
+            
+            ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
+            @test isequal(∂x, ∂x_rev)
+            @test isequal(∂p, ∂p_rev)
         end
     end
 

@@ -188,10 +188,10 @@
         @test rrule(Base.depwarn, "message", :f) !== nothing
     end
 
-    @testset "literal_pow" begin
-        # for real x and n, x must be >0
-        test_frule(Base.literal_pow, ^, 3.5, Val(3))
-        test_rrule(Base.literal_pow, ^, 3.5, Val(3))
+    @testset "literal_pow: $x^$p" for x in [-1.5, 0.0, 3.5], p in [2, 3]
+        x == 0 && p < 0 && continue
+        test_frule(Base.literal_pow, ^, x, Val(p))
+        test_rrule(Base.literal_pow, ^, x, Val(p))
     end
 
     @testset "Float conversions" begin

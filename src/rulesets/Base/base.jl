@@ -179,14 +179,24 @@ end
 @scalar_rule floor(x) zero(x)
 @scalar_rule ceil(x) zero(x)
 
-# note: rules for ^ are defined in the fastmath_able.jl
-function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
-    y = Base.literal_pow(^, x, pv)
-    return y, (p * y / x * Δx)
+# `literal_pow`
+# This is mostly handled by AD; it's a micro-optimisation to provide a gradient for x*x*x
+# Note that rules for `^` are defined in the fastmath_able.jl
+
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{2})
+    return x * x, 2 * x * Δx
+end
+function frule((_, _, Δx, _), ::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
+    x2 = x * x
+    return x2 * x, 3 * x2 * Δx
 end
 
-function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, pv::Val{p}) where p
-    y = Base.literal_pow(^, x, pv)
-    literal_pow_pullback(dy) = NoTangent(), NoTangent(), (p * y / x * dy), NoTangent()
-    return y, literal_pow_pullback
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{2})
+    square_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(2 * x * dy), NoTangent())
+    return x * x, square_pullback
+end
+function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
+    x2 = x * x
+    cube_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
+    return x2 * x, cube_pullback
 end
