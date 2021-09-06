@@ -91,7 +91,7 @@
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522
-    @begin "sum(xs, weights) (#522)" begin
+    @testset "sum(xs, weights) (#522)" begin
         xs = rand(5)
         weights = rand(5)
         Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)

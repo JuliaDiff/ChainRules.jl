@@ -89,7 +89,15 @@ function rrule(
 end
 
 # https://github.com/JuliaDiff/ChainRules.jl/issues/522
-@opt_out ChainRulesCore.rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(sum), x::AbstractArray, y::AbstractArray; dims=:)
+# The rule above assumes `f` is callable. Arrays are not, this came up when summing
+# arrays with weights in StatsBase
+@opt_out ChainRulesCore.rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(sum),
+    x::AbstractArray,
+    y::AbstractArray;
+    dims=:
+)
 
 function frule(
     (_, _, Δx),
