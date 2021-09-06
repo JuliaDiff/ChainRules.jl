@@ -1,3 +1,7 @@
+# for sum(xs, weights) (#522)
+Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
+struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
+
 @testset "Maps and Reductions" begin
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
@@ -94,10 +98,8 @@
     @testset "sum(xs, weights) (#522)" begin
         xs = rand(5)
         weights = rand(5)
-        Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
-        struct MyRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
-        @test rrule(MyRuleConfig(), Base.sum, xs, weights) isa Nothing
+        @test rrule(SumRuleConfig(), Base.sum, xs, weights) isa Nothing
     end
 
     @testset "prod" begin
