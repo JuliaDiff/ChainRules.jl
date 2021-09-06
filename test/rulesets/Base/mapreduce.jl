@@ -1,3 +1,7 @@
+# for sum(xs, weights) (#522)
+Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
+struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
+
 @testset "Maps and Reductions" begin
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
@@ -88,6 +92,14 @@
         test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
         # ... and Bool produced by function
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
+    end
+
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/522
+    @testset "sum(xs, weights) (#522)" begin
+        xs = rand(5)
+        weights = rand(5)
+
+        @test rrule(SumRuleConfig(), Base.sum, xs, weights) isa Nothing
     end
 
     @testset "prod" begin
