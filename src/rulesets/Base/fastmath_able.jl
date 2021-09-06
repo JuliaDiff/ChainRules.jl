@@ -52,7 +52,7 @@ let
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
         @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)
+        @scalar_rule sqrt(x) inv(2Ω)  # gradient +Inf at x==0
         @scalar_rule exp(x) Ω
         @scalar_rule exp10(x) Ω * log(oftype(x, 10))
         @scalar_rule exp2(x) Ω * log(oftype(x, 2))
@@ -137,8 +137,7 @@ let
 
         # Binary functions
 
-        # `hypot`
-
+        ## `hypot`
         function frule(
             (_, Δx, Δy),
             ::typeof(hypot),
@@ -163,20 +162,45 @@ let
         @scalar_rule x + y (true, true)
         @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
-        #log(complex(x)) is required so it gives correct complex answer for x<0
-        @scalar_rule(x ^ y,
-            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(complex(x))),
-        )
-        # x^y for x < 0 errors when y is not an integer, but then derivative wrt y
-        # is undefined, so we adopt subgradient convention and set derivative to 0.
-        @scalar_rule(x::Real ^ y::Real,
-            (ifelse(iszero(x), zero(Ω), y * Ω / x), Ω * log(oftype(Ω, ifelse(x ≤ 0, one(x), x)))),
-        )
+
+        ## power
+        # literal_pow is in base.jl
+        function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
+            y = x ^ p
+            _dx = _pow_grad_x(x, p, float(y))
+            if iszero(Δp)
+                # Treat this as a strong zero, to avoid NaN, and save the cost of log
+                return y, _dx * Δx
+            else
+                # This may do real(log(complex(...))) which matches ProjectTo in rrule
+                _dp = _pow_grad_p(x, p, float(y))
+                return y, muladd(_dp, Δp, _dx * Δx)
+            end
+        end
+
+        function rrule(::typeof(^), x::Number, p::Number)
+            y = x^p
+            project_x = ProjectTo(x)
+            project_p = ProjectTo(p)
+            function power_pullback(dy)
+                _dx = _pow_grad_x(x, p, float(y))
+                return (
+                    NoTangent(), 
+                    project_x(conj(_dx) * dy),
+                    # _pow_grad_p contains log, perhaps worth thunking:
+                    @thunk project_p(conj(_pow_grad_p(x, p, float(y))) * dy)
+                )
+            end
+            return y, power_pullback
+        end
+
+        ## `rem`
         @scalar_rule(
             rem(x, y),
             @setup((u, nan) = promote(x / y, NaN16), isint = isinteger(x / y)),
             (ifelse(isint, nan, one(u)), ifelse(isint, nan, -trunc(u))),
         )
+        ## `min`, `max`
         @scalar_rule max(x, y) @setup(gt = x > y) (gt, !gt)
         @scalar_rule min(x, y) @setup(gt = x > y) (!gt, gt)
 
@@ -184,8 +208,7 @@ let
         @scalar_rule +x true
         @scalar_rule -x -1
 
-        # `sign`
-
+        ## `sign`
         function frule((_, Δx), ::typeof(sign), x)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
@@ -237,9 +260,38 @@ let
             "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
             join(non_transformed_definitions, "\n")
         )
+        # This error() may not play well with Revise. But a wanring @error does:
+        # @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
     eval(fast_ast)
     eval(fastable_ast)  # Get original definitions
     # we do this second so it overwrites anything we included by mistake in the fastable
+end
+
+## power
+# Thes functions need to be defined outside the eval() block.
+# The special cases they aim to hit are in POWERGRADS in tests.
+_pow_grad_x(x, p, y) = (p * y / x)
+function _pow_grad_x(x::Real, p::Real, y)
+    return if !iszero(x) || p < 0
+        p * y / x
+    elseif isone(p)
+        one(y)
+    elseif iszero(p) || p > 1
+        zero(y)
+    else
+        oftype(y, Inf)
+    end
+end
+
+_pow_grad_p(x, p, y) = y * log(complex(x))
+function _pow_grad_p(x::Real, p::Real, y)
+    return if !iszero(x)
+        y * real(log(complex(x)))
+    elseif p > 0
+        zero(y)
+    else
+        oftype(y, NaN)
+    end
 end
