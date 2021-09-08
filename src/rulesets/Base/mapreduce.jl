@@ -390,3 +390,53 @@ _tvcat(x, ys::Tuple) = (x, ys...)
 
 _notangent(dx::Tangent) = ChainRulesCore.backing(dx)
 _notangent(dx) = dx
+
+#####
+##### `accumulate`
+#####
+
+# Like `foldl` this by definition works in order, so it makes sense to allow stateful `f`.
+
+function rrule(
+        config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), f::F, x::Union{AbstractArray, Tuple}; 
+        init=_InitialValue(), dims=nothing
+    ) where {F}
+    isnothing(dims) || dims==1 && x isa Base.AbstractVecOrTuple || throw(
+        "accumulate(f, x; dims) is not supported by ChainRules, sorry"
+        # It's not supported by AD either, so no point calling back, and no regression:
+        # gradient(x -> sum(accumulate(/, x, dims=1)), rand(3,4)) # ERROR: Mutating arrays is not supported
+    )
+    list, start = if init !== _InitialValue()
+        x, init
+    else
+        _drop1(x), first(x)
+    end
+    hobbits = accumulate(list; init = (start, pi)) do (a,_), b
+        c, back = rrule_via_ad(config, f, a, b)
+    end
+    y = map(first, hobbits)
+    if init === _InitialValue()
+        # `hobbits` is one short, and first one doesn't invoke `f`
+        y = _tvcat(first(x), y)
+    end
+    axe = x isa AbstractArray ? axes(x) : nothing
+    type = Val(typeof(x))
+    project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
+    function decumulate(dy)
+        dy_plain = _notangent(unthunk(dy))
+        _tini = (pi, ZeroTangent(), pi)
+        _tsil = _zip2(_reverse(hobbits), _reverse(dy_plain))
+        trio = accumulate(_tsil; init=_tini) do (_,dc,_), ((_,back),dz)
+            ds, da, db = back(dc + dz)  # 's' for self, don't need to write LHS
+        end
+        df = sum(first, trio)
+        dx = map(last, _reverse(trio))
+        if init == _InitialValue()
+            # `hobbits` is one short, and the first one is weird
+            dx = _tvcat(trio[end][2] + dy_plain[1], dx)
+        end
+        dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
+        return (NoTangent(), df, project(dx_nice))
+    end
+    return (axe isa Tuple ? reshape(y, axe) : y), decumulate
+end

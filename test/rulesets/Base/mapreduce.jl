@@ -269,4 +269,36 @@ end
             @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 0; 0 0]  # ProjectTo'd to Diagonal now
         end
     end
+    @testset "accumulate(f, ::Array)" begin
+        # Simple
+        y1, b1 = rrule(CFG, accumulate, *, [1,2,3,4]; init=1)
+        @test y1 == [1, 2, 6, 24]
+        @test b1([1,1,1,1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
+
+        y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
+        @test y2 ≈ accumulate(/, [1 2; 3 4])
+        @test b2(ones(2,2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
+        # ForwardDiff.gradient(x -> sum(accumulate(/,x)), Float32[1 2; 3 4]) |> repr
+
+        # Finite differencing
+        test_rrule(accumulate, *, randn(5), fkwargs=(; init=rand()), atol = 1.0e-6)
+        test_rrule(accumulate, /, 1 .+ rand(3,4), atol = 1.0e-6)
+    end
+    @testset "accumulate(f, ::Tuple)" begin
+        # Simple
+        y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
+        @test y1 == (1, 2, 6, 24)
+        @test b1((1,1,1,1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
+
+        # Test of gradient execution order
+        CNT[] = 0
+        y4, b4 = rrule(CFG, accumulate, crev, [6,7,8,9])
+        @test CNT[] == 0
+        @test y4 ≈ accumulate(/, 6:9)
+        @test b4(ones(4)) == (NoTangent(), 6, [6, 6, 4, 2])
+        @test CNT[] == 6
+
+        # Finite differencing
+        test_rrule(accumulate, /, Tuple(1 .+ rand(5)), atol = 1.0e-6)
+    end
 end
