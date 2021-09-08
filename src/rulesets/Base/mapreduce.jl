@@ -151,6 +151,49 @@ for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
 end
 
 #####
+##### `cumsum`
+#####
+
+function rrule(::typeof(cumsum), x::Tuple)
+    type = Val(typeof(x))
+    function cumsum_tuple_pullback(dy)
+        dy_plain = _notangent(unthunk(dy))
+        dx = reverse(cumsum(reverse(dy_plain)))
+        return (NoTangent(), Tangent{_val(type)}(dx...))
+    end
+    return cumsum(x), cumsum_tuple_pullback
+end
+
+function rrule(::typeof(cumsum), x::AbstractVector; dims::Integer=1)
+    if dims != 1
+        return rrule(identity, x)
+    end
+    project = eltype(x) <:Number ? ProjectTo(x) : identity
+    function cumsum_vector_pullback(dy)
+        step1 = cumsum(_reverse(unthunk(dy)))  # cumsum on a non-array iterator requires at least Julia 1.5.
+        step2 = if ChainRulesCore.is_inplaceable_destination(step1)
+            reverse!(step1)
+        else
+            reverse(step1)
+        end
+        return (NoTangent(), project(step2))
+    end
+    return cumsum(x), cumsum_vector_pullback
+end
+
+function rrule(::typeof(cumsum), x::AbstractArray; dims)
+    y = cumsum(x; dims=dims)
+    project = eltype(x) <:Number ? ProjectTo(x) : identity
+    function cumsum_pullback(dy)
+        step1 = reverse(unthunk(dy); dims=dims)
+        step2 = cumsum(step1; dims=dims)
+        step3 = reverse(step2; dims=dims)
+        return (NoTangent(), project(step3))
+    end
+    return y, cumsum_pullback
+end
+
+#####
 ##### `prod`
 #####
 
