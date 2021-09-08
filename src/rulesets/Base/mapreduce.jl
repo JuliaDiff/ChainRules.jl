@@ -324,3 +324,69 @@ end
     end
     return dx
 end
+
+#####
+##### `foldl`
+#####
+
+# `foldl` guarantees to execute `f` in order, left to right. So it makes sense even when
+# this `f` is stateful, in which case the gradient must be calculated in the reverse order. 
+# The implementation aims to be efficient for both tuples and arrays. 
+# Note that it does not return a gradient for `init`.
+
+function rrule(
+        config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), f::F, x::Union{AbstractArray, Tuple};
+        init=_InitialValue()
+    ) where {F}
+    list, start = if init !== _InitialValue()
+        x, init
+    else
+        _drop1(x), first(x)
+    end
+    hobbits = accumulate(list; init=(start, pi)) do (a,_), b
+        c, back = rrule_via_ad(config, f, a, b)  # LHS is just documentation here
+        # Don't need to store every `c`, need last + one for the next iteration
+    end
+    y = first(last(hobbits))
+    axe = x isa AbstractArray ? axes(x) : nothing
+    type = Val(typeof(x))
+    project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
+    function unfoldl(dy)
+        _tini = (pi, unthunk(dy), pi)
+        trio = accumulate(_reverse(hobbits); init=_tini) do (_,dc,_), (_,back)
+            ds, da, db = back(dc)  # 's' for self, don't need to write LHS
+            # Don't need to store every `da`, need one for the next iteration + maybe last
+        end
+        df = sum(first, trio)
+        dx = map(t -> t[3], _reverse(trio))
+        if init === _InitialValue()
+            # `hobbits` is one short
+            dx = _tvcat(trio[end][2], dx)
+        end
+        dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
+        return (NoTangent(), df, project(dx_nice))
+    end
+    return y, unfoldl
+end
+
+if VERSION >= v"1.6"
+    _reverse(x) = Iterators.reverse(x)
+    _drop1(x) = Iterators.drop(x, 1)
+    _zip2(x, y) = zip(x, y)  # for `accumulate`, below
+else
+    # Old versions didn't support accumulate(::itr), nor multi-dim reverse
+    _reverse(x) = reverse(vec(x))
+    _drop1(x) = vec(x)[1:end-1]
+    _zip2(x, y) = collect(zip(x, y))
+end
+_reverse(x::Tuple) = reverse(x)
+_drop1(x::Tuple) = Base.tail(x)
+_zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
+
+struct _InitialValue end  # Old versions don't have Base._InitialValue
+
+_tvcat(x, ys::AbstractVector) = vcat(x, ys)
+_tvcat(x, ys::Tuple) = (x, ys...)
+
+_notangent(dx::Tangent) = ChainRulesCore.backing(dx)
+_notangent(dx) = dx

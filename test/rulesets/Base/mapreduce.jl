@@ -2,7 +2,21 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
-@testset "Maps and Reductions" begin
+# for ordered operations, foldl & accumulate
+CFG = ChainRulesTestUtils.ADviaRuleConfig()
+CNT = Ref(0)
+cpow(x,y) = (x+y)^(CNT[]+=1)  # forward value depends on CNT
+@eval function ChainRulesCore.rrule(::typeof(cpow), x, y)
+    c = CNT[]+=1
+    dxy = c*(x+y)^(c-1)
+    (x+y)^c, dz -> (NoTangent(), dz*dxy, dz*dxy)  # true gradient
+end
+crev(x,y) = x/y
+@eval function ChainRulesCore.rrule(::typeof(crev), x, y)
+    x/y, dz -> (CNT[], CNT[]+=1, CNT[]+=1)  # fake gradient
+end
+
+@testset "Reductions" begin
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
         test_frule(sum, rand(5); fkwargs=(;dims=dims))
@@ -174,6 +188,49 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
             test_rrule(prod, v)
         end
     end # prod
+
+    @testset "foldl(f, ::Array)" begin        
+        # Simple
+        y1, b1 = rrule(CFG, foldl, *, [1,2,3]; init=1)
+        @test y1 == 6
+        b1(7) == (NoTangent(), NoTangent(), [42, 21, 14])
+
+        y2, b2 = rrule(CFG, foldl, *, [1 2; 0 4])  # without init, needs vcat
+        @test y2 == 0
+        b2(8) == (NoTangent(), NoTangent(), [0 0; 64 0])  # matrix, needs reshape
+
+        # Weak test of forward execution order
+        CNT[] = 0
+        y3, b3 = rrule(CFG, foldl, cpow, [2,3,4,5])
+        @test CNT[] == 3
+        @test y3 == 636056  # foldr would give 3112136
+        @test b3(1) == (NoTangent(), NoTangent(), [399384, 399384, 399384, 22188])
+
+        # Test of gradient execution order
+        CNT[] = 0
+        y4, b4 = rrule(CFG, foldl, crev, [6,7,8,9])
+        @test CNT[] == 0
+        @test y4 ≈ foldl(/, 6:9)
+        @test b4(1) == (NoTangent(), 6, [5, 6, 4, 2])
+        @test CNT[] == 6
+
+        # Finite differencing
+        test_rrule(foldl, /, 1 .+ rand(3,4))
+        test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand()), check_inferred=false)
+        test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
+    end
+    @testset "foldl(f, ::Tuple)" begin
+        CNT[] = 0
+        y5, b5 = rrule(CFG, foldl, crev, (6,7,8,9))
+        @test CNT[] == 0
+        @test y5 ≈ foldl(/, 6:9)
+        @test b5(1) == (NoTangent(), 6, Tangent{NTuple{4,Int}}(5, 6, 4, 2))
+        @test CNT[] == 6
+
+        y6, b6 = rrule(CFG, foldl, *, (1,2,3); init=1)
+        @test y6 == 6
+        b6(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
+    end
 end
 
 @testset "Accumulations" begin
