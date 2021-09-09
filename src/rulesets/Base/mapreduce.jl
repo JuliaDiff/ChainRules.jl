@@ -396,6 +396,66 @@ _vcat1(x, ys::Tuple) = (x, ys...)
 _no_tuple_tangent(dx::Tangent) = ChainRulesCore.backing(dx)
 _no_tuple_tangent(dx) = dx
 
+#=
+
+# foldl
+
+julia> @btime Zygote.gradient(x -> foldl(/, x), $(randn(100)));
+  658.875 μs (6213 allocations: 274.69 KiB)  # before
+  793.367 ns (5 allocations: 8.34 KiB)  # with lazy _reverse1
+  2.093 μs (29 allocations: 16.28 KiB)  # with eager reverse
+
+julia> @btime Zygote.gradient(x -> foldl(/, x), $(Tuple(randn(10))));
+  153.208 μs (649 allocations: 30.53 KiB)  # before
+  40.952 ns (1 allocation: 16 bytes)
+
+# faster than sum, how can this be?
+
+julia> @btime Zygote.gradient(x -> foldl(+, x), $(randn(100)));
+  507.554 ns (5 allocations: 7.53 KiB)
+
+julia> @btime Zygote.gradient(x -> sum(x), $(randn(100)));
+  725.063 ns (17 allocations: 400 bytes)
+
+
+# accumulate -- with rand(1000) for some reason
+
+julia> @btime Zygote.gradient(x -> sum(accumulate(+, x)), $(randn(1000))); # error before
+  4.507 μs (8 allocations: 86.62 KiB)    # with lazy _reverse1
+  10.125 μs (16 allocations: 180.53 KiB) # with eager reverse
+
+julia> @btime Zygote.gradient(x -> sum(accumulate(+, x)), $(Tuple(randn(10))));
+  61.625 μs (509 allocations: 29.56 KiB)  # before
+  135.345 ns (3 allocations: 480 bytes)   # yesterday
+  962.737 ns (19 allocations: 1.19 KiB)   # now, why so slow?
+
+julia> @btime Zygote.gradient(x -> sum(accumulate(+, x; init=1.1)), $(Tuple(randn(10))));
+  245.417 μs (679 allocations: 33.34 KiB)  # before
+  2.083 ns (0 allocations: 0 bytes)        # now
+
+
+# cumsum
+
+julia> @btime Zygote.gradient(x -> sum(cumsum(x)), $(randn(1000)));
+  4.405 μs (5 allocations: 31.77 KiB)   # with Zygote's rule
+  3.557 μs (19 allocations: 16.30 KiB)  # new rule
+
+julia> @btime Zygote.gradient(x -> sum(cumsum(x, dims=1)), $(randn(100, 10)));
+  3.338 μs (4 allocations: 31.75 KiB)   # with Zygote's rule
+  4.167 μs (21 allocations: 32.31 KiB)  # simple rule, is this overhead?
+  2.903 μs (19 allocations: 16.58 KiB)  # version with view + reverse!
+
+julia> @btime Zygote.gradient(x -> sum(cumsum(x)), $(Tuple(randn(10))));
+  2.041 ns (0 allocations: 0 bytes)
+
+
+# cumprod
+
+julia> @btime Zygote.gradient(x -> sum(cumprod(x)), (Tuple(randn(10))));
+  141.583 μs (700 allocations: 38.70 KiB)  # no rule for tuples
+
+=#
+
 #####
 ##### `accumulate`
 #####
