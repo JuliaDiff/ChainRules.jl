@@ -428,7 +428,7 @@ function rrule(
         dx = map(t -> t[3], _reverse1(trio))
         if init === _InitialValue()
             # `hobbits` is one short
-            dx = _tvcat(trio[end][2], dx)
+            dx = _vcat1(trio[end][2], dx)
         end
         dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
         return (NoTangent(), df, project(dx_nice))
@@ -452,8 +452,10 @@ _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x
 
 struct _InitialValue end  # Old versions don't have Base._InitialValue
 
-_tvcat(x, ys::AbstractVector) = vcat(x, ys)
-_tvcat(x, ys::Tuple) = (x, ys...)
+_vcat1(x, ys::AbstractVector) = vcat(x, ys)
+_vcat1(x::AbstractArray, ys::AbstractVector) = vcat([x], ys)
+_vcat1(x, ys::Tuple) = (x, ys...)
+# _vcat1(x, ys::NTuple{N,T}) where {N,T} = (x, ys...)::NTuple{N+1,T}
 
 _no_tuple_tangent(dx::Tangent) = ChainRulesCore.backing(dx)
 _no_tuple_tangent(dx) = dx
@@ -484,7 +486,9 @@ function rrule(
     y = map(first, hobbits)
     if init === _InitialValue()
         # `hobbits` is one short, and first one doesn't invoke `f`
-        y = _tvcat(first(x), y)
+        y = _vcat1(first(x), y)
+        # This line completely kills Tuple performance, not sure why
+        # @code_warntype rrule(CFG, accumulate, +, (1,2,3,4); init=ChainRules._InitialValue())
     end
     axe = x isa AbstractArray ? axes(x) : nothing
     type = Val(typeof(x))
@@ -501,7 +505,7 @@ function rrule(
         dx = map(last, _reverse1(trio))
         if init == _InitialValue()
             # `hobbits` is one short, and the first one is weird
-            dx = _tvcat(trio[end][2] + dy_plain[1], dx)
+            dx = _vcat1(trio[end][2] + dy_plain[1], dx)
         end
         dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
         return (NoTangent(), df, project(dx_nice))

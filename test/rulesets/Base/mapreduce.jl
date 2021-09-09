@@ -206,7 +206,7 @@ end
         CNT[] = 0
         y3, b3 = rrule(CFG, foldl, cpow, [2,3,4,5])
         @test CNT[] == 3
-        @test y3 == 636056  # foldr would give 3112136
+        @test y3 == 636_056  # foldr would give 3_112_136
         @test b3(1) == (NoTangent(), NoTangent(), [399384, 399384, 399384, 22188])
 
         # Test of gradient execution order
@@ -217,22 +217,51 @@ end
         @test b4(1) == (NoTangent(), 6, [5, 6, 4, 2])
         @test CNT[] == 6
 
+        # Fancier test of execution order
+        c5 = Counter()
+        y5, b5 = rrule(CFG, foldl, c5, [5,7,11])
+        @test c5 == Counter(2)
+        @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), [5,7,11])
+        @test b5(1) == (NoTangent(), NoTangent(), [12*32, 12*42, 22])
+        @test c5 == Counter(42)
+
+        c6 = Counter()
+        y6, b6 = rrule(CFG, foldl, c6, [5,7,11], init=3)
+        @test c6 == Counter(3)
+        @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), [5,7,11], init=3)
+        @test b6(1) == (NoTangent(), NoTangent(), [63*33*13, 43*13, 23])
+        @test c6 == Counter(63)
+
+        # Test gradient of function
+        y7, b7 = rrule(CFG, foldl, Multiplier(3), [5,7,11])
+        @test y7 == foldl((x,y)->x*y*3, [5,7,11])
+        @test b7(1) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 2310,), [693, 495, 315])
+        # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11]), 3) == 2310
+        # ForwardDiff.gradient(z -> foldl((x,y)->x*y*3, z), [5,7,11]) |> string
+
+        y8, b8 = rrule(CFG, foldl, Multiplier(13), [5,7,11], init=3)
+        @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5,7,11], init=3)
+        @test b8(1) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 585585,), [507507, 362505, 230685])
+        # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11], init=3), 13)
+        # ForwardDiff.gradient(z -> foldl((x,y)->x*y*13, z, init=3), [5,7,11]) |> string
+
         # Finite differencing
         test_rrule(foldl, /, 1 .+ rand(3,4))
         test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand()), check_inferred=false)
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
     @testset "foldl(f, ::Tuple)" begin
-        CNT[] = 0
-        y5, b5 = rrule(CFG, foldl, crev, (6,7,8,9))
-        @test CNT[] == 0
-        @test y5 ≈ foldl(/, 6:9)
-        @test b5(1) == (NoTangent(), 6, Tangent{NTuple{4,Int}}(5, 6, 4, 2))
-        @test CNT[] == 6
+        y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
+        @test y1 == 6
+        b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
 
-        y6, b6 = rrule(CFG, foldl, *, (1,2,3); init=1)
-        @test y6 == 6
-        b6(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
+        y2, b2 = rrule(CFG, foldl, *, (1,2,0,4))
+        @test y2 == 0
+        b2(8) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(0, 0, 64, 0))
+
+        # Finite differencing
+        test_rrule(foldl, /, Tuple(1 .+ rand(5)))
+        test_rrule(foldl, *, Tuple(rand(ComplexF64, 5)))
     end
 end
 
@@ -287,15 +316,33 @@ end
         y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
         @test y2 ≈ accumulate(/, [1 2; 3 4])
         @test b2(ones(2,2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
-        # ForwardDiff.gradient(x -> sum(accumulate(/,x)), Float32[1 2; 3 4]) |> repr
+        # ForwardDiff.gradient(x -> sum(accumulate(/,x)), Float32[1 2; 3 4]) |> string
 
-        # Test of gradient execution order
-        CNT[] = 0
-        y4, b4 = rrule(CFG, accumulate, crev, [6,7,8,9])
-        @test CNT[] == 0
-        @test y4 ≈ accumulate(/, 6:9)
-        @test b4(ones(4)) == (NoTangent(), 6, [6, 6, 4, 2])
-        @test CNT[] == 6
+        # Test execution order
+        c3 = Counter()
+        y3, b3 = rrule(CFG, accumulate, c3, [5,7,11]; init=3)
+        @test c3 == Counter(3)
+        @test y3 == [8, 30, 123] == accumulate(Counter(), [5,7,11]; init=3)
+        @test b3([1,1,1]) == (NoTangent(), NoTangent(), [29169, 602, 23]) # the 23 is clear!
+
+        c4 = Counter()
+        y4, b4 = rrule(CFG, accumulate, c4, [5,7,11])
+        @test c4 == Counter(2)
+        @test y4 == [5, (5+7)*1, ((5+7)*1 + 11)*2] == accumulate(Counter(), [5,7,11])
+        @test b4([1,1,1]) == (NoTangent(), NoTangent(), [417, 42*(1 + 12), 22])
+
+        # Test gradient of function
+        y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5,7,11])
+        @test y7 == accumulate((x,y)->x*y*3, [5,7,11])
+        @test b7([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 2345,), [715, 510, 315])
+        # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11])), 3) == 2345
+        # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*3, z)), [5,7,11]) |> string
+
+        y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5,7,11], init=3)
+        @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5,7,11], init=3)
+        @test b8([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 588330,), [511095, 365040, 230685])
+        # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11], init=3)), 13)
+        # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*13, z, init=3)), [5,7,11]) |> string
 
         # Finite differencing
         test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
