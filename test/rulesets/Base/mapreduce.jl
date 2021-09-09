@@ -17,6 +17,9 @@ crev(x,y) = x/y
 end
 
 @testset "Reductions" begin
+    @testset "sum(::Tuple)" begin
+        test_frule(sum, Tuple(rand(5)))
+    end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
         test_frule(sum, rand(5); fkwargs=(;dims=dims))
@@ -286,16 +289,6 @@ end
         @test b2(ones(2,2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
         # ForwardDiff.gradient(x -> sum(accumulate(/,x)), Float32[1 2; 3 4]) |> repr
 
-        # Finite differencing
-        test_rrule(accumulate, *, randn(5), fkwargs=(; init=rand()), atol = 1.0e-6)
-        test_rrule(accumulate, /, 1 .+ rand(3,4), atol = 1.0e-6)
-    end
-    @testset "accumulate(f, ::Tuple)" begin
-        # Simple
-        y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
-        @test y1 == (1, 2, 6, 24)
-        @test b1((1,1,1,1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
-
         # Test of gradient execution order
         CNT[] = 0
         y4, b4 = rrule(CFG, accumulate, crev, [6,7,8,9])
@@ -305,6 +298,18 @@ end
         @test CNT[] == 6
 
         # Finite differencing
-        test_rrule(accumulate, /, Tuple(1 .+ rand(5)), atol = 1.0e-6)
+        test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
+        test_rrule(accumulate, /, 1 .+ rand(3,4))
+        test_rrule(accumulate, ^, 1 .+ rand(2,3); fkwargs=(; init=rand()))
+    end
+    @testset "accumulate(f, ::Tuple)" begin
+        # Simple
+        y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
+        @test y1 == (1, 2, 6, 24)
+        @test b1((1,1,1,1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
+
+        # Finite differencing
+        test_rrule(accumulate, *, Tuple(randn(5)); fkwargs=(; init=rand()))
+        test_rrule(accumulate, /, Tuple(1 .+ rand(5)); check_inferred=false)
     end
 end

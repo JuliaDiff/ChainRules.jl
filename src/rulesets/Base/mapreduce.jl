@@ -2,6 +2,9 @@
 ##### `sum(x)`
 #####
 
+function frule((_, ẋ), ::typeof(sum), x::Tuple)
+    return sum(x), sum(ẋ)
+end
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
@@ -157,7 +160,7 @@ end
 function rrule(::typeof(cumsum), x::Tuple)
     type = Val(typeof(x))
     function cumsum_tuple_pullback(dy)
-        dy_plain = _notangent(unthunk(dy))
+        dy_plain = _no_tuple_tangent(unthunk(dy))
         dx = reverse(cumsum(reverse(dy_plain)))
         return (NoTangent(), Tangent{_val(type)}(dx...))
     end
@@ -170,24 +173,45 @@ function rrule(::typeof(cumsum), x::AbstractVector; dims::Integer=1)
     end
     project = eltype(x) <:Number ? ProjectTo(x) : identity
     function cumsum_vector_pullback(dy)
-        step1 = cumsum(_reverse(unthunk(dy)))  # cumsum on a non-array iterator requires at least Julia 1.5.
-        step2 = if ChainRulesCore.is_inplaceable_destination(step1)
-            reverse!(step1)
+        step1 = _reverse1(unthunk(dy))
+        step2 = cumsum(step1)
+        step3 = if ChainRulesCore.is_inplaceable_destination(step2)
+            reverse!(step2)
         else
-            reverse(step1)
+            reverse(step2)
         end
-        return (NoTangent(), project(step2))
+        return (NoTangent(), project(step3))
     end
     return cumsum(x), cumsum_vector_pullback
 end
 
 function rrule(::typeof(cumsum), x::AbstractArray; dims)
     y = cumsum(x; dims=dims)
+    axe = axes(x)
+    vald = Val(dims)
     project = eltype(x) <:Number ? ProjectTo(x) : identity
     function cumsum_pullback(dy)
+
         step1 = reverse(unthunk(dy); dims=dims)
-        step2 = cumsum(step1; dims=dims)
-        step3 = reverse(step2; dims=dims)
+        # inds = ntuple(length(axe)) do d
+        #     d === _val(vald) ? reverse(axe[d]) : Colon()
+        # end
+        # step1 = view(unthunk(dy), inds...)  # this view is fast but doesn't infer well
+
+        # step2 = cumsum(step1; dims=dims)
+        step2 = if ChainRulesCore.is_inplaceable_destination(step1)
+            cumsum!(step1, step1; dims=dims)  # over-writing saves memory, and a little time
+        else
+            cumsum(step1; dims=dims)
+        end
+
+        # step3 = reverse(step2; dims=dims)
+        step3 = if VERSION >= v"1.6-" && ChainRulesCore.is_inplaceable_destination(step2)
+            reverse!(step2; dims=dims)
+        else
+            reverse(step2; dims=dims)
+        end
+
         return (NoTangent(), project(step3))
     end
     return y, cumsum_pullback
@@ -396,12 +420,12 @@ function rrule(
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function unfoldl(dy)
         _tini = (pi, unthunk(dy), pi)
-        trio = accumulate(_reverse(hobbits); init=_tini) do (_,dc,_), (_,back)
+        trio = accumulate(_reverse1(hobbits); init=_tini) do (_,dc,_), (_,back)
             ds, da, db = back(dc)  # 's' for self, don't need to write LHS
             # Don't need to store every `da`, need one for the next iteration + maybe last
         end
         df = sum(first, trio)
-        dx = map(t -> t[3], _reverse(trio))
+        dx = map(t -> t[3], _reverse1(trio))
         if init === _InitialValue()
             # `hobbits` is one short
             dx = _tvcat(trio[end][2], dx)
@@ -413,16 +437,16 @@ function rrule(
 end
 
 if VERSION >= v"1.6"
-    _reverse(x) = Iterators.reverse(x)
+    _reverse1(x) = Iterators.reverse(x)
     _drop1(x) = Iterators.drop(x, 1)
     _zip2(x, y) = zip(x, y)  # for `accumulate`, below
 else
-    # Old versions didn't support accumulate(::itr), nor multi-dim reverse
-    _reverse(x) = reverse(vec(x))
+    # Old versions don't support accumulate(::itr), nor multi-dim reverse
+    _reverse1(x) = reverse(vec(x))
     _drop1(x) = vec(x)[1:end-1]
     _zip2(x, y) = collect(zip(x, y))
 end
-_reverse(x::Tuple) = reverse(x)
+_reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
 
@@ -431,8 +455,8 @@ struct _InitialValue end  # Old versions don't have Base._InitialValue
 _tvcat(x, ys::AbstractVector) = vcat(x, ys)
 _tvcat(x, ys::Tuple) = (x, ys...)
 
-_notangent(dx::Tangent) = ChainRulesCore.backing(dx)
-_notangent(dx) = dx
+_no_tuple_tangent(dx::Tangent) = ChainRulesCore.backing(dx)
+_no_tuple_tangent(dx) = dx
 
 #####
 ##### `accumulate`
@@ -466,14 +490,15 @@ function rrule(
     type = Val(typeof(x))
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function decumulate(dy)
-        dy_plain = _notangent(unthunk(dy))
+        dy_plain = _no_tuple_tangent(unthunk(dy))
         _tini = (pi, ZeroTangent(), pi)
-        _tsil = _zip2(_reverse(hobbits), _reverse(dy_plain))
+        _tsil = _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         trio = accumulate(_tsil; init=_tini) do (_,dc,_), ((_,back),dz)
             ds, da, db = back(dc + dz)  # 's' for self, don't need to write LHS
+            # Don't need to store every 'da', but need for next iteration, and the last one.
         end
         df = sum(first, trio)
-        dx = map(last, _reverse(trio))
+        dx = map(last, _reverse1(trio))
         if init == _InitialValue()
             # `hobbits` is one short, and the first one is weird
             dx = _tvcat(trio[end][2] + dy_plain[1], dx)
