@@ -223,7 +223,7 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand()), check_inferred=false)
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
-    @testset "foldl(f, ::Tuple)" begin
+    VERSION >= v"1.5" && @testset "foldl(f, ::Tuple)" begin
         CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
@@ -320,7 +320,7 @@ end
         test_rrule(accumulate, /, 1 .+ rand(3,4))
         test_rrule(accumulate, ^, 1 .+ rand(2,3); fkwargs=(; init=rand()))
     end
-    @testset "accumulate(f, ::Tuple)" begin
+    VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
         CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         # Simple
