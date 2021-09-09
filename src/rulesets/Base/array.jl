@@ -59,7 +59,7 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
     A_dims = size(A)
     function reshape_pullback(Ȳ)
         ∂A = reshape(Ȳ, A_dims)
-        ∂dims = broadcast(_ -> NoTangent(), dims)
+        ∂dims = broadcast(Returns(NoTangent()), dims)
         return (NoTangent(), ∂A, ∂dims...)
     end
     return reshape(A, dims...), reshape_pullback
@@ -68,7 +68,7 @@ end
 #####
 ##### `repeat`
 #####
-function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(_->1, ndims(xs)), outer=ntuple(_->1, ndims(xs)))
+function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
 
     project_Xs = ProjectTo(xs)
     S = size(xs)
@@ -98,7 +98,7 @@ function rrule(::typeof(repeat), xs::AbstractArray, counts::Integer...)
         size2ndims = ntuple(d -> isodd(d) ? get(S, 1+d÷2, 1) : get(counts, d÷2, 1), 2*ndims(dY))
         reduced = sum(reshape(dY, size2ndims); dims = ntuple(d -> 2d, ndims(dY)))
         x̄ = project_Xs(reshape(reduced, S))
-        return (NoTangent(), x̄, map(_->NoTangent(), counts)...)
+        return (NoTangent(), x̄, map(Returns(NoTangent()), counts)...)
     end
     return repeat(xs, counts...), repeat_pullback
 end
@@ -303,7 +303,7 @@ function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
 end
 
 function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
-    nots = map(_ -> NoTangent(), args)
+    nots = map(Returns(NoTangent()), args)
     function reverse_pullback(dy)
         dx = @thunk reverse(unthunk(dy), args...; kw...)
         return (NoTangent(), dx, nots...)
@@ -338,7 +338,7 @@ end
 
 function rrule(::typeof(fill), x::Any, dims...)
     project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
-    nots = map(_ -> NoTangent(), dims)
+    nots = map(Returns(NoTangent()), dims)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
 end
