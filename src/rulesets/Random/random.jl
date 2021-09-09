@@ -2,7 +2,7 @@ frule(Δargs, T::Type{<:AbstractRNG}, args...) = T(args...), ZeroTangent()
 
 function rrule(T::Type{<:AbstractRNG}, args...)
     function AbstractRNG_pullback(ΔΩ)
-        return (NoTangent(), map(_ -> ZeroTangent(), args)...)
+        return (NoTangent(), map(Returns(ZeroTangent()), args)...)
     end
     return T(args...), AbstractRNG_pullback
 end

@@ -20,7 +20,7 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
             getindex_add!,
             @thunk(getindex_add!(zero(x))),
         )
-        īnds = broadcast(_ -> NoTangent(), inds)
+        īnds = broadcast(Returns(NoTangent()), inds)
         return (NoTangent(), x̄, īnds...)
     end
 
