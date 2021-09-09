@@ -2,20 +2,6 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
-# for ordered operations, foldl & accumulate
-CFG = ChainRulesTestUtils.ADviaRuleConfig()
-CNT = Ref(0)
-cpow(x,y) = (x+y)^(CNT[]+=1)  # forward value depends on CNT
-@eval function ChainRulesCore.rrule(::typeof(cpow), x, y)
-    c = CNT[]+=1
-    dxy = c*(x+y)^(c-1)
-    (x+y)^c, dz -> (NoTangent(), dz*dxy, dz*dxy)  # true gradient
-end
-crev(x,y) = x/y
-@eval function ChainRulesCore.rrule(::typeof(crev), x, y)
-    x/y, dz -> (CNT[], CNT[]+=1, CNT[]+=1)  # fake gradient
-end
-
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
@@ -192,7 +178,9 @@ end
         end
     end # prod
 
-    @testset "foldl(f, ::Array)" begin        
+    @testset "foldl(f, ::Array)" begin
+        CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
         # Simple
         y1, b1 = rrule(CFG, foldl, *, [1,2,3]; init=1)
         @test y1 == 6
@@ -202,22 +190,7 @@ end
         @test y2 == 0
         b2(8) == (NoTangent(), NoTangent(), [0 0; 64 0])  # matrix, needs reshape
 
-        # Weak test of forward execution order
-        CNT[] = 0
-        y3, b3 = rrule(CFG, foldl, cpow, [2,3,4,5])
-        @test CNT[] == 3
-        @test y3 == 636_056  # foldr would give 3_112_136
-        @test b3(1) == (NoTangent(), NoTangent(), [399384, 399384, 399384, 22188])
-
-        # Test of gradient execution order
-        CNT[] = 0
-        y4, b4 = rrule(CFG, foldl, crev, [6,7,8,9])
-        @test CNT[] == 0
-        @test y4 ≈ foldl(/, 6:9)
-        @test b4(1) == (NoTangent(), 6, [5, 6, 4, 2])
-        @test CNT[] == 6
-
-        # Fancier test of execution order
+        # Test execution order
         c5 = Counter()
         y5, b5 = rrule(CFG, foldl, c5, [5,7,11])
         @test c5 == Counter(2)
@@ -302,6 +275,8 @@ end
         end
     end
     @testset "accumulate(f, ::Array)" begin
+        CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, [1,2,3,4]; init=1)
         @test y1 == [1, 2, 6, 24]
