@@ -266,12 +266,6 @@ end
 end
 
 @testset "Accumulations" begin
-    @testset "cumsum" begin
-        test_rrule(cumsum, Tuple(randn(5)))
-        test_rrule(cumsum, randn(5))
-        test_rrule(cumsum, randn(ComplexF64, 5); fkwargs=(;dims=1), check_inferred=false)
-        test_rrule(cumsum, randn(3,4); fkwargs=(;dims=2))
-    end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)
         test_rrule(cumprod, v)
