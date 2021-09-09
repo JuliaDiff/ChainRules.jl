@@ -208,13 +208,13 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         # Test gradient of function
         y7, b7 = rrule(CFG, foldl, Multiplier(3), [5,7,11])
         @test y7 == foldl((x,y)->x*y*3, [5,7,11])
-        @test b7(1) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 2310,), [693, 495, 315])
+        @test b7(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2310,), [693, 495, 315])
         # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11]), 3) == 2310
         # ForwardDiff.gradient(z -> foldl((x,y)->x*y*3, z), [5,7,11]) |> string
 
         y8, b8 = rrule(CFG, foldl, Multiplier(13), [5,7,11], init=3)
         @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5,7,11], init=3)
-        @test b8(1) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 585585,), [507507, 362505, 230685])
+        @test b8(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 585585,), [507507, 362505, 230685])
         # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11], init=3), 13)
         # ForwardDiff.gradient(z -> foldl((x,y)->x*y*13, z, init=3), [5,7,11]) |> string
 
@@ -224,6 +224,8 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
     @testset "foldl(f, ::Tuple)" begin
+        CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
@@ -303,13 +305,13 @@ end
         # Test gradient of function
         y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5,7,11])
         @test y7 == accumulate((x,y)->x*y*3, [5,7,11])
-        @test b7([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 2345,), [715, 510, 315])
+        @test b7([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2345,), [715, 510, 315])
         # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11])), 3) == 2345
         # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*3, z)), [5,7,11]) |> string
 
         y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5,7,11], init=3)
         @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5,7,11], init=3)
-        @test b8([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int64}}(x = 588330,), [511095, 365040, 230685])
+        @test b8([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 588330,), [511095, 365040, 230685])
         # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11], init=3)), 13)
         # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*13, z, init=3)), [5,7,11]) |> string
 
@@ -319,6 +321,8 @@ end
         test_rrule(accumulate, ^, 1 .+ rand(2,3); fkwargs=(; init=rand()))
     end
     @testset "accumulate(f, ::Tuple)" begin
+        CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
         @test y1 == (1, 2, 6, 24)
