@@ -117,12 +117,8 @@
         test_rrule(identity, Tuple(randn(T, 3)))
     end
 
-    @testset "copy" for T in (Float64, ComplexF64)
-        test_rrule(copy, randn(T))
-        test_rrule(copy, randn(T, 4))
-    end
-            
-    @testset "copy dict" begin
+    @testset "copy" begin
+        test_rrule(copy, randn(4))
         @test rrule(copy, Dict(1=>2)) !== nothing    
     end
 
