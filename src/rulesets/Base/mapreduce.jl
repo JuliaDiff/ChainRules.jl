@@ -74,6 +74,7 @@ end
 function rrule(
     config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::AbstractArray; dims=:
 ) where {F}
+
     # fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
     # y = sum(first, fx_and_pullbacks; dims=dims)
     # pullbacks = last.(fx_and_pullbacks)
@@ -82,56 +83,52 @@ function rrule(
 
     project = ProjectTo(xs)
 
-    # function sum_pullback(ȳ)
-    #     call(f, x) = f(x)
-    #     # if dims is :, then need only left-handed only broadcast
-    #     broadcast_ȳ = dims isa Colon  ? (ȳ,) : ȳ
-    #     f̄_and_x̄s = call.(pullbacks, broadcast_ȳ)
-    #     # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
-    #     f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
-    #         NoTangent()
+    # project = eltype(xs) <: Number ? ProjectTo(xs) : identity
 
-    # function sum_pullback(ȳ)
-    #     call(b, x) = b(x)  # we need to broadcast this to handle dims kwarg
-    #     f̄_and_x̄s = call.(pullbacks, ȳ)
-    #     # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
-    #     f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
-    #         NoTangent()
-    #     else
-    #         sum(first, f̄_and_x̄s)
+    # if has_easy_derivative(f, eltype(xs))
+    #     # Then we can compute the forward pass as usual, save nothing but `xs`:
+    #     y = sum(f, xs; dims=dims)
+    #     function sum_pullback_easy(dy)
+    #         dxs = unthunk(dy) .* only.(only.(derivatives_given_input.(f, xs)))
+    #         return (NoTangent(), NoTangent(), project(dxs))
     #     end
-    #     x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
-    #     return NoTangent(), f̄, project(x̄s)
+    #     return y, sum_pullback_easy
     # end
+
+    # # In the general case, we need to save all the pullbacks:
+    # fx_and_pullbacks = map(x -> rrule_via_ad(config, f, x), xs)
+    # y = sum(first, fx_and_pullbacks; dims=dims)
+
+    # function sum_pullback_f(dy)
 
     function sum_pullback_f(dys_raw)
         dys = unthunk(dys_raw)
         if Base.issingletontype(F)
-            dfs = NoTangent()
-            # Best case. We evaluate `f` a second time, then immediately its pullback, so that
-            # we don't need to save an array of these. The point of `sum(f, xs)` is memory-saving.
-            dxs = broadcast(xs, dys) do x, dy
-                _, bk = rrule_via_ad(config,f,x)
-                df, dx = bk(dy)
-                unthunk(dx)
+            # Then at least `f` has no gradient. Note that broadcasting here
+            # gets the shape right with or without `dims` keyword.
+            dxs = broadcast(fx_and_pullbacks, unthunk(dy)) do (_, back), dy1
+                unthunk(last(back(dy1)))
             end
+            return (NoTangent(), NoTangent(), project(dxs))
+
         else
-            # We need to accumulate the gradient with respect to `f`. To avoid making a big array
-            # and unzipping, can we accumulate from inside the broadcast needed for `dxs`?
-            _, bk1 = rrule_via_ad(config,f,first(xs))
-            dy1 = dims isa Colon ? dys : first(dys)
-            df_ref = Ref(zero(bk1(dy1)))
-            dxs = broadcast(xs, dys) do x, dy
-                _, bk = rrule_via_ad(config,f,x)
-                df, dx = bk(dy)
-                df_ref[] += df  # not sure this will work!
-                unthunk(dx)
+            # Most general case. If `f` were stateful, we would need to reverse the order
+            # of iteration here, but since this funciton makes no guarantee, even the primal
+            # result is then ill-defined.
+            df_and_dxs = broadcast(fx_and_pullbacks, unthunk(dy)) do (_, back), dy1
+                map(unthunk, back(dy1))
             end
-            dfs = df_ref[]  # s for sum, not plural!
+            df = sum(first, df_and_dxs)
+            dxs = map(last, df_and_dxs)
+            return (NoTangent(), df, project(dxs))
         end
-        return (NoTangent(), dfs, project(dxs))
     end
     return y, sum_pullback_f
+end
+
+function has_easy_derivative(f::F, ::Type{xT}) where {F,xT}
+    gT = Core.Compiler._return_type(derivatives_given_input, Tuple{F, xT})
+    return isconcretetype(gT)
 end
 
 # https://github.com/JuliaDiff/ChainRules.jl/issues/522
@@ -147,40 +144,51 @@ end
 
 #=
 
-# Timing this change. 
+# Timing this change. Best case is `abs`: cheap & grad from input:
 
+julia> @btime gradient(x -> sum(abs, x), $(rand(30,30)));
+  5.683 μs (31 allocations: 64.38 KiB)
+  3.109 μs (19 allocations: 35.83 KiB)  # with better hobbits
+  791.667 ns (1 allocation: 7.19 KiB)   # with deriv_from_input
 
-julia> @btime sum(sqrt, x) setup=(x=$(rand(30,30)));
-  833.333 ns (0 allocations: 0 bytes)
+# `log` is more expensive:
 
-julia> @btime gradient(x -> sum(sqrt, x), $(rand(30,30)));
-  4.173 μs (16 allocations: 50.02 KiB)  # before
-  1.954 μs (2 allocations: 7.20 KiB)    # after
+julia> @btime sum(log, x) setup=(x=$(rand(30,30)));
+  4.804 μs (0 allocations: 0 bytes)
 
-julia> @btime sum(sqrt, x, dims=1) setup=(x=$(rand(30,30)));
-  772.174 ns (1 allocation: 336 bytes)
+julia> @btime gradient(x -> sum(log, x), $(rand(30,30)));
+  9.625 μs (30 allocations: 50.39 KiB)
+  8.195 μs (19 allocations: 28.83 KiB)  # with better hobbits
+  6.350 μs (1 allocation: 7.19 KiB)     # with deriv_from_input
 
-julia> @btime gradient(x -> sum(sum(sqrt, x, dims=1)), $(rand(30,30)));
-  10.625 μs (42 allocations: 51.47 KiB)  # before
-  2.704 μs (18 allocations: 8.20 KiB)    # after
+julia> @btime sum(log, x, dims=1) setup=(x=$(rand(30,30)));
+  5.056 μs (1 allocation: 304 bytes)
 
-# compare broadcasting:
+julia> @btime gradient(x -> sum(sum(log, x, dims=1)), $(rand(30,30)));
+  15.000 μs (42 allocations: 51.45 KiB)
+  13.959 μs (45 allocations: 30.38 KiB)  # with better hobbits
+  7.604 μs (17 allocations: 8.02 KiB)    # with deriv_from_input
 
-julia> @btime sum(sqrt.(x)) setup=(x=$(rand(30,30)));
-  873.544 ns (1 allocation: 7.19 KiB)
+# compare broadcasting, esp memory:
 
-julia> @btime gradient(x -> sum(sqrt.(x)), $(rand(30,30)));
-  2.616 μs (10 allocations: 28.70 KiB)
+julia> @btime sum(log.(x)) setup=(x=$(rand(30,30)));
+  5.298 μs (1 allocation: 7.19 KiB)
 
-julia> @btime sum(sqrt.(x), dims=1) setup=(x=$(rand(30,30)));
-  953.667 ns (2 allocations: 7.52 KiB)
+julia> @btime gradient(x -> sum(log.(x)), $(rand(30,30)));
+  7.219 μs (10 allocations: 28.70 KiB)
 
-julia> @btime gradient(x -> sum(sum(sqrt.(x), dims=1)), $(rand(30,30)));
-  3.542 μs (26 allocations: 36.81 KiB)
+julia> @btime sum(log.(x), dims=1) setup=(x=$(rand(30,30)));
+  5.375 μs (2 allocations: 7.48 KiB)
 
+julia> @btime gradient(x -> sum(sum(log.(x), dims=1)), $(rand(30,30)));
+  7.930 μs (26 allocations: 36.78 KiB)
 
-# Bigger example, slower function?
+# each full copy is 7KB, btw:
 
+julia> @btime copy($(rand(30,30)));
+  284.471 ns (1 allocation: 7.19 KiB)
+
+# worst case is a function with no rule, which Zygote can't infer.
 
 julia> @btime sum(log∘exp, x) setup=(x=$(rand(300,300)));
   1.348 ms (0 allocations: 0 bytes)
@@ -189,26 +197,11 @@ julia> @btime gradient(x -> sum(log∘exp, x), $(rand(300,300)));
   930.421 ms (8460059 allocations: 206.68 MiB)  # before
   873.300 ms (7740033 allocations: 187.46 MiB)  # after
 
-julia> @btime sum(log∘exp, x, dims=1) setup=(x=$(rand(300,300)));
-  1.349 ms (1 allocation: 2.50 KiB)
-
-julia> @btime gradient(x -> sum(sum(log∘exp, x, dims=1)), $(rand(300,300)));
-  935.160 ms (8460088 allocations: 206.69 MiB)  # before
-  890.860 ms (7740037 allocations: 187.46 MiB)  # after
-
-# compare broadcasting:
-
 julia> @btime sum((log∘exp).(x)) setup=(x=$(rand(300,300)));
   1.342 ms (2 allocations: 703.20 KiB)
 
 julia> @btime gradient(x -> sum((log∘exp).(x)), $(rand(300,300)));
   1.449 ms (27 allocations: 2.75 MiB)
-
-julia> @btime sum((log∘exp).(x), dims=1) setup=(x=$(rand(300,300)));
-  1.380 ms (3 allocations: 705.70 KiB)
-
-julia> @btime gradient(x -> sum(sum((log∘exp).(x), dims=1)), $(rand(300,300)));
-  1.490 ms (16 allocations: 3.44 MiB)
 
 =#
 
