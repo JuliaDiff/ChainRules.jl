@@ -80,9 +80,10 @@ let
             return Ω, abs_pullback
         end
 
-        derivatives_given_input(::typeof(abs), x::Real) = tuple(tuple(sign(x)))
-        derivatives_given_output(Ω, ::typeof(abs), x::Real) = tuple(tuple(sign(x)))
-        derivatives_given_output(Ω, ::typeof(abs), x::Complex) = tuple(tuple(ifelse(iszero(x), one(Ω), Ω)))
+        function derivatives_given_output(Ω, ::typeof(abs), x::Union{Real, Complex})
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
+            return tuple(tuple(signx))
+        end
 
         ## abs2
         function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})

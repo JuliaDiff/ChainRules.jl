@@ -75,31 +75,15 @@ function rrule(
     config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::AbstractArray; dims=:
 ) where {F}
 
-    # fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
-    # y = sum(first, fx_and_pullbacks; dims=dims)
-    # pullbacks = last.(fx_and_pullbacks)
-
-    y = sum(f, xs; dims=dims)
-
-    project = ProjectTo(xs)
-
-    # project = eltype(xs) <: Number ? ProjectTo(xs) : identity
-
-    # if has_easy_derivative(f, eltype(xs))
-    #     # Then we can compute the forward pass as usual, save nothing but `xs`:
-    #     y = sum(f, xs; dims=dims)
-    #     function sum_pullback_easy(dy)
-    #         dxs = unthunk(dy) .* only.(only.(derivatives_given_input.(f, xs)))
-    #         return (NoTangent(), NoTangent(), project(dxs))
-    #     end
-    #     return y, sum_pullback_easy
-    # end
-
-    # # In the general case, we need to save all the pullbacks:
-    # fx_and_pullbacks = map(x -> rrule_via_ad(config, f, x), xs)
-    # y = sum(first, fx_and_pullbacks; dims=dims)
-
-    # function sum_pullback_f(dy)
+    if _uses_input_only(f, eltype(xs))
+        # Then we can compute the forward pass as usual, save nothing but `xs`:
+        y = sum(f, xs; dims=dims)
+        function sum_pullback_easy(dy)
+            dxs = unthunk(dy) .* only.(only.(derivatives_given_output.(nothing, f, xs)))
+            return (NoTangent(), NoTangent(), project(dxs))
+        end
+        return y, sum_pullback_easy
+    end
 
     function sum_pullback_f(dys_raw)
         dys = unthunk(dys_raw)
@@ -126,8 +110,8 @@ function rrule(
     return y, sum_pullback_f
 end
 
-function has_easy_derivative(f::F, ::Type{xT}) where {F,xT}
-    gT = Core.Compiler._return_type(derivatives_given_input, Tuple{F, xT})
+function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
+    gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
     return isconcretetype(gT)
 end
 
