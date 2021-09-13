@@ -126,69 +126,6 @@ end
     dims=:
 )
 
-#=
-
-# Timing this change. Best case is `abs`: cheap & grad from input:
-
-julia> @btime gradient(x -> sum(abs, x), $(rand(30,30)));
-  5.683 μs (31 allocations: 64.38 KiB)
-  3.109 μs (19 allocations: 35.83 KiB)  # with better hobbits
-  791.667 ns (1 allocation: 7.19 KiB)   # with deriv_from_input
-
-# `log` is more expensive:
-
-julia> @btime sum(log, x) setup=(x=$(rand(30,30)));
-  4.804 μs (0 allocations: 0 bytes)
-
-julia> @btime gradient(x -> sum(log, x), $(rand(30,30)));
-  9.625 μs (30 allocations: 50.39 KiB)
-  8.195 μs (19 allocations: 28.83 KiB)  # with better hobbits
-  6.350 μs (1 allocation: 7.19 KiB)     # with deriv_from_input
-
-julia> @btime sum(log, x, dims=1) setup=(x=$(rand(30,30)));
-  5.056 μs (1 allocation: 304 bytes)
-
-julia> @btime gradient(x -> sum(sum(log, x, dims=1)), $(rand(30,30)));
-  15.000 μs (42 allocations: 51.45 KiB)
-  13.959 μs (45 allocations: 30.38 KiB)  # with better hobbits
-  7.604 μs (17 allocations: 8.02 KiB)    # with deriv_from_input
-
-# compare broadcasting, esp memory:
-
-julia> @btime sum(log.(x)) setup=(x=$(rand(30,30)));
-  5.298 μs (1 allocation: 7.19 KiB)
-
-julia> @btime gradient(x -> sum(log.(x)), $(rand(30,30)));
-  7.219 μs (10 allocations: 28.70 KiB)
-
-julia> @btime sum(log.(x), dims=1) setup=(x=$(rand(30,30)));
-  5.375 μs (2 allocations: 7.48 KiB)
-
-julia> @btime gradient(x -> sum(sum(log.(x), dims=1)), $(rand(30,30)));
-  7.930 μs (26 allocations: 36.78 KiB)
-
-# each full copy is 7KB, btw:
-
-julia> @btime copy($(rand(30,30)));
-  284.471 ns (1 allocation: 7.19 KiB)
-
-# worst case is a function with no rule, which Zygote can't infer.
-
-julia> @btime sum(log∘exp, x) setup=(x=$(rand(300,300)));
-  1.348 ms (0 allocations: 0 bytes)
-
-julia> @btime gradient(x -> sum(log∘exp, x), $(rand(300,300)));
-  930.421 ms (8460059 allocations: 206.68 MiB)  # before
-  873.300 ms (7740033 allocations: 187.46 MiB)  # after
-
-julia> @btime sum((log∘exp).(x)) setup=(x=$(rand(300,300)));
-  1.342 ms (2 allocations: 703.20 KiB)
-
-julia> @btime gradient(x -> sum((log∘exp).(x)), $(rand(300,300)));
-  1.449 ms (27 allocations: 2.75 MiB)
-
-=#
-
 function frule(
     (_, _, Δx),
     ::typeof(sum),
