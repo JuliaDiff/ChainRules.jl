@@ -65,10 +65,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, log, randn(3, 4))
         test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
         # Complex numbers
+        test_rrule(sum, log, rand(ComplexF64, 5))
         test_rrule(sum, sqrt, rand(ComplexF64, 5))
         test_rrule(sum, abs, rand(ComplexF64, 3, 4))  # complex -> real
 
@@ -81,6 +83,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
+
+        # Make sure the above test both `derivatives_given_output` path and general case:
+        @test ChainRules._uses_input_only(abs, Float32)
+        @test !ChainRules._uses_input_only(cbrt, Float64)
+        @test ChainRules._uses_input_only(log, ComplexF64)
+        @test !ChainRules._uses_input_only(abs, ComplexF64)
 
         # covectors
         x = [-4.0 2.0; 2.0 -1.0]

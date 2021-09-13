@@ -79,7 +79,7 @@ function rrule(
         # Then we can compute the forward pass as usual, save nothing but `xs`:
         y = sum(f, xs; dims=dims)
         function sum_pullback_easy(dy)
-            dxs = unthunk(dy) .* only.(only.(derivatives_given_output.(nothing, f, xs)))
+            dxs = unthunk(dy) .* conj.(only.(only.(derivatives_given_output.(nothing, f, xs))))
             return (NoTangent(), NoTangent(), project(dxs))
         end
         return y, sum_pullback_easy
