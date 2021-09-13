@@ -346,7 +346,7 @@ function rrule(
     else
         _drop1(x), first(x)
     end
-    hobbits = accumulate(list; init=(start, pi)) do (a,_), b
+    hobbits = accumulate(list; init=(start, nothing)) do (a,_), b
         c, back = rrule_via_ad(config, f, a, b)  # LHS is just documentation here
         # Don't need to store every `c`, need last + one for the next iteration
     end
@@ -355,7 +355,7 @@ function rrule(
     type = Val(typeof(x))
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function unfoldl(dy)
-        _tini = (pi, unthunk(dy), pi)
+        _tini = (nothing, unthunk(dy), nothing)
         trio = accumulate(_reverse1(hobbits); init=_tini) do (_,dc,_), (_,back)
             ds, da, db = back(dc)  # 's' for self, don't need to write LHS
             # Don't need to store every `da`, need one for the next iteration + maybe last
@@ -366,7 +366,7 @@ function rrule(
             # `hobbits` is one short
             dx = _vcat1(trio[end][2], dx)
         end
-        dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
+        dx_nice = _val(type) <: Tuple ? Tangent{_val(type)}(dx...) : reshape(dx, axe)
         return (NoTangent(), df, project(dx_nice))
     end
     return y, unfoldl
@@ -416,7 +416,7 @@ function rrule(
     else
         _drop1(x), first(x)
     end
-    hobbits = accumulate(list; init = (start, pi)) do (a,_), b
+    hobbits = accumulate(list; init = (start, nothing)) do (a,_), b
         c, back = rrule_via_ad(config, f, a, b)
     end
     y = map(first, hobbits)
@@ -429,7 +429,7 @@ function rrule(
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
-        _tini = (pi, ZeroTangent(), pi)
+        _tini = (nothing, ZeroTangent(), nothing)
         _tsil = _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         trio = accumulate(_tsil; init=_tini) do (_,dc,_), ((_,back),dz)
             ds, da, db = back(dc + dz)  # 's' for self, don't need to write LHS
@@ -441,7 +441,7 @@ function rrule(
             # `hobbits` is one short, and the first one is weird
             dx = _vcat1(trio[end][2] + dy_plain[1], dx)
         end
-        dx_nice = axe isa Tuple ? reshape(dx, axe) : Tangent{_val(type)}(dx...)
+        dx_nice = _val(type) <: Tuple ? Tangent{_val(type)}(dx...) : reshape(dx, axe)
         return (NoTangent(), df, project(dx_nice))
     end
     return (axe isa Tuple ? reshape(y, axe) : y), decumulate
