@@ -11,8 +11,18 @@ end
 # NoRules - has no rules defined
 struct NoRules; end
 
+"A function that outputs a vector from a scalar for testing"
+make_two_vec(x) = [x, x]
+function ChainRulesCore.rrule(::typeof(make_two_vec), x)
+    make_two_vec_pullback(ȳ) = (NoTangent(), sum(ȳ))
+    return make_two_vec(x), make_two_vec_pullback
+end
+
 @testset "test_helpers.jl" begin
-    @testset "Multiplier functor test-helper" begin
+    @testset "Multiplier functor" begin
         test_rrule(Multiplier(4.0), 3.0)
+    end
+    @testset "make_two_vec" begin
+        test_rrule(make_two_vec, 1.5)
     end
 end

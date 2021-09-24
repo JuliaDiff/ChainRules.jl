@@ -92,6 +92,15 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
         # ... and Bool produced by function
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
+
+
+        # Functions that return a Vector
+        # see https://github.com/FluxML/Zygote.jl/issues/1074
+        test_rrule(sum, make_two_vec, [1.0, 3.0, 5.0, 7.0])
+        test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0])
+        test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=2))
+        test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=1))
+        test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=(3, 4)))
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522
