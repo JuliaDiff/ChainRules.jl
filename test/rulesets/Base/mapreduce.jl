@@ -91,7 +91,9 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, sqrt, randn(5) .> 0) 
         test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
         # ... and Bool produced by function
-        @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
+        # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/219
+        -, pb = rrule(ADviaRuleConfig(), sum, iszero, randn(5))[2](2.0)
+        @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent(),)
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522
