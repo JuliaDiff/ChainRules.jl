@@ -603,7 +603,7 @@ function qr_rev(QR_, Q̄, R̄)
     Q = Matrix(Q)
     Q̄ = Q̄ isa ZeroTangent ? Q̄ : @view Q̄[:, axes(Q, 2)]
 
-    m, n = size(R̄)
+    m, n = size(R)
 
     # Square and deep matrices
     if m >= n
