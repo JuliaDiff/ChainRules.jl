@@ -338,36 +338,37 @@ end
 # Note that it does not return a gradient for `init`.
 
 function rrule(
-        config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), f::F, x::Union{AbstractArray, Tuple};
+        config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), op::G, x::Union{AbstractArray, Tuple};
         init=_InitialValue()
-    ) where {F}
-    list, start = if init !== _InitialValue()
-        x, init
-    else
+    ) where {G}
+    list, start = if init === _InitialValue()
         _drop1(x), first(x)
+    else
+        # Case with init keyword is simpler to understand first!
+        x, init
     end
     hobbits = accumulate(list; init=(start, nothing)) do (a,_), b
-        c, back = rrule_via_ad(config, f, a, b)  # LHS is just documentation here
+        c, back = rrule_via_ad(config, op, a, b)  # (LHS is just documentation here!)
         # Don't need to store every `c`, need last + one for the next iteration
     end
     y = first(last(hobbits))
-    axe = x isa AbstractArray ? axes(x) : nothing
+    axe = axes(x)
     type = Val(typeof(x))
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function unfoldl(dy)
-        _tini = (nothing, unthunk(dy), nothing)
-        trio = accumulate(_reverse1(hobbits); init=_tini) do (_,dc,_), (_,back)
-            ds, da, db = back(dc)  # 's' for self, don't need to write LHS
+        trio = accumulate(_reverse1(hobbits); init=(0,dy,0)) do (_,dc,_), (_,back)
+            ds, da, db = back(dc)
             # Don't need to store every `da`, need one for the next iteration + maybe last
         end
-        df = sum(first, trio)
+        dop = sum(first, trio)
         dx = map(t -> t[3], _reverse1(trio))
         if init === _InitialValue()
             # `hobbits` is one short
             dx = _vcat1(trio[end][2], dx)
         end
         dx_nice = _val(type) <: Tuple ? Tangent{_val(type)}(dx...) : reshape(dx, axe)
-        return (NoTangent(), df, project(dx_nice))
+        return (NoTangent(), dop, project(dx_nice))
+        # return (NoTangent(), dop, project(_reshape1(dx, axe))) # once project handles Tangent
     end
     return y, unfoldl
 end
@@ -392,6 +393,10 @@ _vcat1(x, ys::AbstractVector) = vcat(x, ys)
 _vcat1(x::AbstractArray, ys::AbstractVector) = vcat([x], ys)
 _vcat1(x, ys::Tuple) = (x, ys...)
 
+_reshape1(x::Tuple, axe) = x
+_reshape1(x::AbstractVector, axe) = x
+_reshape1(x::AbstractArray, axe) = reshape(x, axe)
+
 _no_tuple_tangent(dx::Tangent) = ChainRulesCore.backing(dx)
 _no_tuple_tangent(dx) = dx
 
@@ -403,46 +408,46 @@ _no_tuple_tangent(dx) = dx
 # Like `foldl` this by definition works in order, so it makes sense to allow stateful `f`.
 
 function rrule(
-        config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), f::F, x::Union{AbstractArray, Tuple}; 
+        config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), op::G, x::Union{AbstractArray, Tuple}; 
         init=_InitialValue(), dims=nothing
-    ) where {F}
+    ) where {G}
     isnothing(dims) || dims==1 && x isa Base.AbstractVecOrTuple || throw(
-        "accumulate(f, x; dims) is not supported by ChainRules, sorry"
+        "accumulate(op, x; dims) is not supported by ChainRules, sorry"
         # It's not supported by AD either, so no point calling back, and no regression:
         # gradient(x -> sum(accumulate(/, x, dims=1)), rand(3,4)) # ERROR: Mutating arrays is not supported
     )
-    list, start = if init !== _InitialValue()
-        x, init
-    else
+    list, start = if init === _InitialValue()
         _drop1(x), first(x)
+    else
+        x, init
     end
     hobbits = accumulate(list; init = (start, nothing)) do (a,_), b
-        c, back = rrule_via_ad(config, f, a, b)
+        c, back = rrule_via_ad(config, op, a, b)
     end
     y = map(first, hobbits)
     if init === _InitialValue()
-        # `hobbits` is one short, and first one doesn't invoke `f`
+        # `hobbits` is one short, and first one doesn't invoke `op`
         y = _vcat1(first(x), y)
     end
-    axe = x isa AbstractArray ? axes(x) : nothing
+    axe = axes(x)
     type = Val(typeof(x))
     project = x isa AbstractArray{<:Number} ? ProjectTo(x) : identity
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
-        _tini = (nothing, ZeroTangent(), nothing)
-        _tsil = _zip2(_reverse1(hobbits), _reverse1(dy_plain))
-        trio = accumulate(_tsil; init=_tini) do (_,dc,_), ((_,back),dz)
-            ds, da, db = back(dc + dz)  # 's' for self, don't need to write LHS
+        rev_list = _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+        trio = accumulate(rev_list; init=(0,ZeroTangent(),0)) do (_,dc,_), ((_,back),dz)
+            ds, da, db = back(dc + dz)
             # Don't need to store every 'da', but need for next iteration, and the last one.
         end
-        df = sum(first, trio)
+        dop = sum(first, trio)
         dx = map(last, _reverse1(trio))
         if init == _InitialValue()
             # `hobbits` is one short, and the first one is weird
             dx = _vcat1(trio[end][2] + dy_plain[1], dx)
         end
         dx_nice = _val(type) <: Tuple ? Tangent{_val(type)}(dx...) : reshape(dx, axe)
-        return (NoTangent(), df, project(dx_nice))
+        return (NoTangent(), dop, project(dx_nice))
+        # return (NoTangent(), dop, project(_reshape1(dx, axe))) # once project handles Tangent
     end
-    return (axe isa Tuple ? reshape(y, axe) : y), decumulate
+    return _reshape(y, axe), decumulate
 end

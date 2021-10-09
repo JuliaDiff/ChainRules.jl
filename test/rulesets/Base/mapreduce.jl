@@ -2,6 +2,8 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
+const CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
@@ -82,12 +84,11 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, inv, transpose(view(x, 1, :)))
 
         # Make sure we preserve type for StaticArrays
-        ADviaRuleConfig = ChainRulesTestUtils.ADviaRuleConfig
-        _, pb = rrule(ADviaRuleConfig(), sum, abs, @SVector[1.0, -3.0])
+        _, pb = rrule(CFG, sum, abs, @SVector[1.0, -3.0])
         @test pb(1.0) isa Tuple{NoTangent, NoTangent, SVector{2, Float64}}
       
         # make sure we preserve type for Diagonal
-        _, pb = rrule(ADviaRuleConfig(), sum, abs, Diagonal([1.0, -3.0]))
+        _, pb = rrule(CFG, sum, abs, Diagonal([1.0, -3.0]))
         @test pb(1.0)[3] isa Diagonal
 
         # Boolean -- via @non_differentiable, test that this isn't ambiguous
@@ -179,8 +180,6 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
     end # prod
 
     @testset "foldl(f, ::Array)" begin
-        CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
         # Simple
         y1, b1 = rrule(CFG, foldl, *, [1,2,3]; init=1)
         @test y1 == 6
@@ -224,8 +223,6 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
     VERSION >= v"1.5" && @testset "foldl(f, ::Tuple)" begin
-        CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
@@ -277,8 +274,6 @@ end
         end
     end
     @testset "accumulate(f, ::Array)" begin
-        CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, [1,2,3,4]; init=1)
         @test y1 == [1, 2, 6, 24]
@@ -321,8 +316,6 @@ end
         test_rrule(accumulate, ^, 1 .+ rand(2,3); fkwargs=(; init=rand()))
     end
     VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
-        CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
         @test y1 == (1, 2, 6, 24)
