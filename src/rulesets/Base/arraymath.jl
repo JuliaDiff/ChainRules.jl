@@ -10,7 +10,7 @@ end
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     function inv_pullback(ΔΩ)
-        return NoTangent(), -Ω' * ΔΩ * Ω'
+        return NoTangent(), Ω' * -ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end
