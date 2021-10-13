@@ -76,13 +76,13 @@ end
 
 @scalar_rule hypot(x::Real) sign(x)
 
-function frule((_, Δz), ::typeof(hypot), z::Complex)
+function frule((_, Δz), ::typeof(hypot), z::Number)
     Ω = hypot(z)
     ∂Ω = _realconjtimes(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
     return Ω, ∂Ω
 end
 
-function rrule(::typeof(hypot), z::Complex)
+function rrule(::typeof(hypot), z::Number)
     Ω = hypot(z)
     function hypot_pullback(ΔΩ)
         return (NoTangent(), (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)

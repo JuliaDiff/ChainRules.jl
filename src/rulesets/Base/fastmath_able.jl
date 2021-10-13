@@ -64,14 +64,14 @@ let
 
         # Unary complex functions
         ## abs
-        function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
+        function frule((_, Δx), ::typeof(abs), x::Number)
             Ω = abs(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             return Ω, _realconjtimes(signx, Δx)
         end
 
-        function rrule(::typeof(abs), x::Union{Real, Complex})
+        function rrule(::typeof(abs), x::Number)
             Ω = abs(x)
             function abs_pullback(ΔΩ)
                 signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
@@ -81,11 +81,11 @@ let
         end
 
         ## abs2
-        function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
+        function frule((_, Δz), ::typeof(abs2), z::Number)
             return abs2(z), 2 * _realconjtimes(z, Δz)
         end
 
-        function rrule(::typeof(abs2), z::Union{Real, Complex})
+        function rrule(::typeof(abs2), z::Number)
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
                 return (NoTangent(), 2Δu*z)
@@ -94,10 +94,10 @@ let
         end
 
         ## conj
-        function frule((_, Δz), ::typeof(conj), z::Union{Real, Complex})
+        function frule((_, Δz), ::typeof(conj), z::Number)
             return conj(z), conj(Δz)
         end
-        function rrule(::typeof(conj), z::Union{Real, Complex})
+        function rrule(::typeof(conj), z::Number)
             function conj_pullback(ΔΩ)
                 return (NoTangent(), conj(ΔΩ))
             end
@@ -143,14 +143,14 @@ let
             ::typeof(hypot),
             x::T,
             y::T,
-        ) where {T<:Union{Real,Complex}}
+        ) where {T<:Number}
             Ω = hypot(x, y)
             n = ifelse(iszero(Ω), one(Ω), Ω)
             ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(hypot), x::T, y::T) where {T<:Union{Real,Complex}}
+        function rrule(::typeof(hypot), x::T, y::T) where {T<:Number}
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)

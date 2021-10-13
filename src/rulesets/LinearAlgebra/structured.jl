@@ -99,13 +99,13 @@ function _diagm_back(p, ȳ)
     return Tangent{typeof(p)}(second = d)
 end
 
-function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
+function rrule(::typeof(*), D::Diagonal{<:Number}, V::AbstractVector{<:Number})
     project_D = ProjectTo(D)
     project_V = ProjectTo(V)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        dD = @thunk(project_D(Diagonal(Ȳ .* V)))
-        dV = @thunk(project_V(D * Ȳ))
+        dD = @thunk(project_D(Diagonal(Ȳ .* conj.(V))))
+        dV = @thunk(project_V(conj.(D.diag) .* Ȳ))
         return (NoTangent(), dD, dV)
     end
     return D * V, times_pullback
