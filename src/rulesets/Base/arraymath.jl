@@ -217,20 +217,17 @@ end
 ##### `/`
 #####
 
-function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Aᵀ, dA_pb = rrule(adjoint, A)
-    Bᵀ, dB_pb = rrule(adjoint, B)
-    Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
-    C, dC_pb = rrule(adjoint, Cᵀ)
-    function slash_pullback(Ȳ)
-        # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        _, dC = dC_pb(Ȳ)
-        _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
-
-        ∂A = last(dA_pb(unthunk(dAᵀ)))
-        ∂B = last(dB_pb(unthunk(dBᵀ)))
-
-        (NoTangent(), ∂A, ∂B)
+function rrule(::typeof(/), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
+    C = A / B
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+    function slash_pullback(ΔC)
+        ∂A = unthunk(ΔC) / B'
+        ∂B = InplaceableThunk(
+            @thunk(C' * -∂A),
+            B̄ -> mul!(B̄, C', ∂A, -1, true)
+        )
+        return NoTangent(), project_A(∂A), project_B(∂B)
     end
     return C, slash_pullback
 end
