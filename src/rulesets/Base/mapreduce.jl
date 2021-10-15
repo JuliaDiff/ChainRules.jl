@@ -74,6 +74,7 @@ end
 function rrule(
     config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::AbstractArray; dims=:
 ) where {F}
+    project = ProjectTo(xs)
 
     if _uses_input_only(f, eltype(xs))
         # Then we can compute the forward pass as usual, save nothing but `xs`:
@@ -85,12 +86,16 @@ function rrule(
         return y, sum_pullback_easy
     end
 
+    # In the general case, we need to save all the pullbacks:
+    fx_and_pullbacks = map(x -> rrule_via_ad(config, f, x), xs)
+    y = sum(first, fx_and_pullbacks; dims=dims)
+
     function sum_pullback_f(dys_raw)
         dys = unthunk(dys_raw)
         if Base.issingletontype(F)
             # Then at least `f` has no gradient. Note that broadcasting here
             # gets the shape right with or without `dims` keyword.
-            dxs = broadcast(fx_and_pullbacks, unthunk(dy)) do (_, back), dy1
+            dxs = broadcast(fx_and_pullbacks, unthunk(dys)) do (_, back), dy1
                 unthunk(last(back(dy1)))
             end
             return (NoTangent(), NoTangent(), project(dxs))
@@ -99,7 +104,7 @@ function rrule(
             # Most general case. If `f` were stateful, we would need to reverse the order
             # of iteration here, but since this funciton makes no guarantee, even the primal
             # result is then ill-defined.
-            df_and_dxs = broadcast(fx_and_pullbacks, unthunk(dy)) do (_, back), dy1
+            df_and_dxs = broadcast(fx_and_pullbacks, unthunk(dys)) do (_, back), dy1
                 map(unthunk, back(dy1))
             end
             df = sum(first, df_and_dxs)
