@@ -1,4 +1,21 @@
-# A functor for testing
+"""
+    Multiplier(x)
+
+Stores a fixed `x` and multiplies by it, especially for testing
+the gradient of higher order functions with respect to `x`.
+```
+julia> map(Multiplier(pi), [1 10 100 1000])
+1×4 Matrix{Float64}:
+ 3.14159  31.4159  314.159  3141.59
+
+julia> map(Multiplier(2), [1 10 100], [-1 3 -7])  # two arguments
+1×3 Matrix{Int64}:
+ -2  60  -1400
+
+julia> map(Multiplier([1 2; 3 4]), ([5, 6], [7, 8]))  # x isa Matrix
+([17, 39], [23, 53])
+```
+"""
 struct Multiplier{T}
     x::T
 end
@@ -18,7 +35,18 @@ function ChainRulesCore.rrule(m::Multiplier, y, z)
     return m(y, z), Multiplier_pullback_3
 end
 
-# A functor which counts up!
+"""
+    Counter()
+
+Multiplies its input by number that increments on each call,
+for testing execution order. Has a gradient `rrule` which
+similarly increases by 10 each call, this is *not* the true gradient!
+```
+julia> map(Counter(), [1 1 1 10 10 10])
+1×6 Matrix{Int64}:
+ 1  2  3  40  50  60
+```
+"""
 mutable struct Counter
     n::Int
     Counter(n=0) = new(n)
@@ -48,6 +76,7 @@ function ChainRulesCore.rrule(::typeof(make_two_vec), x)
 end
 
 @testset "test_helpers.jl" begin
+
     @testset "Multiplier" begin
         # One argument
         test_rrule(Multiplier(4.0), 3.0)
@@ -59,6 +88,7 @@ end
         test_rrule(Multiplier(1.0 + 2im), 3.0 + 4im, 5.0 - 6im)
         test_rrule(Multiplier(rand(2,3)), rand(3,4), rand(4,5))
     end
+
     @testset "Counter" begin
         c = Counter()
         @test map(c, ones(5)) == 1:5
@@ -69,7 +99,9 @@ end
         y2, back2 = rrule(c, 777, 888)
         @test back2(1) == (NoTangent(), 37, 47)
     end
+
     @testset "make_two_vec" begin
         test_rrule(make_two_vec, 1.5)
     end
+
 end

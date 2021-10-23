@@ -177,11 +177,11 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
             @test unthunk(rrule(prod, v)[2](1f0)[2]) == zeros(4)
             test_rrule(prod, v)
         end
-    end # prod
+    end  # prod
 
     @testset "foldl(f, ::Array)" begin
         # Simple
-        y1, b1 = rrule(CFG, foldl, *, [1,2,3]; init=1)
+        y1, b1 = rrule(CFG, foldl, *, [1, 2, 3]; init=1)
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), [42, 21, 14])
 
@@ -208,12 +208,11 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         y7, b7 = rrule(CFG, foldl, Multiplier(3), [5,7,11])
         @test y7 == foldl((x,y)->x*y*3, [5,7,11])
         @test b7(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2310,), [693, 495, 315])
-        # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11]), 3) == 2310
-        # ForwardDiff.gradient(z -> foldl((x,y)->x*y*3, z), [5,7,11]) |> string
 
         y8, b8 = rrule(CFG, foldl, Multiplier(13), [5,7,11], init=3)
         @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5,7,11], init=3)
         @test b8(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 585585,), [507507, 362505, 230685])
+        # To find these numbers:
         # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11], init=3), 13)
         # ForwardDiff.gradient(z -> foldl((x,y)->x*y*13, z, init=3), [5,7,11]) |> string
 
@@ -227,7 +226,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
 
-        y2, b2 = rrule(CFG, foldl, *, (1,2,0,4))
+        y2, b2 = rrule(CFG, foldl, *, (1, 2, 0, 4))
         @test y2 == 0
         b2(8) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(0, 0, 64, 0))
 
@@ -272,24 +271,24 @@ end
             back = rrule(cumprod, Diagonal([1, 2]); dims=1)[2]
             @test unthunk(back(fill(0.5, 2, 2))[2]) ≈ [1/2 0; 0 0]  # ProjectTo'd to Diagonal now
         end
-    end
+    end  # cumprod
+
     @testset "accumulate(f, ::Array)" begin
         # Simple
-        y1, b1 = rrule(CFG, accumulate, *, [1,2,3,4]; init=1)
+        y1, b1 = rrule(CFG, accumulate, *, [1, 2, 3, 4]; init=1)
         @test y1 == [1, 2, 6, 24]
-        @test b1([1,1,1,1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
+        @test b1([1, 1, 1, 1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
 
         y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
         @test y2 ≈ accumulate(/, [1 2; 3 4])
-        @test b2(ones(2,2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
-        # ForwardDiff.gradient(x -> sum(accumulate(/,x)), Float32[1 2; 3 4]) |> string
+        @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
 
         # Test execution order
         c3 = Counter()
-        y3, b3 = rrule(CFG, accumulate, c3, [5,7,11]; init=3)
+        y3, b3 = rrule(CFG, accumulate, c3, [5, 7, 11]; init=3)
         @test c3 == Counter(3)
-        @test y3 == [8, 30, 123] == accumulate(Counter(), [5,7,11]; init=3)
-        @test b3([1,1,1]) == (NoTangent(), NoTangent(), [29169, 602, 23]) # the 23 is clear!
+        @test y3 == [8, 30, 123] == accumulate(Counter(), [5, 7, 11]; init=3)
+        @test b3([1, 1, 1]) == (NoTangent(), NoTangent(), [29169, 602, 23]) # the 23 is clear!
 
         c4 = Counter()
         y4, b4 = rrule(CFG, accumulate, c4, [5,7,11])
@@ -301,25 +300,24 @@ end
         y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5,7,11])
         @test y7 == accumulate((x,y)->x*y*3, [5,7,11])
         @test b7([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2345,), [715, 510, 315])
-        # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11])), 3) == 2345
-        # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*3, z)), [5,7,11]) |> string
 
         y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5,7,11], init=3)
         @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5,7,11], init=3)
         @test b8([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 588330,), [511095, 365040, 230685])
+        # To find these numbers:
         # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11], init=3)), 13)
         # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*13, z, init=3)), [5,7,11]) |> string
 
         # Finite differencing
         test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
-        test_rrule(accumulate, /, 1 .+ rand(3,4))
-        test_rrule(accumulate, ^, 1 .+ rand(2,3); fkwargs=(; init=rand()))
+        test_rrule(accumulate, /, 1 .+ rand(3, 4))
+        test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
     end
     VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
         # Simple
-        y1, b1 = rrule(CFG, accumulate, *, (1,2,3,4); init=1)
+        y1, b1 = rrule(CFG, accumulate, *, (1, 2, 3, 4); init=1)
         @test y1 == (1, 2, 6, 24)
-        @test b1((1,1,1,1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
+        @test b1((1, 1, 1, 1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
 
         # Finite differencing
         test_rrule(accumulate, *, Tuple(randn(5)); fkwargs=(; init=rand()))
