@@ -364,7 +364,7 @@ function rrule(
             # Don't need to store every `da`, need one for the next iteration + maybe last
         end
         dop = sum(first, trio)
-        dx = map(t -> t[3], _reverse1(trio))
+        dx = map(last, _reverse1(trio))
         if init === _InitialValue()
             # `hobbits` is one short
             dx = _vcat1(trio[end][2], dx)

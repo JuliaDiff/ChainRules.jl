@@ -191,26 +191,26 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         # Test execution order
         c5 = Counter()
-        y5, b5 = rrule(CFG, foldl, c5, [5,7,11])
+        y5, b5 = rrule(CFG, foldl, c5, [5, 7, 11])
         @test c5 == Counter(2)
-        @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), [5,7,11])
+        @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), [5, 7, 11])
         @test b5(1) == (NoTangent(), NoTangent(), [12*32, 12*42, 22])
         @test c5 == Counter(42)
 
         c6 = Counter()
-        y6, b6 = rrule(CFG, foldl, c6, [5,7,11], init=3)
+        y6, b6 = rrule(CFG, foldl, c6, [5, 7, 11], init=3)
         @test c6 == Counter(3)
-        @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), [5,7,11], init=3)
+        @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), [5, 7, 11], init=3)
         @test b6(1) == (NoTangent(), NoTangent(), [63*33*13, 43*13, 23])
         @test c6 == Counter(63)
 
         # Test gradient of function
-        y7, b7 = rrule(CFG, foldl, Multiplier(3), [5,7,11])
-        @test y7 == foldl((x,y)->x*y*3, [5,7,11])
+        y7, b7 = rrule(CFG, foldl, Multiplier(3), [5, 7, 11])
+        @test y7 == foldl((x,y)->x*y*3, [5, 7, 11])
         @test b7(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2310,), [693, 495, 315])
 
-        y8, b8 = rrule(CFG, foldl, Multiplier(13), [5,7,11], init=3)
-        @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5,7,11], init=3)
+        y8, b8 = rrule(CFG, foldl, Multiplier(13), [5, 7, 11], init=3)
+        @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5, 7, 11], init=3)
         @test b8(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 585585,), [507507, 362505, 230685])
         # To find these numbers:
         # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11], init=3), 13)
@@ -248,14 +248,14 @@ end
         @testset "higher dimensions, dims=$dims" for dims in (1,2,3)
             m = round.(10 .* randn(4,5), sigdigits=3)
             test_rrule(cumprod, m; fkwargs=(;dims=dims), atol=0.1)
-            m[2,2] = 0
-            m[2,4] = 0
+            m[2, 2] = 0
+            m[2, 4] = 0
             test_rrule(cumprod, m; fkwargs=(;dims=dims))
 
             t = round.(10 .* randn(3,3,3), sigdigits=3)
             test_rrule(cumprod, t; fkwargs=(;dims=dims))
-            t[2,2,2] = 0
-            t[2,3,3] = 0
+            t[2, 2, 2] = 0
+            t[2, 3, 3] = 0
             test_rrule(cumprod, t; fkwargs=(;dims=dims))
         end
 
@@ -291,19 +291,19 @@ end
         @test b3([1, 1, 1]) == (NoTangent(), NoTangent(), [29169, 602, 23]) # the 23 is clear!
 
         c4 = Counter()
-        y4, b4 = rrule(CFG, accumulate, c4, [5,7,11])
+        y4, b4 = rrule(CFG, accumulate, c4, [5, 7, 11])
         @test c4 == Counter(2)
-        @test y4 == [5, (5+7)*1, ((5+7)*1 + 11)*2] == accumulate(Counter(), [5,7,11])
-        @test b4([1,1,1]) == (NoTangent(), NoTangent(), [417, 42*(1 + 12), 22])
+        @test y4 == [5, (5+7)*1, ((5+7)*1 + 11)*2] == accumulate(Counter(), [5, 7, 11])
+        @test b4([1, 1, 1]) == (NoTangent(), NoTangent(), [417, 42*(1 + 12), 22])
 
         # Test gradient of function
-        y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5,7,11])
-        @test y7 == accumulate((x,y)->x*y*3, [5,7,11])
-        @test b7([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2345,), [715, 510, 315])
+        y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5, 7, 11])
+        @test y7 == accumulate((x,y)->x*y*3, [5, 7, 11])
+        @test b7([1, 1, 1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2345,), [715, 510, 315])
 
-        y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5,7,11], init=3)
-        @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5,7,11], init=3)
-        @test b8([1,1,1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 588330,), [511095, 365040, 230685])
+        y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5, 7, 11], init=3)
+        @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5, 7, 11], init=3)
+        @test b8([1, 1, 1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 588330,), [511095, 365040, 230685])
         # To find these numbers:
         # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11], init=3)), 13)
         # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*13, z, init=3)), [5,7,11]) |> string
