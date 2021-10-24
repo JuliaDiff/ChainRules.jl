@@ -111,7 +111,7 @@ function frule(
     ẋ = unthunk(Δx)
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
-        2 * real(dot(x, ẋ))
+        2 * realdot(x, ẋ)
     elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
             2 * realdot(xi, dxi)
