@@ -310,8 +310,10 @@ end
 
         # Finite differencing
         test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
-        test_rrule(accumulate, /, 1 .+ rand(3, 4))
-        test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
+        if VERSION >= v"1.5"
+            test_rrule(accumulate, /, 1 .+ rand(3, 4))
+            test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
+        end
     end
     VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
         # Simple

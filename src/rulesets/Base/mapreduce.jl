@@ -390,7 +390,7 @@ if VERSION >= v"1.6"
 else
     # Old versions don't support accumulate(::itr), nor multi-dim reverse
     _reverse1(x) = reverse(vec(x))
-    _drop1(x) = vec(x)[1:end-1]
+    _drop1(x) = vec(x)[2:end]
     _zip2(x, y) = collect(zip(x, y))
 end
 _reverse1(x::Tuple) = reverse(x)
