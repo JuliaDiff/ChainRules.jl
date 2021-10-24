@@ -68,7 +68,7 @@ let
             Ω = abs(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
-            return Ω, _realconjtimes(signx, Δx)
+            return Ω, realdot(signx, Δx)
         end
 
         function rrule(::typeof(abs), x::Union{Real, Complex})
@@ -82,7 +82,7 @@ let
 
         ## abs2
         function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
-            return abs2(z), 2 * _realconjtimes(z, Δz)
+            return abs2(z), 2 * realdot(z, Δz)
         end
 
         function rrule(::typeof(abs2), z::Union{Real, Complex})
@@ -146,7 +146,7 @@ let
         ) where {T<:Union{Real,Complex}}
             Ω = hypot(x, y)
             n = ifelse(iszero(Ω), one(Ω), Ω)
-            ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
+            ∂Ω = (realdot(x, Δx) + realdot(y, Δy)) / n
             return Ω, ∂Ω
         end
 
