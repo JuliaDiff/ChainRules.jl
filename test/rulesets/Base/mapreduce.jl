@@ -279,9 +279,11 @@ end
         @test y1 == [1, 2, 6, 24]
         @test b1([1, 1, 1, 1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
 
-        y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
-        @test y2 ≈ accumulate(/, [1 2; 3 4])
-        @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
+        if VERSION >= v"1.5"
+            y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
+            @test y2 ≈ accumulate(/, [1 2; 3 4])
+            @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
+        end
 
         # Test execution order
         c3 = Counter()
