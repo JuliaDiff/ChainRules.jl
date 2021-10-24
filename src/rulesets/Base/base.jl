@@ -78,7 +78,7 @@ end
 
 function frule((_, Δz), ::typeof(hypot), z::Complex)
     Ω = hypot(z)
-    ∂Ω = _realconjtimes(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
+    ∂Ω = realdot(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
     return Ω, ∂Ω
 end
 

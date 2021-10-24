@@ -347,7 +347,7 @@ function _eigen_norm_phase_fwd!(∂V, A, V)
     @inbounds for i in axes(V, 2)
         v, ∂v = @views V[:, i], ∂V[:, i]
         # account for unit normalization
-        ∂c_norm = -real(dot(v, ∂v))
+        ∂c_norm = -realdot(v, ∂v)
         if eltype(V) <: Real
             ∂c = ∂c_norm
         else
