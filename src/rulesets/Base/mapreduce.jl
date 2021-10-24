@@ -114,10 +114,10 @@ function frule(
         2 * real(dot(x, ẋ))
     elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
-            2 * _realconjtimes(xi, dxi)
+            2 * realdot(xi, dxi)
         end
     else
-        2 * sum(_realconjtimes.(x, ẋ); dims=dims)
+        2 * sum(realdot.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end

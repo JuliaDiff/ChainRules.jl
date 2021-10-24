@@ -6,6 +6,7 @@ using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
+using RealDot: realdot
 using Statistics
 
 # Basically everything this package does is overloading these, so we make an exception

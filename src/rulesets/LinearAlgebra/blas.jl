@@ -41,7 +41,7 @@ function frule((_, Δx), ::typeof(BLAS.nrm2), x)
     ∂Ω = if x isa Real
         BLAS.dot(x, Δx) / s
     else
-        sum(y -> _realconjtimes(y...), zip(x, Δx)) / s
+        sum(y -> realdot(y...), zip(x, Δx)) / s
     end
     return Ω, ∂Ω
 end
@@ -72,7 +72,7 @@ end
 
 function frule((_, Δx), ::typeof(BLAS.asum), x)
     ∂Ω = sum(zip(x, Δx)) do (xi, Δxi)
-        return _realconjtimes(_signcomp(xi), Δxi)
+        return realdot(_signcomp(xi), Δxi)
     end
     return BLAS.asum(x), ∂Ω
 end

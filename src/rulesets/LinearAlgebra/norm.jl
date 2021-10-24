@@ -14,7 +14,7 @@ function frule((_, ẋ), ::typeof(norm), x::Number, p::Real)
         zero(real(x)) * zero(real(Δx))
     else
         signx = x isa Real ? sign(x) : x * pinv(y)
-        _realconjtimes(signx, Δx)
+        realdot(signx, Δx)
     end
     return y, ∂y
 end
