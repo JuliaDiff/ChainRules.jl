@@ -218,8 +218,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         # Finite differencing
         test_rrule(foldl, /, 1 .+ rand(3,4))
-        test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand()), check_inferred=false)
+        test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand(ComplexF64)))
+        test_rrule(foldl, +, rand(ComplexF64,7); fkwargs=(; init=rand(ComplexF64)))
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
+        if VERSION >= v"1.5"  # This fails on 1.0, accumulate is too strict about init?
+            test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand()), check_inferred=false)
+        end
     end
     VERSION >= v"1.5" && @testset "foldl(f, ::Tuple)" begin
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)

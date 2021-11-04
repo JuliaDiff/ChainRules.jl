@@ -443,7 +443,12 @@ function rrule(
     project = ProjectTo(x)
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
-        rev_list = _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+        rev_list = if init === _InitialValue()
+            # Being explicit instead of relying on zip to stop early here:
+             _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
+        else
+            _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+        end
         trio = accumulate(rev_list; init=(0, ZeroTangent(), 0)) do (_, dc, _), ((_, back), dz)
             ds, da, db = back(dc + dz)
             # Don't need to store every 'da', but need for next iteration, and the last one.
