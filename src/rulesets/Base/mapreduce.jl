@@ -334,8 +334,10 @@ end
 
 # `foldl` guarantees to execute `f` in order, left to right. So it makes sense even when
 # this `f` is stateful, in which case the gradient must be calculated in the reverse order. 
-# The implementation aims to be efficient for both tuples and arrays. 
-# Note that it does not return a gradient for `init`.
+
+# The implementation aims to be efficient for both tuples and arrays, although using accumulate
+# to carry intermediate results along creates arrays of tuples which could be avoided; using a
+# loop can be a few times faster. Note also that it does not return a gradient for `init`.
 
 function rrule(
         config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), op::G, x::Union{AbstractArray, Tuple};
@@ -345,7 +347,7 @@ function rrule(
         _drop1(x), first(x)
     else
         # Case with init keyword is simpler to understand first!
-        x, init
+        vec(x), init  # (vec is for Julia 1.0, accumulate is fussy)
     end
     hobbits = accumulate(list; init=(start, nothing)) do (a,_), b
         # Here `a` is what we would normally cary forward, and `_` ignores
@@ -382,6 +384,9 @@ end
 # This zoo of underscore functions helps `foldl` & `accumulate` handle both tuples and arrays,
 # and also provides some alternatives for versions of Julia where iterators weren't supported.
 # Inspired by `Base._reverse`, used in defn of `foldr`.
+
+# To support 2nd derivatives, some may need their own gradient rules. And _drop1 should perhaps
+# be replaced by _peel1 like Iterators.peel
 
 if VERSION >= v"1.6"
     _reverse1(x) = Iterators.reverse(x)
