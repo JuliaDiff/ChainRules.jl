@@ -449,8 +449,16 @@ function rrule(
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
         rev_list = if init === _InitialValue()
-            # Being explicit instead of relying on zip to stop early here:
-             _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
+            if VERSION >= v"1.6"
+                # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
+                # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
+                _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+            else
+                # However, on 1.0 and some others, zip does not stop early. But since accumulate
+                # also doesn't work on iterators, `_drop1` doesn't make one, so this should work:
+                _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
+                # What an awful tangle.
+            end
         else
             _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         end
