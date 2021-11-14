@@ -347,7 +347,7 @@ function rrule(
         _drop1(x), first(x)
     else
         # Case with init keyword is simpler to understand first!
-        vec(x), init  # (vec is for Julia 1.0, accumulate is fussy)
+        _reshape1(x, :), init  # (vec is for Julia 1.0, accumulate is fussy)
     end
     hobbits = accumulate(list; init=(start, nothing)) do (a,_), b
         # Here `a` is what we would normally cary forward, and `_` ignores
