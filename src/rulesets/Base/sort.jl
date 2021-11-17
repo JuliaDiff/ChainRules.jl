@@ -39,6 +39,22 @@ function rrule(::typeof(sort), xs::AbstractVector; kwargs...)
 end
 
 #####
+##### `sortslices`
+#####
+
+function rrule(::typeof(sortslices), x::AbstractArray{<:Number}; dims::Integer, kw...)
+    p = sortperm(collect(eachslice(x; dims=dims)); kw...)
+    inds = ntuple(d -> d == dims ? p : (:), ndims(x))
+    function sortslices_pullback(dy)
+        # No actual need to zero this, and if you didn't, then you could widen eltype
+        # Also, you could use similar(dy) here not x, same size?
+        dx = _zerolike_writeat(x, unthunk(dy), (), inds...)
+        return (NoTangent(), ProjectTo(x)(dx))
+    end
+    return x[inds...], sortslices_pullback
+end
+
+#####
 ##### `unique`
 #####
 

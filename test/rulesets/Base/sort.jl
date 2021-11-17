@@ -13,6 +13,14 @@
         test_rrule(partialsort, a, 4, fkwargs=(;rev=true))
     end
 
+    @testset "sortslices" begin
+        test_rrule(sortslices, rand(3,4); fkwargs=(; dims=2))
+        test_rrule(sortslices, rand(5,4); fkwargs=(; dims=1, rev=true, by=last))
+        test_rrule(sortslices, rand(3,4,5); fkwargs=(; dims=3, by=sum))
+
+        @test_throws Exception sortslices(Diagonal(1:3), dims=1)
+    end
+
     @testset "unique" begin
         # Trivial case, all unique:
         test_rrule(unique, rand(5))
