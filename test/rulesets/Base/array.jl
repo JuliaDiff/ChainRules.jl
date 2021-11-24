@@ -238,12 +238,18 @@ end
     test_frule(imum, rand(10))
     test_frule(imum, rand(3,4))
     test_frule(imum, rand(3,4), fkwargs=(dims=1,))
+    test_frule(imum, [rand(2) for _ in 1:3])
+    test_frule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,))
 
     # Reverse
     test_rrule(imum, rand(10))
     test_rrule(imum, rand(3,4))
     test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+    # Arrays of arrays
+    test_rrule(imum, [rand(2) for _ in 1:3]; check_inferred=false)
+    test_rrule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,), check_inferred=false)
 
     # Case which attains max twice -- can't use FiniteDifferences for this
     res = imum == maximum ? [0,1,0,0,0,0] : [1,0,0,0,0,0]

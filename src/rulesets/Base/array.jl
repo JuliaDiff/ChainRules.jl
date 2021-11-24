@@ -355,15 +355,19 @@ for findm in (:findmin, :findmax)
         return (y, ind), Tangent{typeof((y, ind))}(xdot[ind], NoTangent())
     end
 
-    @eval function rrule(::typeof($findm), x::AbstractArray{<:Number}; dims=:)
+    @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
         y, ind = $findm(x; dims=dims)
         project = ProjectTo(x)
         # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
-        function $findm_pullback((dy, _))  # this accept e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
+        function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk project(_zerolike_writeat(x, dy, dims, ind))
+            x_thunk = @thunk project(_zerolike_writeat(x, unthunk(dy), dims, ind))
             x_ithunk = InplaceableThunk(x_thunk) do dx
-                view(dx, ind) .= view(dx, ind) .+ dy  # this could be .+=, but not on Julia 1.0
+                if dims isa Colon
+                    view(dx, ind) .= view(dx, ind) .+ Ref(unthunk(dy))
+                else
+                    view(dx, ind) .= view(dx, ind) .+ unthunk(dy)  # this could be .+=, but not on Julia 1.0
+                end
                 dx
             end
             return (NoTangent(), x_ithunk)
@@ -372,12 +376,23 @@ for findm in (:findmin, :findmax)
     end
 end
 
-# This is roughly `setindex!(zero(x), dy, inds...)`
-function _zerolike_writeat(x, dy, dims, inds...)
+# This function is roughly `setindex!(zero(x), dy, inds...)`:
+
+function _zerolike_writeat(x::AbstractArray{<:Number}, dy, dims, inds...)
     # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
     # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), false) # zero(eltype(dy)))
+    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
     view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
+    dx
+end
+function _zerolike_writeat(x::AbstractArray, dy, dims, inds...)
+    # Since we have `x`, we can also handle arrays of arrays.
+    dx = map(zero, x)
+    if dims isa Colon
+        view(dx, inds...) .= Ref(dy)
+    else
+        view(dx, inds...) .= dy
+    end
     dx
 end
 
@@ -405,7 +420,7 @@ function frule((_, xdot), ::typeof(maximum), x; dims=:)
     return y, xdot[ind]
 end
 
-function rrule(::typeof(maximum), x::AbstractArray{<:Number}; dims=:)
+function rrule(::typeof(maximum), x::AbstractArray; dims=:)
     (y, _), back = rrule(findmax, x; dims=dims)
     maximum_pullback(dy) = back((dy, nothing))
     return y, maximum_pullback
@@ -416,7 +431,7 @@ function frule((_, xdot), ::typeof(minimum), x; dims=:)
     return y, xdot[ind]
 end
 
-function rrule(::typeof(minimum), x::AbstractArray{<:Number}; dims=:)
+function rrule(::typeof(minimum), x::AbstractArray; dims=:)
     (y, _), back = rrule(findmin, x; dims=dims)
     minimum_pullback(dy) = back((dy, nothing))
     return y, minimum_pullback
