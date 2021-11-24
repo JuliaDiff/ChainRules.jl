@@ -232,61 +232,50 @@ end
 rrule(::typeof(cumsum), x::AbstractVector) = rrule(cumsum, x; dims=1)
 
 #####
-##### `maximum`, `minimum`
+##### `maximum(f, xs)`, `minimum(f, xs)`
 #####
 
+# Rules for `maximum(x)` live with `findmax(x)` in array.jl
+
 for mimum in (:minimum, :maximum)
-    pullback1 = Symbol(mimum, :_pullback_f)
-    pullback2 = Symbol(mimum, :_pullback_composed)
     findm = Symbol(:find, string(mimum)[1:3])
 
     @eval function rrule(
-        config::RuleConfig{>:HasReverseMode}, ::typeof($mimum), f::F, xs::AbstractArray{<:Number}; dims=:
+        config::RuleConfig{>:HasReverseMode},
+        ::typeof($mimum),
+        f::F,
+        xs::AbstractArray{<:Number};
+        dims=:,
     ) where {F}
         project = ProjectTo(xs)
-
-        # The easy case is when we can use `findmax` to get index, and write into it:
-        if dims isa Colon && VERSION >= v"1.7-"
-            y, ind = $findm(f, xs)
-            function $pullback1(dy)
-                # Notice this evaluates `f` one more time, but this shouldn't matter
-                # unless `f` is sateful, in which case both this and `maximum(f.(xs))` 
-                # give undefined results.
-                _, one_back = rrule_via_ad(config, f, xs[ind])
-                df, one_dx_raw = one_back(unthunk(dy))
-                one_dx = unthunk(one_dx_raw)
-                x_thunk = @thunk project(_writezero(xs, one_dx, ind, dims))
-                x_ithunk = InplaceableThunk(x_thunk) do dxs
-                    view(dxs, ind) .+= one_dx
-                    dxs
-                end
-                return (NoTangent(), df, x_ithunk)
+        if dims isa Colon && VERSION >= v"1.7"
+            # The fast case is when we can use `findmax` to get index, and write into it:
+            y1, ind = $findm(f, xs)  # (Julia 1.6 doesn't have this method.)
+            function minormax_f_back1(dy)
+                # Notice this evaluates `f` one more time, but this shouldn't matter unless `f` is
+                # stateful, in which case both this and `maximum(f.(xs))` give uncertain results.
+                y_ad, one_back = rrule_via_ad(config, f, xs[ind])
+                isapprox(y_ad, y1) || throw(ArgumentError("expected `f` to give same result with AD, got $y_ad != $y1"))
+                df, one_dx = one_back(unthunk(dy))
+                dxs = _zerolike_writeat(xs, unthunk(one_dx), dims, ind) # TODO make _zerolike_writeat handle thunks
+                return (NoTangent(), df, project(dxs))
             end
-            return y, $pullback1
+            return y1, minormax_f_back1
 
-        # Otherwise, the best path is to broadcast, `maximum(f.(xs); dims)`:
         else
-            mid, cast_back = rrule_via_ad(config, broadcast, f, xs; dims=dims)
-            y, max_back = rrule($mimum, fxs; dims=dims)
-            function $pullback2(dys)
-                _, dmid = max_back(dys)
-                _, df, dxs = cast_back(dmid)  # if cast_back from rrule_via_ad makes an InplaceableThunk,
-                return (NoTangent(), df, project(dxs))  # then this project() will give an error.
+            # Otherwise, the best path is to broadcast, `maximum(f.(xs); dims)`:
+            fxs, cast_back = rrule_via_ad(config, broadcast, f, xs)
+            y2, mm_back = rrule($mimum, fxs; dims)
+            function minormax_f_back2(dy)
+                _, dmid = mm_back(dy)
+                _, df, dxs = cast_back(dmid)
+                return (NoTangent(), df, project(dxs))
             end
-            return y, $pullback2
-        end
+            return y2, minormax_f_back2
 
+        end
     end # @eval function rrule(...)
 end
-
-# from another PR:
- function _writezero(x, dy, ind, dims)
-     # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-     # allow `eltype(dy)`, nor does it work for many structured matrices.
-     dx = fill!(similar(x, eltype(dy), axes(x)), false)
-     view(dx, ind) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-     dx
- end
 
 #####
 ##### `prod`

@@ -1,3 +1,6 @@
+
+const CFG = ChainRulesTestUtils.TestConfig()  # CRTU v1.6
+
 """
     Multiplier(x)
 
@@ -95,25 +98,6 @@ make_two_vec(x) = [x, x]
 function ChainRulesCore.rrule(::typeof(make_two_vec), x)
     make_two_vec_pullback(ȳ) = (NoTangent(), sum(ȳ))
     return make_two_vec(x), make_two_vec_pullback
-end
-
-# Trivial rule configurations, allowing `rrule_via_ad` with simple functions:
-struct TestConfigReverse <: RuleConfig{HasReverseMode} end
-function ChainRulesCore.rrule_via_ad(::TestConfigReverse, args...; kw...)
-    if hasmethod(rrule, typeof(args), keys(kw))
-        rrule(args...; kw...)
-    else
-        error("TestConfigReverse can only handle `rrule_via_ad(f, args...)` when there is an rrule method")
-    end
-end
-
-struct TestConfigForwards <: RuleConfig{HasForwardsMode} end
-function ChainRulesCore.frule_via_ad(::TestConfigReverse, args...; kw...)
-    if hasmethod(frule, typeof(args), keys(kw))
-        frule(args...; kw...)
-    else
-        error("TestConfigForwards can only handle `frule_via_ad(f, args...)` when there is an frule method")
-    end
 end
 
 @testset "test_helpers.jl" begin
