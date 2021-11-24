@@ -65,7 +65,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
-        test_rrule(sum, log, rand(3, 4))
+        test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
@@ -118,7 +118,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=1))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=(3, 4)))
 
-        # arrays of arrays, functions which return a scalar
+        # arrays of arrays, functions which return a scalar:
         test_rrule(sum, sum, [[1,2], [3,4], [5,6]]; check_inferred=false)
         x2345 = [rand(2,3) for _ in 1:4, _ in 1:5]
         test_rrule(sum, prod, x2345; check_inferred=false)
