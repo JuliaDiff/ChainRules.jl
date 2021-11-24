@@ -90,12 +90,13 @@ function rrule(
     fx_and_pullbacks = map(x -> rrule_via_ad(config, f, x), xs)
     y = sum(first, fx_and_pullbacks; dims=dims)
 
-    function sum_pullback_f(dys_raw)
-        dys = unthunk(dys_raw)
+    function sum_pullback_f(dy)
+        # For arrays of arrays, we ought to protect the element against broadcasting:
+        dys = dims isa Colon ? Ref(unthunk(dy)) : unthunk(dy)
         if Base.issingletontype(F)
             # Then at least `f` has no gradient. Note that broadcasting here
             # gets the shape right with or without `dims` keyword.
-            dxs = broadcast(fx_and_pullbacks, unthunk(dys)) do (_, back), dy1
+            dxs = broadcast(fx_and_pullbacks, dys) do (_, back), dy1
                 unthunk(last(back(dy1)))
             end
             return (NoTangent(), NoTangent(), project(dxs))
@@ -104,7 +105,7 @@ function rrule(
             # Most general case. If `f` were stateful, we would need to reverse the order
             # of iteration here, but since this funciton makes no guarantee, even the primal
             # result is then ill-defined.
-            df_and_dxs = broadcast(fx_and_pullbacks, unthunk(dys)) do (_, back), dy1
+            df_and_dxs = broadcast(fx_and_pullbacks, dys) do (_, back), dy1
                 map(unthunk, back(dy1))
             end
             df = sum(first, df_and_dxs)
@@ -250,6 +251,7 @@ function ∇prod_dims(vald::Val{dims}, x, dy, y=prod(x; dims=dims)) where {dims}
     ∇prod_dims!(dx, vald, x, dy, y)
     return dx
 end
+∇prod_dims(::Val{dims}, x, dy::AbstractZero, y=prod(x; dims=dims)) where {dims} = dy
 
 function ∇prod_dims!(dx, ::Val{dims}, x, dy, y) where {dims}
     iters = ntuple(d -> d in dims ? tuple(:) : axes(x,d), ndims(x))  # Without Val(dims) this is a serious type instability
@@ -266,6 +268,7 @@ function ∇prod(x, dy::Number=1, y::Number=prod(x))
     ∇prod!(dx, x, dy, y)
     return dx
 end
+∇prod(x, dy::AbstractZero, y::Number=prod(x)) = dy
 
 function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
     numzero = iszero(y) ? count(iszero, x) : 0
@@ -348,7 +351,8 @@ function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y
      dx = fill!(similar(x, T, axes(x)), zero(T))
      ∇cumprod_dim!(dx, vald, x, dy, y)
      return dx
- end
+end
+∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy::AbstractZero, y=cumprod(x; dims=dim)) where {dim} = dy
 
 @inline function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
     iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
@@ -364,6 +368,7 @@ function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     ∇cumprod!(dx, x, dy, y)
     return dx
 end
+∇cumprod(x::AbstractVector, dy::AbstractZero, y=cumprod(x)) = dy
 
 @inline function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
     lo, hi = firstindex(x), lastindex(x)
