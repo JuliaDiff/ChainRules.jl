@@ -96,6 +96,8 @@
 @non_differentiable all(::Any, ::Any)
 @non_differentiable any(::Any)
 @non_differentiable any(::Any, ::Any)
+@non_differentiable argmax(::Any)
+@non_differentiable argmin(::Any)
 @non_differentiable ascii(::AbstractString)
 @non_differentiable axes(::Any)
 @non_differentiable axes(::Any, ::Any)
