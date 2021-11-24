@@ -88,11 +88,3 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
     end
     return y, unique_pullback
 end
-
-function _zerolike_writeat(x, dy, dims, ind...)
-    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-    # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), false)
-    view(dx, ind...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-    dx
-end
