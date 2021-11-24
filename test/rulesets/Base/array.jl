@@ -205,27 +205,29 @@ end
     test_frule(findmax, rand(10))
     @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4))) isa Tuple{Tuple{Float64, CartesianIndex}, Tangent}
     @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4), dims=1)) isa Tuple{Tuple{Matrix, Matrix}, Tangent}
-    @test_skip test_frule(findmin, rand(3,4)) # StackOverflowError, CartesianIndex{2}(index::Tuple{Float64, Float64}) (repeats 79984 times) & TypeError: in new, expected Tuple{Int64, Int64}, got a value of type Tuple{Float64, Float64}
+    @test_skip test_frule(findmin, rand(3,4)) # error from test_approx(actual::CartesianIndex{2}, expected::CartesianIndex{2}
     @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
+    # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
+    test_rrule(findmin, rand(5,3))
+    test_rrule(findmax, rand(5,3))
     @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test_skip test_rrule(findmin, rand(10), output_tangent = (rand(), NoTangent()), check_inferred=false)  # DimensionMismatch from FiniteDifferences
-    @test_skip test_rrule(findmax, rand(5,3), output_tangent = (rand(), false), check_inferred=false)  # DimensionMismatch from FiniteDifferences
-
+    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+    
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
-    @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()), check_inferred=false) # DimensionMismatch("second dimension of A, 12, does not match length of x, 5"), wtf?
-    @test_skip test_rrule(findmin, rand(3,4), fkwargs=(dims=2,), output_tangent = (rand(3,1), falses(3,1)), check_inferred=false) # DimensionMismatch("second dimension of A, 9, does not match length of x, 7")
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()))
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=2,))
 
     # Second derivatives
     test_frule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
     test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
-    @test_skip test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching +(::Float64, ::Matrix{Float64})
+    @test_skip test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching isapprox(::Matrix{Float64}, ::Float64; rtol=1.0e-9, atol=1.0e-9)
     y, bk = rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
     @test y == [0 0; 5 5]
     @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
@@ -249,7 +251,7 @@ end
 
     # Structured matrix -- NB the minimum is a structral zero here
     @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Diagonal
-    @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular
+    @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular{Float64}
     @test_skip test_rrule(imum, Diagonal(rand(3) .+ 1)) # MethodError: no method matching zero(::Type{Any}), from fill!(A::SparseArrays.SparseMatrixCSC{Any, Int64}, x::Bool)
 end
 
