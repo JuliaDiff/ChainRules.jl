@@ -104,6 +104,13 @@
             test_frule(*, x, y)
             test_rrule(*, x, y)
         end
+        @testset "*($x, $y, ...)" for x in test_points, y in test_points
+            x, y = Base.promote(x, y)
+
+            test_rrule(*, x, y, x+y)
+            test_rrule(*, x, y, 17x, 23y)
+            test_rrule(*, x, y, 7x, 3y, x+y+pi)
+        end
     end
 
     @testset "ldexp" begin

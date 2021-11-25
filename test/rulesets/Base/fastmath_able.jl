@@ -120,6 +120,7 @@ const FASTABLE_AST = quote
             test_scalar(+, x)
             test_scalar(-, x)
             test_scalar(atan, x)
+            test_scalar(*, x)
         end
     end
 
@@ -132,7 +133,7 @@ const FASTABLE_AST = quote
             test_rrule(f, (rand(0:10) + .6rand() + .2) * base, base)
         end
 
-        @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
+        @testset "$f(x::$T, y::$T)" for f in (/, +, -, *, hypot), T in (Float64, ComplexF64)
             test_frule(f, 10rand(T), rand(T))
             test_rrule(f, 10rand(T), rand(T))
         end

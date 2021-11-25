@@ -236,14 +236,48 @@ let
         end
 
         function rrule(::typeof(*), x::Number, y::Number)
-            project_x = ProjectTo(x)
-            project_y = ProjectTo(y)
-            function times_pullback(Ω̇)
+            function times_pullback2(Ω̇)
                 ΔΩ = unthunk(Ω̇)
-                return (NoTangent(),  project_x(ΔΩ * y'), project_y(x' * ΔΩ))
+                return (NoTangent(), ProjectTo(x)(ΔΩ * y'), ProjectTo(y)(x' * ΔΩ))
             end
-            return x * y, times_pullback
+            return x * y, times_pullback2
         end
+        function rrule(::typeof(*), x::Number, y::Number, z::Number)
+            function times_pullback3(Ω̇)
+                ΔΩ = unthunk(Ω̇)
+                return (
+                    NoTangent(), 
+                    ProjectTo(x)(ΔΩ * y' * z'),
+                    ProjectTo(y)(x' * ΔΩ * z'),
+                    ProjectTo(z)(x' * y' * ΔΩ),
+                )
+            end
+            return x * y * z, times_pullback3
+        end
+        # function rrule(::typeof(*), xyz::Number...)  # this version doesn't infer well
+        #     valN = Val(length(xyz))
+        #     function times_pullback4(Ω̇)
+        #         ΔΩ = unthunk(Ω̇)
+        #         Δxyz = ntuple(valN) do i
+        #             dxi = *(ntuple(j -> i==j ? ΔΩ : xyz[j]', valN)...)
+        #             ProjectTo(xyz[i])(dxi)
+        #         end
+        #         return (NoTangent(), Δxyz...)
+        #     end
+        #     return *(xyz...), times_pullback4
+        # end
+        function rrule(::typeof(*), x::Number, y::Number, z::Number, more::Number...)
+            Ω3, back3 = rrule(*, x, y, z)
+            Ω4, back4 = rrule(*, Ω3, more...)
+            function times_pullback4(Ω̇)
+                ΔΩ = unthunk(Ω̇)
+                Δ4 = back4(ΔΩ)  # NoTangent, ΔΩ3, Δmore...
+                Δ3 = back3(Δ4[2])
+                return (Δ3..., Δ4[3:end]...)
+            end
+            Ω4, times_pullback4
+        end
+        rrule(::typeof(*), x::Number) = rrule(identity, x)
     end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
