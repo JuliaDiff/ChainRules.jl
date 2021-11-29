@@ -118,7 +118,9 @@ end
 
 function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
     gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
-    return isconcretetype(gT)
+    # Here we must check `<: Number`, to avoid this, the one rule which can return the `nothing`:
+    # ChainRules.derivatives_given_output("anything", exp, 1) == (("anything",),)
+    return isconcretetype(gT) && gT <: Tuple{Tuple{Number}}
 end
 
 # https://github.com/JuliaDiff/ChainRules.jl/issues/522
