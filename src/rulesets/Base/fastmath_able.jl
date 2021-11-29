@@ -242,6 +242,8 @@ let
             end
             return x * y, times_pullback2
         end
+        # While 3-arg * calls 2-arg *, this is currently slow in Zygote:
+        # https://github.com/JuliaDiff/ChainRules.jl/issues/544
         function rrule(::typeof(*), x::Number, y::Number, z::Number)
             function times_pullback3(Ω̇)
                 ΔΩ = unthunk(Ω̇)
@@ -254,28 +256,18 @@ let
             end
             return x * y * z, times_pullback3
         end
-        # function rrule(::typeof(*), xyz::Number...)  # this version doesn't infer well
-        #     valN = Val(length(xyz))
-        #     function times_pullback4(Ω̇)
-        #         ΔΩ = unthunk(Ω̇)
-        #         Δxyz = ntuple(valN) do i
-        #             dxi = *(ntuple(j -> i==j ? ΔΩ : xyz[j]', valN)...)
-        #             ProjectTo(xyz[i])(dxi)
-        #         end
-        #         return (NoTangent(), Δxyz...)
-        #     end
-        #     return *(xyz...), times_pullback4
-        # end
+        # Instead of this recursive rule for N args, you could write the generic case
+        # directly, by nesting ntuples, but this didn't infer well:
+        # https://github.com/JuliaDiff/ChainRules.jl/pull/547/commits/3558951c9f1b3c70e7135fd61d29cc3b96a68dea
         function rrule(::typeof(*), x::Number, y::Number, z::Number, more::Number...)
             Ω3, back3 = rrule(*, x, y, z)
             Ω4, back4 = rrule(*, Ω3, more...)
             function times_pullback4(Ω̇)
-                ΔΩ = unthunk(Ω̇)
-                Δ4 = back4(ΔΩ)  # NoTangent, ΔΩ3, Δmore...
-                Δ3 = back3(Δ4[2])
+                Δ4 = back4(unthunk(Ω̇))  # (0, ΔΩ3, Δmore...)
+                Δ3 = back3(Δ4[2])       # (0, Δx, Δy, Δz)
                 return (Δ3..., Δ4[3:end]...)
             end
-            Ω4, times_pullback4
+            return Ω4, times_pullback4
         end
         rrule(::typeof(*), x::Number) = rrule(identity, x)
     end  # fastable_ast
