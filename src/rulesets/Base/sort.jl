@@ -42,7 +42,7 @@ end
 ##### `sortslices`
 #####
 
-function rrule(::typeof(sortslices), x::AbstractArray{<:Number}; dims::Integer, kw...)
+function rrule(::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
     inds = ntuple(d -> d == dims ? p : (:), ndims(x))
     function sortslices_pullback(dy)
@@ -68,13 +68,14 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
             dx = reshape(dy, axes_x)
             return (NoTangent(), ProjectTo(x)(dx))
         end
+
         if dims isa Colon
             xs, ys = vec(x), y
         else
             xs, ys = collect(eachslice(x; dims=dims)), collect(eachslice(y; dims=dims))
         end
         mask = isequal.(permutedims(ys), xs)  # unique([0.0, -0.0, NaN, NaN])
-        mask .= (mask .== cumsum(mask, dims=1) .== true)
+        mask .= (mask .== cumsum(mask, dims=1) .== true)  # this implements  findfirst(mask; dims=1)
         keep = map(I -> I[1], findall(mask))
         if dims isa Colon
             # The function `_zerolike_writeat` is defined near `maximum`, allows
