@@ -231,7 +231,7 @@ let
             # Optimized version of `Δx .* y .+ x .* Δy`. Also, it is potentially more
             # accurate on machines with FMA instructions, since there are only two
             # rounding operations, one in `muladd/fma` and the other in `*`.
-            ∂xy = muladd(Δx, y, x .* Δy)
+            ∂xy = muladd.(Δx, y, x .* Δy)
             return x * y, ∂xy
         end
 
