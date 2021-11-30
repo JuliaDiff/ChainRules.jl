@@ -78,8 +78,8 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
         mask .= (mask .== cumsum(mask, dims=1) .== true)  # this implements  findfirst(mask; dims=1)
         keep = map(I -> I[1], findall(mask))
         if dims isa Colon
-            # The function `_zerolike_writeat` is defined near `maximum`, allows
-            # second derivatives. Should perhaps eventually be shared with `getindex`.
+            # The function `_zerolike_writeat` allows second derivatives.
+            # Should perhaps eventually be shared with `getindex`.
             dx = reshape(_zerolike_writeat(vec(x), vec(dy), (), keep), axes_x)
         else
             inds = ntuple(d -> d==dims ? keep : (:), length(axes_x))
