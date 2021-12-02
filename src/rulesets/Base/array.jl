@@ -342,3 +342,165 @@ function rrule(::typeof(fill), x::Any, dims...)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
 end
+
+#####
+##### `findmax`, `maximum`, etc.
+#####
+
+for findm in (:findmin, :findmax)
+    findm_pullback = Symbol(findm, :_pullback)
+
+    @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
+        y, ind = $findm(x; dims=dims)
+        return (y, ind), Tangent{typeof((y, ind))}(xdot[ind], NoTangent())
+    end
+
+    @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
+        y, ind = $findm(x; dims=dims)
+        project = ProjectTo(x)
+        # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
+        function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
+            dy isa AbstractZero && return (NoTangent(), NoTangent())
+            x_thunk = @thunk project(_zerolike_writeat(x, unthunk(dy), dims, ind))
+            x_ithunk = InplaceableThunk(x_thunk) do dx
+                if dims isa Colon
+                    view(dx, ind) .= view(dx, ind) .+ Ref(unthunk(dy))
+                else
+                    view(dx, ind) .= view(dx, ind) .+ unthunk(dy)  # this could be .+=, but not on Julia 1.0
+                end
+                dx
+            end
+            return (NoTangent(), x_ithunk)
+        end
+        return (y, ind), $findm_pullback
+    end
+end
+
+# This function is roughly `setindex!(zero(x), dy, inds...)`:
+
+function _zerolike_writeat(x::AbstractArray{<:Number}, dy, dims, inds...)
+    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
+    # allow `eltype(dy)`, nor does it work for many structured matrices.
+    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
+    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
+    dx
+end
+function _zerolike_writeat(x::AbstractArray, dy, dims, inds...)
+    # Since we have `x`, we can also handle arrays of arrays.
+    dx = map(zero, x)
+    if dims isa Colon
+        view(dx, inds...) .= Ref(dy)
+    else
+        view(dx, inds...) .= dy
+    end
+    dx
+end
+
+# Allow for second derivatives, by writing rules for `_zerolike_writeat`;
+# these rules are the reason it takes a `dims` argument.
+
+function frule((_, _, dydot), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dydot, dims, inds...)
+end
+
+function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    z = _zerolike_writeat(x, dy, dims, inds...)
+    function _zerolike_writeat_pullback(dz)
+        dx = sum(view(unthunk(dz), inds...); dims=dims)
+        nots = map(_ -> NoTangent(), inds)
+        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
+    end
+    return z, _zerolike_writeat_pullback
+end
+
+# These rules for `maximum` pick the same subgradient as `findmax`:
+
+function frule((_, xdot), ::typeof(maximum), x; dims=:)
+    y, ind = findmax(x; dims=dims)
+    return y, xdot[ind]
+end
+
+function rrule(::typeof(maximum), x::AbstractArray; dims=:)
+    (y, _), back = rrule(findmax, x; dims=dims)
+    maximum_pullback(dy) = back((dy, nothing))
+    return y, maximum_pullback
+end
+
+function frule((_, xdot), ::typeof(minimum), x; dims=:)
+    y, ind = findmin(x; dims=dims)
+    return y, xdot[ind]
+end
+
+function rrule(::typeof(minimum), x::AbstractArray; dims=:)
+    (y, _), back = rrule(findmin, x; dims=dims)
+    minimum_pullback(dy) = back((dy, nothing))
+    return y, minimum_pullback
+end
+
+#####
+##### `extrema`
+#####
+
+function rrule(::typeof(extrema), x::AbstractArray{<:Number}; dims=:)
+    if dims isa Colon
+        return _extrema_colon(x)
+    else
+        return _extrema_dims(x, dims)
+    end
+end
+
+function _extrema_colon(x)
+    ylo, ilo = findmin(x)
+    yhi, ihi = findmax(x)
+    project = ProjectTo(x)
+    function extrema_pullback((dylo, dyhi))  # accepts Tangent
+        if (dylo, dyhi) isa Tuple{AbstractZero, AbstractZero}
+            return (NoTangent(), NoTangent())
+        end
+        # One argument may be AbstractZero here. Use promote_op because 
+        # promote_type allows for * as well as +, hence gives Any.
+        T = Base.promote_op(+, typeof(dylo), typeof(dyhi))
+        x_nothunk = let
+        # x_thunk = @thunk begin  # this doesn't infer
+            dx = fill!(similar(x, T, axes(x)), false)
+            view(dx, ilo) .= dylo
+            view(dx, ihi) .= view(dx, ihi) .+ dyhi
+            project(dx)
+        end
+        # x_ithunk = InplaceableThunk(x_thunk) do dx
+        #     view(dx, ilo) .= view(dx, ilo) .+ dylo
+        #     view(dx, ihi) .= view(dx, ihi) .+ dyhi
+        #     dx
+        # end
+        return (NoTangent(), x_nothunk)
+    end
+    return (ylo, yhi), extrema_pullback
+end
+
+function _extrema_dims(x, dims)
+    ylo, ilo = findmin(x; dims=dims)
+    yhi, ihi = findmax(x; dims=dims)
+    y = similar(ylo, Tuple{eltype(ylo), eltype(yhi)})
+    map!(tuple, y, ylo, yhi)  # this is a GPU-friendly version of collect(zip(ylo, yhi))
+    project = ProjectTo(x)
+    function extrema_pullback_dims(dy_raw)
+        dy = unthunk(dy_raw)
+        @assert dy isa AbstractArray{<:Tuple{Any,Any}}
+        # Can we actually get Array{Tuple{Float64,ZeroTangent}} here? Not sure.
+        T = Base.promote_op(+, eltype(dy).parameters...)
+        x_nothunk = let
+        # x_thunk = @thunk begin  # this doesn't infer
+            dx = fill!(similar(x, T, axes(x)), false)
+            view(dx, ilo) .= first.(dy)
+            view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
+            project(dx)
+        end
+        # x_ithunk = InplaceableThunk(x_thunk) do dx
+        #     view(dx, ilo) .= first.(dy)
+        #     view(dx, ihi) .= view(dx, ihi) .+ last.(dy)
+        #     dx
+        # end
+        return (NoTangent(), x_nothunk)
+    end
+    return y, extrema_pullback_dims
+end

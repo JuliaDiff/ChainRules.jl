@@ -2,6 +2,9 @@
 ##### `sum(x)`
 #####
 
+function frule((_, ẋ), ::typeof(sum), x::Tuple)
+    return sum(x), sum(ẋ)
+end
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
@@ -74,8 +77,10 @@ function rrule(
     project = ProjectTo(xs)
 
     function sum_pullback(ȳ)
-        call(f, x) = f(x)  # we need to broadcast this to handle dims kwarg
-        f̄_and_x̄s = call.(pullbacks, ȳ)
+        call(f, x) = f(x)
+        # if dims is :, then need only left-handed only broadcast
+        broadcast_ȳ = dims isa Colon  ? (ȳ,) : ȳ
+        f̄_and_x̄s = call.(pullbacks, broadcast_ȳ)
         # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
         f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
             NoTangent()
@@ -109,13 +114,13 @@ function frule(
     ẋ = unthunk(Δx)
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
-        2 * real(dot(x, ẋ))
+        2 * realdot(x, ẋ)
     elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
-            2 * _realconjtimes(xi, dxi)
+            2 * realdot(xi, dxi)
         end
     else
-        2 * sum(_realconjtimes.(x, ẋ); dims=dims)
+        2 * sum(realdot.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end
@@ -321,4 +326,153 @@ end
         end
     end
     return dx
+end
+
+#####
+##### `foldl`
+#####
+
+# `foldl` guarantees to execute `f` in order, left to right. So it makes sense even when
+# this `f` is stateful, in which case the gradient must be calculated in the reverse order. 
+
+# The implementation aims to be efficient for both tuples and arrays, although using accumulate
+# to carry intermediate results along creates arrays of tuples which could be avoided; using a
+# loop can be a few times faster. Note also that it does not return a gradient for `init`.
+
+function rrule(
+        config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), op::G, x::Union{AbstractArray, Tuple};
+        init=_InitialValue()
+    ) where {G}
+    list, start = if init === _InitialValue()
+        _drop1(x), first(x)
+    else
+        # Case with init keyword is simpler to understand first!
+        _reshape1(x, :), init  # (vec is for Julia 1.0, accumulate is fussy)
+    end
+    hobbits = accumulate(list; init=(start, nothing)) do (a,_), b
+        # Here `a` is what we would normally cary forward, and `_` ignores
+        # the previous iteration's pullback function (needed later),
+        # while `b` is the fresh input from `list` as usual.
+        c, back = rrule_via_ad(config, op, a, b)  # LHS is just documentation here!
+        # We don't really need to store every `c`, last one is `foldl` output.
+        # (The name, BTW, is because "there and back again" is the subtitle of Tolkien's book.)
+    end
+    y = first(last(hobbits))
+    axe = axes(x)
+    project = ProjectTo(x)
+    function unfoldl(dy)
+        trio = accumulate(_reverse1(hobbits); init=(0, dy, 0)) do (_, dc, _), (_, back)
+            ds, da, db = back(dc)
+            # Don't need to store every `da`, need one for the next iteration + maybe last
+        end
+        dop = sum(first, trio)
+        dx = map(last, _reverse1(trio))
+        if init === _InitialValue()
+            # `hobbits` is one short
+            dx = _vcat1(trio[end][2], dx)
+        end
+        return (NoTangent(), dop, project(_reshape1(dx, axe)))
+    end
+    return y, unfoldl
+end
+
+
+#####
+##### Iterator-or-Tuple functions
+#####
+
+# This zoo of underscore functions helps `foldl` & `accumulate` handle both tuples and arrays,
+# and also provides some alternatives for versions of Julia where iterators weren't supported.
+# Inspired by `Base._reverse`, used in defn of `foldr`.
+
+# To support 2nd derivatives, some may need their own gradient rules. And _drop1 should perhaps
+# be replaced by _peel1 like Iterators.peel
+
+if VERSION >= v"1.6"
+    _reverse1(x) = Iterators.reverse(x)
+    _drop1(x) = Iterators.drop(x, 1)
+    _zip2(x, y) = zip(x, y)  # for `accumulate`, below
+else
+    # Old versions don't support accumulate(::itr), nor multi-dim reverse
+    _reverse1(x) = reverse(vec(x))
+    _drop1(x) = vec(x)[2:end]
+    _zip2(x, y) = collect(zip(x, y))
+end
+_reverse1(x::Tuple) = reverse(x)
+_drop1(x::Tuple) = Base.tail(x)
+_zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
+
+struct _InitialValue end  # Old versions don't have `Base._InitialValue`
+
+_vcat1(x, ys::AbstractVector) = vcat(x, ys)
+_vcat1(x::AbstractArray, ys::AbstractVector) = vcat([x], ys)
+_vcat1(x, ys::Tuple) = (x, ys...)
+
+_reshape1(x::AbstractArray, axe) = reshape(x, axe)
+_reshape1(x::Tuple, axe) = x
+
+_no_tuple_tangent(dx::Tangent) = ChainRulesCore.backing(dx)
+_no_tuple_tangent(dx) = dx
+
+
+#####
+##### `accumulate`
+#####
+
+# Like `foldl` this by definition works in order, so it makes sense to allow stateful `f`.
+
+function rrule(
+        config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), op::G, x::Union{AbstractArray, Tuple}; 
+        init=_InitialValue(), dims=nothing
+    ) where {G}
+    isnothing(dims) || dims == 1 && x isa Base.AbstractVecOrTuple || throw(
+        "accumulate(op, x; dims) is not currently supported by ChainRules, sorry"
+        # It's not supported by AD either, so no point calling back, and no regression:
+        # gradient(x -> sum(accumulate(/, x, dims=1)), rand(3,4)) 
+        # ERROR: Mutating arrays is not supported
+    )
+    list, start = if init === _InitialValue()
+        _drop1(x), first(x)
+    else
+        x, init
+    end
+    hobbits = accumulate(list; init = (start, nothing)) do (a, _), b
+        c, back = rrule_via_ad(config, op, a, b)
+    end
+    y = map(first, hobbits)
+    if init === _InitialValue()
+        # `hobbits` is one short, and first one doesn't invoke `op`
+        y = _vcat1(first(x), y)
+    end
+    axe = axes(x)
+    project = ProjectTo(x)
+    function decumulate(dy)
+        dy_plain = _no_tuple_tangent(unthunk(dy))
+        rev_list = if init === _InitialValue()
+            if VERSION >= v"1.6"
+                # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
+                # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
+                _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+            else
+                # However, on 1.0 and some others, zip does not stop early. But since accumulate
+                # also doesn't work on iterators, `_drop1` doesn't make one, so this should work:
+                _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
+                # What an awful tangle.
+            end
+        else
+            _zip2(_reverse1(hobbits), _reverse1(dy_plain))
+        end
+        trio = accumulate(rev_list; init=(0, ZeroTangent(), 0)) do (_, dc, _), ((_, back), dz)
+            ds, da, db = back(dc + dz)
+            # Don't need to store every 'da', but need for next iteration, and the last one.
+        end
+        dop = sum(first, trio)
+        dx = map(last, _reverse1(trio))
+        if init == _InitialValue()
+            # `hobbits` is one short, and the first one is weird
+            dx = _vcat1(trio[end][2] + dy_plain[1], dx)
+        end
+        return (NoTangent(), dop, project(_reshape1(dx, axe)))
+    end
+    return _reshape1(y, axe), decumulate
 end

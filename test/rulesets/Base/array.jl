@@ -198,3 +198,79 @@ end
     test_rrule(fill, 55 + 0.5im, 5)
     test_rrule(fill, 3.3, (3, 3, 3))
 end
+
+@testset "findmin & findmax" begin
+    # Forward
+    test_frule(findmin, rand(10))
+    test_frule(findmax, rand(10))
+    @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4))) isa Tuple{Tuple{Float64, CartesianIndex}, Tangent}
+    @test @inferred(frule((nothing, rand(3,4)), findmin, rand(3,4), dims=1)) isa Tuple{Tuple{Matrix, Matrix}, Tangent}
+    @test_skip test_frule(findmin, rand(3,4)) # error from test_approx(actual::CartesianIndex{2}, expected::CartesianIndex{2}
+    @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
+    @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
+    # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
+
+    # Reverse
+    test_rrule(findmin, rand(10), output_tangent = (rand(), false))
+    test_rrule(findmax, rand(10), output_tangent = (rand(), false))
+    test_rrule(findmin, rand(5,3))
+    test_rrule(findmax, rand(5,3))
+    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+    
+    # Reverse with dims:
+    @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
+    @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()))
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=2,))
+
+    # Second derivatives
+    test_frule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+    test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+    @test_skip test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching isapprox(::Matrix{Float64}, ::Float64; rtol=1.0e-9, atol=1.0e-9)
+    y, bk = rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
+    @test y == [0 0; 5 5]
+    @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
+end
+
+@testset "$imum" for imum in [maximum, minimum]
+    # Forward
+    test_frule(imum, rand(10))
+    test_frule(imum, rand(3,4))
+    test_frule(imum, rand(3,4), fkwargs=(dims=1,))
+    test_frule(imum, [rand(2) for _ in 1:3])
+    test_frule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,))
+
+    # Reverse
+    test_rrule(imum, rand(10))
+    test_rrule(imum, rand(3,4))
+    test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
+    test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+    # Arrays of arrays
+    test_rrule(imum, [rand(2) for _ in 1:3]; check_inferred=false)
+    test_rrule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,), check_inferred=false)
+
+    # Case which attains max twice -- can't use FiniteDifferences for this
+    res = imum == maximum ? [0,1,0,0,0,0] : [1,0,0,0,0,0]
+    @test res == @inferred unthunk(rrule(imum, [1,2,1,2,1,2])[2](1.0)[2])
+
+    # Structured matrix -- NB the minimum is a structral zero here
+    @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Diagonal
+    @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular{Float64}
+    @test_skip test_rrule(imum, Diagonal(rand(3) .+ 1)) # MethodError: no method matching zero(::Type{Any}), from fill!(A::SparseArrays.SparseMatrixCSC{Any, Int64}, x::Bool)
+end
+
+@testset "extrema" begin
+    test_rrule(extrema, rand(10), output_tangent = (rand(), rand()))
+    test_rrule(extrema, rand(3,4), fkwargs=(dims=1,), output_tangent = collect(zip(rand(1,4), rand(1,4))))
+    # Case where both extrema are the same index, to check accumulation:
+    test_rrule(extrema, rand(1), output_tangent = (rand(), rand()))
+    test_rrule(extrema, rand(1,1), fkwargs=(dims=2,), output_tangent = hcat((rand(), rand())))
+    test_rrule(extrema, rand(3,1), fkwargs=(dims=2,), output_tangent = collect(zip(rand(3,1), rand(3,1))))
+    # Double-check the forward pass
+    A = randn(3,4,5)
+    @test extrema(A, dims=(1,3)) == rrule(extrema, A, dims=(1,3))[1]
+    B = hcat(A[:,:,1], A[:,:,1])
+    @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
+end
