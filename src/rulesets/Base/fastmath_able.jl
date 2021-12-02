@@ -231,19 +231,46 @@ let
             # Optimized version of `Δx .* y .+ x .* Δy`. Also, it is potentially more
             # accurate on machines with FMA instructions, since there are only two
             # rounding operations, one in `muladd/fma` and the other in `*`.
-            ∂xy = muladd.(Δx, y, x .* Δy)
+            ∂xy = muladd(Δx, y, x * Δy)
             return x * y, ∂xy
         end
+        frule((_, Δx), ::typeof(*), x::Number) = x, Δx
 
         function rrule(::typeof(*), x::Number, y::Number)
-            project_x = ProjectTo(x)
-            project_y = ProjectTo(y)
-            function times_pullback(Ω̇)
+            function times_pullback2(Ω̇)
                 ΔΩ = unthunk(Ω̇)
-                return (NoTangent(),  project_x(ΔΩ * y'), project_y(x' * ΔΩ))
+                return (NoTangent(), ProjectTo(x)(ΔΩ * y'), ProjectTo(y)(x' * ΔΩ))
             end
-            return x * y, times_pullback
+            return x * y, times_pullback2
         end
+        # While 3-arg * calls 2-arg *, this is currently slow in Zygote:
+        # https://github.com/JuliaDiff/ChainRules.jl/issues/544
+        function rrule(::typeof(*), x::Number, y::Number, z::Number)
+            function times_pullback3(Ω̇)
+                ΔΩ = unthunk(Ω̇)
+                return (
+                    NoTangent(), 
+                    ProjectTo(x)(ΔΩ * y' * z'),
+                    ProjectTo(y)(x' * ΔΩ * z'),
+                    ProjectTo(z)(x' * y' * ΔΩ),
+                )
+            end
+            return x * y * z, times_pullback3
+        end
+        # Instead of this recursive rule for N args, you could write the generic case
+        # directly, by nesting ntuples, but this didn't infer well:
+        # https://github.com/JuliaDiff/ChainRules.jl/pull/547/commits/3558951c9f1b3c70e7135fd61d29cc3b96a68dea
+        function rrule(::typeof(*), x::Number, y::Number, z::Number, more::Number...)
+            Ω3, back3 = rrule(*, x, y, z)
+            Ω4, back4 = rrule(*, Ω3, more...)
+            function times_pullback4(Ω̇)
+                Δ4 = back4(unthunk(Ω̇))  # (0, ΔΩ3, Δmore...)
+                Δ3 = back3(Δ4[2])       # (0, Δx, Δy, Δz)
+                return (Δ3..., Δ4[3:end]...)
+            end
+            return Ω4, times_pullback4
+        end
+        rrule(::typeof(*), x::Number) = rrule(identity, x)
     end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
