@@ -105,11 +105,13 @@
             test_rrule(*, x, y)
         end
         @testset "*($x, $y, ...)" for x in test_points, y in test_points
+            # This promotion is only for FiniteDifferences, the rules allow mixtures:
             x, y = Base.promote(x, y)
 
-            test_rrule(*, x, y, x+y)
-            test_rrule(*, x, y, 17x, 23y)
-            test_rrule(*, x, y, 7x, 3y, x+y+pi)
+            # Inference fails on 1.0, passes on 1.6
+            test_rrule(*, x, y, x+y; check_inferred=VERSION>v"1.5")
+            test_rrule(*, x, y, 17x, 23y; check_inferred=VERSION>v"1.5")
+            test_rrule(*, x, y, 7x, 3y, x+y+pi; check_inferred=VERSION>v"1.5")
         end
     end
 
