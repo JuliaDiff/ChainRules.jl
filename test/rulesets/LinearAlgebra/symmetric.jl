@@ -307,7 +307,7 @@
                 λ = if f in (acos, asin, atanh)
                     # generate random number between -1 and 0.9. This would be between
                     # -1 and 1 but we want to avoid domain errors from numerical error
-                    1.9 .* rand(real(T), n) .- 1
+                    T(1.9) .* rand(real(T), n) .- 1
                 elseif f in (log, sqrt)
                     abs.(randn(real(T), n))
                 elseif f === acosh
