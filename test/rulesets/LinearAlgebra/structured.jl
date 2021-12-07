@@ -7,8 +7,8 @@
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-4, atol = 1.0e-4)
-            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-4, atol = 1.0e-4)
+            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-3, atol = 1.0e-3)
+            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-3, atol = 1.0e-3)
         end
     end
 
