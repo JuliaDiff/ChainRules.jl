@@ -99,8 +99,8 @@ end
     (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))),
 )
 
-@scalar_rule deg2rad(x) π / oftype(x, 180)
-@scalar_rule rad2deg(x) oftype(x, 180) / π
+@scalar_rule deg2rad(x) deg2rad(one(x))
+@scalar_rule rad2deg(x) rad2deg(one(x))
 
 @scalar_rule(ldexp(x, y), (2^y, NoTangent()))
 
@@ -114,23 +114,23 @@ end
 @scalar_rule atanh(x) inv(1 - x ^ 2)
 
 
-@scalar_rule acosd(x) (-(oftype(x, 180)) / π) / sqrt(1 - x ^ 2)
-@scalar_rule acotd(x) (-(oftype(x, 180)) / π) / (1 + x ^ 2)
-@scalar_rule acscd(x) ((-(oftype(x, 180)) / π) / x ^ 2) / sqrt(1 - x ^ -2)
-@scalar_rule acscd(x::Real) ((-(oftype(x, 180)) / π) / abs(x)) / sqrt(x ^ 2 - 1)
-@scalar_rule asecd(x) ((oftype(x, 180) / π) / x ^ 2) / sqrt(1 - x ^ -2)
-@scalar_rule asecd(x::Real) ((oftype(x, 180) / π) / abs(x)) / sqrt(x ^ 2 - 1)
-@scalar_rule asind(x) (oftype(x, 180) / π) / sqrt(1 - x ^ 2)
-@scalar_rule atand(x) (oftype(x, 180) / π) / (1 + x ^ 2)
+@scalar_rule acosd(x) -inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule acotd(x) -inv(deg2rad(1 + x ^ 2))
+@scalar_rule acscd(x) -inv(deg2rad(x^2 * sqrt(1 - x ^ -2)))
+@scalar_rule acscd(x::Real) -inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
+@scalar_rule asecd(x) inv(deg2rad(x ^ 2 * sqrt(1 - x ^ -2)))
+@scalar_rule asecd(x::Real) inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
+@scalar_rule asind(x) inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule atand(x) inv(deg2rad(1 + x ^ 2))
 
 @scalar_rule cot(x) -((1 + Ω ^ 2))
 @scalar_rule coth(x) -(csch(x) ^ 2)
-@scalar_rule cotd(x) -(π / oftype(x, 180)) * (1 + Ω ^ 2)
+@scalar_rule cotd(x) -deg2rad(1 + Ω ^ 2)
 @scalar_rule csc(x) -Ω * cot(x)
-@scalar_rule cscd(x) -(π / oftype(x, 180)) * Ω * cotd(x)
+@scalar_rule cscd(x) -deg2rad(Ω * cotd(x))
 @scalar_rule csch(x) -(coth(x)) * Ω
 @scalar_rule sec(x) Ω * tan(x)
-@scalar_rule secd(x) (π / oftype(x, 180)) * Ω * tand(x)
+@scalar_rule secd(x) deg2rad(Ω * tand(x))
 @scalar_rule sech(x) -(tanh(x)) * Ω
 
 @scalar_rule acot(x) -(inv(1 + x ^ 2))
@@ -139,11 +139,11 @@ end
 @scalar_rule asec(x) inv(x ^ 2 * sqrt(1 - x ^ -2))
 @scalar_rule asec(x::Real) inv(abs(x) * sqrt(x ^ 2 - 1))
 
-@scalar_rule cosd(x) -(π / oftype(x, 180)) * sind(x)
+@scalar_rule cosd(x) -deg2rad(sind(x))
 @scalar_rule cospi(x) -π * sinpi(x)
-@scalar_rule sind(x) (π / oftype(x, 180)) * cosd(x)
+@scalar_rule sind(x) deg2rad(cosd(x))
 @scalar_rule sinpi(x) π * cospi(x)
-@scalar_rule tand(x) (π / oftype(x, 180)) * (1 + Ω ^ 2)
+@scalar_rule tand(x) deg2rad(1 + Ω ^ 2)
 
 @scalar_rule sinc(x) cosc(x)
 
