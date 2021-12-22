@@ -132,7 +132,7 @@ end
 ##### fused 3-argument *
 #####
 
-if VERSION > v"1.7.0-DEV.1284"
+if VERSION > v"1.7.0-"
 
     const mat_mat_scalar = LinearAlgebra.mat_mat_scalar
     const mat_vec_scalar = LinearAlgebra.mat_vec_scalar
@@ -160,8 +160,8 @@ if VERSION > v"1.7.0-DEV.1284"
             )
             γthunk = @thunk if iszero(γ)
                 # Could save A*B on the forward pass, but it's messy.
-                # This ought to be rare, and guarantees the same type:
-                project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ))
+                # This ought to be rare, should guarantee the same type:
+                project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ) / one(γ))
             else
                 project_γ(dot(C, Ȳ) / conj(γ))
             end

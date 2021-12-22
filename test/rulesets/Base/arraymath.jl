@@ -111,7 +111,7 @@
         end
     end
 
-    if VERSION > v"1.7.0-DEV.1284"
+    if VERSION > v"1.7.0-"
         mat_mat_scalar = LinearAlgebra.mat_mat_scalar
         mat_vec_scalar = LinearAlgebra.mat_vec_scalar
         StridedMaybeAdjOrTransMat = LinearAlgebra.StridedMaybeAdjOrTransMat
@@ -122,7 +122,7 @@
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
             test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
-            
+
             test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
             test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
 
