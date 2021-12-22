@@ -112,8 +112,12 @@
     end
 
     if VERSION > v"1.7.0-DEV.1284"
+        mat_mat_scalar = LinearAlgebra.mat_mat_scalar
+        mat_vec_scalar = LinearAlgebra.mat_vec_scalar
+        StridedMaybeAdjOrTransMat = LinearAlgebra.StridedMaybeAdjOrTransMat
+        # using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
+
         @testset "3-arg *, $T" for T in [Float64] # , ComplexF64]
-            using LinearAlgebra: mat_mat_scalar, mat_vec_scalar
 
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
@@ -124,9 +128,9 @@
             # Test with γ of a wider type
             A, B, b, γ = rand(3,3), rand(3,3), rand(3), rand()
             dZ, dz = rand(3,3), rand(3)
-            rrule(mat_mat_scalar, A, B, γ+0im   )[2](dZ)[4]() ≈ rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4]()
-            rrule(mat_mat_scalar, A, B, 0.0+0im )[2](dZ)[4]() ≈ rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4]()
-            rrule(mat_vec_scalar, A, b, γ+0im   )[2](dz)[4]() ≈ rrule(mat_vec_scalar, A, b, γ)[2](dz)[4]()
+            unthunk(rrule(mat_mat_scalar, A, B, γ+0im   )[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
+            unthunk(rrule(mat_mat_scalar, A, B, 0.0+0im )[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
+            unthunk(rrule(mat_vec_scalar, A, b, γ+0im   )[2](dz)[4]) ≈ unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
         end
     end # VERSION
 
