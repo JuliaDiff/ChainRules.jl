@@ -122,6 +122,7 @@
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
             test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
             test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
+            
             test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
             test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
 
