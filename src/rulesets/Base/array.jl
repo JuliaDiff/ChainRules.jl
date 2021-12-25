@@ -504,3 +504,12 @@ function _extrema_dims(x, dims)
     end
     return y, extrema_pullback_dims
 end
+
+#####
+##### `parent`
+#####
+
+function rrule(::typeof(parent), A::Base.SubArray)
+    parent_pullback(Δ) = (NoTangent(), view(Δ, A.indices...))
+    parent(A), parent_pullback
+end

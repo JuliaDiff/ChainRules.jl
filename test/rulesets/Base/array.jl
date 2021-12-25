@@ -274,3 +274,12 @@ end
     B = hcat(A[:,:,1], A[:,:,1])
     @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
 end
+
+@testset "parent" begin
+    # Reverse
+    A = rand(3, 4)
+    B = view(A, 2:3, 2)
+    a, b = rrule(parent, B)
+    @test a === A
+    @test b(A)[2] == B
+end
