@@ -50,7 +50,7 @@ end
     # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
 
     @test invperm((3, 1, 2)) != (3, 1, 2)
-    test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2); check_inferred=VERSION>=v"1.1"))
+    test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2); check_inferred=VERSION>=v"1.1")
 
     @test_skip test_rrule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
     x = rand(2, 3, 4)
