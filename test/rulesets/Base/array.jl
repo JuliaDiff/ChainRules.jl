@@ -46,7 +46,7 @@ end
     test_rrule(permutedims, rand(5))
     test_rrule(permutedims, rand(3, 4), (2, 1))
     @test invperm((3, 1, 2)) != (3, 1, 2)
-    test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2))
+    test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2); check_inferred=VERSION>=v"1.1"))
 
     @test_skip test_rrule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
     x = rand(2, 3, 4)
