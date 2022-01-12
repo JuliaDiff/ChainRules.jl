@@ -18,3 +18,29 @@ function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
     end
     return y_sum / n, mean_pullback
 end
+
+#####
+##### variance
+#####
+
+function rrule(::typeof(Statistics.var), x::AbstractArray{<:Number}; 
+        corrected::Bool=true, dims=:, mean=mean(x, dims=dims))
+    y = Statistics.var(x; corrected=corrected, mean=mean, dims=dims)
+    function variance_pullback(dy)
+        pre = 2 // (_denom(x, dims) - corrected)
+        dx = pre .* unthunk(dy) .* (x .- mean)
+        return (NoTangent(), ProjectTo(x)(dx))
+    end
+    y, variance_pullback
+end
+
+function rrule(::typeof(Statistics.std), x::AbstractArray{<:Number}; 
+        corrected::Bool=true, dims=:, mean=mean(x, dims=dims))
+    y = Statistics.std(x; corrected=corrected, mean=mean, dims=dims)
+    function std_pullback(dy)
+        pre = 1 // (_denom(x, dims) - corrected)
+        dx = pre .* unthunk(dy) .* (x .- mean) ./ y
+        return (NoTangent(), ProjectTo(x)(dx))
+    end
+    y, std_pullback
+end
