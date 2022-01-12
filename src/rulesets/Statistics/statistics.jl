@@ -23,8 +23,13 @@ end
 ##### variance
 #####
 
-function rrule(::typeof(Statistics.var), x::AbstractArray{<:Number}; 
-        corrected::Bool=true, dims=:, mean=mean(x, dims=dims))
+function rrule(
+    ::typeof(Statistics.var),
+    x::AbstractArray{<:Number};
+    corrected::Bool=true,
+    dims=:,
+    mean=mean(x, dims=dims)
+)
     y = Statistics.var(x; corrected=corrected, mean=mean, dims=dims)
     function variance_pullback(dy)
         pre = 2 // (_denom(x, dims) - corrected)
@@ -34,8 +39,13 @@ function rrule(::typeof(Statistics.var), x::AbstractArray{<:Number};
     y, variance_pullback
 end
 
-function rrule(::typeof(Statistics.std), x::AbstractArray{<:Number}; 
-        corrected::Bool=true, dims=:, mean=mean(x, dims=dims))
+function rrule(
+    ::typeof(Statistics.std),
+    x::AbstractArray{<:Number}; 
+    corrected::Bool=true,
+    dims=:,
+    mean=mean(x, dims=dims)
+)
     y = Statistics.std(x; corrected=corrected, mean=mean, dims=dims)
     function std_pullback(dy)
         pre = 1 // (_denom(x, dims) - corrected)
