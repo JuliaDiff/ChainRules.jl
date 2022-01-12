@@ -76,17 +76,15 @@ function rrule(::typeof(permutedims), x::AbstractVector)
 end
 
 function rrule(::typeof(permutedims), x::AbstractArray, perm)
-    project = ProjectTo(x)
-    iperm = invperm(perm)
-    permutedims_pullback_2(dy) = (NoTangent(), project(permutedims(unthunk(dy), iperm)), NoTangent())
-    return permutedims(x, perm), permutedims_pullback_2
+    pr = ProjectTo(x)  # projection restores e.g. transpose([1,2,3])
+    permutedims_back_2(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return permutedims(x, perm), permutedims_back_2
 end
 
 function rrule(::typeof(PermutedDimsArray), x::AbstractArray, perm)
-    project = ProjectTo(x)
-    iperm = invperm(perm)
-    permutedims_pullback_3(dy) = (NoTangent(), project(permutedims(unthunk(dy), iperm)), NoTangent())
-    return PermutedDimsArray(x, perm), permutedims_pullback_3
+    pr = ProjectTo(x)
+    permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return PermutedDimsArray(x, perm), permutedims_back_3
 end
 
 #####
