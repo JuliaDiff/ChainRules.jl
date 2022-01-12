@@ -44,7 +44,11 @@ end
 
 @testset "permutedims + PermutedDimsArray" begin
     test_rrule(permutedims, rand(5))
+
     test_rrule(permutedims, rand(3, 4), (2, 1))
+    test_rrule(permutedims, Diagonal(rand(5)), (2, 1))
+    # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
+
     @test invperm((3, 1, 2)) != (3, 1, 2)
     test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2); check_inferred=VERSION>=v"1.1"))
 
