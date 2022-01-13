@@ -81,7 +81,7 @@ function rrule(::typeof(permutedims), x::AbstractArray, perm)
     return permutedims(x, perm), permutedims_back_2
 end
 
-function rrule(::typeof(PermutedDimsArray), x::AbstractArray, perm)
+function rrule(::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
     pr = ProjectTo(x)
     permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
     return PermutedDimsArray(x, perm), permutedims_back_3
