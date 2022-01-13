@@ -46,6 +46,8 @@ end
     include("test_helpers.jl")
     println()
 
+    include_test("global_state.jl")
+
     # Each file puts all tests inside one or more @testset blocks
     include_test("rulesets/Base/base.jl")
     include_test("rulesets/Base/fastmath_able.jl")
