@@ -62,13 +62,13 @@ if VERSION ≥ v"1.4"
     end
     function _evalpoly_intermediates(x, p)
         N = length(p)
-        @inbounds yn = one(x) * p[end]
+        @inbounds yn = one(x) * p[lastindex(p)]
         ys = similar(p, typeof(yn), N - 1)
         @inbounds ys[1] = yn
         @inbounds for i in 2:(N - 1)
-            ys[i] = muladd(x, ys[i - 1], p[end - i + 1])
+            ys[i] = muladd(x, ys[i - 1], p[lastindex(p) - i + 1])
         end
-        @inbounds y = muladd(x, ys[N - 1], p[begin])
+        @inbounds y = muladd(x, ys[N - 1], p[firstindex(p)])
         return y, ys
     end
 
