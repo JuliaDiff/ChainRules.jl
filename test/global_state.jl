@@ -15,7 +15,7 @@ parameters(sig::Union) = Base.uniontypes(sig)
         function_type = if method.sig <: Tuple{typeof(rrule), RuleConfig, Type, Vararg}
             parameters(method.sig)[3]
         elseif method.sig <: Tuple{typeof(rrule), Type, Vararg}
-            @show parameters(method.sig)[2]
+            parameters(method.sig)[2]
         else
             nothing
         end
@@ -29,9 +29,9 @@ parameters(sig::Union) = Base.uniontypes(sig)
     # frule
     for method in methods(frule)
         function_type = if method.sig <: Tuple{typeof(frule), RuleConfig, Any, Type, Vararg}
-            parameters(method.sig)[3]
+            parameters(method.sig)[4]
         elseif method.sig <: Tuple{typeof(frule), Any, Type, Vararg}
-            @show parameters(method.sig)[2]
+            @show parameters(method.sig)[3]
         else
             nothing
         end
