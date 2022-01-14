@@ -144,7 +144,7 @@ if VERSION ≥ v"1.4"
                 ∂p[i] = _evalpoly_backp(p[firstindex(p) - 1 + i], ∂yi)
                 ∂yi = x′ * ∂yi
             end
-            ∂p[N] = _evalpoly_backp(p[end], ∂yi)
+            ∂p[N] = _evalpoly_backp(p[lastindex(p)], ∂yi)
         end
         return ∂x, ∂p
     end
