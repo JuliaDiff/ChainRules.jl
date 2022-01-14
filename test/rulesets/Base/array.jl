@@ -11,6 +11,10 @@
         @test pullback(randn(5)) == (NoTangent(), NoTangent(), NoTangent())
     end
     @testset "from existing array" begin
+        # fwd
+        test_frule(Array, randn(2, 5))
+        test_frule(Array, Diagonal(randn(5)))
+        # rev
         test_rrule(Array, randn(2, 5))
         test_rrule(Array, Diagonal(randn(5)))
         test_rrule(Matrix, Diagonal(randn(5)))
@@ -27,6 +31,9 @@ end
         test_rrule(Base.vect, randn(2, 2), randn(3, 3))
     end
     @testset "inhomogeneous type" begin
+        # fwd
+        test_frule(Base.vect, 5.0, 3f0)
+        # rev
         test_rrule(
             Base.vect, 5.0, 3f0;
             atol=1e-6, rtol=1e-6,
@@ -34,17 +41,30 @@ end
         test_rrule(Base.vect, 5.0, randn(3, 3); check_inferred=false)
         test_rrule(Base.vect, (5.0, 4.0), (y=randn(3),); check_inferred=false)
     end
+    @testset "_make_real_zeros" begin
+        # This is an internal function also used for `cat` etc.
+        # It has its own rules to allow for 2nd derivatives.
+        @eval using ChainRules: _make_real_zeros
+        @test_skip test_frule(_make_real_zeros, Tuple(rand(3)), Tuple(rand(3)))
+        @test_skip test_rrule(_make_real_zeros, Tuple(rand(3)), Tuple(rand(3)))
+        # Not sure these are defined right! Currently fail due to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
+    end
 end
 
 @testset "reshape" begin
+    # fwd
+    test_frule(reshape, rand(4, 5), 2, :)
+    # rev
     test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
     test_rrule(reshape, rand(4, 5), 2, :)
 end
 
 @testset "permutedims + PermutedDimsArray" begin
+    test_frule(permutedims, rand(5))
     test_rrule(permutedims, rand(5))
 
+    test_frule(permutedims, rand(3, 4), (2, 1))
     test_rrule(permutedims, rand(3, 4), (2, 1))
     test_rrule(permutedims, Diagonal(rand(5)), (2, 1))
     # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
@@ -59,7 +79,11 @@ end
 end
 
 @testset "repeat" begin
+    # forward
+    test_frule(repeat, rand(4), 2)
+    test_frule(repeat, rand(2, 3); fkwargs = (inner=(1,2), outer=(1,3)))
 
+    # reverse
     test_rrule(repeat, rand(4, ))
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
@@ -92,6 +116,11 @@ end
 end
 
 @testset "hcat" begin
+    # forward
+    test_frule(hcat, randn(3, 2), randn(3))
+    test_frule(hcat, randn(), randn(1,3))
+
+    # reverse
     test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3))
     test_rrule(hcat, rand(), rand(1,2), rand(1,2,1))
     test_rrule(hcat, rand(3,1,1,2), rand(3,3,1,2))
@@ -102,9 +131,11 @@ end
 
 @testset "reduce hcat" begin
     mats = [randn(3, 2), randn(3, 1), randn(3, 3)]
+    test_frule(reduce, hcat, mats)
     test_rrule(reduce, hcat, mats)
     
     vecs = [rand(3) for _ in 1:4]
+    test_frule(reduce, hcat, vecs)
     test_rrule(reduce, hcat, vecs)
     
     mix = AbstractVecOrMat[rand(4,2), rand(4)]  # this is weird, but does hit the fast path
@@ -121,10 +152,17 @@ end
 end
 
 @testset "vcat" begin
+
+    # forward
+    test_frule(vcat, randn(), randn(3), rand())
+    test_frule(vcat, randn(3, 1), randn(3))
+
+    # reverse
     test_rrule(vcat, randn(2, 4), randn(1, 4), randn(3, 4))
     test_rrule(vcat, rand(), rand())
     test_rrule(vcat, rand(), rand(3), rand(3,1,1))
     test_rrule(vcat, rand(3,1,2), rand(4,1,2))
+
 
     # mix types
     test_rrule(vcat, rand(2, 2), rand(2, 2)')
@@ -132,9 +170,11 @@ end
 
 @testset "reduce vcat" begin
     mats = [randn(2, 4), randn(1, 4), randn(3, 4)]
+    test_frule(reduce, vcat, mats)
     test_rrule(reduce, vcat, mats)
 
     vecs = [rand(2), rand(3), rand(4)]
+    test_frule(reduce, vcat, vecs)
     test_rrule(reduce, vcat, vecs)
 
     mix = AbstractVecOrMat[rand(4,1), rand(4)]
@@ -142,6 +182,11 @@ end
 end
 
 @testset "cat" begin
+    # forward
+    test_frule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
+    test_frule(cat, rand(), rand(2,3); fkwargs=(dims=(1,2),))
+
+    # reverse
     test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
     test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
     test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
@@ -151,6 +196,10 @@ end
 end
 
 @testset "hvcat" begin
+    # forward
+    test_frule(hvcat, 2, rand(6)...)
+
+    # reverse
     test_rrule(hvcat, 2, rand(ComplexF64, 6)...)
     test_rrule(hvcat, (2, 1), rand(), rand(1,1), rand(2,2))
     test_rrule(hvcat, 1, rand(3)' ⊢ rand(1,3), transpose(rand(3)) ⊢ rand(1,3))

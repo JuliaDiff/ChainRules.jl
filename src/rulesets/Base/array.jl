@@ -4,6 +4,10 @@
 
 ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
 
+function frule((_, xdot), ::Type{T}, x::AbstractArray) where {T<:Array}
+    return T(x), T(xdot)
+end
+
 function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
     project_x = ProjectTo(x)
     Array_pullback(ȳ) = (NoTangent(), project_x(ȳ))
@@ -15,6 +19,10 @@ end
 #####
 
 @non_differentiable Base.vect()
+
+function frule((_, xdots...), ::typeof(Base.vect), xs::Number...)
+    return Base.vect(xs...), Base.vect(_make_real_zeros(xdots, xs)...)
+end
 
 # Case of uniform type `T`: the data passes straight through,
 # so no projection should be required.
@@ -43,9 +51,33 @@ function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
     return Base.vect(X...), vect_pullback
 end
 
+"""
+    _make_real_zeros(xdots, xs)
+
+Forward rules for `vect` or `cat` may receive a mixture of data and `ZeroTangent`s.
+To avoid `vect(1, ZeroTangent(), 3)` or `hcat([1,2], ZeroTangent())`, this materialises
+each zero `xdot` to be `zero(x)`.
+"""
+_make_real_zeros(xdots, xs) = map(_real_zero, xdots, xs)
+_real_zero(xdot, x) = xdot
+_real_zero(xdot::AbstractZero, x) = zero(x)
+
+# Fast paths. Should it also collapse all-Zero cases?
+_make_real_zeros(xdots::NTuple{<:Any, <:Number}, xs) = xdots
+_make_real_zeros(xdots::AbstractArray{<:Number}, xs) = xdots
+_make_real_zeros(xdots::AbstractArray{<:AbstractArray}, xs) = xdots
+
+frrule((_, xdd, _), ::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xdots, xs), xdd  # not very sure!
+
+rrule(::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xdots, xs), dydots -> (NoTangent(), dydots, NoTangent())
+
 #####
 ##### `reshape`
 #####
+
+function frule((_, xdot), ::typeof(reshape), x::AbstractArray, dims...)
+    return reshape(x, dims...), reshape(xdot, dims...)
+end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
     A_dims = size(A)
@@ -69,6 +101,10 @@ end
 ##### `permutedims`
 #####
 
+function frule((_, xdot), ::typeof(permutedims), x::AbstractArray, perm...)
+    return permutedims(x, perm...), permutedims(xdot, perm...)
+end
+
 function rrule(::typeof(permutedims), x::AbstractVector)
     project = ProjectTo(x)
     permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
@@ -90,6 +126,10 @@ end
 #####
 ##### `repeat`
 #####
+
+function frule((_, xsdot), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
+    return repeat(xs, cnt...; kw...), repeat(xsdot, cnt...; kw...)
+end
 
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
 
@@ -130,6 +170,10 @@ end
 ##### `hcat`
 #####
 
+function frule((_, xdots...), ::typeof(hcat), xs...)
+    return hcat(xs...), hcat(_make_real_zeros(xdots, xs)...)
+end
+
 function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
@@ -164,6 +208,10 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     return Y, hcat_pullback
 end
 
+function frule((_, _, Adots), ::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(hcat, As), reduce(hcat, _make_real_zeros(Adots, As))
+end
+
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
     widths = map(A -> size(A,2), As)
     function reduce_hcat_pullback_2(dY)
@@ -191,6 +239,10 @@ end
 #####
 ##### `vcat`
 #####
+
+function frule((_, xdots...), ::typeof(vcat), xs...)
+    return vcat(xs...), vcat(_make_real_zeros(xdots, xs)...)
+end
 
 function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     Y = vcat(Xs...)
@@ -224,6 +276,10 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     return Y, vcat_pullback
 end
 
+function frule((_, _, Adots), ::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(vcat, As), reduce(vcat, _make_real_zeros(Adots, As))
+end
+
 function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
     Y = reduce(vcat, As)
     ndimsY = Val(ndims(Y))
@@ -246,6 +302,10 @@ end
 #####
 
 _val(::Val{x}) where {x} = x
+
+function frule((_, xdots...), ::typeof(cat), xs...; dims)
+    return cat(xs...; dims), cat(_make_real_zeros(xdots, xs)...; dims)
+end
 
 function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
     Y = cat(Xs...; dims=dims)
@@ -284,6 +344,10 @@ end
 #####
 ##### `hvcat`
 #####
+
+function frule((_, _, xdots...), ::typeof(hvcat), rows, xs...)
+    return hvcat(rows, xs...), hvcat(rows, _make_real_zeros(xdots, xs)...)
+end
 
 function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
     Y = hvcat(rows, values...)
