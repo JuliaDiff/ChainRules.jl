@@ -61,7 +61,6 @@ if VERSION ≥ v"1.4"
         return y, ys
     end
     function _evalpoly_intermediates(x, p)
-        @show :hi, p
         N = length(p)
         @inbounds yn = one(x) * p[lastindex(p)]
         ys = similar(p, typeof(yn), N - 1)
