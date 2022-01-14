@@ -61,6 +61,7 @@ if VERSION ≥ v"1.4"
         return y, ys
     end
     function _evalpoly_intermediates(x, p)
+        @show :hi, p
         N = length(p)
         @inbounds yn = one(x) * p[lastindex(p)]
         ys = similar(p, typeof(yn), N - 1)
@@ -133,7 +134,7 @@ if VERSION ≥ v"1.4"
         x′ = x'
         ∂yi = one(x′) * Δy
         N = length(p)
-        @inbounds ∂p1 = _evalpoly_backp(p[1], ∂yi)
+        @inbounds ∂p1 = _evalpoly_backp(p[firstindex(p)], ∂yi)
         ∂p = similar(p, typeof(∂p1))
         @inbounds begin
             ∂x = _evalpoly_backx(x, ys[N - 1], ∂yi)
@@ -141,10 +142,10 @@ if VERSION ≥ v"1.4"
             ∂p[1] = ∂p1
             for i in 2:(N - 1)
                 ∂x = _evalpoly_backx(x, ys[N - i], ∂x, ∂yi)
-                ∂p[i] = _evalpoly_backp(p[i], ∂yi)
+                ∂p[i] = _evalpoly_backp(p[firstindex(p) - 1 + i], ∂yi)
                 ∂yi = x′ * ∂yi
             end
-            ∂p[N] = _evalpoly_backp(p[N], ∂yi)
+            ∂p[N] = _evalpoly_backp(p[end], ∂yi)
         end
         return ∂x, ∂p
     end
