@@ -3,11 +3,11 @@ if VERSION ≥ v"1.4"
     function frule((_, ẋ, ṗ), ::typeof(evalpoly), x, p)
         Δx, Δp = ẋ, unthunk(ṗ)
         N = length(p)
-        @inbounds y = p[N]
+        @inbounds y = p[end]
         Δy = Δp[N]
         @inbounds for i in (N - 1):-1:1
             Δy = muladd(Δx, y, muladd(x, Δy, Δp[i]))
-            y = muladd(x, y, p[i])
+            y = muladd(x, y, p[firstindex(p) - 1 + i])
         end
         return y, Δy
     end
