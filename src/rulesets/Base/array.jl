@@ -527,3 +527,42 @@ function _extrema_dims(x, dims)
     end
     return y, extrema_pullback_dims
 end
+
+#####
+##### `pmap`
+#####
+
+using UUIDs # of course we don't want this;
+            # what is a better way of uniquely identifying function calls from the forward pass?
+
+save_backs = Dict() # could this be a stack instead?
+
+# Now that there is a backwards rule for zip (albeit only in Zygote),
+# it should be fine to deal with only a single collection c
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, c; kwargs...)
+    key = uuid1()
+    function forw(i, a)
+        y, back = rrule_via_ad(config, f, a)
+        save_backs[(key,i)] = back;
+        return y, myid()
+    end
+
+    I = reshape(eachindex(c), size(c))
+    ys_IDs = pmap(forw, I, c; kwargs...)
+    ys = map(first, ys_IDs)
+    IDs = map(last, ys_IDs)
+
+    function pmap_pullback(ȳ)
+        # TODO: fails when spawn on own processor
+        remote_calls = map((i, ID, ȳ) -> (@spawnat ID save_backs[(key,i)](ȳ)), I, IDs, ȳ)
+        res = map(fetch, remote_calls)
+        for (i, ID) in zip(I, IDs)
+            @spawnat ID delete!(save_backs, (key, i))
+        end
+        f̄ = sum(first, res)
+        c̄ = map(last, res)
+        (nothing, f̄, nothing, c̄)
+    end
+
+    ys, pmap_pullback
+end
