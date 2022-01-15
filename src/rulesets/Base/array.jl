@@ -559,7 +559,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
         end
         f̄ = sum(first, res)
         Ā = map(last, res)
-        return (nothing, f̄, nothing, Ā)
+        return (NoTangent(), f̄, NoTangent(), Ā)
     end
 
     return ys, pmap_pullback
