@@ -537,29 +537,42 @@ const COUNTER = Ref(1)
 
 # Now that there is a backwards rule for zip (albeit only in Zygote),
 # it should be fine to deal with only a single collection c
-function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, A::AbstractArray; kwargs...)
-    function forw(a)
-        y, back = rrule_via_ad(config, f, a)
-        key = COUNTER[]
-        save_backs[key] = back;
-        COUNTER[] += 1
-        return y, myid(), key
-    end
-
-    ys_IDs_keys = pmap(forw, A; kwargs...)
-    ys = getindex.(ys_IDs_keys, 1)
-    IDs = getindex.(ys_IDs_keys, 2)
-    keys = getindex.(ys_IDs_keys, 3)
-
-    function pmap_pullback(ȳ)
-        remote_calls = map((ID, key, ȳ) -> (@spawnat ID save_backs[key](ȳ)), IDs, keys, ȳ)
-        res = map(fetch, remote_calls)
-        @sync for (ID, key) in zip(IDs, keys)
-            @spawnat ID delete!(save_backs, key)
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X::AbstractArray; batch_size=1, kwargs...)
+    if batch_size == 1
+        function forw(x)
+            y, back = rrule_via_ad(config, f, x)
+            key = COUNTER[]
+            save_backs[key] = back;
+            COUNTER[] += 1
+            return y, myid(), key
         end
-        f̄ = sum(first, res)
-        Ā = map(last, res)
-        return (NoTangent(), f̄, NoTangent(), Ā)
+
+        ys_IDs_keys = pmap(forw, X; kwargs...)
+        ys = getindex.(ys_IDs_keys, 1)
+        IDs = getindex.(ys_IDs_keys, 2)
+        keys = getindex.(ys_IDs_keys, 3)
+
+        pmap_pullback = function (Ȳ)
+            remote_calls = map((ID, key, ȳ) -> (@spawnat ID save_backs[key](ȳ)), IDs, keys, Ȳ)
+            res = map(fetch, remote_calls)
+            @sync for (ID, key) in zip(IDs, keys)
+                @spawnat ID delete!(save_backs, key)
+            end
+            f̄ = sum(first, res)
+            Ā = map(last, res)
+            return (NoTangent(), f̄, NoTangent(), Ā)
+        end
+    else
+        ys_backs = pmap(x -> rrule_via_ad(config, f, x), p, X; batch_size=batch_size, kwargs...)
+        ys = map(first, ys_backs)
+        backs = map(last, ys_backs)
+
+        pmap_pullback = function(Ȳ)
+            res = pmap((back, ȳ) -> back(ȳ), p, backs, Ȳ; kwargs...)
+            f̄ = sum(first, res)
+            Ā = map(last, res)
+            return (NoTangent(), f̄, NoTangent(), Ā)
+        end
     end
 
     return ys, pmap_pullback
