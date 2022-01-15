@@ -367,6 +367,25 @@ function rrule(::typeof(fill), x::Any, dims...)
 end
 
 #####
+##### `filter`
+#####
+
+function frule((_, xdot), ::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    return x[inds], xdot[inds]
+end
+
+function rrule(::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    y, back = rrule(getindex, x, inds)
+    function filter_pullback(dy)
+        _, dx, _ = back(dy)
+        return (NoTangent(), NoTangent(), dx)
+    end
+    return y, filter_pullback
+end
+
+#####
 ##### `findmax`, `maximum`, etc.
 #####
 

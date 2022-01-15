@@ -215,6 +215,14 @@ end
     test_rrule(fill, 3.3, (3, 3, 3))
 end
 
+@testset "filter" begin
+    test_frule(filter, >(0.5), rand(10))
+    test_frule(filter, <(0), rand(3, 4))
+
+    test_rrule(filter, >(0.5), rand(10))
+    test_rrule(filter, <(0), rand(3, 4))
+end
+
 @testset "findmin & findmax" begin
     # Forward
     test_frule(findmin, rand(10))
