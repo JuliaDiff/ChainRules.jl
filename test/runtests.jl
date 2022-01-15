@@ -22,6 +22,8 @@ union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, Line
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
+const CFG = ChainRulesTestUtils.ADviaRuleConfig() # for testing rules that call back into AD
+
 function include_test(path)
     if isempty(ARGS) || any(occursin(a, path) for a in ARGS)
         println("Testing $path:")  # print so TravisCI doesn't timeout due to no output

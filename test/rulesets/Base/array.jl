@@ -290,3 +290,8 @@ end
     B = hcat(A[:,:,1], A[:,:,1])
     @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
 end
+
+@testset "pmap" begin
+    test_rrule(pmap, sqrt, WorkerPool(), rand(10))
+    test_rrule(pmap, sqrt, WorkerPool(), rand(10), fkwargs=(batch_size=2,))
+end
