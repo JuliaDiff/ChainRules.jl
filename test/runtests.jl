@@ -71,6 +71,7 @@ end
     include_test("rulesets/LinearAlgebra/factorization.jl")
     include_test("rulesets/LinearAlgebra/blas.jl")
     include_test("rulesets/LinearAlgebra/lapack.jl")
+    include_test("rulesets/LinearAlgebra/uniformscaling.jl")
 
     println()
 
