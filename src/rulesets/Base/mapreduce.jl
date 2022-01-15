@@ -427,11 +427,12 @@ end
 # to carry intermediate results along creates arrays of tuples which could be avoided; using a
 # loop can be a few times faster. Note also that it does not return a gradient for `init`.
 
+# Maybe that's a problem. Let's move the rule to `mapfoldr_impl(f, op, init, itr)`, where it's easier?
+
 function rrule(
-        config::RuleConfig{>:HasReverseMode}, ::typeof(foldl), op::G, x::Union{AbstractArray, Tuple};
-        init=_InitialValue()
+        config::RuleConfig{>:HasReverseMode}, ::typeof(Base.mapfoldl_impl), ::typeof(identity), op::G, init, x::Union{AbstractArray, Tuple};        
     ) where {G}
-    list, start = if init === _InitialValue()
+    list, start = if init === _INIT
         _drop1(x), first(x)
     else
         # Case with init keyword is simpler to understand first!
@@ -455,11 +456,12 @@ function rrule(
         end
         dop = sum(first, trio)
         dx = map(last, _reverse1(trio))
-        if init === _InitialValue()
+        if init === _INIT
             # `hobbits` is one short
             dx = _vcat1(trio[end][2], dx)
         end
-        return (NoTangent(), dop, project(_reshape1(dx, axe)))
+        d_init = @not_implemented "gradient for foldl does not at present include init, sorry"
+        return (NoTangent(), NoTangent(), dop, d_init, project(_reshape1(dx, axe)))
     end
     return y, unfoldl
 end
@@ -484,7 +486,8 @@ _reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
 
-struct _InitialValue end  # Old versions don't have `Base._InitialValue`
+# struct _InitialValue end  # Old versions don't have `Base._InitialValue`
+const _INIT = VERSION >= v"1.5" ? Base._InitialValue() : NamedTuple()
 
 _vcat1(x, ys::AbstractVector) = vcat(x, ys)
 _vcat1(x::AbstractArray, ys::AbstractVector) = vcat([x], ys)
@@ -505,7 +508,7 @@ _no_tuple_tangent(dx) = dx
 
 function rrule(
         config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), op::G, x::Union{AbstractArray, Tuple}; 
-        init=_InitialValue(), dims=nothing
+        init=_INIT, dims=nothing
     ) where {G}
     isnothing(dims) || dims == 1 && x isa Base.AbstractVecOrTuple || throw(
         "accumulate(op, x; dims) is not currently supported by ChainRules, sorry"
@@ -513,7 +516,7 @@ function rrule(
         # gradient(x -> sum(accumulate(/, x, dims=1)), rand(3,4)) 
         # ERROR: Mutating arrays is not supported
     )
-    list, start = if init === _InitialValue()
+    list, start = if init === _INIT
         _drop1(x), first(x)
     else
         x, init
@@ -522,7 +525,7 @@ function rrule(
         c, back = rrule_via_ad(config, op, a, b)
     end
     y = map(first, hobbits)
-    if init === _InitialValue()
+    if init === _INIT
         # `hobbits` is one short, and first one doesn't invoke `op`
         y = _vcat1(first(x), y)
     end
@@ -543,7 +546,7 @@ function rrule(
         end
         dop = sum(first, trio)
         dx = map(last, _reverse1(trio))
-        if init == _InitialValue()
+        if init == _INIT
             # `hobbits` is one short, and the first one is weird
             dx = _vcat1(trio[end][2] + dy_plain[1], dx)
         end
