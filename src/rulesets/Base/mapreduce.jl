@@ -506,34 +506,35 @@ _no_tuple_tangent(dx) = dx
 
 # Like `foldl` this by definition works in order, so it makes sense to allow stateful `f`.
 
+# Also like `foldl`, the version with a keyword `init` can't easily be given a gradient.
+# Move it down to: `_accumulate!(op, B, A::AbstractVector, dims::Nothing, init::Nothing)`
+
 function rrule(
-        config::RuleConfig{>:HasReverseMode}, ::typeof(accumulate), op::G, x::Union{AbstractArray, Tuple}; 
-        init=_INIT, dims=nothing
+        config::RuleConfig{>:HasReverseMode}, ::typeof(Base._accumulate!), op::G, y, x::AbstractVector, dims::Nothing, init,
     ) where {G}
-    isnothing(dims) || dims == 1 && x isa Base.AbstractVecOrTuple || throw(
-        "accumulate(op, x; dims) is not currently supported by ChainRules, sorry"
-        # It's not supported by AD either, so no point calling back, and no regression:
-        # gradient(x -> sum(accumulate(/, x, dims=1)), rand(3,4)) 
-        # ERROR: Mutating arrays is not supported
-    )
-    list, start = if init === _INIT
+
+    list, start = if init === nothing
         _drop1(x), first(x)
     else
-        x, init
+        x, something(init)
     end
     hobbits = accumulate(list; init = (start, nothing)) do (a, _), b
         c, back = rrule_via_ad(config, op, a, b)
     end
-    y = map(first, hobbits)
-    if init === _INIT
+    # y = map(first, hobbits)
+    if init === nothing
         # `hobbits` is one short, and first one doesn't invoke `op`
-        y = _vcat1(first(x), y)
+        # y = _vcat1(first(x), y)
+        y[1] = first(x)
+        map!(first, @view(y[2:end]), hobbits)
+    else
+        map!(first, y, hobbits)
     end
     axe = axes(x)
     project = ProjectTo(x)
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
-        rev_list = if init === _InitialValue()
+        rev_list = if init === nothing
             # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
             # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
             _zip2(_reverse1(hobbits), _reverse1(dy_plain))
@@ -546,11 +547,14 @@ function rrule(
         end
         dop = sum(first, trio)
         dx = map(last, _reverse1(trio))
-        if init == _INIT
+        if init == nothing
             # `hobbits` is one short, and the first one is weird
             dx = _vcat1(trio[end][2] + dy_plain[1], dx)
         end
-        return (NoTangent(), dop, project(_reshape1(dx, axe)))
+        dy = @not_implemented "no gradient for `B` in `accumulate!(f, B, A)`, the rule intends to support `accumulate` only"
+        d_init_not = @not_implemented "gradient for accumulate does not at present include init, sorry"
+        d_init = init === nothing ? NoTangent() : Tangent{typeof(init)}(; value = d_init_not)
+        return (NoTangent(), dop, dy, project(_reshape1(dx, axe)), NoTangent(), d_init)
     end
     return _reshape1(y, axe), decumulate
 end
