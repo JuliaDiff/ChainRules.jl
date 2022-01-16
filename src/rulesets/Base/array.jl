@@ -539,28 +539,29 @@ const COUNTER = Ref(1)
 # it should be fine to deal with only a single collection c
 function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X::AbstractArray; batch_size=1, kwargs...)
     if batch_size == 1
+        key = COUNTER[]
+        COUNTER[] += 1
         function forw(x)
             y, back = rrule_via_ad(config, f, x)
-            key = COUNTER[]
-            save_backs[key] = back;
-            COUNTER[] += 1
-            return y, myid(), key
+            !haskey(save_backs, key) && (save_backs[key] = [])
+            push!(save_backs[key], back)
+            return y, myid(), length(save_backs[key])
         end
 
-        ys_IDs_keys = pmap(forw, X; kwargs...)
-        ys = getindex.(ys_IDs_keys, 1)
-        IDs = getindex.(ys_IDs_keys, 2)
-        keys = getindex.(ys_IDs_keys, 3)
+        ys_IDs_indices = pmap(forw, X; kwargs...)
+        ys = getindex.(ys_IDs_indices, 1)
+        IDs = getindex.(ys_IDs_indices, 2)
+        indices = getindex.(ys_IDs_indices, 3)
 
         pmap_pullback = function (Ȳ)
-            remote_calls = map((ID, key, ȳ) -> (@spawnat ID save_backs[key](ȳ)), IDs, keys, Ȳ)
+            remote_calls = map((ID, i, ȳ) -> (@spawnat ID save_backs[key][i](ȳ)), IDs, indices, unthunk(Ȳ))
             res = map(fetch, remote_calls)
-            @sync for (ID, key) in zip(IDs, keys)
+            @sync for ID in IDs
                 @spawnat ID delete!(save_backs, key)
             end
             f̄ = sum(first, res)
-            Ā = map(last, res)
-            return (NoTangent(), f̄, NoTangent(), Ā)
+            X̄ = map(last, res)
+            return (NoTangent(), f̄, NoTangent(), X̄)
         end
     else
         ys_backs = pmap(x -> rrule_via_ad(config, f, x), p, X; batch_size=batch_size, kwargs...)
@@ -568,10 +569,10 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
         backs = map(last, ys_backs)
 
         pmap_pullback = function(Ȳ)
-            res = pmap((back, ȳ) -> back(ȳ), p, backs, Ȳ; kwargs...)
+            res = pmap((back, ȳ) -> back(ȳ), p, backs, unthunk(Ȳ); batch_size=batch_size, kwargs...)
             f̄ = sum(first, res)
-            Ā = map(last, res)
-            return (NoTangent(), f̄, NoTangent(), Ā)
+            X̄ = map(last, res)
+            return (NoTangent(), f̄, NoTangent(), X̄)
         end
     end
 
