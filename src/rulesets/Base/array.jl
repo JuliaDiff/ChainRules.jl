@@ -539,7 +539,7 @@ const COUNTER = Ref(1)
 # it should be fine to deal with only a single collection c
 function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X::AbstractArray; batch_size=1, kwargs...)
     if batch_size == 1
-        key = COUNTER[]
+        key = myid(), COUNTER[]
         COUNTER[] += 1
         function forw(x)
             y, back = rrule_via_ad(config, f, x)
