@@ -370,7 +370,12 @@ end
 ##### `filter`
 #####
 
-function frule((_, xdot), ::typeof(filter), f, x::Union{AbstractArray, Tuple})
+function frule((_, _, xdot), ::typeof(filter), f, x::Tuple)
+    inds = findall(f, x)
+    return x[inds], Tangent{typeof(x)}(xdot[inds]...)
+end
+
+function frule((_, _, xdot), ::typeof(filter), f, x::AbstractArray)
     inds = findall(f, x)
     return x[inds], xdot[inds]
 end
