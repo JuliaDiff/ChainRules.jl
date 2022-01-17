@@ -166,7 +166,7 @@ end
 @testset "reverse" begin
     @testset "Tuple" begin
         test_frule(reverse, Tuple(rand(10)))
-        @test_skip test_rrule(reverse, Tuple(rand(10)))  # MethodError: (::ChainRulesTestUtils.var"#test_approx##kw")(::NamedTuple{(:rtol, :atol), Tuple{Float64, Float64}}, ::typeof(test_approx), ::Thunk{ChainRules.var"#1293#1295"{Tangent{NTuple{10, Float64}, NTuple{10, Float64}}, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}, Tuple{}}}, ::Tangent{NTuple{10, Float64}, NTuple{10, Float64}}) is ambiguous
+        @test_skip test_rrule(reverse, Tuple(rand(10)))  # Ambiguity in isapprox, https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
     end
     @testset "Array" begin
         # Forward
@@ -227,14 +227,14 @@ end
         x34 = randn(3,4); x34[3] = 1; x34[5] = -1;
 
         # Forward
-        @test_skip test_frule(filter, >(0.5) ⊢ NoTangent(), x10)  # mysterious DimensionMismatch
+        @test_skip test_frule(filter, >(0.5) ⊢ NoTangent(), x10)  # Intermittent error, DimensionMismatch("dimensions must match: a has dims (Base.OneTo(7),), b has dims (Base.OneTo(6),), mismatch at 1")
         test_frule(filter, <(0), x34)
         test_frule(filter, >(100), x10)
 
         # Reverse
-        test_rrule(filter, >(0.5) ⊢ NoTangent(), x10)  # without ⊢ this is MethodError: no method matching zero(::Base.Fix2{typeof(>), Float64})
+        test_rrule(filter, >(0.5) ⊢ NoTangent(), x10)  # Without ⊢, MethodError: zero(::Base.Fix2{typeof(>), Float64}) -- https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/231
         test_rrule(filter, <(0), x34)
-        @test_skip test_rrule(filter, >(100), x10)  # MethodError: no method matching iterate(::Nothing)
+        @test test_rrule(filter, >(100), x10)  # fixed in https://github.com/JuliaDiff/ChainRulesCore.jl/pull/534
         @test unthunk(rrule(filter, >(100), x10)[2](Int[])[3]) == zero(x10)
     end
 end
