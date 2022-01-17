@@ -360,7 +360,7 @@ function frule((_, xdot), ::typeof(fill), x::Any, dims...)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)
-    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
+    project = ProjectTo(x)
     nots = map(Returns(NoTangent()), dims)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
