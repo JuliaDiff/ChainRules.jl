@@ -134,9 +134,7 @@ end
 
 if VERSION > v"1.7.0-"
 
-    const mat_mat_scalar = LinearAlgebra.mat_mat_scalar
-    const mat_vec_scalar = LinearAlgebra.mat_vec_scalar
-    const StridedMaybeAdjOrTransMat = LinearAlgebra.StridedMaybeAdjOrTransMat
+    @eval using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
 
     function rrule(
         ::typeof(mat_mat_scalar),
@@ -179,7 +177,7 @@ if VERSION > v"1.7.0-"
         project_A = ProjectTo(A)
         project_b = ProjectTo(b)
         project_γ = ProjectTo(γ)
-        y  = mat_vec_scalar(A, b, γ)
+        y = mat_vec_scalar(A, b, γ)
         function mat_vec_scalar_back(dy_raw)
             dy = unthunk(dy_raw)
             Athunk = InplaceableThunk(
