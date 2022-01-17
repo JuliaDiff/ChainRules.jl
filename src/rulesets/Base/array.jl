@@ -370,12 +370,12 @@ end
 ##### `filter`
 #####
 
-function frule((_, xdot), ::typeof(filter), f, x::AbstractArray)
+function frule((_, xdot), ::typeof(filter), f, x::Union{AbstractArray, Tuple})
     inds = findall(f, x)
     return x[inds], xdot[inds]
 end
 
-function rrule(::typeof(filter), f, x::AbstractArray)
+function rrule(::typeof(filter), f, x::Union{AbstractArray, Tuple})
     inds = findall(f, x)
     y, back = rrule(getindex, x, inds)
     function filter_pullback(dy)
