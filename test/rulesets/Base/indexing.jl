@@ -46,5 +46,9 @@
             test_rrule(getindex, x, [2, 2, 2])
             test_rrule(getindex, x, [2,2], [3,3])
         end
+
+        @testset "Empty index" begin
+            test_rrule(getindex, x, Int64[])
+        end
     end
 end

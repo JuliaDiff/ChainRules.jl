@@ -10,7 +10,7 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     function getindex_pullback(ȳ)
         function getindex_add!(Δ)
             # this a optimizes away for simple cases
-            for (ȳ_ii, ii) in zip(ȳ, Iterators.product(plain_inds...))
+            for (ȳ_ii, ii) in zip(unthunk(ȳ), Iterators.product(plain_inds...))
                 Δ[ii...] += ȳ_ii
             end
             return Δ
