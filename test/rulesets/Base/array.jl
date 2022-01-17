@@ -223,19 +223,19 @@ end
 
 @testset "filter" begin
     @testset "Array" begin
-        x10 = vcat(0, 1, rand(8))
-        x34 = randn(3,4); x34[3] = 1; x34[5] = -1;
+        x5 = [0.0, 1.0, 0.3, 0.9, 0.7]
+        x34 = randn(3,4); x34[3] = 1; x34[5] = -1
 
         # Forward
-        @test_skip test_frule(filter, >(0.5) ⊢ NoTangent(), x10)  # Intermittent error, DimensionMismatch("dimensions must match: a has dims (Base.OneTo(7),), b has dims (Base.OneTo(6),), mismatch at 1")
+        test_frule(filter, >(0.5) ⊢ NoTangent(), x5)
         test_frule(filter, <(0), x34)
-        test_frule(filter, >(100), x10)
+        test_frule(filter, >(100), x5)
 
         # Reverse
-        test_rrule(filter, >(0.5) ⊢ NoTangent(), x10)  # Without ⊢, MethodError: zero(::Base.Fix2{typeof(>), Float64}) -- https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/231
+        test_rrule(filter, >(0.5) ⊢ NoTangent(), x5)  # Without ⊢, MethodError: zero(::Base.Fix2{typeof(>), Float64}) -- https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/231
         test_rrule(filter, <(0), x34)
-        @test test_rrule(filter, >(100), x10)  # fixed in https://github.com/JuliaDiff/ChainRulesCore.jl/pull/534
-        @test unthunk(rrule(filter, >(100), x10)[2](Int[])[3]) == zero(x10)
+        test_rrule(filter, >(100), x5)  # fixed in https://github.com/JuliaDiff/ChainRulesCore.jl/pull/534
+        @test unthunk(rrule(filter, >(100), x5)[2](Int[])[3]) == zero(x5)
     end
 end
 
