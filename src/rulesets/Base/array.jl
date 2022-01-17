@@ -66,8 +66,31 @@ function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
 end
 
 #####
+##### `permutedims`
+#####
+
+function rrule(::typeof(permutedims), x::AbstractVector)
+    project = ProjectTo(x)
+    permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
+    return permutedims(x), permutedims_pullback_1
+end
+
+function rrule(::typeof(permutedims), x::AbstractArray, perm)
+    pr = ProjectTo(x)  # projection restores e.g. transpose([1,2,3])
+    permutedims_back_2(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return permutedims(x, perm), permutedims_back_2
+end
+
+function rrule(::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
+    pr = ProjectTo(x)
+    permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return PermutedDimsArray(x, perm), permutedims_back_3
+end
+
+#####
 ##### `repeat`
 #####
+
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
 
     project_Xs = ProjectTo(xs)
