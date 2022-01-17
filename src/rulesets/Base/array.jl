@@ -321,11 +321,11 @@ end
 # 1-dim case allows start/stop, N-dim case takes dims keyword
 # whose defaults changed in Julia 1.6... just pass them all through:
 
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
+function frule((_, xdot), ::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
 end
 
-function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
+function rrule(::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     nots = map(Returns(NoTangent()), args)
     function reverse_pullback(dy)
         dx = @thunk reverse(unthunk(dy), args...; kw...)

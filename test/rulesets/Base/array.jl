@@ -164,32 +164,38 @@ end
 end
 
 @testset "reverse" begin
-    # Forward
-    test_frule(reverse, rand(5))
-    test_frule(reverse, rand(5), 2, 4)
-    test_frule(reverse, rand(5), fkwargs=(dims=1,))
-
-    test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
-    if VERSION >= v"1.6"
-        test_frule(reverse, rand(3,4))
-        test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+    @testset "Tuple" begin
+        test_frule(reverse, Tuple(rand(10)))
+        test_rrule(reverse, Tuple(rand(10)))
     end
+    @testset "Array" begin
+        # Forward
+        test_frule(reverse, rand(5))
+        test_frule(reverse, rand(5), 2, 4)
+        test_frule(reverse, rand(5), fkwargs=(dims=1,))
 
-    # Reverse
-    test_rrule(reverse, rand(5))
-    test_rrule(reverse, rand(5), 2, 4)
-    test_rrule(reverse, rand(5), fkwargs=(dims=1,))
+        test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
+        if VERSION >= v"1.6"
+            test_frule(reverse, rand(3,4))
+            test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+        end
 
-    test_rrule(reverse, rand(3,4), fkwargs=(dims=2,))
-    if VERSION >= v"1.6"
-        test_rrule(reverse, rand(3,4))
-        test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+        # Reverse
+        test_rrule(reverse, rand(5))
+        test_rrule(reverse, rand(5), 2, 4)
+        test_rrule(reverse, rand(5), fkwargs=(dims=1,))
 
-        # Structured
-        y, pb = rrule(reverse, Diagonal([1,2,3]))
-        # We only preserve structure in this case if given structured tangent (no ProjectTo)
-        @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
-        @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
+        test_rrule(reverse, rand(3,4), fkwargs=(dims=2,))
+        if VERSION >= v"1.6"
+            test_rrule(reverse, rand(3,4))
+            test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+            # Structured
+            y, pb = rrule(reverse, Diagonal([1,2,3]))
+            # We only preserve structure in this case if given structured tangent (no ProjectTo)
+            @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
+            @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
+        end
     end
 end
 
