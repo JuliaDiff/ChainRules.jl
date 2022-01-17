@@ -222,20 +222,6 @@ end
 end
 
 @testset "filter" begin
-    @testset "Tuple" begin
-        xt10 = Tuple(vcat(0, 1, rand(8)))  # guarantee that not all > or < 0.5
-
-        # Forward
-        @test_skip test_frule(filter, >(0.5) ⊢ NoTangent(), xt10; check_inferred=false) # check_result.jl:104  Expression: ActualPrimal === ExpectedPrimal  Evaluated: NTuple{10, Float64} === NTuple{6, Float64}
-        y, dy = frule((nothing, nothing, 1:10,), filter, >(0.5), xt10)
-        @test y == filter(>(0.5), xt10)
-        @test ChainRulesCore.backing(dy) == Tuple(findall(>(0.5), xt10))
-
-        # Reverse
-        test_rrule(filter, >(0.5) ⊢ NoTangent(), xt10; check_inferred=false)
-        @test_skip test_rrule(filter, >(100), xt10; check_inferred=false)  # MethodError: Base.ArithmeticStyle(::Type{Union{}}) is ambiguous.
-        @test rrule(filter, >(100), xt10)[2](())[3] == Tangent{NTuple{10, Float64}}(NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent())
-    end
     @testset "Array" begin
         x10 = vcat(0, 1, rand(8))
         x34 = randn(3,4); x34[3] = 1; x34[5] = -1;
