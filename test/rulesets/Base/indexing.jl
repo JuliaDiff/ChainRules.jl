@@ -1,5 +1,5 @@
 @testset "getindex" begin
-    @testset "getindex(::Matrix{<:Number},...)" begin
+    @testset "getindex(::Matrix{<:Number}, ...)" begin
         x = [1.0 2.0 3.0; 10.0 20.0 30.0]
 
         @testset "single element" begin
