@@ -240,11 +240,13 @@ end
 @testset "Accumulations" begin
     @testset "cumsum" begin
         v = round.(10 .* randn(9), sigdigits=3)
-        m = round.(10 .* randn(4,5), sigdigits=3)
+        m = round.(10 .* randn(4, 5), sigdigits=3)
 
         # Forward
         test_frule(cumsum, v)
         test_frule(cumsum, m; fkwargs=(;dims=1))
+        test_frule(cumsum!, rand(9), v)
+        test_frule(cumsum!, rand(4, 5), m; fkwargs=(;dims=1))
 
         # Reverse
         test_rrule(cumsum, v)
