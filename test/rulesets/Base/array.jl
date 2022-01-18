@@ -223,8 +223,11 @@ end
 
 @testset "filter" begin
     @testset "Array" begin
-        x5 = [0.0, 1.0, 0.3, 0.9, 0.7]
-        x34 = randn(3,4); x34[3] = 1; x34[5] = -1
+        # Random numbers will confuse finite differencing here, as it may perturb across the boundary.
+        x5 = [0.0, 1.0, 0.2, 0.9, 0.7]
+        x34 = Float64[-113  124   -37   12
+                        96  -89   103  119
+                        91  -21  -110   10]
 
         # Forward
         test_frule(filter, >(0.5) ⊢ NoTangent(), x5)
