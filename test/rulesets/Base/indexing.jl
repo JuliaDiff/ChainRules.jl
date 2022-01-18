@@ -77,10 +77,22 @@ ChainRules.rrule(::typeof(collect∘eachrow), x) = rrule(eachrow, x)
 ChainRules.rrule(::typeof(collect∘eachcol), x) = rrule(eachcol, x)
 ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; dims=dims)
 
-@testset "eachslice" begin
-    test_rrule(collect∘eachrow, rand(5); check_inferred=false)
-    test_rrule(collect∘eachrow, rand(3, 4); check_inferred=false)
-    test_rrule(collect∘eachcol, rand(3, 4); check_inferred=false)
-    test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3), check_inferred=false)
-    test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)), check_inferred=false)
+if VERSION >= v"1.6"
+    # Without these, you get errors, e.g.
+    # test_rrule: eachrow on Vector{Float64}: Error During Test at /Users/me/.julia/packages/ChainRulesTestUtils/8dFTY/src/testers.jl:195
+    #   Got exception outside of a @test
+    #   DimensionMismatch("second dimension of A, 6, does not match length of x, 5")
+    ChainRules.rrule(::typeof(collect∘eachrow), x) = rrule(eachrow, x)
+    ChainRules.rrule(::typeof(collect∘eachcol), x) = rrule(eachcol, x)
+    ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; dims=dims)
+    # And before Julia 1.6, `collect∘eachrow` is not a specific type.
+
+    @testset "eachslice" begin
+        test_rrule(collect∘eachrow, rand(5); check_inferred=false)
+        test_rrule(collect∘eachrow, rand(3, 4); check_inferred=false)
+        test_rrule(collect∘eachcol, rand(3, 4); check_inferred=false)
+        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3), check_inferred=false)
+        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)), check_inferred=false)
+    end
+
 end
