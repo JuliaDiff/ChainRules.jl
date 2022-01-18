@@ -51,6 +51,13 @@ end
     end
 end
 
+@testset "copyto!" begin
+    test_frule(copyto!, rand(5), rand(5))
+    test_frule(copyto!, rand(10), 3, rand(5))
+    test_frule(copyto!, rand(10), 2, rand(5), 2)
+    test_frule(copyto!, rand(10), 2, rand(5), 2, 4)
+end
+
 @testset "reshape" begin
     # fwd
     test_frule(reshape, rand(4, 5), 2, :)
@@ -61,10 +68,13 @@ end
 end
 
 @testset "permutedims + PermutedDimsArray" begin
+    # Forward
     test_frule(permutedims, rand(5))
-    test_rrule(permutedims, rand(5))
-
     test_frule(permutedims, rand(3, 4), (2, 1))
+    test_frule(permutedims!, rand(4,3), rand(3, 4), (2, 1))
+
+    # Reverse
+    test_rrule(permutedims, rand(5))
     test_rrule(permutedims, rand(3, 4), (2, 1))
     test_rrule(permutedims, Diagonal(rand(5)), (2, 1))
     # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
@@ -219,10 +229,13 @@ end
         test_frule(reverse, rand(5))
         test_frule(reverse, rand(5), 2, 4)
         test_frule(reverse, rand(5), fkwargs=(dims=1,))
-
         test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
         test_frule(reverse, rand(3,4))
         test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+        test_frule(reverse!, rand(5))
+        test_frule(reverse!, rand(5), 2, 4)
+        test_frule(reverse!, rand(3,4), fkwargs=(dims=2,))
 
         # Reverse
         test_rrule(reverse, rand(5))
@@ -247,6 +260,9 @@ end
     test_frule(circshift, rand(10), (1,))
     test_frule(circshift, rand(3,4), (-7,2))
 
+    test_frule(circshift!, rand(10), rand(10), 1)
+    test_frule(circshift!, rand(3,4), rand(3,4), (-7,2))
+
     # Reverse
     test_rrule(circshift, rand(10), 1)
     test_rrule(circshift, rand(10) .+ im, -2)
@@ -255,9 +271,13 @@ end
 end
 
 @testset "fill" begin
+    # Forward
     test_frule(fill, 12.3, 4)
     test_frule(fill, 5.0, (6, 7))
 
+    test_frule(fill!, rand(2, 3), rand())
+
+    # Reverse
     test_rrule(fill, 44.4, 4)
     test_rrule(fill, 55 + 0.5im, 5)
     test_rrule(fill, 3.3, (3, 3, 3))

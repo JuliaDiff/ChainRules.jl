@@ -60,6 +60,24 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}
 end
 
 #####
+##### `mul!`
+#####
+
+function frule((_, ΔC, ΔA, ΔB), ::typeof(mul!), C::AbstractArray, A, B)
+    mul!(C, A, B)
+    mul!(ΔC, ΔA, B)
+    mul!(ΔC, A, ΔB, true, true)
+    return C, ΔC
+end
+
+# function frule((_, ΔC, ΔA, ΔB, Δα, Δβ), ::typeof(mul!), C::AbstractArray, A, B, α::Number, β::Number)
+#     mul!(C, A, B, α, β)
+#     mul!(ΔC, ΔA, B)
+#     mul!(ΔC, A, ΔB, true, true)
+#     return C, ΔC
+# end
+
+#####
 ##### `cross`
 #####
 

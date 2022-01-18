@@ -35,6 +35,12 @@
         end
     end
 
+    @testset "mul!" begin
+        test_frule(mul!, rand(4), rand(4, 5), rand(5))
+        test_frule(mul!, rand(3, 3), rand(3, 3), rand(3, 3))
+        test_frule(mul!, rand(3, 3), rand(), rand(3, 3))
+    end
+
     @testset "cross" begin
         test_frule(cross, randn(3), randn(3))
         test_frule(cross, randn(ComplexF64, 3), randn(ComplexF64, 3))

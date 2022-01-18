@@ -5,8 +5,13 @@
 function frule((_, ẋ), ::typeof(sum), x::Tuple)
     return sum(x), sum(ẋ)
 end
+
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray)
+    return sum!(y, x), sum!(ẏ, ẋ)
 end
 
 function rrule(::typeof(sum), x::AbstractArray; dims=:)

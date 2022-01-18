@@ -72,6 +72,18 @@ frrule((_, xdd, _), ::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xd
 rrule(::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xdots, xs), dydots -> (NoTangent(), dydots, NoTangent())
 
 #####
+##### `copyto!`
+#####
+
+function frule((_, ydot, xdot), ::typeof(copyto!), y::AbstractArray, x)
+    return copyto!(y, x), copyto!(ydot, xdot)
+end
+
+function frule((_, ydot, _, xdot), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
+    return copyto!(y, i, x, js...), copyto!(ydot, i, xdot, js...)
+end
+
+#####
 ##### `reshape`
 #####
 
@@ -103,6 +115,10 @@ end
 
 function frule((_, xdot), ::typeof(permutedims), x::AbstractArray, perm...)
     return permutedims(x, perm...), permutedims(xdot, perm...)
+end
+
+function frule((_, ydot, xdot), ::typeof(permutedims!), y::AbstractArray, x::AbstractArray, perm...)
+    return permutedims!(y, x, perm...), permutedims!(ydot, xdot, perm...)
 end
 
 function rrule(::typeof(permutedims), x::AbstractVector)
@@ -389,6 +405,10 @@ function frule((_, xdot), ::typeof(reverse), x::Union{AbstractArray, Tuple}, arg
     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
 end
 
+function frule((_, xdot), ::typeof(reverse!), x::Union{AbstractArray, Tuple}, args...; kw...)
+    return reverse!(x, args...; kw...), reverse!(xdot, args...; kw...)
+end
+
 function rrule(::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     nots = map(Returns(NoTangent()), args)
     function reverse_pullback(dy)
@@ -406,6 +426,10 @@ function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
     return circshift(x, shifts), circshift(xdot, shifts)
 end
 
+function frule((_, ydot, xdot), ::typeof(circshift!), y::AbstractArray, x::AbstractArray, shifts)
+    return circshift!(y, x, shifts), circshift!(ydot, xdot, shifts)
+end
+
 function rrule(::typeof(circshift), x::AbstractArray, shifts)
     function circshift_pullback(dy)
         dx = @thunk circshift(unthunk(dy), map(-, shifts))
@@ -421,6 +445,10 @@ end
 
 function frule((_, xdot), ::typeof(fill), x::Any, dims...)
     return fill(x, dims...), fill(xdot, dims...)
+end
+
+function frule((_, ydot, xdot), ::typeof(fill!), y::AbstractArray, x::Any)
+    return fill!(y, x), fill!(ydot, xdot)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)

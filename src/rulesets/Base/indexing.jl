@@ -44,7 +44,6 @@ end
 #####
 
 function frule((_, xdot), ::typeof(setindex!), x::AbstractArray, v, inds...)
-    @info "setindex!" x v inds xdot
     v1 = x[inds...] = v
     v2 = xdot[inds...] = v
     return v1, v2

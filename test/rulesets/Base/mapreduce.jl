@@ -43,6 +43,11 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         end
     end
 
+    @testset "sum!(y, x)" begin
+        test_frule(sum!, rand(3), rand(3, 5))
+        test_frule(sum!, rand(ComplexF64, 1, 4), rand(3, 4))
+    end
+
     @testset "sum abs2" begin
         sizes = (3, 4, 7)
         @testset "dims = $dims" for dims in (:, 1)
