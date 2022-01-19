@@ -40,7 +40,10 @@
         test_rrule(diag, Diagonal(randn(N)))
         test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
         test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
-        test_rrule(diag, randn(N, N), k)
+        for k in (-1, 0, 2)
+            test_rrule(diag, randn(N, N), k)
+            @test_skip test_rrule(diag, Diagonal(randn(N)), k)
+        end
     end
     @testset "diagm" begin
         @testset "without size" begin
