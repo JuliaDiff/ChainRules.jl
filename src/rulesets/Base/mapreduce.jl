@@ -154,6 +154,37 @@ for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
 end
 
 #####
+##### `cumsum`
+#####
+
+function frule((_, xdot), ::typeof(cumsum), x::AbstractArray; dims::Integer)
+    return cumsum(x; dims=dims), cumsum(xdot; dims=dims)
+end
+frule(tang, ::typeof(cumsum), x::AbstractVector) = frule(tang, cumsum, x; dims=1)
+
+function frule((_, ydot, xdot), ::typeof(cumsum!), y::AbstractArray, x::AbstractArray; dims::Integer)
+    return cumsum!(y, x; dims=dims), cumsum!(ydot, xdot; dims=dims)
+end
+frule(t, ::typeof(cumsum!), y::AbstractVector, x::AbstractVector) = frule(t, cumsum!, y, x; dims=1)
+
+function rrule(::typeof(cumsum), x::AbstractArray; dims::Integer)
+    project = ProjectTo(x)
+    function cumsum_pullback(dy)
+        step1 = reverse(unthunk(dy); dims=dims)
+        if ChainRulesCore.is_inplaceable_destination(step1) && VERSION >= v"1.6"
+            step2 = cumsum!(step1, step1; dims=dims)
+            step3 = reverse!(step2; dims=dims)
+        else
+            step2 = cumsum(step1; dims=dims)
+            step3 = reverse(step2; dims=dims)
+        end
+        return (NoTangent(), project(step3))
+    end
+    return cumsum(x; dims=dims), cumsum_pullback
+end
+rrule(::typeof(cumsum), x::AbstractVector) = rrule(cumsum, x; dims=1)
+
+#####
 ##### `prod`
 #####
 
