@@ -81,7 +81,7 @@ function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
     dys = unthunk(dys_raw)
     i1 = findfirst(dy -> dy isa AbstractArray, dys)
     if i1 === nothing  # all slices are Zero!
-        return (zero(x),)
+        return _zero_fill!(similar(x, float(eltype(x)), axes(x)))
     end
     T = promote_type(eltype(dys[i1]), eltype(x))
     # The whole point of this gradient is that we can allocate one `dx` array:
@@ -109,10 +109,7 @@ function rrule(::typeof(∇eachslice), dys, x, vd::Val)
     return ∇eachslice(dys, x, vd), ∇∇eachslice
 end
 
-if VERSION > v"1.6-"
 # These rules help with testing, and won't hurt:
 ChainRules.rrule(::typeof(collect∘eachrow), x) = rrule(eachrow, x)
 ChainRules.rrule(::typeof(collect∘eachcol), x) = rrule(eachcol, x)
 ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; dims=dims)
-# And before Julia 1.6, `collect∘eachrow` is not a specific type.
-end
