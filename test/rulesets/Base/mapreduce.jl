@@ -239,8 +239,8 @@ end
 
 @testset "Accumulations" begin
     @testset "cumsum" begin
-        v = round.(10 .* randn(9), sigdigits=3)
-        m = round.(10 .* randn(4, 5), sigdigits=3)
+        v = round.(10 .* randn(9), digits=3)
+        m = round.(10 .* randn(4, 5), digits=3)
 
         # Forward
         test_frule(cumsum, v)
