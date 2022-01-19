@@ -77,21 +77,42 @@ end
 
 # Using Val(dim) here is worth a factor of 2 in this, on Julia 1.8-
 # @btime rrule(eachcol, $([1 2; 3 4]))[2]($([[10, 20], [30, 40]]))
-function ∇eachslice(dys, x::AbstractArray, vd::Val{dim}) where {dim}
+function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
+    dys = unthunk(dys_raw)
     i1 = findfirst(dy -> dy isa AbstractArray, dys)
     if i1 === nothing  # all slices are Zero!
         return (zero(x),)
     end
     T = promote_type(eltype(dys[i1]), eltype(x))
     # The whole point of this gradient is that we can allocate one `dx` array:
-    dx = similar(x, T)
+    dx = similar(x, T, axes(x))
     for i in axes(x, dim)
         slice = selectdim(dx, dim, i)
-        if dys[i] isa AbstractArray
-            copyto!(slice, dys[i])
+        if dys[i] isa AbstractZero
+            _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
         else
-            slice .= zero.(slice)
+            copyto!(slice, dys[i])
         end
     end
-    return dx
+    return ProjectTo(x)(dx)
+end
+
+_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
+_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+
+function rrule(::typeof(∇eachslice), dys, x, vd::Val)
+    function ∇∇eachslice(dz_raw)
+        dz = unthunk(dz_raw)
+        iter = vd == Val(1) ? eachrow(dz) : vd == Val(2) ? eachcol(dz) : eachslice(dz; dims=_val(vd))
+        return (NoTangent(), collect(iter), NoTangent(), NoTangent())
+    end
+    return ∇eachslice(dys, x, vd), ∇∇eachslice
+end
+
+if VERSION > v"1.6-"
+# These rules help with testing, and won't hurt:
+ChainRules.rrule(::typeof(collect∘eachrow), x) = rrule(eachrow, x)
+ChainRules.rrule(::typeof(collect∘eachcol), x) = rrule(eachcol, x)
+ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; dims=dims)
+# And before Julia 1.6, `collect∘eachrow` is not a specific type.
 end
