@@ -71,21 +71,21 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     end
     return diag(A), diag_pullback
 end
-if VERSION ≥ v"1.3"
-    function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
-        function diag_pullback(ȳ)
-            return (NoTangent(), diagm(size(A)..., k => ȳ), NoTangent())
-        end
-        return diag(A, k), diag_pullback
-    end
 
-    function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
-        function diagm_pullback(ȳ)
-            return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
-        end
-        return diagm(m, n, kv...), diagm_pullback
+function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
+    function diag_pullback(ȳ)
+        return (NoTangent(), diagm(size(A)..., k => ȳ), NoTangent())
     end
+    return diag(A, k), diag_pullback
 end
+
+function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return diagm(m, n, kv...), diagm_pullback
+end
+
 function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
     function diagm_pullback(ȳ)
         return (NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
