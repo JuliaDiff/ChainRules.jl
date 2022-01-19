@@ -58,13 +58,11 @@
             test_scalar(sinc, x)
         end
 
-        if VERSION ≥ v"1.6"
-            @testset "sincospi" for T in (Float64, ComplexF64)
-                Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
+        @testset "sincospi" for T in (Float64, ComplexF64)
+            Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
 
-                test_frule(sincospi, randn(T))
-                test_rrule(sincospi, randn(T); output_tangent=Δz)
-            end
+            test_frule(sincospi, randn(T))
+            test_rrule(sincospi, randn(T); output_tangent=Δz)
         end
     end  # Trig
 
@@ -108,10 +106,9 @@
             # This promotion is only for FiniteDifferences, the rules allow mixtures:
             x, y = Base.promote(x, y)
 
-            # Inference fails on 1.0, passes on 1.6
-            test_rrule(*, x, y, x+y; check_inferred=VERSION>v"1.5")
-            test_rrule(*, x, y, 17x, 23y; check_inferred=VERSION>v"1.5")
-            test_rrule(*, x, y, 7x, 3y, x+y+pi; check_inferred=VERSION>v"1.5")
+            test_rrule(*, x, y, x+y)
+            test_rrule(*, x, y, 17x, 23y)
+            test_rrule(*, x, y, 7x, 3y, x+y+pi)
         end
     end
 
