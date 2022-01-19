@@ -1,6 +1,6 @@
 
 if VERSION ≥ v"1.4"
-    function frule((_, ẋ, ṗ), ::typeof(evalpoly), x, p)
+    function frule((_, ẋ, ṗ), ::typeof(evalpoly), x, p::Union{Tuple,AbstractVector})
         Δx, Δp = ẋ, unthunk(ṗ)
         N = length(p)
         @inbounds y = p[N]
@@ -12,7 +12,7 @@ if VERSION ≥ v"1.4"
         return y, Δy
     end
 
-    function rrule(::typeof(evalpoly), x, p)
+    function rrule(::typeof(evalpoly), x, p::Union{Tuple,AbstractVector})
         y, ys = _evalpoly_intermediates(x, p)
         project_x = ProjectTo(x)
         project_p = p isa Tuple ? identity : ProjectTo(p)
