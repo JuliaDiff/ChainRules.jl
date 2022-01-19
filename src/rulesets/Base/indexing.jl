@@ -26,3 +26,4 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
 
     return y, getindex_pullback
 end
+

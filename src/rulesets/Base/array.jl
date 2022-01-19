@@ -321,11 +321,11 @@ end
 # 1-dim case allows start/stop, N-dim case takes dims keyword
 # whose defaults changed in Julia 1.6... just pass them all through:
 
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
+function frule((_, xdot), ::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
 end
 
-function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
+function rrule(::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     nots = map(Returns(NoTangent()), args)
     function reverse_pullback(dy)
         dx = @thunk reverse(unthunk(dy), args...; kw...)
@@ -360,10 +360,29 @@ function frule((_, xdot), ::typeof(fill), x::Any, dims...)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)
-    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
+    project = ProjectTo(x)
     nots = map(Returns(NoTangent()), dims)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
+end
+
+#####
+##### `filter`
+#####
+
+function frule((_, _, xdot), ::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    return x[inds], xdot[inds]
+end
+
+function rrule(::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    y, back = rrule(getindex, x, inds)
+    function filter_pullback(dy)
+        _, dx, _ = back(dy)
+        return (NoTangent(), NoTangent(), dx)
+    end
+    return y, filter_pullback
 end
 
 #####

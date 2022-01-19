@@ -164,32 +164,38 @@ end
 end
 
 @testset "reverse" begin
-    # Forward
-    test_frule(reverse, rand(5))
-    test_frule(reverse, rand(5), 2, 4)
-    test_frule(reverse, rand(5), fkwargs=(dims=1,))
-
-    test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
-    if VERSION >= v"1.6"
-        test_frule(reverse, rand(3,4))
-        test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+    @testset "Tuple" begin
+        test_frule(reverse, Tuple(rand(10)))
+        @test_skip test_rrule(reverse, Tuple(rand(10)))  # Ambiguity in isapprox, https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
     end
+    @testset "Array" begin
+        # Forward
+        test_frule(reverse, rand(5))
+        test_frule(reverse, rand(5), 2, 4)
+        test_frule(reverse, rand(5), fkwargs=(dims=1,))
 
-    # Reverse
-    test_rrule(reverse, rand(5))
-    test_rrule(reverse, rand(5), 2, 4)
-    test_rrule(reverse, rand(5), fkwargs=(dims=1,))
+        test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
+        if VERSION >= v"1.6"
+            test_frule(reverse, rand(3,4))
+            test_frule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+        end
 
-    test_rrule(reverse, rand(3,4), fkwargs=(dims=2,))
-    if VERSION >= v"1.6"
-        test_rrule(reverse, rand(3,4))
-        test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+        # Reverse
+        test_rrule(reverse, rand(5))
+        test_rrule(reverse, rand(5), 2, 4)
+        test_rrule(reverse, rand(5), fkwargs=(dims=1,))
 
-        # Structured
-        y, pb = rrule(reverse, Diagonal([1,2,3]))
-        # We only preserve structure in this case if given structured tangent (no ProjectTo)
-        @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
-        @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
+        test_rrule(reverse, rand(3,4), fkwargs=(dims=2,))
+        if VERSION >= v"1.6"
+            test_rrule(reverse, rand(3,4))
+            test_rrule(reverse, rand(3,4,5), fkwargs=(dims=(1,3),))
+
+            # Structured
+            y, pb = rrule(reverse, Diagonal([1,2,3]))
+            # We only preserve structure in this case if given structured tangent (no ProjectTo)
+            @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
+            @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
+        end
     end
 end
 
@@ -213,6 +219,27 @@ end
     test_rrule(fill, 44.4, 4)
     test_rrule(fill, 55 + 0.5im, 5)
     test_rrule(fill, 3.3, (3, 3, 3))
+end
+
+@testset "filter" begin
+    @testset "Array" begin
+        # Random numbers will confuse finite differencing here, as it may perturb across the boundary.
+        x5 = [0.0, 1.0, 0.2, 0.9, 0.7]
+        x34 = Float64[-113  124   -37   12
+                        96  -89   103  119
+                        91  -21  -110   10]
+
+        # Forward
+        test_frule(filter, >(0.5) ⊢ NoTangent(), x5)
+        test_frule(filter, <(0), x34)
+        test_frule(filter, >(100), x5)
+
+        # Reverse
+        test_rrule(filter, >(0.5) ⊢ NoTangent(), x5)  # Without ⊢, MethodError: zero(::Base.Fix2{typeof(>), Float64}) -- https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/231
+        test_rrule(filter, <(0), x34)
+        test_rrule(filter, >(100), x5)  # fixed in https://github.com/JuliaDiff/ChainRulesCore.jl/pull/534
+        @test unthunk(rrule(filter, >(100), x5)[2](Int[])[3]) == zero(x5)
+    end
 end
 
 @testset "findmin & findmax" begin
