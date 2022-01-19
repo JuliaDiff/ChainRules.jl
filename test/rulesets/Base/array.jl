@@ -59,12 +59,32 @@ end
 end
 
 @testset "reshape" begin
-    # fwd
-    test_frule(reshape, rand(4, 5), 2, :)
-    # rev
+    # Forward
+    test_frule(reshape, rand(4, 3), 2, :)
+    test_rrule(reshape, rand(4, 3), axes(rand(6, 2)))
+
+    # Reverse
     test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
     test_rrule(reshape, rand(4, 5), 2, :)
+    test_rrule(reshape, rand(4, 5), axes(rand(10, 2)))
+    # structured
+    test_rrule(reshape, transpose(rand(4)), :)
+    test_rrule(reshape, adjoint(rand(ComplexF64, 4)), :)
+    @test rrule(reshape, adjoint(rand(ComplexF64, 4)), :)[2](rand(4))[2] isa Adjoint{ComplexF64}
+    @test rrule(reshape, Diagonal(rand(4)), (2, :))[2](ones(2,8))[2] isa Diagonal
+    @test_skip test_rrule(reshape, Diagonal(rand(4)), 2, :)  # DimensionMismatch("second dimension of A, 22, does not match length of x, 16")
+    @test_skip test_rrule(reshape, UpperTriangular(rand(4,4)), (8, 2))
+end
+
+@testset "dropdims" begin
+    # fwd
+    test_frule(dropdims, rand(4, 1); fkwargs=(; dims=2))
+    # rev
+    test_rrule(dropdims, rand(4, 1); fkwargs=(; dims=2))
+    test_rrule(dropdims, transpose(rand(4)); fkwargs=(; dims=1))
+    test_rrule(dropdims, adjoint(rand(ComplexF64, 4)); fkwargs=(; dims=1))
+    @test rrule(dropdims, adjoint(rand(ComplexF64, 4)); dims=1)[2](rand(4))[2] isa Adjoint{ComplexF64}
 end
 
 @testset "permutedims + PermutedDimsArray" begin

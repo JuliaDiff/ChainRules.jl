@@ -91,22 +91,27 @@ function frule((_, xdot), ::typeof(reshape), x::AbstractArray, dims...)
     return reshape(x, dims...), reshape(xdot, dims...)
 end
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
-    A_dims = size(A)
-    function reshape_pullback(Ȳ)
-        return (NoTangent(), reshape(Ȳ, A_dims), NoTangent())
-    end
-    return reshape(A, dims), reshape_pullback
+function rrule(::typeof(reshape), A::AbstractArray, dims...)
+    ax = axes(A)
+    project = ProjectTo(A)  # Projection is here for e.g. reshape(::Diagonal, :)
+    ∂dims = broadcast(Returns(NoTangent()), dims)
+    reshape_pullback(Ȳ) = (NoTangent(), project(reshape(Ȳ, ax)), ∂dims...)
+    return reshape(A, dims...), reshape_pullback
 end
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
-    A_dims = size(A)
-    function reshape_pullback(Ȳ)
-        ∂A = reshape(Ȳ, A_dims)
-        ∂dims = broadcast(Returns(NoTangent()), dims)
-        return (NoTangent(), ∂A, ∂dims...)
-    end
-    return reshape(A, dims...), reshape_pullback
+#####
+##### `dropdims`
+#####
+
+function frule((_, xdot), ::typeof(dropdims), x::AbstractArray; dims)
+    return dropdims(x; dims=dims), dropdims(xdot; dims=dims)
+end
+
+function rrule(::typeof(dropdims), A::AbstractArray; dims)
+    ax = axes(A)
+    project = ProjectTo(A)
+    dropdims_pullback(Ȳ) = (NoTangent(), project(reshape(Ȳ, ax)))
+    return dropdims(A; dims=dims), dropdims_pullback
 end
 
 #####
