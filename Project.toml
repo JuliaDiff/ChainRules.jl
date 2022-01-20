@@ -17,10 +17,10 @@ ChainRulesTestUtils = "1"
 Compat = "3.35"
 FiniteDifferences = "0.12.20"
 IrrationalConstants = "0.1.1"
-JuliaInterpreter = "0.8"
+JuliaInterpreter = "0.8" # latest is "0.9.1"
 RealDot = "0.1"
 StaticArrays = "1.2"
-julia = "1"
+julia = "1.6"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"

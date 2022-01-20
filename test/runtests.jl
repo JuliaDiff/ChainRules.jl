@@ -7,7 +7,6 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: Compat, hasproperty, only, cispi, eachcol
 using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -18,7 +17,7 @@ using Statistics
 using Test
 using JuliaInterpreter
 
-union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, LinearAlgebra, Random, StaticArrays, Statistics])
+union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, LinearAlgebra, Random, StaticArrays, Statistics])
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
