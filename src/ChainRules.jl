@@ -2,6 +2,7 @@ module ChainRules
 
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
+using Compat
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random

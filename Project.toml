@@ -4,6 +4,7 @@ version = "1.22"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RealDot = "c1ae055f-0cd5-4b69-90a6-9a35b1a98df9"
@@ -12,6 +13,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [compat]
 ChainRulesCore = "1.11.5"
 ChainRulesTestUtils = "1"
+Compat = "3.35"
 FiniteDifferences = "0.12.20"
 JuliaInterpreter = "0.8" # latest is "0.9.1"
 RealDot = "0.1"
