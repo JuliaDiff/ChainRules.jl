@@ -222,7 +222,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(foldl, +, rand(ComplexF64,7); fkwargs=(; init=rand(ComplexF64)))
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
-    VERSION >= v"1.5" && @testset "foldl(f, ::Tuple)" begin
+    @testset "foldl(f, ::Tuple)" begin
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
@@ -295,11 +295,9 @@ end
         @test y1 == [1, 2, 6, 24]
         @test b1([1, 1, 1, 1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
 
-        if VERSION >= v"1.5"
-            y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
-            @test y2 ≈ accumulate(/, [1 2; 3 4])
-            @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
-        end
+        y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
+        @test y2 ≈ accumulate(/, [1 2; 3 4])
+        @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
 
         # Test execution order
         c3 = Counter()
@@ -328,12 +326,10 @@ end
 
         # Finite differencing
         test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
-        if VERSION >= v"1.5"
-            test_rrule(accumulate, /, 1 .+ rand(3, 4))
-            test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
-        end
+        test_rrule(accumulate, /, 1 .+ rand(3, 4))
+        test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
     end
-    VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
+    @testset "accumulate(f, ::Tuple)" begin
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, (1, 2, 3, 4); init=1)
         @test y1 == (1, 2, 6, 24)

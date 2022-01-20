@@ -1,6 +1,6 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.21" 
+version = "1.22" 
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -15,10 +15,10 @@ ChainRulesCore = "1.11.5"
 ChainRulesTestUtils = "1"
 Compat = "3.35"
 FiniteDifferences = "0.12.20"
-JuliaInterpreter = "0.8"
+JuliaInterpreter = "0.8" # latest is "0.9.1"
 RealDot = "0.1"
 StaticArrays = "1.2"
-julia = "1"
+julia = "1.6"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"

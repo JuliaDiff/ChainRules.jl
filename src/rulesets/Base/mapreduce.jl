@@ -115,12 +115,10 @@ function frule(
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * realdot(x, ẋ)
-    elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
+    else
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
             2 * realdot(xi, dxi)
         end
-    else
-        2 * sum(realdot.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end
@@ -419,16 +417,10 @@ end
 # To support 2nd derivatives, some may need their own gradient rules. And _drop1 should perhaps
 # be replaced by _peel1 like Iterators.peel
 
-if VERSION >= v"1.6"
-    _reverse1(x) = Iterators.reverse(x)
-    _drop1(x) = Iterators.drop(x, 1)
-    _zip2(x, y) = zip(x, y)  # for `accumulate`, below
-else
-    # Old versions don't support accumulate(::itr), nor multi-dim reverse
-    _reverse1(x) = reverse(vec(x))
-    _drop1(x) = vec(x)[2:end]
-    _zip2(x, y) = collect(zip(x, y))
-end
+_reverse1(x) = Iterators.reverse(x)
+_drop1(x) = Iterators.drop(x, 1)
+_zip2(x, y) = zip(x, y)  # for `accumulate`, below
+
 _reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
@@ -480,16 +472,9 @@ function rrule(
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
         rev_list = if init === _InitialValue()
-            if VERSION >= v"1.6"
-                # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
-                # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
-                _zip2(_reverse1(hobbits), _reverse1(dy_plain))
-            else
-                # However, on 1.0 and some others, zip does not stop early. But since accumulate
-                # also doesn't work on iterators, `_drop1` doesn't make one, so this should work:
-                _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
-                # What an awful tangle.
-            end
+            # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
+            # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
+            _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         else
             _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         end
