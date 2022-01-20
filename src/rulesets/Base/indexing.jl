@@ -43,10 +43,10 @@ end
 ##### setindex!
 #####
 
-function frule((_, xdot), ::typeof(setindex!), x::AbstractArray, v, inds...)
-    v1 = x[inds...] = v
-    v2 = xdot[inds...] = v
-    return v1, v2
+function frule((_, xdot, vdot), ::typeof(setindex!), x::AbstractArray, v, inds...)
+    w = x[inds...] = v
+    wdot = xdot[inds...] = vdot
+    return w, wdot
 end
 
 

@@ -57,3 +57,14 @@
         end
     end
 end
+
+@testset "view" begin
+    test_frule(view, rand(3, 4), :, 1)
+    test_frule(view, rand(3, 4), 2, [1, 1, 2])
+    test_frule(view, rand(3, 4), 3, 4)
+end
+
+@testset "setindex!" begin
+    @test_skip test_frule(setindex!, rand(3, 4), rand(), 1, 2)
+    @test_skip test_frule(setindex!, rand(3, 4), [1,10,100.0], :, 3)
+end
