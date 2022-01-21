@@ -39,6 +39,16 @@
         test_frule(mul!, rand(4), rand(4, 5), rand(5))
         test_frule(mul!, rand(3, 3), rand(3, 3), rand(3, 3))
         test_frule(mul!, rand(3, 3), rand(), rand(3, 3))
+
+        # Rule with α,β::Bool is only visually more complicated:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, false)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, false)
+
+        # Rule with nontrivial α, β allocates A*B:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, randn())
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), randn(), randn())
     end
 
     @testset "cross" begin
