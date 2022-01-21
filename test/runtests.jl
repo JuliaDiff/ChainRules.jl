@@ -46,7 +46,7 @@ end
     include("test_helpers.jl")
     println()
 
-    include_test("global_state.jl")
+    test_method_tables()  # Check the global method tables are consistent
 
     # Each file puts all tests inside one or more @testset blocks
     include_test("rulesets/Base/base.jl")
@@ -76,6 +76,6 @@ end
     println()
 
     include_test("rulesets/Random/random.jl")
-
+  
     println()
 end
