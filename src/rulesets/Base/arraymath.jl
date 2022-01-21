@@ -392,9 +392,9 @@ end
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
-    arr_axs = map(axes, arrs)
+    projects = map(ProjectTo, arrs)
     function add_pullback(dy)
-        return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
+        return (NoTangent(), map(project->project(dy), projects)...)
     end
     return y, add_pullback
 end
