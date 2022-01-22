@@ -5,3 +5,14 @@
     
     test_rrule(sparse, s, t, w, m, n, +)
 end
+
+@testset "sparse(A)" begin
+    A = rand(5, 3)
+    test_rrule(sparse, A)
+end
+
+@testset "sparse(v)" begin
+    v = rand(5)
+    test_rrule(sparse, v)
+end
+

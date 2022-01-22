@@ -9,3 +9,10 @@ function rrule(::typeof(sparse), I::AbstractVector, J::AbstractVector, V::Abstra
 
     return sparse(I, J, V, m, n, combine), sparse_pullback
 end
+
+function rrule(::typeof(sparse), A::Union{AbstractVector, AbstractMatrix})
+    function sparse_pullback(Ω̄)
+        return NoTangent(), Ω̄
+    end
+    return sparse(A), sparse_pullback
+end
