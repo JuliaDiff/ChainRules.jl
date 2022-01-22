@@ -8,6 +8,7 @@ using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
 using RealDot: realdot
+using SparseArrays
 using Statistics
 
 # Basically everything this package does is overloading these, so we make an exception
@@ -41,6 +42,8 @@ include("rulesets/LinearAlgebra/matfun.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
+
+include("rulesets/SparseArrays/sparsematrix.jl")
 
 include("rulesets/Random/random.jl")
 
