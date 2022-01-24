@@ -1,10 +1,9 @@
 @testset "Array constructors" begin
-
+    @testset "undef" begin
     # We can't use test_rrule here (as it's currently implemented) because the elements of
     # the array have arbitrary values. The only thing we can do is ensure that we're getting
     # `ZeroTangent`s back, and that the forwards pass produces the correct thing still.
     # Issue: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/202
-    @testset "undef" begin
         val, pullback = rrule(Array{Float64}, undef, 5)
         @test size(val) == (5, )
         @test val isa Array{Float64, 1}
@@ -21,6 +20,16 @@
         test_rrule(Matrix, transpose(randn(4)))
         test_rrule(Array{ComplexF64}, randn(3))
     end
+end
+@testset "AbstractArray constructors" begin
+    # These are what float(x) calls, but it's trivial with floating point numbers:
+    test_frule(AbstractArray{Float32}, rand(3); atol=0.01)
+    test_frule(AbstractArray{Float32}, Diagonal(rand(4)); atol=0.01)
+    # rev
+    test_rrule(AbstractArray{Float32}, rand(3); atol=0.01)
+    test_rrule(AbstractArray{Float32}, Diagonal(rand(4)); atol=0.01)
+    # Check with integers:
+    rrule(AbstractArray{Float64}, [1, 2, 3])[2]([1, 10, 100]) == (NoTangent(), [1.0, 10.0, 100.0])
 end
 
 @testset "vect" begin

@@ -8,10 +8,21 @@ function frule((_, ẋ), ::Type{T}, x::AbstractArray) where {T<:Array}
     return T(x), T(ẋ)
 end
 
+function frule((_, ẋ), ::Type{AbstractArray{T}}, x::AbstractArray) where {T}
+    return AbstractArray{T}(x), AbstractArray{T}(ẋ)
+end
+
 function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
     project_x = ProjectTo(x)
     Array_pullback(ȳ) = (NoTangent(), project_x(ȳ))
     return T(x), Array_pullback
+end
+
+# This abstract one is used for `float(x)` and other float conversion purposes:
+function rrule(::Type{AbstractArray{T}}, x::AbstractArray) where {T}
+    project_x = ProjectTo(x)
+    AbstractArray_pullback(ȳ) = (NoTangent(), project_x(ȳ))
+    return AbstractArray{T}(x), AbstractArray_pullback
 end
 
 #####
