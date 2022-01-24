@@ -185,5 +185,8 @@
     @testset "addition" begin
         test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
         test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
+        test_rrule(+, randn(3,3), Diagonal(randn(3)), randn(3,3,1))
+        test_rrule(+, randn(3,3), Diagonal(randn(3)), Symmetric(randn(3,3)))
+        
     end
 end
