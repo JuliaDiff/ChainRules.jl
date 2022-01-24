@@ -65,6 +65,6 @@ end
 end
 
 @testset "setindex!" begin
-    @test_skip test_frule(setindex!, rand(3, 4), rand(), 1, 2)
-    @test_skip test_frule(setindex!, rand(3, 4), [1,10,100.0], :, 3)
+    test_frule(setindex!, rand(3, 4), rand(), 1, 2)
+    test_frule(setindex!, rand(3, 4), [1,10,100.0], :, 3)
 end
