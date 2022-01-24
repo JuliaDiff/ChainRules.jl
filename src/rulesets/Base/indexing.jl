@@ -2,8 +2,8 @@
 ##### getindex
 #####
 
-function frule((_, xdot), ::typeof(getindex), x::AbstractArray, inds...)
-    return x[inds...], xdot[inds...]
+function frule((_, ẋ), ::typeof(getindex), x::AbstractArray, inds...)
+    return x[inds...], ẋ[inds...]
 end
 
 function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
@@ -35,18 +35,16 @@ end
 ##### view
 #####
 
-function frule((_, xdot), ::typeof(view), x::AbstractArray, inds...)
-    return view(x, inds...), view(xdot, inds...)
+function frule((_, ẋ), ::typeof(view), x::AbstractArray, inds...)
+    return view(x, inds...), view(ẋ, inds...)
 end
 
 #####
 ##### setindex!
 #####
 
-function frule((_, xdot, vdot), ::typeof(setindex!), x::AbstractArray, v, inds...)
-    w = x[inds...] = v
-    wdot = xdot[inds...] = vdot
-    return w, wdot
+function frule((_, ẋ, v̇), ::typeof(setindex!), x::AbstractArray, v, inds...)
+    return setindex!(x, v, inds...), setindex!(ẋ, v̇, inds...)
 end
 
 

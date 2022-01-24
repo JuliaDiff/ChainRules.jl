@@ -2,9 +2,9 @@
 ##### `sort`
 #####
 
-function frule((_, xsdot, _), ::typeof(partialsort), xs::AbstractVector, k; kw...)
+function frule((_, ẋs, _), ::typeof(partialsort), xs::AbstractVector, k; kw...)
     inds = partialsortperm(xs, k; kw...)
-    return xs[inds], xsdot[inds]
+    return xs[inds], ẋs[inds]
 end
 
 function rrule(::typeof(partialsort), xs::AbstractVector, k::Union{Integer,OrdinalRange}; kwargs...)
@@ -25,9 +25,9 @@ function rrule(::typeof(partialsort), xs::AbstractVector, k::Union{Integer,Ordin
     return ys, partialsort_pullback
 end
 
-function frule((_, xsdot), ::typeof(sort), xs::AbstractVector; kw...)
+function frule((_, ẋs), ::typeof(sort), xs::AbstractVector; kw...)
     inds = sortperm(xs; kw...)
-    return xs[inds], xsdot[inds]
+    return xs[inds], ẋs[inds]
 end
 
 function rrule(::typeof(sort), xs::AbstractVector; kwargs...)
@@ -52,10 +52,10 @@ end
 ##### `sortslices`
 #####
 
-function frule((_, xdot), ::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
+function frule((_, ẋ), ::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
     inds = ntuple(d -> d == dims ? p : (:), ndims(x))
-    return x[inds...], xdot[inds...]
+    return x[inds...], ẋ[inds...]
 end
 
 function rrule(::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)

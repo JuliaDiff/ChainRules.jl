@@ -19,9 +19,9 @@ end
 ##### `*`
 #####
 
-frule((_, Adot, Bdot), ::typeof(*), A, B) = A * B, muladd(Adot, B, A * Bdot)
+frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
 
-frule((_, Adot, Bdot, Cdot), ::typeof(*), A, B, C) = A*B*C, Adot*B*C + A*Bdot*C + A*B*Cdot
+frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
 
 
 function rrule(
@@ -210,9 +210,9 @@ end # VERSION
 ##### `muladd`
 #####
 
-function frule((_, Adot, Bdot, zdot), ::typeof(muladd), A, B, z)
+function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
     Ω = muladd(A, B, z)
-    return Ω, Adot * B .+ A * Bdot .+ zdot
+    return Ω, ΔA * B .+ A * ΔB .+ Δz
 end
 
 function rrule(
@@ -362,11 +362,11 @@ end
 ##### `\`, `/` matrix-scalar_rule
 #####
 
-function frule((_, Adot, bdot), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
-    return A/b, Adot/b - A*(bdot/b^2)
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+    return A/b, ΔA/b - A*(Δb/b^2)
 end
-function frule((_, adot, Bdot), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
-    return B/a, Bdot/a - B*(adot/a^2)
+function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
+    return B/a, ΔB/a - B*(Δa/a^2)
 end
 
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
@@ -396,7 +396,7 @@ end
 ##### Negation (Unary -)
 #####
 
-frule((_, Adot), ::typeof(-), A::AbstractArray) = -A, -Adot
+frule((_, ΔA), ::typeof(-), A::AbstractArray) = -A, -ΔA
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
@@ -410,7 +410,7 @@ end
 ##### Addition (Multiarg `+`)
 #####
 
-frule((_, Adots...), ::typeof(+), As::AbstractArray...) = +(As...), +(Adots...)
+frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)

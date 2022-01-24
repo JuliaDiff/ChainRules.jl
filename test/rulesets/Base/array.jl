@@ -41,13 +41,11 @@ end
         test_rrule(Base.vect, 5.0, randn(3, 3); check_inferred=false)
         test_rrule(Base.vect, (5.0, 4.0), (y=randn(3),); check_inferred=false)
     end
-    @testset "_make_real_zeros" begin
+    @testset "_instantiate_zeros" begin
         # This is an internal function also used for `cat` etc.
         # It has its own rules to allow for 2nd derivatives.
-        @eval using ChainRules: _make_real_zeros
-        @test_skip test_frule(_make_real_zeros, Tuple(rand(3)), Tuple(rand(3)))
-        @test_skip test_rrule(_make_real_zeros, Tuple(rand(3)), Tuple(rand(3)))
-        # Not sure these are defined right! Currently fail due to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
+        @eval using ChainRules: _instantiate_zeros
+        test_frule(_instantiate_zeros, Tuple(rand(3)), Tuple(rand(3)))
     end
 end
 

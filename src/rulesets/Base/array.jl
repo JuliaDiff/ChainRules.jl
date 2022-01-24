@@ -4,8 +4,8 @@
 
 ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
 
-function frule((_, xdot), ::Type{T}, x::AbstractArray) where {T<:Array}
-    return T(x), T(xdot)
+function frule((_, ẋ), ::Type{T}, x::AbstractArray) where {T<:Array}
+    return T(x), T(ẋ)
 end
 
 function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
@@ -20,8 +20,8 @@ end
 
 @non_differentiable Base.vect()
 
-function frule((_, xdots...), ::typeof(Base.vect), xs::Number...)
-    return Base.vect(xs...), Base.vect(_make_real_zeros(xdots, xs)...)
+function frule((_, ẋs...), ::typeof(Base.vect), xs::Number...)
+    return Base.vect(xs...), Base.vect(_instantiate_zeros(ẋs, xs)...)
 end
 
 # Case of uniform type `T`: the data passes straight through,
@@ -52,43 +52,46 @@ function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
 end
 
 """
-    _make_real_zeros(xdots, xs)
+    _instantiate_zeros(ẋs, xs)
 
-Forward rules for `vect` or `cat` may receive a mixture of data and `ZeroTangent`s.
-To avoid `vect(1, ZeroTangent(), 3)` or `hcat([1,2], ZeroTangent())`, this materialises
-each zero `xdot` to be `zero(x)`.
+Forward rules for `vect`, `cat` etc may receive a mixture of data and `ZeroTangent`s.
+To avoid `vect(1, ZeroTangent(), 3)` or worse `vcat([1,2], ZeroTangent(), [6,7])`, this
+materialises each zero `ẋ` to be `zero(x)`.
 """
-_make_real_zeros(xdots, xs) = map(_real_zero, xdots, xs)
-_real_zero(xdot, x) = xdot
-_real_zero(xdot::AbstractZero, x) = zero(x)
+_instantiate_zeros(ẋs, xs) = map(_i_zero, ẋs, xs)
+_i_zero(ẋ, x) = ẋ
+_i_zero(ẋ::AbstractZero, x) = zero(x)
+# Possibly this won't work for partly non-diff arrays, sometihng like `gradient(x -> ["abc", x][end], 1)`
+# may give a MethodError for `zero` but won't be wrong.
 
 # Fast paths. Should it also collapse all-Zero cases?
-_make_real_zeros(xdots::NTuple{<:Any, <:Number}, xs) = xdots
-_make_real_zeros(xdots::AbstractArray{<:Number}, xs) = xdots
-_make_real_zeros(xdots::AbstractArray{<:AbstractArray}, xs) = xdots
+_instantiate_zeros(ẋs::NTuple{<:Any, <:Number}, xs) = ẋs
+_instantiate_zeros(ẋs::NTuple{<:Any, <:AbstractArray}, xs) = ẋs
+_instantiate_zeros(ẋs::AbstractArray{<:Number}, xs) = ẋs
+_instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 
-frrule((_, xdd, _), ::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xdots, xs), xdd  # not very sure!
+frule((_, ẍs, _), ::typeof(_instantiate_zeros), ẋs, xs) = _instantiate_zeros(ẋs, xs), ẍs
 
-rrule(::typeof(_make_real_zeros), xdots, xs) = _make_real_zeros(xdots, xs), dydots -> (NoTangent(), dydots, NoTangent())
+rrule(::typeof(_instantiate_zeros), ẋs, xs) = _instantiate_zeros(ẋs, xs), dẏs -> (NoTangent(), dẏs, NoTangent())
 
 #####
 ##### `copyto!`
 #####
 
-function frule((_, ydot, xdot), ::typeof(copyto!), y::AbstractArray, x)
-    return copyto!(y, x), copyto!(ydot, xdot)
+function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
+    return copyto!(y, x), copyto!(ẏ, ẋ)
 end
 
-function frule((_, ydot, _, xdot), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
-    return copyto!(y, i, x, js...), copyto!(ydot, i, xdot, js...)
+function frule((_, ẏ, _, ẋ), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
+    return copyto!(y, i, x, js...), copyto!(ẏ, i, ẋ, js...)
 end
 
 #####
 ##### `reshape`
 #####
 
-function frule((_, xdot), ::typeof(reshape), x::AbstractArray, dims...)
-    return reshape(x, dims...), reshape(xdot, dims...)
+function frule((_, ẋ), ::typeof(reshape), x::AbstractArray, dims...)
+    return reshape(x, dims...), reshape(ẋ, dims...)
 end
 
 function rrule(::typeof(reshape), A::AbstractArray, dims...)
@@ -103,8 +106,8 @@ end
 ##### `dropdims`
 #####
 
-function frule((_, xdot), ::typeof(dropdims), x::AbstractArray; dims)
-    return dropdims(x; dims=dims), dropdims(xdot; dims=dims)
+function frule((_, ẋ), ::typeof(dropdims), x::AbstractArray; dims)
+    return dropdims(x; dims=dims), dropdims(ẋ; dims=dims)
 end
 
 function rrule(::typeof(dropdims), A::AbstractArray; dims)
@@ -118,12 +121,12 @@ end
 ##### `permutedims`
 #####
 
-function frule((_, xdot), ::typeof(permutedims), x::AbstractArray, perm...)
-    return permutedims(x, perm...), permutedims(xdot, perm...)
+function frule((_, ẋ), ::typeof(permutedims), x::AbstractArray, perm...)
+    return permutedims(x, perm...), permutedims(ẋ, perm...)
 end
 
-function frule((_, ydot, xdot), ::typeof(permutedims!), y::AbstractArray, x::AbstractArray, perm...)
-    return permutedims!(y, x, perm...), permutedims!(ydot, xdot, perm...)
+function frule((_, ẏ, ẋ), ::typeof(permutedims!), y::AbstractArray, x::AbstractArray, perm...)
+    return permutedims!(y, x, perm...), permutedims!(ẏ, ẋ, perm...)
 end
 
 function rrule(::typeof(permutedims), x::AbstractVector)
@@ -148,8 +151,8 @@ end
 ##### `repeat`
 #####
 
-function frule((_, xsdot), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
-    return repeat(xs, cnt...; kw...), repeat(xsdot, cnt...; kw...)
+function frule((_, ẋs), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
+    return repeat(xs, cnt...; kw...), repeat(ẋs, cnt...; kw...)
 end
 
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
@@ -191,8 +194,8 @@ end
 ##### `hcat`
 #####
 
-function frule((_, xdots...), ::typeof(hcat), xs...)
-    return hcat(xs...), hcat(_make_real_zeros(xdots, xs)...)
+function frule((_, ẋs...), ::typeof(hcat), xs...)
+    return hcat(xs...), hcat(_instantiate_zeros(ẋs, xs)...)
 end
 
 function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
@@ -229,8 +232,8 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     return Y, hcat_pullback
 end
 
-function frule((_, _, Adots), ::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
-    return reduce(hcat, As), reduce(hcat, _make_real_zeros(Adots, As))
+function frule((_, _, Ȧs), ::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(hcat, As), reduce(hcat, _instantiate_zeros(Ȧs, As))
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
@@ -261,8 +264,8 @@ end
 ##### `vcat`
 #####
 
-function frule((_, xdots...), ::typeof(vcat), xs...)
-    return vcat(xs...), vcat(_make_real_zeros(xdots, xs)...)
+function frule((_, ẋs...), ::typeof(vcat), xs...)
+    return vcat(xs...), vcat(_instantiate_zeros(ẋs, xs)...)
 end
 
 function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
@@ -297,8 +300,8 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     return Y, vcat_pullback
 end
 
-function frule((_, _, Adots), ::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
-    return reduce(vcat, As), reduce(vcat, _make_real_zeros(Adots, As))
+function frule((_, _, Ȧs), ::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(vcat, As), reduce(vcat, _instantiate_zeros(Ȧs, As))
 end
 
 function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
@@ -324,8 +327,8 @@ end
 
 _val(::Val{x}) where {x} = x
 
-function frule((_, xdots...), ::typeof(cat), xs...; dims)
-    return cat(xs...; dims), cat(_make_real_zeros(xdots, xs)...; dims)
+function frule((_, ẋs...), ::typeof(cat), xs...; dims)
+    return cat(xs...; dims), cat(_instantiate_zeros(ẋs, xs)...; dims)
 end
 
 function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
@@ -366,8 +369,8 @@ end
 ##### `hvcat`
 #####
 
-function frule((_, _, xdots...), ::typeof(hvcat), rows, xs...)
-    return hvcat(rows, xs...), hvcat(rows, _make_real_zeros(xdots, xs)...)
+function frule((_, _, ẋs...), ::typeof(hvcat), rows, xs...)
+    return hvcat(rows, xs...), hvcat(rows, _instantiate_zeros(ẋs, xs)...)
 end
 
 function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
@@ -406,12 +409,12 @@ end
 # 1-dim case allows start/stop, N-dim case takes dims keyword
 # whose defaults changed in Julia 1.6... just pass them all through:
 
-function frule((_, xdot), ::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
-    return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
+function frule((_, ẋ), ::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
+    return reverse(x, args...; kw...), reverse(ẋ, args...; kw...)
 end
 
-function frule((_, xdot), ::typeof(reverse!), x::Union{AbstractArray, Tuple}, args...; kw...)
-    return reverse!(x, args...; kw...), reverse!(xdot, args...; kw...)
+function frule((_, ẋ), ::typeof(reverse!), x::Union{AbstractArray, Tuple}, args...; kw...)
+    return reverse!(x, args...; kw...), reverse!(ẋ, args...; kw...)
 end
 
 function rrule(::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
@@ -427,12 +430,12 @@ end
 ##### `circshift`
 #####
 
-function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
-    return circshift(x, shifts), circshift(xdot, shifts)
+function frule((_, ẋ), ::typeof(circshift), x::AbstractArray, shifts)
+    return circshift(x, shifts), circshift(ẋ, shifts)
 end
 
-function frule((_, ydot, xdot), ::typeof(circshift!), y::AbstractArray, x::AbstractArray, shifts)
-    return circshift!(y, x, shifts), circshift!(ydot, xdot, shifts)
+function frule((_, ẏ, ẋ), ::typeof(circshift!), y::AbstractArray, x::AbstractArray, shifts)
+    return circshift!(y, x, shifts), circshift!(ẏ, ẋ, shifts)
 end
 
 function rrule(::typeof(circshift), x::AbstractArray, shifts)
@@ -448,12 +451,12 @@ end
 ##### `fill`
 #####
 
-function frule((_, xdot), ::typeof(fill), x::Any, dims...)
-    return fill(x, dims...), fill(xdot, dims...)
+function frule((_, ẋ), ::typeof(fill), x::Any, dims...)
+    return fill(x, dims...), fill(ẋ, dims...)
 end
 
-function frule((_, ydot, xdot), ::typeof(fill!), y::AbstractArray, x::Any)
-    return fill!(y, x), fill!(ydot, xdot)
+function frule((_, ẏ, ẋ), ::typeof(fill!), y::AbstractArray, x::Any)
+    return fill!(y, x), fill!(ẏ, ẋ)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)
@@ -467,9 +470,9 @@ end
 ##### `filter`
 #####
 
-function frule((_, _, xdot), ::typeof(filter), f, x::AbstractArray)
+function frule((_, _, ẋ), ::typeof(filter), f, x::AbstractArray)
     inds = findall(f, x)
-    return x[inds], xdot[inds]
+    return x[inds], ẋ[inds]
 end
 
 function rrule(::typeof(filter), f, x::AbstractArray)
@@ -489,9 +492,9 @@ end
 for findm in (:findmin, :findmax)
     findm_pullback = Symbol(findm, :_pullback)
 
-    @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
+    @eval function frule((_, ẋ), ::typeof($findm), x; dims=:)
         y, ind = $findm(x; dims=dims)
-        return (y, ind), Tangent{typeof((y, ind))}(xdot[ind], NoTangent())
+        return (y, ind), Tangent{typeof((y, ind))}(ẋ[ind], NoTangent())
     end
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
@@ -538,8 +541,8 @@ end
 # Allow for second derivatives, by writing rules for `_zerolike_writeat`;
 # these rules are the reason it takes a `dims` argument.
 
-function frule((_, _, dydot), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dydot, dims, inds...)
+function frule((_, _, dẏ), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dẏ, dims, inds...)
 end
 
 function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
@@ -554,9 +557,9 @@ end
 
 # These rules for `maximum` pick the same subgradient as `findmax`:
 
-function frule((_, xdot), ::typeof(maximum), x; dims=:)
+function frule((_, ẋ), ::typeof(maximum), x; dims=:)
     y, ind = findmax(x; dims=dims)
-    return y, xdot[ind]
+    return y, ẋ[ind]
 end
 
 function rrule(::typeof(maximum), x::AbstractArray; dims=:)
@@ -565,9 +568,9 @@ function rrule(::typeof(maximum), x::AbstractArray; dims=:)
     return y, maximum_pullback
 end
 
-function frule((_, xdot), ::typeof(minimum), x; dims=:)
+function frule((_, ẋ), ::typeof(minimum), x; dims=:)
     y, ind = findmin(x; dims=dims)
-    return y, xdot[ind]
+    return y, ẋ[ind]
 end
 
 function rrule(::typeof(minimum), x::AbstractArray; dims=:)
