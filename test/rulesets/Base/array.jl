@@ -69,7 +69,8 @@ end
 @testset "reshape" begin
     # Forward
     test_frule(reshape, rand(4, 3), 2, :)
-    test_rrule(reshape, rand(4, 3), axes(rand(6, 2)))
+    test_frule(reshape, rand(4, 3), axes(rand(6, 2)))
+    @test_skip test_frule(reshape, Diagonal(rand(4)), 2, :)
 
     # Reverse
     test_rrule(reshape, rand(4, 5), (2, 10))
