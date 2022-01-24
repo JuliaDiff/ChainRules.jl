@@ -47,31 +47,31 @@ end
     println()
 
     # Each file puts all tests inside one or more @testset blocks
-    # include_test("rulesets/Base/base.jl")
-    # include_test("rulesets/Base/fastmath_able.jl")
-    # include_test("rulesets/Base/evalpoly.jl")
-    # include_test("rulesets/Base/array.jl")
-    # include_test("rulesets/Base/arraymath.jl")
-    # include_test("rulesets/Base/indexing.jl")
-    # include_test("rulesets/Base/mapreduce.jl")
-    # include_test("rulesets/Base/sort.jl")
+    include_test("rulesets/Base/base.jl")
+    include_test("rulesets/Base/fastmath_able.jl")
+    include_test("rulesets/Base/evalpoly.jl")
+    include_test("rulesets/Base/array.jl")
+    include_test("rulesets/Base/arraymath.jl")
+    include_test("rulesets/Base/indexing.jl")
+    include_test("rulesets/Base/mapreduce.jl")
+    include_test("rulesets/Base/sort.jl")
 
-    # println()
+    println()
 
-    # include_test("rulesets/Statistics/statistics.jl")
+    include_test("rulesets/Statistics/statistics.jl")
 
-    # println()
+    println()
 
-    # include_test("rulesets/LinearAlgebra/dense.jl")
-    # include_test("rulesets/LinearAlgebra/norm.jl")
-    # include_test("rulesets/LinearAlgebra/matfun.jl")
-    # include_test("rulesets/LinearAlgebra/structured.jl")
-    # include_test("rulesets/LinearAlgebra/symmetric.jl")
-    # include_test("rulesets/LinearAlgebra/factorization.jl")
-    # include_test("rulesets/LinearAlgebra/blas.jl")
-    # include_test("rulesets/LinearAlgebra/lapack.jl")
+    include_test("rulesets/LinearAlgebra/dense.jl")
+    include_test("rulesets/LinearAlgebra/norm.jl")
+    include_test("rulesets/LinearAlgebra/matfun.jl")
+    include_test("rulesets/LinearAlgebra/structured.jl")
+    include_test("rulesets/LinearAlgebra/symmetric.jl")
+    include_test("rulesets/LinearAlgebra/factorization.jl")
+    include_test("rulesets/LinearAlgebra/blas.jl")
+    include_test("rulesets/LinearAlgebra/lapack.jl")
 
-    # println()
+    println()
 
     include_test("rulesets/SparseArrays/sparsematrix.jl")
 
