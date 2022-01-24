@@ -43,9 +43,10 @@ end
     end
     @testset "_instantiate_zeros" begin
         # This is an internal function also used for `cat` etc.
-        # It has its own rules to allow for 2nd derivatives.
         @eval using ChainRules: _instantiate_zeros
-        test_frule(_instantiate_zeros, Tuple(rand(3)), Tuple(rand(3)))
+        # Check these hit the fast path, unrealistic input so that map would fail:
+        @test _instantiate_zeros((true, 2 , 3.0), ()) == (1, 2, 3)
+        @test _instantiate_zeros((1:2, [3, 4]), ()) == (1:2, 3:4)
     end
 end
 

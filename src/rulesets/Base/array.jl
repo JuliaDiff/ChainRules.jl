@@ -65,14 +65,10 @@ _i_zero(ẋ::AbstractZero, x) = zero(x)
 # may give a MethodError for `zero` but won't be wrong.
 
 # Fast paths. Should it also collapse all-Zero cases?
-_instantiate_zeros(ẋs::NTuple{<:Any, <:Number}, xs) = ẋs
-_instantiate_zeros(ẋs::NTuple{<:Any, <:AbstractArray}, xs) = ẋs
+_instantiate_zeros(ẋs::Tuple{Vararg{<:Number}}, xs) = ẋs
+_instantiate_zeros(ẋs::Tuple{Vararg{<:AbstractArray}}, xs) = ẋs
 _instantiate_zeros(ẋs::AbstractArray{<:Number}, xs) = ẋs
 _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
-
-frule((_, ẍs, _), ::typeof(_instantiate_zeros), ẋs, xs) = _instantiate_zeros(ẋs, xs), ẍs
-
-rrule(::typeof(_instantiate_zeros), ẋs, xs) = _instantiate_zeros(ẋs, xs), dẏs -> (NoTangent(), dẏs, NoTangent())
 
 #####
 ##### `copyto!`
