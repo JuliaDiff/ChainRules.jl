@@ -6,13 +6,14 @@
     test_rrule(sparse, s, t, w, m, n, +)
 end
 
-@testset "sparse(A)" begin
+@testset "SparseMatrixCSC(A)" begin
     A = rand(5, 3)
-    test_rrule(sparse, A)
+    test_rrule(SparseMatrixCSC, A)
+    test_rrule(SparseMatrixCSC{Float32,Int}, A, rtol=1e-5)
 end
 
-@testset "sparse(v)" begin
+@testset "SparseVector(v)" begin
     v = rand(5)
-    test_rrule(sparse, v)
+    test_rrule(SparseVector, v)
+    test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-5)
 end
-
