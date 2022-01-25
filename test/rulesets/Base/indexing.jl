@@ -1,6 +1,15 @@
 @testset "getindex" begin
     @testset "getindex(::Matrix{<:Number}, ...)" begin
         x = [1.0 2.0 3.0; 10.0 20.0 30.0]
+        
+        @testset "forward mode" begin
+            test_frule(getindex, x, 2)
+            test_frule(getindex, x, 2, 1)
+            test_frule(getindex, x, CartesianIndex(2, 3))
+
+            test_frule(getindex, x, 2:3)
+            test_frule(getindex, x, (:), 2:3)
+        end
 
         @testset "single element" begin
             test_rrule(getindex, x, 2)
@@ -47,4 +56,15 @@
             test_rrule(getindex, x, [2,2], [3,3])
         end
     end
+end
+
+@testset "view" begin
+    test_frule(view, rand(3, 4), :, 1)
+    test_frule(view, rand(3, 4), 2, [1, 1, 2])
+    test_frule(view, rand(3, 4), 3, 4)
+end
+
+@testset "setindex!" begin
+    test_frule(setindex!, rand(3, 4), rand(), 1, 2)
+    test_frule(setindex!, rand(3, 4), [1,10,100.0], :, 3)
 end
