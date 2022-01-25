@@ -89,8 +89,11 @@ ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; d
     test_rrule(collect∘eachcol, rand(3, 4))
     @test_skip test_rrule(collect∘eachcol, Diagonal(rand(5)))  # works locally!
 
-    test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3))
-    test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)))
+    if VERSION > v"1.7-"
+        # On 1.6, ComposedFunction doesn't take keywords. Only affects this testing strategy, not real use.
+        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3))
+        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)))
+    end
 
     _, back = rrule(eachcol, rand(3, 4))
     @test back([1:3, ZeroTangent(), 7:9, NoTangent()]) == (NoTangent(), [1 0 7 0; 2 0 8 0; 3 0 9 0])
