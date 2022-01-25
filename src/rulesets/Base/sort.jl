@@ -54,7 +54,6 @@ end
 
 function frule((_, ẋ), ::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
-    firstindex(x, dims) == 1 || throw(ArgumentError("The `rrule` for `sortslices` does not at present handle offset indices here."))
     inds = ntuple(d -> d == dims ? p : (:), ndims(x))
     return x[inds...], ẋ[inds...]
 end
