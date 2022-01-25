@@ -7,8 +7,8 @@
             test_frule(getindex, x, 2, 1)
             test_frule(getindex, x, CartesianIndex(2, 3))
 
-            test_rrule(getindex, x, 2:3)
-            test_rrule(getindex, x, (:), 2:3)
+            test_frule(getindex, x, 2:3)
+            test_frule(getindex, x, (:), 2:3)
         end
 
         @testset "single element" begin

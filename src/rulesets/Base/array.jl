@@ -114,14 +114,14 @@ end
 #####
 
 function frule((_, ẋ), ::typeof(dropdims), x::AbstractArray; dims)
-    return dropdims(x; dims=dims), dropdims(ẋ; dims=dims)
+    return dropdims(x; dims), dropdims(ẋ; dims)
 end
 
 function rrule(::typeof(dropdims), A::AbstractArray; dims)
     ax = axes(A)
     project = ProjectTo(A)
     dropdims_pullback(Ȳ) = (NoTangent(), project(reshape(Ȳ, ax)))
-    return dropdims(A; dims=dims), dropdims_pullback
+    return dropdims(A; dims), dropdims_pullback
 end
 
 #####
