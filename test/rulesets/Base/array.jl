@@ -70,7 +70,7 @@ end
     # Forward
     test_frule(reshape, rand(4, 3), 2, :)
     test_frule(reshape, rand(4, 3), axes(rand(6, 2)))
-    @test_skip test_frule(reshape, Diagonal(rand(4)), 2, :)
+    @test_skip test_frule(reshape, Diagonal(rand(4)), 2, :) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
 
     # Reverse
     test_rrule(reshape, rand(4, 5), (2, 10))
@@ -83,7 +83,7 @@ end
     @test rrule(reshape, adjoint(rand(ComplexF64, 4)), :)[2](rand(4))[2] isa Adjoint{ComplexF64}
     @test rrule(reshape, Diagonal(rand(4)), (2, :))[2](ones(2,8))[2] isa Diagonal
     @test_skip test_rrule(reshape, Diagonal(rand(4)), 2, :)  # DimensionMismatch("second dimension of A, 22, does not match length of x, 16")
-    @test_skip test_rrule(reshape, UpperTriangular(rand(4,4)), (8, 2))
+    @test_skip test_rrule(reshape, UpperTriangular(rand(4,4)), (8, 2)) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
 end
 
 @testset "dropdims" begin
@@ -101,6 +101,7 @@ end
     test_frule(permutedims, rand(5))
     test_frule(permutedims, rand(3, 4), (2, 1))
     test_frule(permutedims!, rand(4,3), rand(3, 4), (2, 1))
+    test_frule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
 
     # Reverse
     test_rrule(permutedims, rand(5))
@@ -111,7 +112,7 @@ end
     @test invperm((3, 1, 2)) != (3, 1, 2)
     test_rrule(permutedims, rand(3, 4, 5), (3, 1, 2))
 
-    @test_skip test_rrule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
+    @test_skip test_rrule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))  # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/240
     x = rand(2, 3, 4)
     dy = rand(4, 2, 3)
     @test rrule(permutedims, x, (3, 1, 2))[2](dy)[2] == rrule(PermutedDimsArray, x, (3, 1, 2))[2](dy)[2]

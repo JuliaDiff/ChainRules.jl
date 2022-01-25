@@ -136,6 +136,10 @@ function frule((_, ẏ, ẋ), ::typeof(permutedims!), y::AbstractArray, x::Abstr
     return permutedims!(y, x, perm...), permutedims!(ẏ, ẋ, perm...)
 end
 
+function frule((_, ẋ), ::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
+    return PermutedDimsArray(x, perm), PermutedDimsArray(ẋ, perm)
+end
+
 function rrule(::typeof(permutedims), x::AbstractVector)
     project = ProjectTo(x)
     permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
