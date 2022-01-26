@@ -100,6 +100,7 @@ _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
 function rrule(::typeof(∇eachslice), dys, x, vd::Val)
     function ∇∇eachslice(dz_raw)
         dz = unthunk(dz_raw)
+        # eachslice(dz; dims=_val(vd)) does not make @code_warntype happy
         iter = vd == Val(1) ? eachrow(dz) : vd == Val(2) ? eachcol(dz) : eachslice(dz; dims=_val(vd))
         return (NoTangent(), collect(iter), NoTangent(), NoTangent())
     end
@@ -107,6 +108,8 @@ function rrule(::typeof(∇eachslice), dys, x, vd::Val)
 end
 
 # These rules help with testing, and won't hurt:
+# They are correct as we always `collect` the primal result as we need that
+# information for the reverse pass
 ChainRules.rrule(::typeof(collect∘eachrow), x) = rrule(eachrow, x)
 ChainRules.rrule(::typeof(collect∘eachcol), x) = rrule(eachcol, x)
 ChainRules.rrule(::typeof(collect∘eachslice), x; dims) = rrule(eachslice, x; dims=dims)
