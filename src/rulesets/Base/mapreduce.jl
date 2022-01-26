@@ -5,8 +5,13 @@
 function frule((_, ẋ), ::typeof(sum), x::Tuple)
     return sum(x), sum(ẋ)
 end
+
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray)
+    return sum!(y, x), sum!(ẏ, ẋ)
 end
 
 function rrule(::typeof(sum), x::AbstractArray; dims=:)
@@ -115,12 +120,10 @@ function frule(
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * realdot(x, ẋ)
-    elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
+    else
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
             2 * realdot(xi, dxi)
         end
-    else
-        2 * sum(realdot.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end
@@ -152,6 +155,37 @@ for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
         return rrule(sum, abs2, x; dims=dims)
     end
 end
+
+#####
+##### `cumsum`
+#####
+
+function frule((_, xdot), ::typeof(cumsum), x::AbstractArray; dims::Integer)
+    return cumsum(x; dims=dims), cumsum(xdot; dims=dims)
+end
+frule(tang, ::typeof(cumsum), x::AbstractVector) = frule(tang, cumsum, x; dims=1)
+
+function frule((_, ydot, xdot), ::typeof(cumsum!), y::AbstractArray, x::AbstractArray; dims::Integer)
+    return cumsum!(y, x; dims=dims), cumsum!(ydot, xdot; dims=dims)
+end
+frule(t, ::typeof(cumsum!), y::AbstractVector, x::AbstractVector) = frule(t, cumsum!, y, x; dims=1)
+
+function rrule(::typeof(cumsum), x::AbstractArray; dims::Integer)
+    project = ProjectTo(x)
+    function cumsum_pullback(dy)
+        step1 = reverse(unthunk(dy); dims=dims)
+        if ChainRulesCore.is_inplaceable_destination(step1) && VERSION >= v"1.6"
+            step2 = cumsum!(step1, step1; dims=dims)
+            step3 = reverse!(step2; dims=dims)
+        else
+            step2 = cumsum(step1; dims=dims)
+            step3 = reverse(step2; dims=dims)
+        end
+        return (NoTangent(), project(step3))
+    end
+    return cumsum(x; dims=dims), cumsum_pullback
+end
+rrule(::typeof(cumsum), x::AbstractVector) = rrule(cumsum, x; dims=1)
 
 #####
 ##### `prod`
@@ -388,16 +422,10 @@ end
 # To support 2nd derivatives, some may need their own gradient rules. And _drop1 should perhaps
 # be replaced by _peel1 like Iterators.peel
 
-if VERSION >= v"1.6"
-    _reverse1(x) = Iterators.reverse(x)
-    _drop1(x) = Iterators.drop(x, 1)
-    _zip2(x, y) = zip(x, y)  # for `accumulate`, below
-else
-    # Old versions don't support accumulate(::itr), nor multi-dim reverse
-    _reverse1(x) = reverse(vec(x))
-    _drop1(x) = vec(x)[2:end]
-    _zip2(x, y) = collect(zip(x, y))
-end
+_reverse1(x) = Iterators.reverse(x)
+_drop1(x) = Iterators.drop(x, 1)
+_zip2(x, y) = zip(x, y)  # for `accumulate`, below
+
 _reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
@@ -449,16 +477,9 @@ function rrule(
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
         rev_list = if init === _InitialValue()
-            if VERSION >= v"1.6"
-                # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
-                # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
-                _zip2(_reverse1(hobbits), _reverse1(dy_plain))
-            else
-                # However, on 1.0 and some others, zip does not stop early. But since accumulate
-                # also doesn't work on iterators, `_drop1` doesn't make one, so this should work:
-                _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
-                # What an awful tangle.
-            end
+            # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
+            # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
+            _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         else
             _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         end

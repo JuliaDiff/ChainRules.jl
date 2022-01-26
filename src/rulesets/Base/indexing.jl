@@ -2,6 +2,10 @@
 ##### getindex
 #####
 
+function frule((_, ẋ), ::typeof(getindex), x::AbstractArray, inds...)
+    return x[inds...], ẋ[inds...]
+end
+
 function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     # removes any logical indexing, CartesianIndex etc
     # leaving us just with a tuple of Int, Arrays of Int and Ranges of Int
@@ -26,3 +30,22 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
 
     return y, getindex_pullback
 end
+
+#####
+##### view
+#####
+
+function frule((_, ẋ), ::typeof(view), x::AbstractArray, inds...)
+    return view(x, inds...), view(ẋ, inds...)
+end
+
+#####
+##### setindex!
+#####
+
+function frule((_, ẋ, v̇), ::typeof(setindex!), x::AbstractArray, v, inds...)
+    return setindex!(x, v, inds...), setindex!(ẋ, v̇, inds...)
+end
+
+
+
