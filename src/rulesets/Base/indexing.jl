@@ -64,13 +64,10 @@ end
 
 function rrule(::typeof(eachslice), x::AbstractArray; dims)
     y = collect(eachslice(x; dims=dims))
-    dim = if length(dims) == 1
-        only(dims)
-    else
-        throw(ArgumentError("""That's amazing, after many years JuliaLang/julia#32310 actually landed.
-            Sadly, the gradient rule for `eachslice` is unable to handle this case right now,
-            please make an issue at https://github.com/JuliaDiff/ChainRules.jl"""))
-    end
+    @assert length(dims) == 1 """That's amazing, after many years JuliaLang/julia#32310
+        actually landed. Sadly, the gradient rule for `eachslice` is unable to handle this
+        case right now, please make an issue at https://github.com/JuliaDiff/ChainRules.jl"""
+    dim = only(dims)
     allslices(dy) = (NoTangent(), ∇eachslice(unthunk(dy), x, Val(dim)))
     return y, allslices
 end
