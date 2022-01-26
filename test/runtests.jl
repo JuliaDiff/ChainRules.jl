@@ -76,6 +76,5 @@ end
     println()
 
     include_test("rulesets/Random/random.jl")
-  
     println()
 end
