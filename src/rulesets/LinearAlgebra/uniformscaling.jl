@@ -3,35 +3,29 @@
 ##### `+`
 #####
 
-function frule((_, Δx, ΔI), ::typeof(+), x::AbstractMatrix, I::UniformScaling)
-    return x + I, Δx + ΔI
+function frule((_, Δx, ΔJ), ::typeof(+), x::AbstractMatrix, J::UniformScaling)
+    return x + J, Δx + ΔJ
 end
 
-function frule((_, ΔI, Δx), ::typeof(+), I::UniformScaling, x::AbstractMatrix)
-    return I + x, ΔI + Δx
+function frule((_, ΔJ, Δx), ::typeof(+), J::UniformScaling, x::AbstractMatrix)
+    return J + x, ΔJ + Δx
 end
 
-function rrule(::typeof(+), x::AbstractMatrix, I::UniformScaling)
+function rrule(::typeof(+), x::AbstractMatrix, J::UniformScaling)
     project_x = ProjectTo(x)
-    project_λ = ProjectTo(I.λ)
-    y = x + I
+    project_J = ProjectTo(J)
     function plus_back(dy)
         dx = unthunk(dy)
-        dλ = if I.λ isa Bool
-            NoTangent()
-        else
-            Tangent{typeof(I)}(; λ = project_λ(tr(dx)))
-        end
-        return (NoTangent(), project_x(dx), dλ)
+        (NoTangent(), project_x(dx), project_J(I * tr(dx)))
     end
-    return y, plus_back
+    return x + J, plus_back
 end
 
-function rrule(::typeof(+), I::UniformScaling, x::AbstractMatrix)
-    y, back = rrule(+, x, I)
+function rrule(::typeof(+), J::UniformScaling, x::AbstractMatrix)
+    y, back = rrule(+, x, J)
     function plus_back_2(dy)
-        df, dx, dI = back(dy)
-        return (df, dI, dx)
+        df, dx, dJ = back(dy)
+        return (df, dJ, dx)
     end
     return y, plus_back_2
 end
@@ -40,58 +34,51 @@ end
 ##### `-`
 #####
 
-function frule((_, Δx, ΔI), ::typeof(-), x::AbstractMatrix, I::UniformScaling)
-    return x - I, Δx - ΔI
+function frule((_, Δx, ΔJ), ::typeof(-), x::AbstractMatrix, J::UniformScaling)
+    return x - J, Δx - ΔJ
 end
 
-function frule((_, ΔI, Δx), ::typeof(-), I::UniformScaling, x::AbstractMatrix)
-    return I - x, ΔI - Δx
+function frule((_, ΔJ, Δx), ::typeof(-), J::UniformScaling, x::AbstractMatrix)
+    return J - x, ΔJ - Δx
 end
 
-function rrule(::typeof(-), x::AbstractMatrix, I::UniformScaling)
-    y, back = rrule(+, x, -I)
+function rrule(::typeof(-), x::AbstractMatrix, J::UniformScaling)
+    y, back = rrule(+, x, -J)
     function minus_back_1(dy)
-        df, dx, dImaybe = back(dy)
-        dI = I.λ isa Bool ? NoTangent() : dImaybe  # as -true isa Int
-        return (df, dx, -dI)
+        df, dx, dJmaybe = back(dy)
+        dJ = J.λ isa Bool ? NoTangent() : dJmaybe  # as -true isa Int
+        return (df, dx, -dJ)
     end
     return y, minus_back_1
 end
 
-function rrule(::typeof(-), I::UniformScaling, x::AbstractMatrix)
+function rrule(::typeof(-), J::UniformScaling, x::AbstractMatrix)
     project_x = ProjectTo(x)
-    project_λ = ProjectTo(I.λ)
-    y = I - x
+    project_J = ProjectTo(J)
     function minus_back_2(dy)
         dx = -unthunk(dy)
-        dλ = if I.λ isa Bool
-            NoTangent()
-        else
-            Tangent{typeof(I)}(; λ = project_λ(-tr(dx)))
-        end
-        return (NoTangent(), dλ, project_x(dx))
+        return (NoTangent(), project_J(-tr(dx) * I), project_x(dx))
     end
-    return y, minus_back_2
+    return J - x, minus_back_2
 end
 
 #####
 ##### `Matrix`
 #####
 
-function rrule(::Type{T}, I::UniformScaling, (m, n)) where {T<:AbstractMatrix}
-    project_λ = ProjectTo(I.λ)
+function rrule(::Type{T}, J::UniformScaling, (m, n)) where {T<:AbstractMatrix}
+    project_J = ProjectTo(J)
     function Matrix_back_I(dy)
-        if I.λ isa Bool
+        if J.λ isa Bool
             return (NoTangent(), NoTangent(), NoTangent())
         end
-        dλ = if m == n
-            project_λ(tr(unthunk(dy)))
+        dJ = if m == n
+            project_J(I * tr(unthunk(dy)))
         else
-            project_λ(sum(diag(unthunk(dy))))
+            project_J(I * sum(diag(unthunk(dy))))
         end
-        return (NoTangent(), Tangent{typeof(I)}(; λ = dλ), NoTangent())
+        return (NoTangent(), dJ, NoTangent())
     end
-    return T(I, m, n), Matrix_back_I
+    return T(J, m, n), Matrix_back_I
 end
-
 
