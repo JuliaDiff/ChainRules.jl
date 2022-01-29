@@ -1,7 +1,7 @@
 @testset "UniformScaling rules" begin
 
     @testset "constructor" begin
-        test_rrule(UniformScaling, rand(3))
+        test_rrule(UniformScaling, rand())
     end
 
     @testset "+" begin
