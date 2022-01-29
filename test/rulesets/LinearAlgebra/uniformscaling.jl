@@ -1,5 +1,9 @@
 @testset "UniformScaling rules" begin
 
+    @testset "constructor" begin
+        test_rrule(UniformScaling, rand(3))
+    end
+
     @testset "+" begin
         # Forward
         @test_skip test_frule(+, rand(3,3), I * rand(ComplexF64))  # MethodError: no method matching +(::Matrix{Float64}, ::Tangent{UniformScaling{ComplexF64}, NamedTuple{(:λ,), Tuple{ComplexF64}}})

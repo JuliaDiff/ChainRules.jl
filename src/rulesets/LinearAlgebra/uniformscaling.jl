@@ -1,5 +1,14 @@
 
 #####
+##### constructor
+#####
+
+function rrule(::Type{T}, x::Number) where {T<:UniformScaling}
+    UniformScaling_back(dx) = (NoTangent(), ProjectTo(x)(unthunk(dx).λ))
+    return T(x), UniformScaling_back
+end
+
+#####
 ##### `+`
 #####
 
