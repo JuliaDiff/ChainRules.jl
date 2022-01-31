@@ -12,6 +12,7 @@ using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
+using SparseArrays
 using StaticArrays
 using Statistics
 using Test
@@ -72,6 +73,10 @@ end
     include_test("rulesets/LinearAlgebra/blas.jl")
     include_test("rulesets/LinearAlgebra/lapack.jl")
     include_test("rulesets/LinearAlgebra/uniformscaling.jl")
+
+    println()
+
+    include_test("rulesets/SparseArrays/sparsematrix.jl")
 
     println()
 
