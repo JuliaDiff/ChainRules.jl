@@ -6,7 +6,7 @@
 
     @testset "+" begin
         # Forward
-        @test_skip test_frule(+, rand(3,3), I * rand(ComplexF64))  # MethodError: no method matching +(::Matrix{Float64}, ::Tangent{UniformScaling{ComplexF64}, NamedTuple{(:λ,), Tuple{ComplexF64}}})
+        test_frule(+, rand(3,3), I * rand(ComplexF64))
         test_frule(+, I, rand(3,3))
 
         # Reverse
@@ -18,7 +18,7 @@
 
     @testset "-" begin
         # Forward
-        @test_skip test_frule(-, rand(3,3), I * rand(ComplexF64))  # MethodError: no method matching +(::Matrix{Float64}, ::Tangent{UniformScaling{ComplexF64}, NamedTuple{(:λ,), Tuple{ComplexF64}}})
+        test_frule(-, rand(3,3), I * rand(ComplexF64))
         test_frule(-, I, rand(3,3))
 
         # Reverse

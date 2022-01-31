@@ -13,11 +13,11 @@ end
 #####
 
 function frule((_, Δx, ΔJ), ::typeof(+), x::AbstractMatrix, J::UniformScaling)
-    return x + J, Δx + ΔJ
+    return x + J, Δx + (zero(J) + ΔJ)  # This (0 + ΔJ) allows for ΔJ::Tangent{UniformScaling}
 end
 
 function frule((_, ΔJ, Δx), ::typeof(+), J::UniformScaling, x::AbstractMatrix)
-    return J + x, ΔJ + Δx
+    return J + x, (zero(J) + ΔJ) + Δx
 end
 
 function rrule(::typeof(+), x::AbstractMatrix, J::UniformScaling)
@@ -44,11 +44,11 @@ end
 #####
 
 function frule((_, Δx, ΔJ), ::typeof(-), x::AbstractMatrix, J::UniformScaling)
-    return x - J, Δx - ΔJ
+    return x - J, Δx - (zero(J) + ΔJ)
 end
 
 function frule((_, ΔJ, Δx), ::typeof(-), J::UniformScaling, x::AbstractMatrix)
-    return J - x, ΔJ - Δx
+    return J - x, (zero(J) + ΔJ) - Δx
 end
 
 function rrule(::typeof(-), x::AbstractMatrix, J::UniformScaling)
