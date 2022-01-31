@@ -25,7 +25,7 @@ function rrule(::typeof(+), x::AbstractMatrix, J::UniformScaling)
     project_J = ProjectTo(J)
     function plus_back(dy)
         dx = unthunk(dy)
-        (NoTangent(), project_x(dx), project_J(I * tr(dx)))
+        return (NoTangent(), project_x(dx), project_J(I * tr(dx)))
     end
     return x + J, plus_back
 end
