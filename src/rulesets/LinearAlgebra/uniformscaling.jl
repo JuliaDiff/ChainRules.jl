@@ -53,10 +53,10 @@ end
 
 function rrule(::typeof(-), x::AbstractMatrix, J::UniformScaling)
     y, back = rrule(+, x, -J)
+    project_J = ProjectTo(J)
     function minus_back_1(dy)
-        df, dx, dJmaybe = back(dy)
-        dJ = J.λ isa Bool ? NoTangent() : dJmaybe  # as -true isa Int
-        return (df, dx, -dJ)
+        df, dx, dJ = back(dy)
+        return (df, dx, project_J(-dJ))  # re-project as -true isa Int
     end
     return y, minus_back_1
 end
@@ -75,12 +75,14 @@ end
 ##### `Matrix`
 #####
 
+function rrule(::Type{T}, I::UniformScaling{<:Bool}, (m, n)) where {T<:AbstractMatrix}
+    Matrix_back_I(dy) = (NoTangent(), NoTangent(), NoTangent())
+    return T(I, m, n), Matrix_back_I
+end
+
 function rrule(::Type{T}, J::UniformScaling, (m, n)) where {T<:AbstractMatrix}
     project_J = ProjectTo(J)
     function Matrix_back_I(dy)
-        if J.λ isa Bool
-            return (NoTangent(), NoTangent(), NoTangent())
-        end
         dJ = if m == n
             project_J(I * tr(unthunk(dy)))
         else
