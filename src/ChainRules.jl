@@ -42,6 +42,7 @@ include("rulesets/LinearAlgebra/matfun.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
+include("rulesets/LinearAlgebra/uniformscaling.jl")
 
 include("rulesets/SparseArrays/sparsematrix.jl")
 

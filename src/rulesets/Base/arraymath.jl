@@ -19,6 +19,10 @@ end
 ##### `*`
 #####
 
+frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
+
+frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
+
 
 function rrule(
     ::typeof(*),
@@ -88,7 +92,9 @@ function rrule(
 end
 
 
-
+#####
+##### `*` matrix-scalar_rule
+#####
 
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
@@ -203,6 +209,11 @@ end # VERSION
 #####
 ##### `muladd`
 #####
+
+function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+    Ω = muladd(A, B, z)
+    return Ω, ΔA * B .+ A * ΔB .+ Δz
+end
 
 function rrule(
         ::typeof(muladd),
@@ -351,6 +362,13 @@ end
 ##### `\`, `/` matrix-scalar_rule
 #####
 
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+    return A/b, ΔA/b - A*(Δb/b^2)
+end
+function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
+    return B/a, ΔB/a - B*(Δa/a^2)
+end
+
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
     function slash_pullback_scalar(ȳ)
@@ -378,6 +396,8 @@ end
 ##### Negation (Unary -)
 #####
 
+frule((_, ΔA), ::typeof(-), A::AbstractArray) = -A, -ΔA
+
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
         return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
@@ -389,6 +409,8 @@ end
 #####
 ##### Addition (Multiarg `+`)
 #####
+
+frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
