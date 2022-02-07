@@ -532,48 +532,64 @@ end
 ##### `pmap`
 #####
 
-const save_backs = Dict() # could this be a stack instead?
+const save_backs = Dict() # A dictionary for each processor, to persist pullbacks to run in the backwards pass.
 const COUNTER = Ref(1)
 
 # Now that there is a backwards rule for zip (albeit only in Zygote),
 # it should be fine to deal with only a single collection c
 function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X::AbstractArray; batch_size=1, kwargs...)
-    if batch_size == 1
-        key = myid(), COUNTER[]
-        COUNTER[] += 1
-        function forw(x)
-            y, back = rrule_via_ad(config, f, x)
-            !haskey(save_backs, key) && (save_backs[key] = [])
-            push!(save_backs[key], back)
-            return y, myid(), length(save_backs[key])
+    key = myid(), COUNTER[] # Uniquely identifies a call to pmap's rrule.
+    COUNTER[] += 1
+
+    function forw(x)
+        y, back = rrule_via_ad(config, f, x)
+        !haskey(save_backs, key) && (save_backs[key] = [])
+        push!(save_backs[key], back) # build an array of all the persisted pullbacks
+        return y, myid(), length(save_backs[key])
+    end
+
+    ys_IDs_indices = pmap(forw, X; kwargs...)
+    ys = getindex.(ys_IDs_indices, 1) # the primal values
+    IDs = getindex.(ys_IDs_indices, 2) # remember which processors handled which elements of X
+    indices = getindex.(ys_IDs_indices, 3) # remember the index of the pullback in the array on each processor
+
+    # create a list of positions in X handled by each processor
+    unique_IDs = sort(unique(IDs))
+    positions = [Vector{eltype(eachindex(X))}() for _ in 1:length(unique_IDs)] # I don't understand type stability well, is this bad :/
+    for i in eachindex(X)
+        push!(positions[searchsortedfirst(unique_IDs, IDs[i])], i)
+    end
+
+
+    pmap_pullback = function (Ȳ)
+
+        Ȳ = unthunk(Ȳ)
+
+        # runs the pullback for each position handled by proc ID in forward pass
+        function run_backs(ID, positions)
+            Ȳ_batch = Ȳ[positions]
+            indices_batch = indices[positions]
+            res_batch = remotecall_fetch(
+                () -> begin
+                res_batch = asyncmap((ȳ, i) -> save_backs[key][i](ȳ), Ȳ_batch, indices_batch) # run all the backs in a local asyncmap
+                delete!(save_backs, key) # clean up all the persisted pullbacks!
+                return res_batch
+            end, ID) 
+            return res_batch
         end
 
-        ys_IDs_indices = pmap(forw, X; kwargs...)
-        ys = getindex.(ys_IDs_indices, 1)
-        IDs = getindex.(ys_IDs_indices, 2)
-        indices = getindex.(ys_IDs_indices, 3)
+        # combine the results from each proc into res = pmap((back, ȳ) -> back(ȳ), p, backs for each position, Ȳ)
+        res_batches = asyncmap(run_backs, unique_IDs, positions)
+        res = similar(res_batches[1], size(Ȳ)) # same comment as line 560
 
-        pmap_pullback = function (Ȳ)
-            remote_calls = map((ID, i, ȳ) -> (@spawnat ID save_backs[key][i](ȳ)), IDs, indices, unthunk(Ȳ))
-            res = map(fetch, remote_calls)
-            @sync for ID in IDs
-                @spawnat ID delete!(save_backs, key)
-            end
-            f̄ = sum(first, res)
-            X̄ = map(last, res)
-            return (NoTangent(), f̄, NoTangent(), X̄)
+        for (positions, res_batch) in zip(positions, res_batches)
+            res[positions] = res_batch
         end
-    else
-        ys_backs = pmap(x -> rrule_via_ad(config, f, x), p, X; batch_size=batch_size, kwargs...)
-        ys = map(first, ys_backs)
-        backs = map(last, ys_backs)
 
-        pmap_pullback = function(Ȳ)
-            res = pmap((back, ȳ) -> back(ȳ), p, backs, unthunk(Ȳ); batch_size=batch_size, kwargs...)
-            f̄ = sum(first, res)
-            X̄ = map(last, res)
-            return (NoTangent(), f̄, NoTangent(), X̄)
-        end
+        # extract f̄ and X̄ 
+        f̄ = sum(first, res)
+        X̄ = map(last, res)
+        return (NoTangent(), f̄, NoTangent(), X̄)
     end
 
     return ys, pmap_pullback
