@@ -54,13 +54,13 @@ let
         @scalar_rule inv(x) -(Ω ^ 2)
         @scalar_rule sqrt(x) inv(2Ω)  # gradient +Inf at x==0
         @scalar_rule exp(x) Ω
-        @scalar_rule exp10(x) Ω * log(oftype(x, 10))
-        @scalar_rule exp2(x) Ω * log(oftype(x, 2))
+        @scalar_rule exp10(x) logten * Ω
+        @scalar_rule exp2(x) logtwo * Ω
         @scalar_rule expm1(x) exp(x)
         @scalar_rule log(x) inv(x)
-        @scalar_rule log10(x) inv(x) / log(oftype(x, 10))
+        @scalar_rule log10(x) inv(logten * x)
         @scalar_rule log1p(x) inv(x + 1)
-        @scalar_rule log2(x) inv(x) / log(oftype(x, 2))
+        @scalar_rule log2(x) inv(logtwo * x)
 
         # Unary complex functions
         ## abs

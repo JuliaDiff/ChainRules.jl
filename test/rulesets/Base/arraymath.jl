@@ -11,24 +11,30 @@
         ⋆() = only(⋆(()))  # scalar
 
         @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (2, 3, 4, 5))
+            test_frule(*, ⋆(), ⋆(dims))
+            test_frule(*, ⋆(dims), ⋆())
+
             test_rrule(*, ⋆(), ⋆(dims))
             test_rrule(*, ⋆(dims), ⋆())
         end
 
         @testset "AbstractMatrix-AbstractVector n=$n, m=$m" for n in (2, 3), m in (4, 5)
             @testset "Array" begin
+                test_frule(*, n ⋆ m, ⋆(m))
                 test_rrule(*, n ⋆ m, ⋆(m))
             end
         end
 
         @testset "AbstractVector-AbstractMatrix n=$n, m=$m" for n in (2, 3), m in (4, 5)
             @testset "Array" begin
+                test_frule(*, ⋆(n), 1 ⋆ m)
                 test_rrule(*, ⋆(n), 1 ⋆ m)
             end
         end
 
         @testset "dense-matrix n=$n, m=$m, p=$p" for n in (2, 5), m in (2, 4), p in (2, 3)
             @testset "Array" begin
+                test_frule(*, (n⋆m), (m⋆p))
                 test_rrule(*, (n⋆m), (m⋆p))
             end
 
@@ -53,6 +59,11 @@
         end
 
         @testset "Diagonal" begin
+            # fwd
+            test_frule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            test_frule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
+
+            # rev
             test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
             test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
@@ -71,6 +82,9 @@
 
     @testset "muladd: $T" for T in (Float64, ComplexF64)
         @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
+            @testset "forward mode" begin
+                test_frule(muladd, rand(T, 3, 5), rand(T, 5, 3), z)
+            end
             @testset "matrix * matrix" begin
                 A = rand(T, 3, 3)
                 B = rand(T, 3, 3)
@@ -111,6 +125,28 @@
         end
     end
 
+    if VERSION > v"1.7.0-"
+        @eval using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
+
+        @testset "3-arg *, $T" for T in [Float64, ComplexF64]
+
+            test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
+            test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
+            test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
+
+            test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
+            test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
+
+            T == ComplexF64 && continue
+            # Test with γ of a wider type
+            A, B, b, γ = rand(3,3), rand(3,3), rand(3), rand()
+            dZ, dz = rand(3,3), rand(3)
+            unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
+            unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
+            unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈ unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
+        end
+    end # VERSION
+
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin
             for n in 3:5, m in 3:5
@@ -144,6 +180,10 @@
 
     @testset "/ and \\ Scalar-AbstractArray" begin
         A = round.(10 .* randn(3, 4, 5), digits=1)
+        # fwd
+        test_frule(/, A, 7.2)
+        test_frule(\, 7.2, A)
+        # rev
         test_rrule(/, A, 7.2)
         test_rrule(\, 7.2, A)
 
@@ -155,12 +195,17 @@
     @testset "negation" begin
         A = randn(4, 4)
         Ā = randn(4, 4)
-
+        # fwd
+        test_frule(-, A)
+        # rev
         test_rrule(-, A)
         test_rrule(-, Diagonal(A); output_tangent=Diagonal(Ā))
     end
 
     @testset "addition" begin
+        # fwd
+        test_frule(+, randn(2), randn(2), randn(2))
+        # rev
         test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
         test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
     end

@@ -15,7 +15,7 @@ jobs:
         julia-version: [1]
         os: [ubuntu-latest]
         package:
-          - {user: dpsanders, repo: ReversePropagation.jl}
+        #  - {user: dpsanders, repo: ReversePropagation.jl}
           - {user: FluxML, repo: Zygote.jl}
         # Diffractor needs to run on Julia nightly
         include:

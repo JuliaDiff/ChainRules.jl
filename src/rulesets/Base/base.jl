@@ -148,9 +148,7 @@ end
 @scalar_rule sinc(x) cosc(x)
 
 # the position of the minus sign below warrants the correct type for π  
-if VERSION ≥ v"1.6"
-    @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
-end
+@scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
 @scalar_rule(
     clamp(x, low, high),

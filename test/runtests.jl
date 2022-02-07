@@ -7,19 +7,19 @@ using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
-using Compat: Compat, hasproperty, only, cispi, eachcol
 using FiniteDifferences
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot
 using Random
+using SparseArrays
 using StaticArrays
 using Statistics
 using Test
 using JuliaInterpreter
 using Distributed
 
-union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, Compat, LinearAlgebra, Random, StaticArrays, Statistics])
+union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, LinearAlgebra, Random, StaticArrays, Statistics])
 
 Random.seed!(1) # Set seed that all testsets should reset to.
 
@@ -49,6 +49,8 @@ end
     include("test_helpers.jl")
     println()
 
+    test_method_tables()  # Check the global method tables are consistent
+
     # Each file puts all tests inside one or more @testset blocks
     include_test("rulesets/Base/base.jl")
     include_test("rulesets/Base/fastmath_able.jl")
@@ -74,10 +76,14 @@ end
     include_test("rulesets/LinearAlgebra/factorization.jl")
     include_test("rulesets/LinearAlgebra/blas.jl")
     include_test("rulesets/LinearAlgebra/lapack.jl")
+    include_test("rulesets/LinearAlgebra/uniformscaling.jl")
+
+    println()
+
+    include_test("rulesets/SparseArrays/sparsematrix.jl")
 
     println()
 
     include_test("rulesets/Random/random.jl")
-
     println()
 end

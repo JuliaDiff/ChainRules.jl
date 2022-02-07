@@ -37,7 +37,5 @@ end
 @non_differentiable copy(::AbstractRNG)
 @non_differentiable copy!(::AbstractRNG, ::AbstractRNG)
 
-@static if VERSION > v"1.3"
-    @non_differentiable Random.default_rng()
-    @non_differentiable Random.default_rng(::Int)
-end
+@non_differentiable Random.default_rng()
+@non_differentiable Random.default_rng(::Int)

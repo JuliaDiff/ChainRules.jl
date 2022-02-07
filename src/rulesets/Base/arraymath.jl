@@ -19,6 +19,10 @@ end
 ##### `*`
 #####
 
+frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
+
+frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
+
 
 function rrule(
     ::typeof(*),
@@ -88,7 +92,9 @@ function rrule(
 end
 
 
-
+#####
+##### `*` matrix-scalar_rule
+#####
 
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
@@ -128,10 +134,86 @@ function rrule(
     return A * B, times_pullback
 end
 
+#####
+##### fused 3-argument *
+#####
+
+if VERSION > v"1.7.0-"
+
+    @eval using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
+
+    function rrule(
+        ::typeof(mat_mat_scalar),
+        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        γ::CommutativeMulNumber
+    )
+        project_A = ProjectTo(A)
+        project_B = ProjectTo(B)
+        project_γ = ProjectTo(γ)
+        C = mat_mat_scalar(A, B, γ)
+        function mat_mat_scalar_back(Ȳraw)
+            Ȳ = unthunk(Ȳraw)
+            Athunk = InplaceableThunk(
+                dA -> mul!(dA, Ȳ, B', conj(γ), true),
+                @thunk(project_A(mat_mat_scalar(Ȳ, B', conj(γ)))),
+            )
+            Bthunk = InplaceableThunk(
+                dB -> mul!(dB, A', Ȳ, conj(γ), true),
+                @thunk(project_B(mat_mat_scalar(A', Ȳ, conj(γ)))),
+            )
+            γthunk = @thunk if iszero(γ)
+                # Could save A*B on the forward pass, but it's messy.
+                # This ought to be rare, should guarantee the same type:
+                project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ) / one(γ))
+            else
+                project_γ(dot(C, Ȳ) / conj(γ))
+            end
+            return (NoTangent(), Athunk, Bthunk, γthunk)
+        end
+        return C, mat_mat_scalar_back
+    end
+
+    function rrule(
+        ::typeof(mat_vec_scalar),
+        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+        b::StridedVector{<:CommutativeMulNumber},
+        γ::CommutativeMulNumber
+    )
+        project_A = ProjectTo(A)
+        project_b = ProjectTo(b)
+        project_γ = ProjectTo(γ)
+        y = mat_vec_scalar(A, b, γ)
+        function mat_vec_scalar_back(dy_raw)
+            dy = unthunk(dy_raw)
+            Athunk = InplaceableThunk(
+                dA -> mul!(dA, dy, b', conj(γ), true),
+                @thunk(project_A(*(dy, b', conj(γ)))),
+            )
+            Bthunk = InplaceableThunk(
+                db -> mul!(db, A', dy, conj(γ), true),
+                @thunk(project_b(*(A', dy, conj(γ)))),
+            )
+            γthunk = @thunk if iszero(γ)
+                project_γ(dot(mat_vec_scalar(A, b, oneunit(γ)), dy))
+            else
+                project_γ(dot(y, dy) / conj(γ))
+            end
+            return (NoTangent(), Athunk, Bthunk, γthunk)
+        end
+        return y, mat_vec_scalar_back
+    end
+
+end # VERSION
 
 #####
 ##### `muladd`
 #####
+
+function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+    Ω = muladd(A, B, z)
+    return Ω, ΔA * B .+ A * ΔB .+ Δz
+end
 
 function rrule(
         ::typeof(muladd),
@@ -280,6 +362,13 @@ end
 ##### `\`, `/` matrix-scalar_rule
 #####
 
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+    return A/b, ΔA/b - A*(Δb/b^2)
+end
+function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
+    return B/a, ΔB/a - B*(Δa/a^2)
+end
+
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
     function slash_pullback_scalar(ȳ)
@@ -307,6 +396,8 @@ end
 ##### Negation (Unary -)
 #####
 
+frule((_, ΔA), ::typeof(-), A::AbstractArray) = -A, -ΔA
+
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
         return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
@@ -318,6 +409,8 @@ end
 #####
 ##### Addition (Multiarg `+`)
 #####
+
+frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
