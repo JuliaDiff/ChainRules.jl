@@ -37,6 +37,7 @@ include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
 include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
+include("rulesets/Base/distributed.jl")
 
 include("rulesets/Statistics/statistics.jl")
 
