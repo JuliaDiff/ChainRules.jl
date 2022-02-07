@@ -292,6 +292,7 @@ end
 end
 
 @testset "pmap" begin
-    test_rrule(pmap, sqrt, WorkerPool(), rand(10), check_inferred=false)
-    test_rrule(pmap, sqrt, WorkerPool(), rand(10), fkwargs=(batch_size=2,), check_inferred=false)
+    test_rrule(pmap, sqrt, WorkerPool(), rand(10), check_inferred=false) # test empty worker pool
+    test_rrule(pmap, sqrt, default_worker_pool(), rand(10), check_inferred=false)
+    test_rrule(pmap, sqrt, default_worker_pool(), rand(10), fkwargs=(batch_size=2,), check_inferred=false)
 end
