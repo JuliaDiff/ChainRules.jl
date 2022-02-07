@@ -33,3 +33,8 @@ end
     V̄ = rand!(similar(V))
     test_rrule(findnz, v ⊢ dv, output_tangent=(zeros(length(I)), V̄))
 end
+
+@testset "broadcasted cast SparseMatrixCSC" begin
+    A = sprand(5, 5, 0.5)
+    test_rrule(_broadcast, Float32, A, rtol=1e-4)
+end

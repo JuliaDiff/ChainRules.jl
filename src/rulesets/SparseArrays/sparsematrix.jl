@@ -49,3 +49,13 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
 
     return (I, V), findnz_pullback
 end
+
+function rrule(::typeof(Broadcast.broadcasted), T::Type{<:Number}, x::AbstractSparseArray)
+    proj = ProjectTo(x)
+
+    function broadcasted_cast_sparse(Δ)
+        return NoTangent(), NoTangent(), proj(Δ)         
+    end
+
+    return T.(x), broadcasted_cast_sparse
+end

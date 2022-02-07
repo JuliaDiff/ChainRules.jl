@@ -75,6 +75,28 @@ function ChainRulesCore.rrule(::typeof(make_two_vec), x)
     return make_two_vec(x), make_two_vec_pullback
 end
 
+"""
+Helper function for testing rrule(::typeof(Broadcast.broadcasted), ...)
+
+# Examples
+
+```julia
+using SparseArrays, ChainRulesTestUtils
+
+A = sprand(5, 5, 0.5)
+test_rrule(_broadcast, Float32, A, rtol=1e-5)
+```
+"""
+_broadcast(f::F, x...) where F = broadcast(f, x...)
+
+# we need this due to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/234
+function ChainRulesCore.rrule(::typeof(_broadcast), f::F, args...) where F
+    rr = rrule(Broadcast.broadcasted, f, args...)
+    rr === nothing && return nothing
+    y, pb = rr
+    Broadcast.materialize(Broadcast.instantiate(y)), pb
+end
+
 @testset "test_helpers.jl" begin
 
     @testset "Multiplier" begin
