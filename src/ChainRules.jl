@@ -9,6 +9,7 @@ using Random
 using RealDot: realdot
 using Statistics
 using Distributed
+using DistributedArrays
 
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.

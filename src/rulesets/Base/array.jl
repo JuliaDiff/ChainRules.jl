@@ -532,27 +532,22 @@ end
 ##### `pmap`
 #####
 
-const save_backs = Dict() # A dictionary for each processor, to persist pullbacks to run in the backwards pass.
-const COUNTER = Ref(1)
-
 # Now that there is a backwards rule for zip (albeit only in Zygote),
 # it should be fine to deal with only a single collection c
 function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X::AbstractArray; batch_size=1, kwargs...)
-    key = myid(), COUNTER[] # Uniquely identifies a call to pmap's rrule.
-    COUNTER[] += 1
+    darr = dfill([], (nworkers(p) + 1,), vcat([myid()], workers(p))) # Include own proc to handle empty worker pool
 
     function forw(x)
         y, back = rrule_via_ad(config, f, x)
-        !haskey(save_backs, key) && (save_backs[key] = [])
-        push!(save_backs[key], back) # build an array of all the persisted pullbacks
-        return y, myid(), length(save_backs[key])
+        push!(darr[:L][1], back)
+        return y, myid(), length(darr[:L][1])
     end
 
-    ys_IDs_indices = pmap(forw, X; kwargs...)
+    ys_IDs_indices = pmap(forw, p, X; kwargs...)
     ys = getindex.(ys_IDs_indices, 1) # the primal values
     IDs = getindex.(ys_IDs_indices, 2) # remember which processors handled which elements of X
     indices = getindex.(ys_IDs_indices, 3) # remember the index of the pullback in the array on each processor
-
+ 
     # create a list of positions in X handled by each processor
     unique_IDs = sort(unique(IDs))
     positions = [Vector{eltype(eachindex(X))}() for _ in 1:length(unique_IDs)] # I don't understand type stability well, is this bad :/
@@ -568,13 +563,9 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
         function run_backs(ID, positions)
             Ȳ_batch = Ȳ[positions]
             indices_batch = indices[positions]
-            res_batch = remotecall_fetch(
-                () -> begin
-                println(myid());
-                res_batch = asyncmap((ȳ, i) -> save_backs[key][i](ȳ), Ȳ_batch, indices_batch) # run all the backs in a local asyncmap
-                #delete!(save_backs, key) # clean up all the persisted pullbacks... wait, but then we can't call back twice :(
-                return res_batch
-            end, ID) 
+            res_batch = remotecall_fetch(() -> 
+                asyncmap((ȳ, i) -> darr[:L][1][i](ȳ), Ȳ_batch, indices_batch), # run all the backs in a local asyncmap
+                ID) 
             return res_batch
         end
 
