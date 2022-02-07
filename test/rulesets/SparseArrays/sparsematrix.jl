@@ -9,11 +9,20 @@ end
 @testset "SparseMatrixCSC(A)" begin
     A = rand(5, 3)
     test_rrule(SparseMatrixCSC, A)
-    test_rrule(SparseMatrixCSC{Float32,Int}, A, rtol=1e-5)
+    test_rrule(SparseMatrixCSC{Float32,Int}, A, rtol=1e-4)
 end
 
 @testset "SparseVector(v)" begin
     v = rand(5)
     test_rrule(SparseVector, v)
-    test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-5)
+    test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-4)
+end
+
+@testset "findnz" begin
+    A = sprand(5, 5, 0.5)
+    dA = similar(A)
+    rand!(dA.nzval)
+    I, J, V = findnz(A)
+    V̄ = rand!(similar(V))
+    test_rrule(findnz, A ⊢ dA, output_tangent=(zeros(length(I)), zeros(length(J)), V̄))
 end
