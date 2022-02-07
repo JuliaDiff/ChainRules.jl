@@ -560,7 +560,6 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
         push!(positions[searchsortedfirst(unique_IDs, IDs[i])], i)
     end
 
-
     pmap_pullback = function (Ȳ)
 
         Ȳ = unthunk(Ȳ)
@@ -571,8 +570,9 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
             indices_batch = indices[positions]
             res_batch = remotecall_fetch(
                 () -> begin
+                println(myid());
                 res_batch = asyncmap((ȳ, i) -> save_backs[key][i](ȳ), Ȳ_batch, indices_batch) # run all the backs in a local asyncmap
-                delete!(save_backs, key) # clean up all the persisted pullbacks!
+                #delete!(save_backs, key) # clean up all the persisted pullbacks... wait, but then we can't call back twice :(
                 return res_batch
             end, ID) 
             return res_batch
