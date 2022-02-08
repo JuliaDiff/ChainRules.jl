@@ -1,6 +1,10 @@
 @testset "pmap" begin
     test_rrule(pmap, inv, WorkerPool(), rand(10), check_inferred=false) # test empty worker pool
     test_rrule(pmap, inv, default_worker_pool(), rand(10), check_inferred=false)
-    test_rrule(pmap, inv, default_worker_pool(), rand(10), fkwargs=(batch_size=2,), check_inferred=false)
-    # TODO: test other collections, e.g. zip(rand(10), rand(10)) or 1:10 or 1.:10.
+    test_rrule(pmap, inv, default_worker_pool(), rand(10), fkwargs=(batch_size=2,), check_inferred=false) # test batch_size > 1
+
+    y1, b1 = rrule(CFG, pmap, inv, default_worker_pool(), [1, 2, 3])
+    @test y1 ≈ 1 ./ [1, 2, 3] 
+    @test b1([3,4,7])[4] ≈ [-3 / 1^2, -4 / 2^2, -7 / 3^2]
+    @test b1([3, 4, 7])[1:3] == (NoTangent(), NoTangent(), NoTangent())
 end

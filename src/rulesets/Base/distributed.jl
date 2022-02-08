@@ -7,7 +7,7 @@
 function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X; batch_size=1, kwargs...)
     project_X = ProjectTo(X)
 
-    darr = dfill([], (nworkers(p) + 1,), vcat([myid()], workers(p))) # Include own proc to handle empty worker pool
+    darr = dfill([], (nworkers(p) + 1,), vcat(myid(), workers(p))) # Include own proc to handle empty worker pool
 
     function forw(x)
         y, back = rrule_via_ad(config, f, x)
