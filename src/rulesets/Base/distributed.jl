@@ -22,12 +22,13 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
  
     # create a list of positions in X handled by each processor
     unique_IDs = sort(unique(IDs))
-    positions = [Vector{eltype(eachindex(ys_IDs_indices))}() for _ in 1:length(unique_IDs)] # I don't understand type stability well, is this bad :/
+    T = eltype(eachindex(ys_IDs_indices))
+    positions = [Vector{T}() for _ in 1:length(unique_IDs)] # I don't understand type stability well, is this bad :/
     for i in eachindex(ys_IDs_indices)
         push!(positions[searchsortedfirst(unique_IDs, IDs[i])], i)
     end
 
-    pmap_pullback = function (Ȳ)
+    function pmap_pullback(Ȳ)
         Ȳ = unthunk(Ȳ)
 
         # runs the pullback for each position handled by proc ID in forward pass
