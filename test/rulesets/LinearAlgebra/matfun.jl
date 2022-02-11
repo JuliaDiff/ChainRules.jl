@@ -35,6 +35,15 @@
             Y, back = rrule(exp, A)
             @maybe_inferred back(rand_tangent(Y))
         end
+        @testset "cotangent not mutated" begin
+            # https://github.com/JuliaDiff/ChainRules.jl/issues/512
+            A = [1.0 2.0; 3.0 4.0]
+            Y, back = rrule(exp, A)
+            ΔY′ = rand_tangent(Y)'
+            ΔY′copy = copy(ΔY′)
+            back(ΔY′)
+            @test ΔY′ == ΔY′copy
+        end
         @testset "imbalanced A" begin
             A = Float64[0 10 0 0; -1 0 0 0; 0 0 0 0; -2 0 0 0]
             test_rrule(exp, A; check_inferred=false)
