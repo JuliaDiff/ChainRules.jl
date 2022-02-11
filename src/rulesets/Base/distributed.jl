@@ -4,7 +4,7 @@
 
 # Now that there is a backwards rule for zip (albeit only in Zygote),
 # it should be fine to deal with only a single collection X
-function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X; batch_size=1, kwargs...)
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::AbstractWorkerPool, X; kwargs...)
     project_X = ProjectTo(X)
 
     darr = dfill([], (nworkers(p) + 1,), vcat(myid(), workers(p))) # Include own proc to handle empty worker pool
@@ -23,7 +23,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
     # create a list of positions in X handled by each processor
     unique_IDs = sort(unique(IDs))
     T = eltype(eachindex(ys_IDs_indices))
-    positions = [Vector{T}() for _ in 1:length(unique_IDs)] # I don't understand type stability well, is this bad :/
+    positions = [Vector{T}() for _ in 1:length(unique_IDs)]
     for i in eachindex(ys_IDs_indices)
         push!(positions[searchsortedfirst(unique_IDs, IDs[i])], i)
     end
@@ -43,7 +43,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
 
         # combine the results from each proc into res = pmap((back, ȳ) -> back(ȳ), p, backs for each position, Ȳ)
         res_batches = asyncmap(run_backs, unique_IDs, positions)
-        res = similar(res_batches[1], size(Ȳ)) # same comment about type stability
+        res = similar(res_batches[1], size(Ȳ))
 
         for (positions, res_batch) in zip(positions, res_batches)
             res[positions] = res_batch
