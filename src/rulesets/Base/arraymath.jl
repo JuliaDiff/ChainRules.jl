@@ -353,14 +353,16 @@ end
 #####
 
 
-function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
-    return A/b, ΔA/b - A*(Δb/b^2)
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:Number}, b::Number)
+    Y = A / b
+    return Y, muladd(Y, -Δb, ΔA) / b
 end
-function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
-    return B/a, ΔB/a - B*(Δa/a^2)
+function frule((_, Δa, ΔB), ::typeof(\), a::Number, B::AbstractArray{<:Number})
+    Y = a \ B
+    return Y, a \ muladd(-Δa, Y, ΔB)
 end
 
-function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+function rrule(::typeof(/), A::AbstractArray{<:Number}, b::Number)
     Y = A/b
     function slash_pullback_scalar(ȳ)
         Ȳ = unthunk(ȳ)
@@ -385,7 +387,9 @@ function rrule(::typeof(\), b::Number, A::AbstractArray{<:Number})
         bthunk = if eltype(Y) isa CommutativeMulNumber
             @thunk(-conj(b) \ dot(Y, Ȳ))
         else
-            @thunk(-conj(b) \ dot(Ȳ',Y'))
+            # NOTE: dot(Ȳ', Y') currently incorrect for non-commutative numbers
+            # https://github.com/JuliaLang/julia/issues/44152
+            @thunk(-conj(b) \ dot(conj(Ȳ), conj(Y)))
         end
         return (NoTangent(), Athunk, bthunk)
     end
