@@ -383,8 +383,7 @@ end
     # also we might be missing some overloads for different tangent-types in the rules
     @testset "cholesky" begin
         @testset "Real" begin
-            check_inferred = VERSION ≥ v"1.5"
-            test_rrule(cholesky, 0.8; check_inferred=check_inferred)
+            test_rrule(cholesky, 0.8)
         end
         @testset "Diagonal{<:Real}" begin
             D = Diagonal(rand(5) .+ 0.1)

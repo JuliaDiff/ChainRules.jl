@@ -7,8 +7,8 @@
 
         @testset "\\ $T on LHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
             LHS = T(randn(T == Diagonal ? 10 : (10, 10)))
-            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-4, atol = 1.0e-4)
-            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-4, atol = 1.0e-4)
+            test_rrule(\, LHS, randn(Float32, 10); rtol = 1.0e-3, atol = 1.0e-3)
+            test_rrule(\, LHS, randn(Float32, 10, 10); rtol = 1.0e-3, atol = 1.0e-3)
         end
     end
 
@@ -40,8 +40,9 @@
         test_rrule(diag, Diagonal(randn(N)))
         test_rrule(diag, randn(N, N) ⊢ Diagonal(randn(N)))
         test_rrule(diag, Diagonal(randn(N)) ⊢ Diagonal(randn(N)))
-        VERSION ≥ v"1.3" && @testset "k=$k" for k in (-1, 0, 2)
+        for k in (-1, 0, 2)
             test_rrule(diag, randn(N, N), k)
+            @test_skip test_rrule(diag, Diagonal(randn(N)), k)
         end
     end
     @testset "diagm" begin
@@ -65,7 +66,7 @@
                 @test ∂px.second ≈ ∂x_fd
             end
         end
-        VERSION ≥ v"1.3" && @testset "with size" begin
+        @testset "with size" begin
             M, N = 7, 9
             a, ā = randn(M), randn(M)
             b, b̄ = randn(M), randn(M)

@@ -79,7 +79,7 @@
         @testset "rrule" begin
             test_rrule(norm, x)
             x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-                test_rrule(norm, MT(x); check_inferred=VERSION>=v"1.5")
+                test_rrule(norm, MT(x))
             end
 
             ȳ = rand_tangent(norm(x))
@@ -123,7 +123,7 @@
 
         test_rrule(fnorm, x, p; kwargs...)
         x isa Matrix && @testset "$MT" for MT in (Diagonal, UpperTriangular, LowerTriangular)
-            test_rrule(fnorm, MT(x), p; kwargs..., check_inferred=VERSION>=v"1.5")
+            test_rrule(fnorm, MT(x), p; kwargs...)
         end
 
         ȳ = rand_tangent(fnorm(x, p))

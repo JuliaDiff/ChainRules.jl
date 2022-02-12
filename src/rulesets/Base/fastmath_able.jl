@@ -67,13 +67,13 @@ let
         end
         @scalar_rule sqrt(x::CommutativeMulNumber) inv(2Ω)  # gradient +Inf at x==0
         @scalar_rule exp(x::CommutativeMulNumber) Ω
-        @scalar_rule exp10(x::CommutativeMulNumber) Ω * log(oftype(x, 10))
-        @scalar_rule exp2(x::CommutativeMulNumber) Ω * log(oftype(x, 2))
+        @scalar_rule exp10(x::CommutativeMulNumber) logten * Ω
+        @scalar_rule exp2(x::CommutativeMulNumber) logtwo * Ω
         @scalar_rule expm1(x::CommutativeMulNumber) exp(x)
         @scalar_rule log(x::CommutativeMulNumber) inv(x)
-        @scalar_rule log10(x::CommutativeMulNumber) inv(x) / log(oftype(x, 10))
+        @scalar_rule log10(x::CommutativeMulNumber) inv(logten * x)
         @scalar_rule log1p(x::CommutativeMulNumber) inv(x + 1)
-        @scalar_rule log2(x::CommutativeMulNumber) inv(x) / log(oftype(x, 2))
+        @scalar_rule log2(x::CommutativeMulNumber) inv(logtwo * x)
 
         # Unary complex functions
         ## abs
@@ -81,7 +81,7 @@ let
             Ω = abs(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
-            return Ω, _realconjtimes(signx, Δx)
+            return Ω, realdot(signx, Δx)
         end
 
         function rrule(::typeof(abs), x::Number)
@@ -96,7 +96,7 @@ let
 
         ## abs2
         function frule((_, Δz), ::typeof(abs2), z::Number)
-            return abs2(z), 2 * _realconjtimes(z, Δz)
+            return abs2(z), 2 * realdot(z, Δz)
         end
 
         function rrule(::typeof(abs2), z::Number)
@@ -162,7 +162,7 @@ let
         ) where {T<:Number}
             Ω = hypot(x, y)
             n = ifelse(iszero(Ω), one(Ω), Ω)
-            ∂Ω = (_realconjtimes(x, Δx) + _realconjtimes(y, Δy)) / n
+            ∂Ω = (realdot(x, Δx) + realdot(y, Δy)) / n
             return Ω, ∂Ω
         end
 
@@ -265,16 +265,43 @@ let
             ∂xy = muladd(Δx, y, x * Δy)
             return x * y, ∂xy
         end
+        frule((_, Δx), ::typeof(*), x::Number) = x, Δx
 
         function rrule(::typeof(*), x::Number, y::Number)
-            project_x = ProjectTo(x)
-            project_y = ProjectTo(y)
-            function times_pullback(Ω̇)
+            function times_pullback2(Ω̇)
                 ΔΩ = unthunk(Ω̇)
-                return (NoTangent(),  project_x(ΔΩ * y'), project_y(x' * ΔΩ))
+                return (NoTangent(), ProjectTo(x)(ΔΩ * y'), ProjectTo(y)(x' * ΔΩ))
             end
-            return x * y, times_pullback
+            return x * y, times_pullback2
         end
+        # While 3-arg * calls 2-arg *, this is currently slow in Zygote:
+        # https://github.com/JuliaDiff/ChainRules.jl/issues/544
+        function rrule(::typeof(*), x::Number, y::Number, z::Number)
+            function times_pullback3(Ω̇)
+                ΔΩ = unthunk(Ω̇)
+                return (
+                    NoTangent(), 
+                    ProjectTo(x)(ΔΩ * y' * z'),
+                    ProjectTo(y)(x' * ΔΩ * z'),
+                    ProjectTo(z)(x' * y' * ΔΩ),
+                )
+            end
+            return x * y * z, times_pullback3
+        end
+        # Instead of this recursive rule for N args, you could write the generic case
+        # directly, by nesting ntuples, but this didn't infer well:
+        # https://github.com/JuliaDiff/ChainRules.jl/pull/547/commits/3558951c9f1b3c70e7135fd61d29cc3b96a68dea
+        function rrule(::typeof(*), x::Number, y::Number, z::Number, more::Number...)
+            Ω3, back3 = rrule(*, x, y, z)
+            Ω4, back4 = rrule(*, Ω3, more...)
+            function times_pullback4(Ω̇)
+                Δ4 = back4(unthunk(Ω̇))  # (0, ΔΩ3, Δmore...)
+                Δ3 = back3(Δ4[2])       # (0, Δx, Δy, Δz)
+                return (Δ3..., Δ4[3:end]...)
+            end
+            return Ω4, times_pullback4
+        end
+        rrule(::typeof(*), x::Number) = rrule(identity, x)
     end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints

@@ -3,21 +3,17 @@ module ChainRules
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
 using Compat
+using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using Random
+using RealDot: realdot
+using SparseArrays
 using Statistics
 
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
-
-if VERSION < v"1.3.0-DEV.142"
-    # In prior versions, the BLAS submodule also exported `dot`, which caused a conflict
-    # with its parent module. To get around this, we can simply create a hard binding for
-    # the one we want to use without qualification.
-    import LinearAlgebra: dot
-end
 
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
@@ -46,6 +42,9 @@ include("rulesets/LinearAlgebra/matfun.jl")
 include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
+include("rulesets/LinearAlgebra/uniformscaling.jl")
+
+include("rulesets/SparseArrays/sparsematrix.jl")
 
 include("rulesets/Random/random.jl")
 

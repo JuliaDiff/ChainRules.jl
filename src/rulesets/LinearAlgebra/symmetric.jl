@@ -218,7 +218,7 @@ function frule(
     # diag(U' * tmp) without computing matrix product
     ∂λ = similar(λ)
     @inbounds for i in eachindex(λ)
-        ∂λ[i] = @views real(dot(U[:, i], tmp[:, i]))
+        ∂λ[i] = @views realdot(U[:, i], tmp[:, i])
     end
     return λ, ∂λ
 end

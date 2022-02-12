@@ -78,7 +78,7 @@ end
 
 function frule((_, Δz), ::typeof(hypot), z::Number)
     Ω = hypot(z)
-    ∂Ω = _realconjtimes(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
+    ∂Ω = realdot(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
     return Ω, ∂Ω
 end
 
@@ -115,8 +115,8 @@ end
     (ifelse(isint, nan, one(u)), ifelse(isint, nan, -floor(u))),
 )
 
-@scalar_rule deg2rad(x) π / oftype(x, 180)
-@scalar_rule rad2deg(x) oftype(x, 180) / π
+@scalar_rule deg2rad(x) deg2rad(one(x))
+@scalar_rule rad2deg(x) rad2deg(one(x))
 
 @scalar_rule(ldexp(x, y), (2^y, NoTangent()))
 
@@ -130,23 +130,23 @@ end
 @scalar_rule atanh(x::CommutativeMulNumber) inv(1 - x ^ 2)
 
 
-@scalar_rule acosd(x::CommutativeMulNumber) (-(oftype(x, 180)) / π) / sqrt(1 - x ^ 2)
-@scalar_rule acotd(x::CommutativeMulNumber) (-(oftype(x, 180)) / π) / (1 + x ^ 2)
-@scalar_rule acscd(x::CommutativeMulNumber) ((-(oftype(x, 180)) / π) / x ^ 2) / sqrt(1 - x ^ -2)
-@scalar_rule acscd(x::Real) ((-(oftype(x, 180)) / π) / abs(x)) / sqrt(x ^ 2 - 1)
-@scalar_rule asecd(x::CommutativeMulNumber) ((oftype(x, 180) / π) / x ^ 2) / sqrt(1 - x ^ -2)
-@scalar_rule asecd(x::Real) ((oftype(x, 180) / π) / abs(x)) / sqrt(x ^ 2 - 1)
-@scalar_rule asind(x::CommutativeMulNumber) (oftype(x, 180) / π) / sqrt(1 - x ^ 2)
-@scalar_rule atand(x::CommutativeMulNumber) (oftype(x, 180) / π) / (1 + x ^ 2)
+@scalar_rule acosd(x::CommutativeMulNumber) -inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule acotd(x::CommutativeMulNumber) -inv(deg2rad(1 + x ^ 2))
+@scalar_rule acscd(x::CommutativeMulNumber) -inv(deg2rad(x^2 * sqrt(1 - x ^ -2)))
+@scalar_rule acscd(x::Real) -inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
+@scalar_rule asecd(x::CommutativeMulNumber) inv(deg2rad(x ^ 2 * sqrt(1 - x ^ -2)))
+@scalar_rule asecd(x::Real) inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
+@scalar_rule asind(x::CommutativeMulNumber) inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule atand(x::CommutativeMulNumber) inv(deg2rad(1 + x ^ 2))
 
 @scalar_rule cot(x::CommutativeMulNumber) -((1 + Ω ^ 2))
 @scalar_rule coth(x::CommutativeMulNumber) -(csch(x) ^ 2)
-@scalar_rule cotd(x::CommutativeMulNumber) -(π / oftype(x, 180)) * (1 + Ω ^ 2)
+@scalar_rule cotd(x::CommutativeMulNumber) -deg2rad(1 + Ω ^ 2)
 @scalar_rule csc(x::CommutativeMulNumber) -Ω * cot(x)
-@scalar_rule cscd(x::CommutativeMulNumber) -(π / oftype(x, 180)) * Ω * cotd(x)
+@scalar_rule cscd(x::CommutativeMulNumber) -deg2rad(Ω * cotd(x))
 @scalar_rule csch(x::CommutativeMulNumber) -(coth(x)) * Ω
 @scalar_rule sec(x::CommutativeMulNumber) Ω * tan(x)
-@scalar_rule secd(x::CommutativeMulNumber) (π / oftype(x, 180)) * Ω * tand(x)
+@scalar_rule secd(x::CommutativeMulNumber) deg2rad(Ω * tand(x))
 @scalar_rule sech(x::CommutativeMulNumber) -(tanh(x)) * Ω
 
 @scalar_rule acot(x::CommutativeMulNumber) -(inv(1 + x ^ 2))
@@ -155,18 +155,16 @@ end
 @scalar_rule asec(x::CommutativeMulNumber) inv(x ^ 2 * sqrt(1 - x ^ -2))
 @scalar_rule asec(x::Real) inv(abs(x) * sqrt(x ^ 2 - 1))
 
-@scalar_rule cosd(x::CommutativeMulNumber) -(π / oftype(x, 180)) * sind(x)
+@scalar_rule cosd(x::CommutativeMulNumber) -deg2rad(sind(x))
 @scalar_rule cospi(x::CommutativeMulNumber) -π * sinpi(x)
-@scalar_rule sind(x::CommutativeMulNumber) (π / oftype(x, 180)) * cosd(x)
+@scalar_rule sind(x::CommutativeMulNumber) deg2rad(cosd(x))
 @scalar_rule sinpi(x::CommutativeMulNumber) π * cospi(x)
-@scalar_rule tand(x::CommutativeMulNumber) (π / oftype(x, 180)) * (1 + Ω ^ 2)
+@scalar_rule tand(x::CommutativeMulNumber) deg2rad(1 + Ω ^ 2)
 
 @scalar_rule sinc(x::CommutativeMulNumber) cosc(x)
 
 # the position of the minus sign below warrants the correct type for π  
-if VERSION ≥ v"1.6"
-    @scalar_rule sincospi(x::CommutativeMulNumber) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
-end
+@scalar_rule sincospi(x::CommutativeMulNumber) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
 @scalar_rule(
     clamp(x, low, high),

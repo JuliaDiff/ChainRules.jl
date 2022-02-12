@@ -14,7 +14,7 @@ function frule((_, ẋ), ::typeof(norm), x::Number, p::Real)
         zero(real(x)) * zero(real(Δx))
     else
         signx = x isa Real ? sign(x) : x * pinv(y)
-        _realconjtimes(signx, Δx)
+        realdot(signx, Δx)
     end
     return y, ∂y
 end
@@ -235,7 +235,7 @@ function rrule(::typeof(LinearAlgebra.norm2), x::AbstractArray{<:Number})
 end
 
 function _norm2_forward(x, Δx, y)
-    ∂y = real(dot(x, Δx)) * pinv(y)
+    ∂y = realdot(x, Δx) * pinv(y)
     return ∂y
 end
 function _norm2_back(x, y, Δy)
@@ -280,7 +280,7 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number})
     LinearAlgebra.__normalize!(y, nrm)
     function normalize_pullback(ȳ)
         Δy = unthunk(ȳ)
-        ∂x = (Δy .- real(dot(y, Δy)) .* y) .* pinv(nrm)
+        ∂x = (Δy .- realdot(y, Δy) .* y) .* pinv(nrm)
         return (NoTangent(), ∂x)
     end
     normalize_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())

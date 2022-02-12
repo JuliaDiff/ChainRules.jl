@@ -286,7 +286,7 @@ end
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
     if ishermitian(A)
-        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
         return if sortby === nothing
             frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A))
         else
@@ -347,7 +347,7 @@ function _eigen_norm_phase_fwd!(∂V, A, V)
     @inbounds for i in axes(V, 2)
         v, ∂v = @views V[:, i], ∂V[:, i]
         # account for unit normalization
-        ∂c_norm = -real(dot(v, ∂v))
+        ∂c_norm = -realdot(v, ∂v)
         if eltype(V) <: Real
             ∂c = ∂c_norm
         else
@@ -398,7 +398,7 @@ function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) whe
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     if ishermitian(A)
         λ, ∂λ = frule((ZeroTangent(), Hermitian(ΔA)), eigvals!, Hermitian(A))
-        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
         _sorteig!_fwd(∂λ, λ, sortby)
     else
         F = eigen!(A; kwargs...)
