@@ -11,8 +11,7 @@ let
         ## sin
         function rrule(::typeof(sin), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
-            project_x = ProjectTo(x)
-            sin_pullback(Δy) = (NoTangent(), project_x(cosx' * Δy))
+            sin_pullback(Δy) = (NoTangent(), cosx' * Δy)
             return (sinx, sin_pullback)
         end
 
@@ -24,8 +23,7 @@ let
         ## cos
         function rrule(::typeof(cos), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
-            project_x = ProjectTo(x)
-            cos_pullback(Δy) = (NoTangent(), -project_x(sinx' * Δy))
+            cos_pullback(Δy) = (NoTangent(), -sinx' * Δy)
             return (cosx, cos_pullback)
         end
         
@@ -63,7 +61,7 @@ let
             project_x = ProjectTo(x)
             function inv_pullback(ΔΩ)
                 Ω′ = conj(Ω)
-                return NoTangent(), -project_x(Ω′ * ΔΩ * Ω′)
+                return NoTangent(), project_x(Ω′ * -ΔΩ * Ω′)
             end
             return Ω, inv_pullback
         end
