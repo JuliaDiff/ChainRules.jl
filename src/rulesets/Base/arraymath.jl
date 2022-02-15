@@ -381,8 +381,8 @@ function rrule(::typeof(\), b::Number, A::AbstractArray{<:Number})
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         Athunk = InplaceableThunk(
-            @thunk(conj(b) \ Ȳ),
             dA -> dA .+= conj(b) .\ Ȳ,
+            @thunk(conj(b) \ Ȳ),
         )
         bthunk = if eltype(Y) isa CommutativeMulNumber
             @thunk(-conj(b) \ dot(Y, Ȳ))
