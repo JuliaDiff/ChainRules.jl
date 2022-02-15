@@ -98,7 +98,16 @@ function rrule(
         Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
-            @thunk(project_A(eltype(B) isa CommutativeMulNumber ? dot(Ȳ, B)' : dot(Ȳ', B'))),
+            Thunk() do
+                if eltype(B) isa CommutativeMulNumber
+                    project_A(dot(Ȳ, B)')
+                elseif ndims(B) < 3
+                    # https://github.com/JuliaLang/julia/issues/44152
+                    project_A(dot(conj(Ȳ), conj(B)))
+                else
+                    project_A(dot(conj(vec(Ȳ)), conj(vec(B))))
+                end
+            end,
             InplaceableThunk(
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true),
                 @thunk(project_B(A' * Ȳ)),
@@ -121,7 +130,17 @@ function rrule(
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true),
                 @thunk(project_B(A' * Ȳ)),
             ),
-            @thunk(project_A(eltype(A) isa CommutativeMulNumber ? dot(Ȳ, B)' : dot(Ȳ', B'))),
+            # @thunk(project_A(eltype(A) isa CommutativeMulNumber ? dot(Ȳ, B)' : dot(Ȳ', B'))),
+            Thunk() do
+                if eltype(B) isa CommutativeMulNumber
+                    project_A(dot(Ȳ, B)')
+                elseif ndims(B) < 3
+                    # https://github.com/JuliaLang/julia/issues/44152
+                    project_A(dot(conj(Ȳ), conj(B)))
+                else
+                    project_A(dot(conj(vec(Ȳ)), conj(vec(B))))
+                end
+            end,
         )
     end
     return A * B, times_pullback
