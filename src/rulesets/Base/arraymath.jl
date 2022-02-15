@@ -23,11 +23,7 @@ frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
 
 frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
 
-function rrule(
-    ::typeof(*),
-    A::AbstractVecOrMat{<:CommutativeMulNumber},
-    B::AbstractVecOrMat{<:CommutativeMulNumber},
-)
+function rrule(::typeof(*), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
     function times_pullback(ȳ)
@@ -45,8 +41,8 @@ end
 # https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
 function rrule(
     ::typeof(*),
-    A::StridedMatrix{<:CommutativeMulNumber},
-    B::StridedVecOrMat{<:CommutativeMulNumber},
+    A::StridedMatrix{<:Number},
+    B::StridedVecOrMat{<:Number},
 )
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
@@ -90,7 +86,7 @@ end
 #####
 
 function rrule(
-   ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
+   ::typeof(*), A::Number, B::AbstractArray{<:Number}
 )
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
@@ -349,7 +345,7 @@ end
 ##### `\`
 #####
 
-function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+function rrule(::typeof(\), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
 
