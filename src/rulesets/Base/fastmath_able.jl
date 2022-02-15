@@ -250,10 +250,9 @@ let
         function rrule(::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
-            project_x = ProjectTo(x)
             function sign_pullback(ΔΩ)
                 ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im
-                return (NoTangent(), project_x(∂x))
+                return (NoTangent(), ∂x)
             end
             return Ω, sign_pullback
         end
