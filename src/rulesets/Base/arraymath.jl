@@ -391,7 +391,7 @@ function rrule(::typeof(\), b::Number, A::AbstractArray{<:Number})
             # https://github.com/JuliaLang/julia/issues/44152
             @thunk(-conj(b) \ dot(conj(Ȳ), conj(Y)))
         end
-        return (NoTangent(), Athunk, bthunk)
+        return (NoTangent(), bthunk, Athunk)
     end
     return Y, backslash_pullback
 end
