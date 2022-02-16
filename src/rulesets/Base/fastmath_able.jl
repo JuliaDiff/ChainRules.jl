@@ -86,10 +86,9 @@ let
 
         function rrule(::typeof(abs), x::Number)
             Ω = abs(x)
-            project_x = ProjectTo(x)
             function abs_pullback(ΔΩ)
                 signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
-                return (NoTangent(), project_x(signx * real(ΔΩ)))
+                return (NoTangent(), signx * real(ΔΩ))
             end
             return Ω, abs_pullback
         end
@@ -100,10 +99,9 @@ let
         end
 
         function rrule(::typeof(abs2), z::Number)
-            project_z = ProjectTo(z)
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
-                return (NoTangent(), project_z(2Δu * z))
+                return (NoTangent(), 2Δu * z)
             end
             return abs2(z), abs2_pullback
         end
@@ -113,9 +111,8 @@ let
             return conj(z), conj(Δz)
         end
         function rrule(::typeof(conj), z::Number)
-            project_z = ProjectTo(z)
             function conj_pullback(ΔΩ)
-                return (NoTangent(), project_z(conj(ΔΩ)))
+                return (NoTangent(), conj(ΔΩ))
             end
             return conj(z), conj_pullback
         end
@@ -168,11 +165,9 @@ let
 
         function rrule(::typeof(hypot), x::T, y::T) where {T<:Number}
             Ω = hypot(x, y)
-            project_x = ProjectTo(x)
-            project_y = ProjectTo(y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
-                return (NoTangent(), project_x(c * x), project_y(c * y))
+                return (NoTangent(), c * x, c * y)
             end
             return (Ω, hypot_pullback)
         end
