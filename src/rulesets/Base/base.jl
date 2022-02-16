@@ -178,15 +178,15 @@ end
 @scalar_rule x::CommutativeMulNumber \ y::CommutativeMulNumber (-(x \ Ω), x \ one(y))
 function frule((_, Δx, Δy), ::typeof(\), x::Number, y::Number)
     Ω = x \ y
-    return Ω, x \ muladd(Δy, -Δx, Ω)
+    return Ω, x \ muladd(-Δx, Ω, Δy)
 end
 function rrule(::typeof(\), x::Number, y::Number)
     Ω = x \ y
     project_x = ProjectTo(x)
     project_y = ProjectTo(y)
     function backslash_pullback(ΔΩ)
-        ∂x = x' \ ΔΩ
-        return NoTangent(), project_x(∂x), project_y(-∂x * Ω')
+        ∂y = x' \ ΔΩ
+        return NoTangent(), project_x(-∂y * Ω'), project_y(∂y)
     end
     return Ω, backslash_pullback
 end
