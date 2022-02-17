@@ -238,7 +238,8 @@ let
         function frule((_, Δx), ::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
-            ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
+            d = dot(Ω, Δx)
+            ∂Ω = Ω * ((d - real(d)) / n)
             return Ω, ∂Ω
         end
 
@@ -246,7 +247,8 @@ let
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
-                ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im
+                d = dot(Ω, ΔΩ)
+                ∂x = Ω * ((d - real(d)) / n)
                 return (NoTangent(), ∂x)
             end
             return Ω, sign_pullback
@@ -275,9 +277,9 @@ let
                 ΔΩ = unthunk(Ω̇)
                 return (
                     NoTangent(), 
-                    ProjectTo(x)(ΔΩ * y' * z'),
+                    ProjectTo(x)(ΔΩ * z' * y'),
                     ProjectTo(y)(x' * ΔΩ * z'),
-                    ProjectTo(z)(x' * y' * ΔΩ),
+                    ProjectTo(z)(y' * x' * ΔΩ),
                 )
             end
             return x * y * z, times_pullback3

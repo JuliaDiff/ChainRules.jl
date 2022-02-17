@@ -34,9 +34,9 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
     z = adjoint(x) * Ay
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        dx = @thunk project_x(conj(ΔΩ) .* Ay)
-        dA = @thunk project_A(ΔΩ .* x .* adjoint(y))
-        dy = @thunk project_y(ΔΩ .* (adjoint(A) * x))
+        dx = @thunk project_x(Ay .* conj(ΔΩ))
+        dA = @thunk project_A(x .* ΔΩ .* adjoint(y))
+        dy = @thunk project_y((adjoint(A) * x) .* ΔΩ)
         return (NoTangent(), dx, dA, dy)
     end
     dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
