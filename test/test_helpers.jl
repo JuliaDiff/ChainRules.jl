@@ -75,6 +75,62 @@ function ChainRulesCore.rrule(::typeof(make_two_vec), x)
     return make_two_vec(x), make_two_vec_pullback
 end
 
+# Minimal quaternion implementation for testing rules that accept numbers that don't commute
+# under multiplication
+# adapted from Base Julia
+# https://github.com/JuliaLang/julia/blob/bb5b98e72a151c41471d8cc14cacb495d647fb7f/test/testhelpers/Quaternions.jl
+
+export Quaternion
+
+struct Quaternion{T<:Real} <: Number
+    s::T
+    v1::T
+    v2::T
+    v3::T
+end
+const QuaternionF64 = Quaternion{Float64}
+Quaternion(s::Real, v1::Real, v2::Real, v3::Real) = Quaternion(promote(s, v1, v2, v3)...)
+Quaternion{T}(s::Real) where {T} = Quaternion(T(s), zero(T), zero(T), zero(T))
+Base.convert(::Type{Quaternion{T}}, s::Real) where {T <: Real} =
+    Quaternion{T}(convert(T, s), zero(T), zero(T), zero(T))
+Base.promote_rule(::Type{Quaternion{S}}, ::Type{T}) where {S<:Real,T<:Real} = Quaternion{Base.promote_type(S,T)}
+Base.abs2(q::Quaternion) = q.s*q.s + q.v1*q.v1 + q.v2*q.v2 + q.v3*q.v3
+Base.float(z::Quaternion{T}) where T = Quaternion(float(z.s), float(z.v1), float(z.v2), float(z.v3))
+Base.abs(q::Quaternion) = sqrt(abs2(q))
+Base.real(::Type{Quaternion{T}}) where {T} = T
+Base.real(q::Quaternion) = q.s
+Base.conj(q::Quaternion) = Quaternion(q.s, -q.v1, -q.v2, -q.v3)
+Base.isfinite(q::Quaternion) = isfinite(q.s) & isfinite(q.v1) & isfinite(q.v2) & isfinite(q.v3)
+Base.zero(::Type{Quaternion{T}}) where T = Quaternion{T}(zero(T), zero(T), zero(T), zero(T))
+Base.:(+)(ql::Quaternion, qr::Quaternion) =
+ Quaternion(ql.s + qr.s, ql.v1 + qr.v1, ql.v2 + qr.v2, ql.v3 + qr.v3)
+Base.:(-)(ql::Quaternion, qr::Quaternion) =
+ Quaternion(ql.s - qr.s, ql.v1 - qr.v1, ql.v2 - qr.v2, ql.v3 - qr.v3)
+Base.:(-)(q::Quaternion) = Quaternion(-q.s, -q.v1, -q.v2, -q.v3)
+Base.:(*)(q::Quaternion, w::Quaternion) = Quaternion(q.s*w.s - q.v1*w.v1 - q.v2*w.v2 - q.v3*w.v3,
+                                            q.s*w.v1 + q.v1*w.s + q.v2*w.v3 - q.v3*w.v2,
+                                            q.s*w.v2 - q.v1*w.v3 + q.v2*w.s + q.v3*w.v1,
+                                            q.s*w.v3 + q.v1*w.v2 - q.v2*w.v1 + q.v3*w.s)
+Base.:(*)(q::Quaternion, r::Real) = Quaternion(q.s*r, q.v1*r, q.v2*r, q.v3*r)
+Base.:(*)(q::Quaternion, b::Bool) = b * q # remove method ambiguity
+Base.:(/)(q::Quaternion, w::Quaternion) = q * conj(w) * (1.0 / abs2(w))
+Base.:(\)(q::Quaternion, w::Quaternion) = conj(q) * w * (1.0 / abs2(q))
+function Base.rand(rng::AbstractRNG, ::Random.SamplerType{Quaternion{T}}) where {T<:Real}
+    return Quaternion{T}(rand(rng, T), rand(rng, T), rand(rng, T), rand(rng, T))
+end
+function Base.randn(rng::AbstractRNG, ::Type{Quaternion{T}}) where {T<:AbstractFloat}
+    return Quaternion{T}(
+        randn(rng, T) / 2,
+        randn(rng, T) / 2,
+        randn(rng, T) / 2,
+        randn(rng, T) / 2,
+    )
+end
+(project::ProjectTo{<:Real})(dx::Quaternion) = project(real(dx))
+function ChainRulesTestUtils.rand_tangent(rng::AbstractRNG, q::Quaternion{Float64})
+    return Quaternion(rand(rng, -9:0.1:9), rand(rng, -9:0.1:9), rand(rng, -9:0.1:9), rand(rng, -9:0.1:9))
+end
+
 @testset "test_helpers.jl" begin
 
     @testset "Multiplier" begin
