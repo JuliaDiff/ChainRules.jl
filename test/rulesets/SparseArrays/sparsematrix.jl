@@ -15,5 +15,5 @@ end
 @testset "SparseVector(v)" begin
     v = rand(5)
     test_rrule(SparseVector, v)
-    test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-5)
+    test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-4)
 end
