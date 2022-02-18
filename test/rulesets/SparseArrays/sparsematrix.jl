@@ -25,4 +25,11 @@ end
     I, J, V = findnz(A)
     V̄ = rand!(similar(V))
     test_rrule(findnz, A ⊢ dA, output_tangent=(zeros(length(I)), zeros(length(J)), V̄))
+
+    v = sprand(5, 0.5)
+    dv = similar(v)
+    rand!(dv.nzval)
+    I, V = findnz(v)
+    V̄ = rand!(similar(V))
+    test_rrule(findnz, v ⊢ dv, output_tangent=(zeros(length(I)), V̄))
 end
