@@ -72,48 +72,52 @@ function rrule(
 end
 
 function rrule(
-    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::AbstractArray; dims=:
-) where {F}
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(sum),
+    f::F,
+    xs::AbstractArray{T};
+    dims = :,
+) where {F,T}
     project = ProjectTo(xs)
 
-    if _uses_input_only(f, eltype(xs))
+    if _uses_input_only(f, T)
         # Then we can compute the forward pass as usual, save nothing but `xs`:
-        y = sum(f, xs; dims=dims)
-        function sum_pullback_easy(dy)
-            dxs = unthunk(dy) .* conj.(only.(only.(derivatives_given_output.(nothing, f, xs))))
+        function sum_pullback_f1(dy)
+            dxs = broadcast(unthunk(dy), xs) do dyₖ, xᵢ
+                ∂yₖ∂xᵢ = only(only(derivatives_given_output(nothing, f, xᵢ)))
+                dyₖ * conj(∂yₖ∂xᵢ)
+            end
             return (NoTangent(), NoTangent(), project(dxs))
         end
-        return y, sum_pullback_easy
+        return sum(f, xs; dims), sum_pullback_f1
     end
 
     # In the general case, we need to save all the pullbacks:
-    fx_and_pullbacks = map(x -> rrule_via_ad(config, f, x), xs)
-    y = sum(first, fx_and_pullbacks; dims=dims)
+    fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
+    y = sum(first, fx_and_pullbacks; dims)
 
-    function sum_pullback_f(dy)
+    function sum_pullback_f2(dy)
         # For arrays of arrays, we ought to protect the element against broadcasting:
-        dys = dims isa Colon ? Ref(unthunk(dy)) : unthunk(dy)
+        broadcast_dy = dims isa Colon ? Ref(unthunk(dy)) : unthunk(dy)
         if Base.issingletontype(F)
             # Then at least `f` has no gradient. Note that broadcasting here
             # gets the shape right with or without `dims` keyword.
-            dxs = broadcast(fx_and_pullbacks, dys) do (_, back), dy1
-                unthunk(last(back(dy1)))
+            dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
+                unthunk(last(pbᵢ(dyₖ)))
             end
             return (NoTangent(), NoTangent(), project(dxs))
 
         else
             # Most general case. If `f` were stateful, we would need to reverse the order
-            # of iteration here, but since this funciton makes no guarantee, even the primal
+            # of iteration here, but since this function makes no guarantee, even the primal
             # result is then ill-defined.
-            df_and_dxs = broadcast(fx_and_pullbacks, dys) do (_, back), dy1
-                map(unthunk, back(dy1))
+            df_and_dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
+                map(unthunk, pbᵢ(dyₖ))
             end
-            df = sum(first, df_and_dxs)
-            dxs = map(last, df_and_dxs)
-            return (NoTangent(), df, project(dxs))
+            return (NoTangent(), sum(first, df_and_dxs), project(map(last, df_and_dxs)))
         end
     end
-    return y, sum_pullback_f
+    return y, sum_pullback_f2
 end
 
 function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
