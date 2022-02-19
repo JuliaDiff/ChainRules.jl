@@ -100,8 +100,8 @@ function rrule(
         # For arrays of arrays, we ought to protect the element against broadcasting:
         broadcast_dy = dims isa Colon ? Ref(unthunk(dy)) : unthunk(dy)
         if Base.issingletontype(F)
-            # Then at least `f` has no gradient. Note that broadcasting here
-            # gets the shape right with or without `dims` keyword.
+            # Then at least `f` has no gradient. 
+            # Broadcasting here gets the shape right with or without `dims` keyword.
             dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
                 unthunk(last(pbᵢ(dyₖ)))
             end
@@ -112,9 +112,11 @@ function rrule(
             # of iteration here, but since this function makes no guarantee, even the primal
             # result is then ill-defined.
             df_and_dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
-                map(unthunk, pbᵢ(dyₖ))
+                pbᵢ(dyₖ)
             end
-            return (NoTangent(), sum(first, df_and_dxs), project(map(last, df_and_dxs)))
+            df = sum(first, df_and_dxs)
+            dxs = map(unthunk ∘ last, df_and_dxs)
+            return (NoTangent(), df, project(dxs))
         end
     end
     return y, sum_pullback_f2
