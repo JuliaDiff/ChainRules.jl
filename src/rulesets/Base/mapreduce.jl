@@ -92,6 +92,9 @@ function rrule(
         return sum(f, xs; dims), sum_pullback_f1
     end
 
+    # (There is an intermediate case, where `derivatives_given_output` needs to
+    # see `f.(xs)` but we don't need the pullbacks. Not implemented at present.)
+
     # In the general case, we need to save all the pullbacks:
     fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
     y = sum(first, fx_and_pullbacks; dims)
