@@ -262,7 +262,7 @@ function ∇prod_dims(vald::Val{dims}, x, dy, y=prod(x; dims=dims)) where {dims}
     ∇prod_dims!(dx, vald, x, dy, y)
     return dx
 end
-∇prod_dims(::Val{dims}, x, dy::AbstractZero, y=prod(x; dims=dims)) where {dims} = dy
+∇prod_dims(::Val, x, dy::AbstractZero, y=0) = dy
 
 function ∇prod_dims!(dx, ::Val{dims}, x, dy, y) where {dims}
     iters = ntuple(d -> d in dims ? tuple(:) : axes(x,d), ndims(x))  # Without Val(dims) this is a serious type instability
@@ -279,7 +279,7 @@ function ∇prod(x, dy::Number=1, y::Number=prod(x))
     ∇prod!(dx, x, dy, y)
     return dx
 end
-∇prod(x, dy::AbstractZero, y::Number=prod(x)) = dy
+∇prod(x, dy::AbstractZero, y::Number=0) = dy
 
 function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
     numzero = iszero(y) ? count(iszero, x) : 0
@@ -363,7 +363,7 @@ function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y
      ∇cumprod_dim!(dx, vald, x, dy, y)
      return dx
 end
-∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy::AbstractZero, y=cumprod(x; dims=dim)) where {dim} = dy
+∇cumprod_dim(vald::Val, x::AbstractArray, dy::AbstractZero, y=0) = dy
 
 @inline function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
     iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
@@ -379,7 +379,7 @@ function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     ∇cumprod!(dx, x, dy, y)
     return dx
 end
-∇cumprod(x::AbstractVector, dy::AbstractZero, y=cumprod(x)) = dy
+∇cumprod(x::AbstractVector, dy::AbstractZero, y=0) = dy
 
 @inline function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
     lo, hi = firstindex(x), lastindex(x)
