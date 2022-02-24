@@ -2,8 +2,7 @@ function rrule(::typeof(sparse), I::AbstractVector, J::AbstractVector, V::Abstra
     project_V = ProjectTo(V)
     
     function sparse_pullback(Ω̄)
-        ΔΩ = unthunk(Ω̄)
-        ΔV = project_V(ΔΩ[I .+ m .* (J .- 1)])
+        ΔV = @thunk project_V(Ω̄[I .+ m .* (J .- 1)])
         return NoTangent(), NoTangent(), NoTangent(), ΔV, NoTangent(), NoTangent(), NoTangent()
     end
 
@@ -29,7 +28,7 @@ function rrule(::typeof(findnz), A::AbstractSparseMatrix)
     m, n = size(A)
 
     function findnz_pullback(Δ)
-        _, _, V̄ = unthunk(Δ)
+        _, _, V̄ = Δ
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparse(I, J, V̄, m, n)
     end
@@ -42,7 +41,7 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
     n = length(v)
 
     function findnz_pullback(Δ)
-        _, V̄ = unthunk(Δ)
+        _, V̄ = Δ
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparsevec(I, V̄, n)
     end
