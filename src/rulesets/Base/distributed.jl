@@ -19,6 +19,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
     ys = getindex.(ys_IDs_indices, 1) # the primal values
     IDs = getindex.(ys_IDs_indices, 2) # remember which processors handled which elements of X
     indices = getindex.(ys_IDs_indices, 3) # remember the index of the pullback in the array on each processor
+    output_sz = size(ys)
  
     # create a list of positions in X handled by each processor
     unique_IDs = sort(unique(IDs))
@@ -43,7 +44,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
 
         # combine the results from each proc into res = pmap((back, ȳ) -> back(ȳ), p, backs for each position, Ȳ)
         res_batches = asyncmap(run_backs, unique_IDs, positions)
-        res = similar(res_batches[1], size(Ȳ))
+        res = similar(res_batches[1], output_sz)
 
         for (positions, res_batch) in zip(positions, res_batches)
             res[positions] = res_batch
