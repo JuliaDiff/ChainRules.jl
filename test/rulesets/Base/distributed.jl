@@ -3,6 +3,7 @@
     test_rrule(pmap, inv, default_worker_pool(), rand(10), check_inferred=false)
     test_rrule(pmap, inv, default_worker_pool(), rand(4, 4), check_inferred=false) # test matrix input
     test_rrule(pmap, inv, default_worker_pool(), rand(10), fkwargs=(batch_size=2,), check_inferred=false) # test batch_size > 1
+    test_rrule(pmap, Multiplier(2.0), default_worker_pool(), rand(3), check_inferred=false) # test adjoint of f
 
     y1, b1 = rrule(CFG, pmap, inv, default_worker_pool(), [1, 2, 3])
     @test y1 ≈ 1 ./ [1, 2, 3] 
