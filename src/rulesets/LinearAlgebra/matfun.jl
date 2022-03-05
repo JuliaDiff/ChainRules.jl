@@ -219,6 +219,9 @@ function _matfun!(::typeof(exp), A::StridedMatrix{T}) where {T<:BlasFloat}
             X *= X
             push!(Xpows, X)
         end
+    else
+        # Xpows[1] must remain balanced for computing the Fréchet derivative
+        X = copy(X)
     end
 
     _unbalance!(X, ilo, ihi, scale, n)
