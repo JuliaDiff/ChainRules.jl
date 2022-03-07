@@ -23,6 +23,15 @@
                 ]
             test_frule(LinearAlgebra.exp!, A)
         end
+        @testset "exhaustive test" begin
+            # added to ensure we never hit truncation error
+            # https://github.com/JuliaDiff/ChainRules.jl/issues/595
+            rng = MersenneTwister(1)
+            for _ in 1:100
+                A = randn(rng, 3, 3)
+                test_frule(LinearAlgebra.exp!, A)
+            end
+        end
         @testset "hermitian A, T=$T" for T in (Float64, ComplexF64)
             A = Matrix(Hermitian(randn(T, n, n)))
             test_frule(LinearAlgebra.exp!, A)
@@ -65,6 +74,15 @@
                  2.3397892123412833   -0.6650489083959324 0.6387266010923911
                 ]
             test_rrule(LinearAlgebra.exp, A; check_inferred=false)
+        end
+        @testset "exhaustive test" begin
+            # added to ensure we never hit truncation error
+            # https://github.com/JuliaDiff/ChainRules.jl/issues/595
+            rng = MersenneTwister(1)
+            for _ in 1:100
+                A = randn(rng, 3, 3)
+                test_rrule(LinearAlgebra.exp, A; check_inferred=false)
+            end
         end
         @testset "hermitian A, T=$T" for T in (Float64, ComplexF64)
             A = Matrix(Hermitian(randn(T, n, n)))
