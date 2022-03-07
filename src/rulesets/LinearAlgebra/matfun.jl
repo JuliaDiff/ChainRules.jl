@@ -250,7 +250,7 @@ function _matfun_frechet!(
     ∂P = copy(∂A2)
     ∂W = C[4] * ∂P
     ∂V = C[3] * ∂P
-    for k in 2:(length(Apows) - 1)
+    for k in 2:length(Apows)
         k2 = 2 * k
         P = Apows[k - 1]
         ∂P, ∂temp = mul!(mul!(∂temp, ∂P, A2), P, ∂A2, true, true), ∂P
