@@ -16,7 +16,11 @@
         end
         @testset "imbalanced A with no squaring" begin
             # https://github.com/JuliaDiff/ChainRules.jl/issues/595
-            A = randn(MersenneTwister(8), 3, 3)
+            A = [
+                -0.007623430669065629 -0.567237096385192  0.4419041897734335;
+                 2.090838913114862    -1.254084243281689 -0.04145771190198238;
+                 2.3397892123412833   -0.6650489083959324 0.6387266010923911
+                ]
             test_frule(LinearAlgebra.exp!, A)
         end
         @testset "hermitian A, T=$T" for T in (Float64, ComplexF64)
@@ -55,7 +59,11 @@
         end
         @testset "imbalanced A with no squaring" begin
             # https://github.com/JuliaDiff/ChainRules.jl/issues/595
-            A = randn(MersenneTwister(8), 3, 3)
+            A = [
+                -0.007623430669065629 -0.567237096385192  0.4419041897734335;
+                 2.090838913114862    -1.254084243281689 -0.04145771190198238;
+                 2.3397892123412833   -0.6650489083959324 0.6387266010923911
+                ]
             test_rrule(LinearAlgebra.exp, A; check_inferred=false)
         end
         @testset "hermitian A, T=$T" for T in (Float64, ComplexF64)
