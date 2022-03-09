@@ -96,6 +96,8 @@
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
 @non_differentiable all(::Any, ::Any)
+@non_differentiable allequal(::Any)
+@non_differentiable allunique(::Any)
 @non_differentiable any(::Any)
 @non_differentiable any(::Any, ::Any)
 @non_differentiable argmax(::Any)
