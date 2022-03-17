@@ -129,7 +129,7 @@ frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
+        ∂x = x isa Number ? ΔΩ : conj(Ω) * ΔΩ * inv(x)'
         return (NoTangent(), ∂x)
     end
     return Ω, det_pullback
