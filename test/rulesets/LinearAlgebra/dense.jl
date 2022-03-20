@@ -119,6 +119,12 @@
                 test_rrule(f, B)
             end
         end
+        @testset "$f(unitary matrix)" begin
+            B = generate_well_conditioned_matrix(ComplexF64, 4)
+            U = exp(1im * (B + B'))
+            test_frule(f, U)
+            test_rrule(f, U)
+        end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = randn(T, 4, 4)
