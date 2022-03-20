@@ -120,7 +120,7 @@
             end
         end
         @testset "$f(unitary matrix)" begin
-            B = generate_well_conditioned_matrix(ComplexF64, 4)
+            B = randn(ComplexF64, 4, 4)
             U = exp(1im * (B + B'))
             test_frule(f, U)
             test_rrule(f, U)
