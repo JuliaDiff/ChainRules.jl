@@ -119,9 +119,9 @@
                 test_rrule(f, B)
             end
         end
-        @testset "$f(unitary matrix)" begin
+        @testset "$f(complex determinant)" begin
             B = randn(ComplexF64, 4, 4)
-            U = exp(1im * (B + B'))
+            U = exp(B - B')
             test_frule(f, U)
             test_rrule(f, U)
         end
