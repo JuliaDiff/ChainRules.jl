@@ -32,7 +32,6 @@ include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
 include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
-include("rulesets/Base/distributed.jl")
 
 include("rulesets/Statistics/statistics.jl")
 
@@ -50,5 +49,7 @@ include("rulesets/LinearAlgebra/uniformscaling.jl")
 include("rulesets/SparseArrays/sparsematrix.jl")
 
 include("rulesets/Random/random.jl")
+
+include("rulesets/Distributed/pmap.jl")
 
 end # module

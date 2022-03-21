@@ -1,3 +1,5 @@
+const CFG = ChainRulesTestUtils.ADviaRuleConfig() # for testing rules that call back into AD
+
 """
     Multiplier(x)
 

@@ -19,18 +19,18 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
     ys = getindex.(ys_IDs_indices, 1) # the primal values
     IDs = getindex.(ys_IDs_indices, 2) # remember which processors handled which elements of X
     indices = getindex.(ys_IDs_indices, 3) # remember the index of the pullback in the array on each processor
-    output_sz = size(ys)
+    output_sz = axes(ys)
  
     # create a list of positions in X handled by each processor
-    unique_IDs = sort(unique(IDs))
+    unique_IDs = sort!(unique(IDs))
     T = eltype(eachindex(ys_IDs_indices))
     positions = [Vector{T}() for _ in 1:length(unique_IDs)]
     for i in eachindex(ys_IDs_indices)
         push!(positions[searchsortedfirst(unique_IDs, IDs[i])], i)
     end
 
-    function pmap_pullback(Ȳ)
-        Ȳ = unthunk(Ȳ)
+    function pmap_pullback(Ȳ_raw)
+        Ȳ = unthunk(Ȳ_raw)
 
         # runs the pullback for each position handled by proc ID in forward pass
         function run_backs(ID, positions)
