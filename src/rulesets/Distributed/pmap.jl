@@ -36,9 +36,9 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(pmap), f, p::Abstr
         function run_backs(ID, positions)
             Ȳ_batch = Ȳ[positions]
             indices_batch = indices[positions]
-            res_batch = remotecall_fetch(() -> 
-                asyncmap((ȳ, i) -> darr[:L][1][i](ȳ), Ȳ_batch, indices_batch), # run all the backs in a local asyncmap
-                ID) 
+            res_batch = remotecall_fetch(ID) do
+                    asyncmap((ȳ, i) -> darr[:L][1][i](ȳ), Ȳ_batch, indices_batch) # run all the backs in a local asyncmap
+                end 
             return res_batch
         end
 
