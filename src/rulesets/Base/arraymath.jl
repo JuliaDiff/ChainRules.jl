@@ -10,7 +10,7 @@ end
 function rrule(::typeof(inv), x::AbstractArray)
     Ω = inv(x)
     function inv_pullback(ΔΩ)
-        return NoTangent(), -Ω' * ΔΩ * Ω'
+        return NoTangent(), Ω' * -ΔΩ * Ω'
     end
     return Ω, inv_pullback
 end
@@ -23,12 +23,7 @@ frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
 
 frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
 
-
-function rrule(
-    ::typeof(*),
-    A::AbstractVecOrMat{<:CommutativeMulNumber},
-    B::AbstractVecOrMat{<:CommutativeMulNumber},
-)
+function rrule(::typeof(*), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
     function times_pullback(ȳ)
@@ -46,8 +41,8 @@ end
 # https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
 function rrule(
     ::typeof(*),
-    A::StridedMatrix{<:CommutativeMulNumber},
-    B::StridedVecOrMat{<:CommutativeMulNumber},
+    A::StridedMatrix{<:Number},
+    B::StridedVecOrMat{<:Number},
 )
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
@@ -64,13 +59,7 @@ function rrule(
     return A * B, times_pullback
 end
 
-
-
-function rrule(
-    ::typeof(*),
-    A::AbstractVector{<:CommutativeMulNumber},
-    B::AbstractMatrix{<:CommutativeMulNumber},
-)
+function rrule(::typeof(*), A::AbstractVector{<:Number}, B::AbstractMatrix{<:Number})
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
     function times_pullback(ȳ)
@@ -97,7 +86,7 @@ end
 #####
 
 function rrule(
-   ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
+   ::typeof(*), A::Number, B::AbstractArray{<:Number}
 )
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
@@ -105,7 +94,16 @@ function rrule(
         Ȳ = unthunk(ȳ)
         return (
             NoTangent(),
-            @thunk(project_A(dot(Ȳ, B)')),
+            Thunk() do
+                if eltype(B) isa CommutativeMulNumber
+                    project_A(dot(Ȳ, B)')
+                elseif ndims(B) < 3
+                    # https://github.com/JuliaLang/julia/issues/44152
+                    project_A(dot(conj(Ȳ), conj(B)))
+                else
+                    project_A(dot(conj(vec(Ȳ)), conj(vec(B))))
+                end
+            end,
             InplaceableThunk(
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true),
                 @thunk(project_B(A' * Ȳ)),
@@ -116,7 +114,7 @@ function rrule(
 end
 
 function rrule(
-    ::typeof(*), B::AbstractArray{<:CommutativeMulNumber}, A::CommutativeMulNumber
+    ::typeof(*), B::AbstractArray{<:Number}, A::Number
 )
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
@@ -128,7 +126,17 @@ function rrule(
                 X̄ -> mul!(X̄, conj(A), Ȳ, true, true),
                 @thunk(project_B(A' * Ȳ)),
             ),
-            @thunk(project_A(dot(Ȳ, B)')),
+            # @thunk(project_A(eltype(A) isa CommutativeMulNumber ? dot(Ȳ, B)' : dot(Ȳ', B'))),
+            Thunk() do
+                if eltype(B) isa CommutativeMulNumber
+                    project_A(dot(Ȳ, B)')
+                elseif ndims(B) < 3
+                    # https://github.com/JuliaLang/julia/issues/44152
+                    project_A(dot(conj(Ȳ), conj(B)))
+                else
+                    project_A(dot(conj(vec(Ȳ)), conj(vec(B))))
+                end
+            end,
         )
     end
     return A * B, times_pullback
@@ -217,9 +225,9 @@ end
 
 function rrule(
         ::typeof(muladd),
-        A::AbstractMatrix{<:CommutativeMulNumber},
-        B::AbstractVecOrMat{<:CommutativeMulNumber},
-        z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
+        A::AbstractMatrix{<:Number},
+        B::AbstractVecOrMat{<:Number},
+        z::Union{Number, AbstractVecOrMat{<:Number}},
     )
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
@@ -255,9 +263,9 @@ end
 
 function rrule(
         ::typeof(muladd),
-        ut::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
-        v::AbstractVector{<:CommutativeMulNumber},
-        z::CommutativeMulNumber,
+        ut::LinearAlgebra.AdjOrTransAbsVec{<:Number},
+        v::AbstractVector{<:Number},
+        z::Number,
     )
     project_ut = ProjectTo(ut)
     project_v = ProjectTo(v)
@@ -268,11 +276,11 @@ function rrule(
         dy = unthunk(ȳ)
         ut_thunk = InplaceableThunk(
             dut -> dut .+= v' .* dy,
-            @thunk(project_ut(v' .* dy)),
+            @thunk(project_ut((v * dy')')),
         )
         v_thunk = InplaceableThunk(
             dv -> dv .+= ut' .* dy,
-            @thunk(project_v(ut' .* dy)),
+            @thunk(project_v(ut' * dy)),
         )
         (NoTangent(), ut_thunk, v_thunk, z isa Bool ? NoTangent() : project_z(dy))
     end
@@ -281,9 +289,9 @@ end
 
 function rrule(
         ::typeof(muladd),
-        u::AbstractVector{<:CommutativeMulNumber},
-        vt::LinearAlgebra.AdjOrTransAbsVec{<:CommutativeMulNumber},
-        z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}},
+        u::AbstractVector{<:Number},
+        vt::LinearAlgebra.AdjOrTransAbsVec{<:Number},
+        z::Union{Number, AbstractVecOrMat{<:Number}},
     )
     project_u = ProjectTo(u)
     project_vt = ProjectTo(vt)
@@ -293,8 +301,8 @@ function rrule(
     function muladd_pullback_3(ȳ)
         Ȳ = unthunk(ȳ)
         proj = (
-            @thunk(project_u(vec(sum(Ȳ .* conj.(vt), dims=2)))),
-            @thunk(project_vt(vec(sum(u .* conj.(Ȳ), dims=1))')),
+            @thunk(project_u(Ȳ * vec(vt'))),
+            @thunk(project_vt((Ȳ' * u)')),
         )
         addon = if z isa Bool
             NoTangent()
@@ -315,14 +323,14 @@ end
 ##### `/`
 #####
 
-function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+function rrule(::typeof(/), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
     Aᵀ, dA_pb = rrule(adjoint, A)
     Bᵀ, dB_pb = rrule(adjoint, B)
     Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
     C, dC_pb = rrule(adjoint, Cᵀ)
-    function slash_pullback(Ȳ)
+    function slash_pullback(Ȳ)
         # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        _, dC = dC_pb(Ȳ)
+        _, dC = dC_pb(Ȳ)
         _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
 
         ∂A = last(dA_pb(unthunk(dAᵀ)))
@@ -337,7 +345,7 @@ end
 ##### `\`
 #####
 
-function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
+function rrule(::typeof(\), A::AbstractVecOrMat{<:Number}, B::AbstractVecOrMat{<:Number})
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
 
@@ -362,14 +370,17 @@ end
 ##### `\`, `/` matrix-scalar_rule
 #####
 
-function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
-    return A/b, ΔA/b - A*(Δb/b^2)
+
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:Number}, b::Number)
+    Y = A / b
+    return Y, muladd(Y, -Δb, ΔA) / b
 end
-function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
-    return B/a, ΔB/a - B*(Δa/a^2)
+function frule((_, Δa, ΔB), ::typeof(\), a::Number, B::AbstractArray{<:Number})
+    Y = a \ B
+    return Y, a \ muladd(-Δa, Y, ΔB)
 end
 
-function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+function rrule(::typeof(/), A::AbstractArray{<:Number}, b::Number)
     Y = A/b
     function slash_pullback_scalar(ȳ)
         Ȳ = unthunk(ȳ)
@@ -377,17 +388,28 @@ function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::Commuta
             dA -> dA .+= Ȳ ./ conj(b),
             @thunk(Ȳ / conj(b)),
         )
-        bthunk = @thunk(-dot(A,Ȳ) / conj(b^2))
+        bthunk = @thunk(-dot(Y,Ȳ) / conj(b))
         return (NoTangent(), Athunk, bthunk)
     end
     return Y, slash_pullback_scalar
 end
 
-function rrule(::typeof(\), b::CommutativeMulNumber, A::AbstractArray{<:CommutativeMulNumber})
-    Y, back = rrule(/, A, b)
-    function backslash_pullback(dY)  # just reverses the arguments!
-        d0, dA, db = back(dY)
-        return (d0, db, dA)
+function rrule(::typeof(\), b::Number, A::AbstractArray{<:Number})
+    Y = b \ A
+    function backslash_pullback(ȳ)
+        Ȳ = unthunk(ȳ)
+        Athunk = InplaceableThunk(
+            dA -> dA .+= conj(b) .\ Ȳ,
+            @thunk(conj(b) \ Ȳ),
+        )
+        bthunk = if eltype(Y) isa CommutativeMulNumber
+            @thunk(-conj(b) \ dot(Y, Ȳ))
+        else
+            # NOTE: dot(Ȳ', Y') currently incorrect for non-commutative numbers
+            # https://github.com/JuliaLang/julia/issues/44152
+            @thunk(-conj(b) \ dot(conj(Ȳ), conj(Y)))
+        end
+        return (NoTangent(), bthunk, Athunk)
     end
     return Y, backslash_pullback
 end

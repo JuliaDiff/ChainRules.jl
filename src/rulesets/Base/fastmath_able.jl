@@ -9,69 +9,82 @@ let
         ## for the rules for `sin` and `cos`
         ## See issue: https://github.com/JuliaDiff/ChainRules.jl/issues/291
         ## sin
-        function rrule(::typeof(sin), x::Number)
+        function rrule(::typeof(sin), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
             sin_pullback(Δy) = (NoTangent(), cosx' * Δy)
             return (sinx, sin_pullback)
         end
 
-        function frule((_, Δx), ::typeof(sin), x::Number)
+        function frule((_, Δx), ::typeof(sin), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
             return (sinx, cosx * Δx)
         end
 
         ## cos
-        function rrule(::typeof(cos), x::Number)
+        function rrule(::typeof(cos), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
             cos_pullback(Δy) = (NoTangent(), -sinx' * Δy)
             return (cosx, cos_pullback)
         end
         
-        function frule((_, Δx), ::typeof(cos), x::Number)
+        function frule((_, Δx), ::typeof(cos), x::CommutativeMulNumber)
             sinx, cosx = sincos(x)
             return (cosx, -sinx * Δx)
         end
         
-        @scalar_rule tan(x) 1 + Ω ^ 2
+        @scalar_rule tan(x::CommutativeMulNumber) 1 + Ω ^ 2
 
 
         # Trig-Hyperbolic
-        @scalar_rule cosh(x) sinh(x)
-        @scalar_rule sinh(x) cosh(x)
-        @scalar_rule tanh(x) 1 - Ω ^ 2
+        @scalar_rule cosh(x::CommutativeMulNumber) sinh(x)
+        @scalar_rule sinh(x::CommutativeMulNumber) cosh(x)
+        @scalar_rule tanh(x::CommutativeMulNumber) 1 - Ω ^ 2
 
         # Trig- Inverses
-        @scalar_rule acos(x) -(inv(sqrt(1 - x ^ 2)))
-        @scalar_rule asin(x) inv(sqrt(1 - x ^ 2))
-        @scalar_rule atan(x) inv(1 + x ^ 2)
+        @scalar_rule acos(x::CommutativeMulNumber) -(inv(sqrt(1 - x ^ 2)))
+        @scalar_rule asin(x::CommutativeMulNumber) inv(sqrt(1 - x ^ 2))
+        @scalar_rule atan(x::CommutativeMulNumber) inv(1 + x ^ 2)
 
         # Trig-Multivariate
-        @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
-        @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
+        @scalar_rule atan(y::Real, x::Real) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
+        @scalar_rule sincos(x::CommutativeMulNumber) @setup((sinx, cosx) = Ω) cosx -sinx
 
         # exponents
-        @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
-        @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)  # gradient +Inf at x==0
-        @scalar_rule exp(x) Ω
-        @scalar_rule exp10(x) logten * Ω
-        @scalar_rule exp2(x) logtwo * Ω
-        @scalar_rule expm1(x) exp(x)
-        @scalar_rule log(x) inv(x)
-        @scalar_rule log10(x) inv(logten * x)
-        @scalar_rule log1p(x) inv(x + 1)
-        @scalar_rule log2(x) inv(logtwo * x)
+        @scalar_rule cbrt(x::CommutativeMulNumber) inv(3 * Ω ^ 2)
+        @scalar_rule inv(x::CommutativeMulNumber) -(Ω ^ 2)
+        function frule((_, Δx), ::typeof(inv), x::Number)
+            Ω = inv(x)
+            return Ω, Ω * -Δx * Ω
+        end
+        function rrule(::typeof(inv), x::Number)
+            Ω = inv(x)
+            project_x = ProjectTo(x)
+            function inv_pullback(ΔΩ)
+                Ω′ = conj(Ω)
+                return NoTangent(), project_x(Ω′ * -ΔΩ * Ω′)
+            end
+            return Ω, inv_pullback
+        end
+        @scalar_rule sqrt(x::CommutativeMulNumber) inv(2Ω)  # gradient +Inf at x==0
+        @scalar_rule exp(x::CommutativeMulNumber) Ω
+        @scalar_rule exp10(x::CommutativeMulNumber) logten * Ω
+        @scalar_rule exp2(x::CommutativeMulNumber) logtwo * Ω
+        @scalar_rule expm1(x::CommutativeMulNumber) exp(x)
+        @scalar_rule log(x::CommutativeMulNumber) inv(x)
+        @scalar_rule log10(x::CommutativeMulNumber) inv(logten * x)
+        @scalar_rule log1p(x::CommutativeMulNumber) inv(x + 1)
+        @scalar_rule log2(x::CommutativeMulNumber) inv(logtwo * x)
 
         # Unary complex functions
         ## abs
-        function frule((_, Δx), ::typeof(abs), x::Union{Real, Complex})
+        function frule((_, Δx), ::typeof(abs), x::Number)
             Ω = abs(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             return Ω, realdot(signx, Δx)
         end
 
-        function rrule(::typeof(abs), x::Union{Real, Complex})
+        function rrule(::typeof(abs), x::Number)
             Ω = abs(x)
             function abs_pullback(ΔΩ)
                 signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
@@ -81,23 +94,23 @@ let
         end
 
         ## abs2
-        function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
+        function frule((_, Δz), ::typeof(abs2), z::Number)
             return abs2(z), 2 * realdot(z, Δz)
         end
 
-        function rrule(::typeof(abs2), z::Union{Real, Complex})
+        function rrule(::typeof(abs2), z::Number)
             function abs2_pullback(ΔΩ)
                 Δu = real(ΔΩ)
-                return (NoTangent(), 2Δu*z)
+                return (NoTangent(), 2Δu * z)
             end
             return abs2(z), abs2_pullback
         end
 
         ## conj
-        function frule((_, Δz), ::typeof(conj), z::Union{Real, Complex})
+        function frule((_, Δz), ::typeof(conj), z::Number)
             return conj(z), conj(Δz)
         end
-        function rrule(::typeof(conj), z::Union{Real, Complex})
+        function rrule(::typeof(conj), z::Number)
             function conj_pullback(ΔΩ)
                 return (NoTangent(), conj(ΔΩ))
             end
@@ -105,7 +118,7 @@ let
         end
 
         ## angle
-        function frule((_, Δx), ::typeof(angle), x)
+        function frule((_, Δx), ::typeof(angle), x::Union{Real,Complex})
             Ω = angle(x)
             # `ifelse` is applied only to denominator to ensure type-stability.
             n = ifelse(iszero(x), one(real(x)), abs2(x))
@@ -143,14 +156,14 @@ let
             ::typeof(hypot),
             x::T,
             y::T,
-        ) where {T<:Union{Real,Complex}}
+        ) where {T<:Number}
             Ω = hypot(x, y)
             n = ifelse(iszero(Ω), one(Ω), Ω)
             ∂Ω = (realdot(x, Δx) + realdot(y, Δy)) / n
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(hypot), x::T, y::T) where {T<:Union{Real,Complex}}
+        function rrule(::typeof(hypot), x::T, y::T) where {T<:Number}
             Ω = hypot(x, y)
             function hypot_pullback(ΔΩ)
                 c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
@@ -161,11 +174,24 @@ let
 
         @scalar_rule x + y (true, true)
         @scalar_rule x - y (true, -1)
-        @scalar_rule x / y (one(x) / y, -(Ω / y))
-
+        @scalar_rule x / y::CommutativeMulNumber (one(x) / y, -(Ω / y))
+        function frule((_, Δx, Δy), ::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            return Ω, muladd(Δx, Ω, -Δy) / y
+        end
+        function rrule(::typeof(/), x::Number, y::Number)
+            Ω = x / y
+            project_x = ProjectTo(x)
+            project_y = ProjectTo(y)
+            function slash_pullback(ΔΩ)
+                ∂x = ΔΩ / y'
+                return NoTangent(), project_x(∂x), project_y(Ω' * -∂x)
+            end
+            return Ω, slash_pullback
+        end
         ## power
         # literal_pow is in base.jl
-        function frule((_, Δx, Δp), ::typeof(^), x::Number, p::Number)
+        function frule((_, Δx, Δp), ::typeof(^), x::CommutativeMulNumber, p::CommutativeMulNumber)
             y = x ^ p
             _dx = _pow_grad_x(x, p, float(y))
             if iszero(Δp)
@@ -178,7 +204,7 @@ let
             end
         end
 
-        function rrule(::typeof(^), x::Number, p::Number)
+        function rrule(::typeof(^), x::CommutativeMulNumber, p::CommutativeMulNumber)
             y = x^p
             project_x = ProjectTo(x)
             project_p = ProjectTo(p)
@@ -209,26 +235,27 @@ let
         @scalar_rule -x -1
 
         ## `sign`
-        function frule((_, Δx), ::typeof(sign), x)
+        function frule((_, Δx), ::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
-            ∂Ω = Ω * (_imagconjtimes(Ω, Δx) / n) * im
+            d = dot(Ω, Δx)
+            ∂Ω = Ω * ((d - real(d)) / n)
             return Ω, ∂Ω
         end
 
-        function rrule(::typeof(sign), x)
+        function rrule(::typeof(sign), x::Number)
             n = ifelse(iszero(x), one(real(x)), abs(x))
             Ω = x isa Real ? sign(x) : x / n
             function sign_pullback(ΔΩ)
-                ∂x = Ω * (_imagconjtimes(Ω, ΔΩ) / n) * im
+                d = dot(Ω, ΔΩ)
+                ∂x = Ω * ((d - real(d)) / n)
                 return (NoTangent(), ∂x)
             end
             return Ω, sign_pullback
         end
 
-        # product rule requires special care for arguments where `mul` is non-commutative
         function frule((_, Δx, Δy), ::typeof(*), x::Number, y::Number)
-            # Optimized version of `Δx .* y .+ x .* Δy`. Also, it is potentially more
+            # Optimized version of `Δx * y + x * Δy`. Also, it is potentially more
             # accurate on machines with FMA instructions, since there are only two
             # rounding operations, one in `muladd/fma` and the other in `*`.
             ∂xy = muladd(Δx, y, x * Δy)
@@ -250,9 +277,9 @@ let
                 ΔΩ = unthunk(Ω̇)
                 return (
                     NoTangent(), 
-                    ProjectTo(x)(ΔΩ * y' * z'),
+                    ProjectTo(x)(ΔΩ * z' * y'),
                     ProjectTo(y)(x' * ΔΩ * z'),
-                    ProjectTo(z)(x' * y' * ΔΩ),
+                    ProjectTo(z)(y' * x' * ΔΩ),
                 )
             end
             return x * y * z, times_pullback3

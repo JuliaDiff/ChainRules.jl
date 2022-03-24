@@ -34,9 +34,9 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
     z = adjoint(x) * Ay
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        dx = @thunk project_x(conj(ΔΩ) .* Ay)
-        dA = @thunk project_A(ΔΩ .* x .* adjoint(y))
-        dy = @thunk project_y(ΔΩ .* (adjoint(A) * x))
+        dx = @thunk project_x(Ay .* conj(ΔΩ))
+        dA = @thunk project_A(x .* ΔΩ .* adjoint(y))
+        dy = @thunk project_y((adjoint(A) * x) .* ΔΩ)
         return (NoTangent(), dx, dA, dy)
     end
     dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
@@ -99,15 +99,14 @@ function frule((_, Δa, Δb), ::typeof(cross), a::AbstractVector, b::AbstractVec
     return cross(a, b), cross(Δa, b) .+ cross(a, Δb)
 end
 
-# TODO: support complex vectors
-function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+function rrule(::typeof(cross), a::AbstractVector, b::AbstractVector)
     project_a = ProjectTo(a)
     project_b = ProjectTo(b)
     Ω = cross(a, b)
     function cross_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
-        da = @thunk(project_a(cross(b, ΔΩ)))
-        db = @thunk(project_b(cross(ΔΩ, a)))
+        da = @thunk(project_a(eltype(b) <: Real ? cross(b, ΔΩ) : -cross(ΔΩ, vec(b'))))
+        db = @thunk(project_b(eltype(a) <: Real ? cross(ΔΩ, a) : -cross(vec(a'), ΔΩ)))
         return (NoTangent(), da, db)
     end
     return Ω, cross_pullback

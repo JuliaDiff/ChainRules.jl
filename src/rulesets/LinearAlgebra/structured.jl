@@ -38,7 +38,7 @@ end
 _diagview(x::Diagonal) = x.diag
 _diagview(x::AbstractMatrix) = view(x, diagind(x))
 _diagview(x::Tangent{<:Diagonal}) = x.diag
-function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal)
+function ChainRulesCore.rrule(::typeof(sqrt), d::Diagonal{<:CommutativeMulNumber})
     y = sqrt(d)
     @assert y isa Diagonal
     function sqrt_pullback(Δ)
@@ -99,13 +99,13 @@ function _diagm_back(p, ȳ)
     return Tangent{typeof(p)}(second = d)
 end
 
-function rrule(::typeof(*), D::Diagonal{<:Real}, V::AbstractVector{<:Real})
+function rrule(::typeof(*), D::Diagonal{<:Number}, V::AbstractVector{<:Number})
     project_D = ProjectTo(D)
     project_V = ProjectTo(V)
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        dD = @thunk(project_D(Diagonal(Ȳ .* V)))
-        dV = @thunk(project_V(D * Ȳ))
+        dD = @thunk(project_D(Diagonal(Ȳ .* conj.(V))))
+        dV = @thunk(project_V(conj.(D.diag) .* Ȳ))
         return (NoTangent(), dD, dV)
     end
     return D * V, times_pullback
@@ -250,7 +250,7 @@ end
 _diag_view(X) = view(X, diagind(X))
 _diag_view(X::Diagonal) = parent(X)  #Diagonal wraps a Vector of just Diagonal elements
 
-function rrule(::typeof(det), X::Union{Diagonal, AbstractTriangular})
+function rrule(::typeof(det), X::Union{Diagonal{T}, AbstractTriangular{T}}) where {T<:CommutativeMulNumber}
     y = det(X)
     s = conj!(y ./ _diag_view(X))
     function det_pullback(ȳ)
@@ -259,7 +259,7 @@ function rrule(::typeof(det), X::Union{Diagonal, AbstractTriangular})
     return y, det_pullback
 end
 
-function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
+function rrule(::typeof(logdet), X::Union{Diagonal{T}, AbstractTriangular{T}}) where {T<:CommutativeMulNumber}
     y = logdet(X)
     s = conj!(one(eltype(X)) ./ _diag_view(X))
     function logdet_pullback(ȳ)

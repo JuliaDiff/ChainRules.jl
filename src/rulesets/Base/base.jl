@@ -76,13 +76,13 @@ end
 
 @scalar_rule hypot(x::Real) sign(x)
 
-function frule((_, Δz), ::typeof(hypot), z::Complex)
+function frule((_, Δz), ::typeof(hypot), z::Number)
     Ω = hypot(z)
     ∂Ω = realdot(z, Δz) / ifelse(iszero(Ω), one(Ω), Ω)
     return Ω, ∂Ω
 end
 
-function rrule(::typeof(hypot), z::Complex)
+function rrule(::typeof(hypot), z::Number)
     Ω = hypot(z)
     function hypot_pullback(ΔΩ)
         return (NoTangent(), (real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)) * z)
@@ -90,8 +90,24 @@ function rrule(::typeof(hypot), z::Complex)
     return (Ω, hypot_pullback)
 end
 
-@scalar_rule fma(x, y, z) (y, x, true)
-@scalar_rule muladd(x, y, z) (y, x, true)
+@scalar_rule fma(x, y::CommutativeMulNumber, z) (y, x, true)
+function frule((_, Δx, Δy, Δz), ::typeof(fma), x::Number, y::Number, z::Number)
+    return fma(x, y, z), muladd(Δx, y, muladd(x, Δy, Δz))
+end
+function rrule(::typeof(fma), x::Number, y::Number, z::Number)
+    projectx, projecty, projectz = ProjectTo(x), ProjectTo(y), ProjectTo(z)
+    fma_pullback(ΔΩ) = NoTangent(), projectx(ΔΩ * y'), projecty(x' * ΔΩ), projectz(ΔΩ)
+    fma(x, y, z), fma_pullback
+end
+@scalar_rule muladd(x, y::CommutativeMulNumber, z) (y, x, true)
+function frule((_, Δx, Δy, Δz), ::typeof(muladd), x::Number, y::Number, z::Number)
+    return muladd(x, y, z), muladd(Δx, y, muladd(x, Δy, Δz))
+end
+function rrule(::typeof(muladd), x::Number, y::Number, z::Number)
+    projectx, projecty, projectz = ProjectTo(x), ProjectTo(y), ProjectTo(z)
+    muladd_pullback(ΔΩ) = NoTangent(), projectx(ΔΩ * y'), projecty(x' * ΔΩ), projectz(ΔΩ)
+    muladd(x, y, z), muladd_pullback
+end
 @scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),
@@ -105,50 +121,50 @@ end
 @scalar_rule(ldexp(x, y), (2^y, NoTangent()))
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
-@scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))
-@scalar_rule acoth(x) inv(1 - x ^ 2)
-@scalar_rule acsch(x) -(inv(x ^ 2 * sqrt(1 + x ^ -2)))
+@scalar_rule acosh(x::CommutativeMulNumber) inv(sqrt(x - 1) * sqrt(x + 1))
+@scalar_rule acoth(x::CommutativeMulNumber) inv(1 - x ^ 2)
+@scalar_rule acsch(x::CommutativeMulNumber) -(inv(x ^ 2 * sqrt(1 + x ^ -2)))
 @scalar_rule acsch(x::Real) -(inv(abs(x) * sqrt(1 + x ^ 2)))
-@scalar_rule asech(x) -(inv(x * sqrt(1 - x ^ 2)))
-@scalar_rule asinh(x) inv(sqrt(x ^ 2 + 1))
-@scalar_rule atanh(x) inv(1 - x ^ 2)
+@scalar_rule asech(x::CommutativeMulNumber) -(inv(x * sqrt(1 - x ^ 2)))
+@scalar_rule asinh(x::CommutativeMulNumber) inv(sqrt(x ^ 2 + 1))
+@scalar_rule atanh(x::CommutativeMulNumber) inv(1 - x ^ 2)
 
 
-@scalar_rule acosd(x) -inv(deg2rad(sqrt(1 - x ^ 2)))
-@scalar_rule acotd(x) -inv(deg2rad(1 + x ^ 2))
-@scalar_rule acscd(x) -inv(deg2rad(x^2 * sqrt(1 - x ^ -2)))
+@scalar_rule acosd(x::CommutativeMulNumber) -inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule acotd(x::CommutativeMulNumber) -inv(deg2rad(1 + x ^ 2))
+@scalar_rule acscd(x::CommutativeMulNumber) -inv(deg2rad(x^2 * sqrt(1 - x ^ -2)))
 @scalar_rule acscd(x::Real) -inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
-@scalar_rule asecd(x) inv(deg2rad(x ^ 2 * sqrt(1 - x ^ -2)))
+@scalar_rule asecd(x::CommutativeMulNumber) inv(deg2rad(x ^ 2 * sqrt(1 - x ^ -2)))
 @scalar_rule asecd(x::Real) inv(deg2rad(abs(x) * sqrt(x ^ 2 - 1)))
-@scalar_rule asind(x) inv(deg2rad(sqrt(1 - x ^ 2)))
-@scalar_rule atand(x) inv(deg2rad(1 + x ^ 2))
+@scalar_rule asind(x::CommutativeMulNumber) inv(deg2rad(sqrt(1 - x ^ 2)))
+@scalar_rule atand(x::CommutativeMulNumber) inv(deg2rad(1 + x ^ 2))
 
-@scalar_rule cot(x) -((1 + Ω ^ 2))
-@scalar_rule coth(x) -(csch(x) ^ 2)
-@scalar_rule cotd(x) -deg2rad(1 + Ω ^ 2)
-@scalar_rule csc(x) -Ω * cot(x)
-@scalar_rule cscd(x) -deg2rad(Ω * cotd(x))
-@scalar_rule csch(x) -(coth(x)) * Ω
-@scalar_rule sec(x) Ω * tan(x)
-@scalar_rule secd(x) deg2rad(Ω * tand(x))
-@scalar_rule sech(x) -(tanh(x)) * Ω
+@scalar_rule cot(x::CommutativeMulNumber) -((1 + Ω ^ 2))
+@scalar_rule coth(x::CommutativeMulNumber) -(csch(x) ^ 2)
+@scalar_rule cotd(x::CommutativeMulNumber) -deg2rad(1 + Ω ^ 2)
+@scalar_rule csc(x::CommutativeMulNumber) -Ω * cot(x)
+@scalar_rule cscd(x::CommutativeMulNumber) -deg2rad(Ω * cotd(x))
+@scalar_rule csch(x::CommutativeMulNumber) -(coth(x)) * Ω
+@scalar_rule sec(x::CommutativeMulNumber) Ω * tan(x)
+@scalar_rule secd(x::CommutativeMulNumber) deg2rad(Ω * tand(x))
+@scalar_rule sech(x::CommutativeMulNumber) -(tanh(x)) * Ω
 
-@scalar_rule acot(x) -(inv(1 + x ^ 2))
-@scalar_rule acsc(x) -(inv(x ^ 2 * sqrt(1 - x ^ -2)))
+@scalar_rule acot(x::CommutativeMulNumber) -(inv(1 + x ^ 2))
+@scalar_rule acsc(x::CommutativeMulNumber) -(inv(x ^ 2 * sqrt(1 - x ^ -2)))
 @scalar_rule acsc(x::Real) -(inv(abs(x) * sqrt(x ^ 2 - 1)))
-@scalar_rule asec(x) inv(x ^ 2 * sqrt(1 - x ^ -2))
+@scalar_rule asec(x::CommutativeMulNumber) inv(x ^ 2 * sqrt(1 - x ^ -2))
 @scalar_rule asec(x::Real) inv(abs(x) * sqrt(x ^ 2 - 1))
 
-@scalar_rule cosd(x) -deg2rad(sind(x))
-@scalar_rule cospi(x) -π * sinpi(x)
-@scalar_rule sind(x) deg2rad(cosd(x))
-@scalar_rule sinpi(x) π * cospi(x)
-@scalar_rule tand(x) deg2rad(1 + Ω ^ 2)
+@scalar_rule cosd(x::CommutativeMulNumber) -deg2rad(sind(x))
+@scalar_rule cospi(x::CommutativeMulNumber) -π * sinpi(x)
+@scalar_rule sind(x::CommutativeMulNumber) deg2rad(cosd(x))
+@scalar_rule sinpi(x::CommutativeMulNumber) π * cospi(x)
+@scalar_rule tand(x::CommutativeMulNumber) deg2rad(1 + Ω ^ 2)
 
-@scalar_rule sinc(x) cosc(x)
+@scalar_rule sinc(x::CommutativeMulNumber) cosc(x)
 
 # the position of the minus sign below warrants the correct type for π  
-@scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
+@scalar_rule sincospi(x::CommutativeMulNumber) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
 @scalar_rule(
     clamp(x, low, high),
@@ -158,7 +174,22 @@ end
     ),
     (!(islow | ishigh), islow, ishigh),
 )
-@scalar_rule x \ y (-(Ω / x), one(y) / x)
+
+@scalar_rule x::CommutativeMulNumber \ y::CommutativeMulNumber (-(x \ Ω), x \ one(y))
+function frule((_, Δx, Δy), ::typeof(\), x::Number, y::Number)
+    Ω = x \ y
+    return Ω, x \ muladd(-Δx, Ω, Δy)
+end
+function rrule(::typeof(\), x::Number, y::Number)
+    Ω = x \ y
+    project_x = ProjectTo(x)
+    project_y = ProjectTo(y)
+    function backslash_pullback(ΔΩ)
+        ∂y = x' \ ΔΩ
+        return NoTangent(), project_x(-∂y * Ω'), project_y(∂y)
+    end
+    return Ω, backslash_pullback
+end
 
 function frule((_, ẏ), ::typeof(identity), x)
     return (x, ẏ)

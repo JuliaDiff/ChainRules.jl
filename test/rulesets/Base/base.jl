@@ -73,10 +73,12 @@
         end
     end
 
-    @testset "Unary complex functions" begin
-        for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
+    @testset "Unary non-real functions" begin
+        for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im, Quaternion(0.0,0,0,0), Quaternion(0.6,1,-0.2,0.5))
             test_scalar(real, x)
-            test_scalar(imag, x)
+            if !isa(x, Quaternion)
+                test_scalar(imag, x)
+            end
             test_scalar(hypot, x)
             test_scalar(adjoint, x)
         end
@@ -92,9 +94,12 @@
 
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
-        test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
+        test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im, Quaternion(-0.48, -0.15, 0.63, 0.14))
         @testset "($x) * ($y)" for
             x in test_points, y in test_points
+            if (x isa Complex && y isa Quaternion) || (x isa Quaternion && y isa Complex)
+                continue
+            end
 
             # ensure all complex if any complex for FiniteDifferences
             x, y = Base.promote(x, y)
@@ -103,6 +108,10 @@
             test_rrule(*, x, y)
         end
         @testset "*($x, $y, ...)" for x in test_points, y in test_points
+            if (x isa Complex && y isa Quaternion) || (x isa Quaternion && y isa Complex)
+                continue
+            end
+
             # This promotion is only for FiniteDifferences, the rules allow mixtures:
             x, y = Base.promote(x, y)
 
@@ -119,7 +128,7 @@
         end
     end
 
-    @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
+    @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64, QuaternionF64)
         test_frule(*, randn(T), randn(T))
         test_rrule(*, randn(T), randn(T))
     end
@@ -132,7 +141,7 @@
         test_rrule(mod, (rand(0:10) + .6rand() + .2) * base, base)
     end
 
-    @testset "identity" for T in (Float64, ComplexF64)
+    @testset "identity" for T in (Float64, ComplexF64, QuaternionF64)
         test_frule(identity, randn(T))
         test_frule(identity, randn(T, 4))
         test_frule(identity, Tuple(randn(T, 3)))
@@ -142,14 +151,14 @@
         test_rrule(identity, Tuple(randn(T, 3)))
     end
 
-    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
+    @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im, Quaternion(2.0,0,3,0))
         test_scalar(one, x)
         test_scalar(zero, x)
     end
 
-    @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        test_frule(muladd, 10randn(), randn(), randn())
-        test_rrule(muladd, 10randn(), randn(), randn())
+    @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64, QuaternionF64)
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
     end
 
     @testset "fma" begin
