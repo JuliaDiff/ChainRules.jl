@@ -257,7 +257,7 @@ end
 ##### `normalize`
 #####
 
-function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
+function rrule(::typeof(normalize), x::AbstractArray{<:Number}, p::Real)
     nrm, inner_pullback = rrule(norm, x, p)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
@@ -273,7 +273,7 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
     return y, normalize_pullback
 end
 
-function rrule(::typeof(normalize), x::AbstractVector{<:Number})
+function rrule(::typeof(normalize), x::AbstractArray{<:Number})
     nrm = LinearAlgebra.norm2(x)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
