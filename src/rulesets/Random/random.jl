@@ -19,11 +19,6 @@ end
 @non_differentiable rand(::Type{<:Real}, ::Integer...)
 @non_differentiable rand(::Integer...)
 
-# There are many different 1-3 arg methods, but not varargs
-@non_differentiable rand!(::Any)
-@non_differentiable rand!(::Any, ::Any)
-@non_differentiable rand!(::Any, ::Any, ::Any)
-
 @non_differentiable randexp(::Any...)
 
 @non_differentiable randexp!(::AbstractArray)
