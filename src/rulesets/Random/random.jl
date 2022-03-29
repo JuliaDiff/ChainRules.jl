@@ -19,6 +19,9 @@ end
 @non_differentiable rand(::Type{<:Real}, ::Integer...)
 @non_differentiable rand(::Integer...)
 
+@non_differentiable rand!(::AbstractArray)
+@non_differentiable rand!(::AbstractRNG, ::AbstractArray)
+
 @non_differentiable randexp(::Any...)
 
 @non_differentiable randexp!(::AbstractArray)
