@@ -21,6 +21,7 @@ end
 
 @non_differentiable rand!(::AbstractArray)
 @non_differentiable rand!(::AbstractRNG, ::AbstractArray)
+@non_differentiable rand!(::AbstractRNG, ::AbstractArray, ::Type)
 
 @non_differentiable randexp(::Any...)
 
