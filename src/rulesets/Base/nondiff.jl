@@ -453,8 +453,12 @@ end
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
 @non_differentiable Base.depwarn(::Any...)
-@non_differentiable Base.cumulative_compile_time_ns_before()
-@non_differentiable Base.cumulative_compile_time_ns_after()
+if isdefined(Base, :cumulative_compile_time_ns_before)
+    @non_differentiable Base.cumulative_compile_time_ns_before()
+    @non_differentiable Base.cumulative_compile_time_ns_after()
+elseif isdefined(Base, :cumulative_compile_time_ns)
+    @non_differentiable Base.cumulative_compile_time_ns()
+end
 @non_differentiable Base.time_print(::Any...)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
