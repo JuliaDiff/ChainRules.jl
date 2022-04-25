@@ -171,6 +171,11 @@ function rrule(::typeof(identity), x)
     return (x, identity_pullback)
 end
 
+function ChainRulesCore.rrule(::typeof(copy), x)
+    copy_pullback(ȳ) = (NoTangent(), ȳ)
+    return copy(x), copy_pullback
+end
+
 # rouding related,
 # we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
 @scalar_rule round(x) zero(x)

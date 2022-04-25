@@ -142,6 +142,11 @@
         test_rrule(identity, Tuple(randn(T, 3)))
     end
 
+    @testset "copy" begin
+        test_rrule(copy, randn(4))
+        @test rrule(copy, Dict(1=>2)) !== nothing    
+    end
+
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
