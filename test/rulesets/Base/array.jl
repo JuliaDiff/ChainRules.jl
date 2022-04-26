@@ -233,6 +233,8 @@ end
     test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
 
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
+    # inference on exotic array types
+    test_rrule(cat, @SArray(rand(3, 2, 1)), @SArray(rand(3, 2, 1)); fkwargs=(dims=Val(2),))
 end
 
 @testset "hvcat" begin
