@@ -119,6 +119,12 @@
                 test_rrule(f, B)
             end
         end
+        @testset "$f(complex determinant)" begin
+            B = randn(ComplexF64, 4, 4)
+            U = exp(B - B')
+            test_frule(f, U)
+            test_rrule(f, U)
+        end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = randn(T, 4, 4)

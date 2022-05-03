@@ -357,7 +357,7 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
                 if d in cdims
                     d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
                 else
-                    d > ndimsX ? 1 : (:)
+                    d > ndimsX ? 1 : 1:sizeX[d]
                 end
             end
             for d in cdims
