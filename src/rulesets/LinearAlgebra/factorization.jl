@@ -523,7 +523,7 @@ end
 
 function _cholesky_pullback_shared_code(C, ΔC)
     U = C.U
-    Ū = ΔC.U
+    Ū = ΔC.factors
     Ā = similar(U.data)
     Ā = mul!(Ā, Ū, U')
     Ā = LinearAlgebra.copytri!(Ā, 'U', true)
