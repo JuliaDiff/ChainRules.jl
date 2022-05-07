@@ -182,15 +182,21 @@ end
 # ===================================
 
 @testset "normalize" begin
-    @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
+    @testset "x::Array{$T}" for T in (Float64, ComplexF64)
         x = randn(T, 3)
         test_rrule(normalize, x)
         @test rrule(normalize, x)[2](ZeroTangent()) === (NoTangent(), ZeroTangent())
+
+        test_rrule(normalize, rand(T, 3, 4))
+        test_rrule(normalize, adjoint(rand(T, 5)))
     end
-    @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
-        p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
+    @testset "x::Array{$T}, p=$p" for T in (Float64, ComplexF64), p in (1.0, 2.0, -Inf, Inf, 2.5)
+    # skip p=0, since FD is unstable
         x = randn(T, 3)
         test_rrule(normalize, x, p)
         @test rrule(normalize, x, p)[2](ZeroTangent()) === (NoTangent(), ZeroTangent(), ZeroTangent())
+
+        test_rrule(normalize, rand(T, 3, 4), p)
+        test_rrule(normalize, adjoint(rand(T, 5)), p)
     end
 end
