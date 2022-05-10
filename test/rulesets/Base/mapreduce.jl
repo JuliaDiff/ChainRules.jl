@@ -65,10 +65,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
         # Complex numbers
+        test_rrule(sum, log, rand(ComplexF64, 5))
         test_rrule(sum, sqrt, rand(ComplexF64, 5))
         test_rrule(sum, abs, rand(ComplexF64, 3, 4))  # complex -> real
 
@@ -81,6 +83,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
+
+        # Make sure the above test both `derivatives_given_output` path and general case:
+        @test ChainRules._uses_input_only(abs, Float32)
+        @test !ChainRules._uses_input_only(cbrt, Float64)
+        @test ChainRules._uses_input_only(log, ComplexF64)
+        @test !ChainRules._uses_input_only(abs, ComplexF64)
 
         # covectors
         x = [-4.0 2.0; 2.0 -1.0]
@@ -102,7 +110,6 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         # ... and Bool produced by function
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
 
-
         # Functions that return a Vector
         # see https://github.com/FluxML/Zygote.jl/issues/1074
         test_rrule(sum, make_two_vec, [1.0, 3.0, 5.0, 7.0])
@@ -110,6 +117,15 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=2))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=1))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=(3, 4)))
+
+        # arrays of arrays, functions which return a scalar:
+        test_rrule(sum, sum, [[1,2], [3,4], [5,6]]; check_inferred=false)
+        x2345 = [rand(2,3) for _ in 1:4, _ in 1:5]
+        test_rrule(sum, prod, x2345; check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=1), check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=(1,2)), check_inferred=false)
+
+        test_rrule(sum, cumprod, [[1,2], [3,4], [5,6]]; check_inferred=false)
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522

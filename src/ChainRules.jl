@@ -15,6 +15,9 @@ using Statistics
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
 import ChainRulesCore: rrule, frule
 
+# Experimental:
+using ChainRulesCore: derivatives_given_output
+
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
 
