@@ -125,6 +125,16 @@ function rrule(
     return y, sum_pullback_f2
 end
 
+"""
+    _uses_input_only(f, xT::Type)
+
+Returns `true` if it can prove that `derivatives_given_output` will work using only the input
+of the given type. Thus there is no need to store the output `y = f(x::xT)`, allowing us to take
+a fast path in the `rrule` for `sum(f, xs)`.
+
+Works by seeing if the result of `derivatives_given_output(nothing, f, x)` can be inferred.
+The method of `derivatives_given_output` usually comes from `@scalar_rule`.
+"""
 function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
     gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
     # Here we must check `<: Number`, to avoid this, the one rule which can return the `nothing`:

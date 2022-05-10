@@ -80,7 +80,7 @@ let
             return Ω, abs_pullback
         end
 
-        function derivatives_given_output(Ω, ::typeof(abs), x::Union{Real, Complex})
+        function ChainRulesCore.derivatives_given_output(Ω, ::typeof(abs), x::Union{Real, Complex})
             signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
             return tuple(tuple(signx))
         end

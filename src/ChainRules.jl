@@ -16,7 +16,7 @@ using Statistics
 import ChainRulesCore: rrule, frule
 
 # Experimental:
-import ChainRulesCore: derivatives_given_output
+using ChainRulesCore: derivatives_given_output
 
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}

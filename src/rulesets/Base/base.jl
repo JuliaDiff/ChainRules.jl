@@ -171,7 +171,7 @@ function rrule(::typeof(identity), x)
     return (x, identity_pullback)
 end
 
-derivatives_given_output(Ω, ::typeof(identity), x) = tuple(tuple(true))
+ChainRulesCore.derivatives_given_output(Ω, ::typeof(identity), x) = tuple(tuple(true))
 
 # rouding related,
 # we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
