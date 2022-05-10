@@ -433,13 +433,13 @@ end
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
 
-        @testset "det and logdet (uplo=$p)" for p in ['U', 'L']
+        @testset "det and logdet (uplo=$p)" for p in (:U, :L)
             @testset "$op" for op in (det, logdet)
                 @testset "$T" for T in (Float64, ComplexF64)
                     n = 5
                     # rand (not randn) so det will be postive, so logdet will be defined
                     A = 3 * rand(T, (n, n))
-                    X = Cholesky((p === 'U' ? UpperTriangular : LowerTriangular)(A * A' + I))
+                    X = Cholesky(A * A' + I, p, 0)
                     X̄_acc = Tangent{typeof(X)}(; factors=Diagonal(randn(T, n))) # sensitivity is always a diagonal
                     test_rrule(op, X ⊢ X̄_acc)
 
