@@ -77,19 +77,22 @@ function rrule(
     f::F,
     xs::AbstractArray{T};
     dims = :,
+    _lambda = nothing,  # This keyword set to `1/n` when using the rule for `mean`.
 ) where {F,T}
     project = ProjectTo(xs)
+    scale = _lambda === nothing ? identity : (dx -> dx * _lambda)
+    scalefun = _lambda === nothing ? identity : (f -> Base.Fix1(*, _lambda) ∘ f)
 
     if _uses_input_only(f, T)
         # Then we can compute the forward pass as usual, save nothing but `xs`:
         function sum_pullback_f1(dy)
             dxs = broadcast(unthunk(dy), xs) do dyₖ, xᵢ
                 ∂yₖ∂xᵢ = only(only(derivatives_given_output(nothing, f, xᵢ)))
-                dyₖ * conj(∂yₖ∂xᵢ)
+                scale(dyₖ * conj(∂yₖ∂xᵢ))
             end
             return (NoTangent(), NoTangent(), project(dxs))
         end
-        return sum(f, xs; dims), sum_pullback_f1
+        return sum(scalefun(f), xs; dims), sum_pullback_f1
     end
 
     # (There is an intermediate case, where `derivatives_given_output` needs to
@@ -97,7 +100,7 @@ function rrule(
 
     # In the general case, we need to save all the pullbacks:
     fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
-    y = sum(first, fx_and_pullbacks; dims)
+    y = sum(scalefun(first), fx_and_pullbacks; dims)
 
     function sum_pullback_f2(dy)
         # For arrays of arrays, we ought to protect the element against broadcasting:
@@ -106,7 +109,7 @@ function rrule(
             # Then at least `f` has no gradient. 
             # Broadcasting here gets the shape right with or without `dims` keyword.
             dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
-                unthunk(last(pbᵢ(dyₖ)))
+                scale(unthunk(last(pbᵢ(dyₖ))))
             end
             return (NoTangent(), NoTangent(), project(dxs))
 
@@ -117,8 +120,8 @@ function rrule(
             df_and_dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
                 pbᵢ(dyₖ)
             end
-            df = sum(first, df_and_dxs)
-            dxs = map(unthunk ∘ last, df_and_dxs)
+            df = scale(sum(first, df_and_dxs))
+            dxs = map(scalefun(unthunk ∘ last), df_and_dxs)
             return (NoTangent(), df, project(dxs))
         end
     end
