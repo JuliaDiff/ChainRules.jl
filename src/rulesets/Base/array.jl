@@ -209,10 +209,14 @@ function frule((_, ẋs...), ::typeof(hcat), xs...)
     return hcat(xs...), hcat(_instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
+# All the [hv]cat functions treat anything that's not an array as a scalar. 
+_catsize(x) = ()
+_catsize(x::AbstractArray) = size(x)
+
+function rrule(::typeof(hcat), Xs...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
-    sizes = map(size, Xs)   # this avoids closing over Xs
+    sizes = map(_catsize, Xs)   # this avoids closing over Xs
     project_Xs = map(ProjectTo, Xs)
     function hcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -279,10 +283,10 @@ function frule((_, ẋs...), ::typeof(vcat), xs...)
     return vcat(xs...), vcat(_instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
+function rrule(::typeof(vcat), Xs...)
     Y = vcat(Xs...)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function vcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -342,11 +346,11 @@ function frule((_, ẋs...), ::typeof(cat), xs...; dims)
     return cat(xs...; dims), cat(_instantiate_zeros(ẋs, xs)...; dims)
 end
 
-function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
+function rrule(::typeof(cat), Xs...; dims)
     Y = cat(Xs...; dims=dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function cat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -384,11 +388,11 @@ function frule((_, _, ẋs...), ::typeof(hvcat), rows, xs...)
     return hvcat(rows, xs...), hvcat(rows, _instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
+function rrule(::typeof(hvcat), rows, values...)
     Y = hvcat(rows, values...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, values)
+    sizes = map(_catsize, values)
     project_Vs = map(ProjectTo, values)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
