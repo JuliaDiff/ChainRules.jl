@@ -237,6 +237,7 @@ end
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
     # inference on exotic array types
     test_rrule(cat, @SArray(rand(3, 2, 1)), @SArray(rand(3, 2, 1)); fkwargs=(dims=Val(2),))
+    test_rrule(cat, pi/2, rand(1,3), (4.5,); fkwargs=(;dims=(2,)), check_inferred=false)
 end
 
 @testset "hvcat" begin
