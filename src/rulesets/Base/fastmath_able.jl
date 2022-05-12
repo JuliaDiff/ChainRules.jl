@@ -80,6 +80,11 @@ let
             return Ω, abs_pullback
         end
 
+        function ChainRulesCore.derivatives_given_output(Ω, ::typeof(abs), x::Union{Real, Complex})
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
+            return tuple(tuple(signx))
+        end
+
         ## abs2
         function frule((_, Δz), ::typeof(abs2), z::Union{Real, Complex})
             return abs2(z), 2 * realdot(z, Δz)

@@ -166,7 +166,8 @@ end
     test_rrule(hcat, rand(3,1,1,2), rand(3,3,1,2))
 
     # mix types
-    test_rrule(hcat, rand(2, 2), rand(2, 2)')
+    test_rrule(hcat, rand(1, 3), rand(2)')
+    test_rrule(hcat, rand(1), (nothing, rand()), check_inferred=false)
 end
 
 @testset "reduce hcat" begin
@@ -203,9 +204,10 @@ end
     test_rrule(vcat, rand(), rand(3), rand(3,1,1))
     test_rrule(vcat, rand(3,1,2), rand(4,1,2))
 
-
     # mix types
     test_rrule(vcat, rand(2, 2), rand(2, 2)')
+    test_rrule(vcat, rand(), rand() => rand(); check_inferred=false)
+    test_rrule(vcat, rand(3), (rand(), nothing), pi/2; check_inferred=false)
 end
 
 @testset "reduce vcat" begin
@@ -235,6 +237,7 @@ end
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
     # inference on exotic array types
     test_rrule(cat, @SArray(rand(3, 2, 1)), @SArray(rand(3, 2, 1)); fkwargs=(dims=Val(2),))
+    test_rrule(cat, pi/2, rand(1,3), (4.5,); fkwargs=(;dims=(2,)), check_inferred=false)
 end
 
 @testset "hvcat" begin
@@ -249,6 +252,7 @@ end
 
     # mix types (adjoint and transpose)
     test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3))
+    test_rrule(hvcat, (1,2), rand(2)', (3.4, 5.6), 7.8; check_inferred=false)
 end
 
 @testset "reverse" begin
