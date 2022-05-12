@@ -118,7 +118,7 @@ end
 ##### `det`
 #####
 
-function frule((_, Δx), ::typeof(det), x::StridedMatrix{<:Number})
+function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficent
     # way to compute this trace without during the full compution within
@@ -126,7 +126,7 @@ function frule((_, Δx), ::typeof(det), x::StridedMatrix{<:Number})
 end
 frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 
-function rrule(::typeof(det), x::Union{Number, StridedMatrix{<:Number}})
+function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ : inv(x)' * dot(Ω, ΔΩ)
