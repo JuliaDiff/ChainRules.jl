@@ -21,14 +21,14 @@ function rrule(
     ::typeof(mean),
     f::F,
     x::AbstractArray{T};
-    dims = :,
+    dims=:,
 ) where {F, T<:Union{Real,Complex,AbstractArray}}
     y_sum, sum_pullback = rrule(config, sum, f, x; dims)
     n = _denom(x, dims)
     function mean_pullback_f(ȳ)
         return sum_pullback(unthunk(ȳ) / n)
     end
-    y_sum / n, mean_pullback_f
+    return y_sum / n, mean_pullback_f
 end
 
 #####
