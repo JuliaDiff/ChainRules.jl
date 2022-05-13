@@ -23,10 +23,14 @@ function rrule(
     x::AbstractArray{T};
     dims = :,
 ) where {F, T<:Union{Real,Complex,AbstractArray}}
-    λ = one(real(eltype(T))) / _denom(x, dims)
-    # λ = 1 // _denom(x, dims)
-    y, back = rrule(config, sum, f, x; dims, _lambda = λ)
+    y_sum, sum_pullback = rrule(config, sum, f, x; dims)
+    n = _denom(x, dims)
+    function mean_pullback_f(ȳ)
+        return sum_pullback(unthunk(ȳ) / n)
+    end
+    y_sum / n, mean_pullback_f
 end
+
 #####
 ##### variance
 #####

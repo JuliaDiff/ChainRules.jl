@@ -16,6 +16,7 @@
         test_rrule(mean, log, rand(3, 4) .+ 1)
         test_rrule(mean, cbrt, randn(5))
         test_rrule(mean, Multiplier(2.0), [2.0, 4.0, 8.0])  # defined in test_helpers.jl
+        test_rrule(mean, Divider(1 + rand()), randn(5)) 
 
         test_rrule(mean, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
 
