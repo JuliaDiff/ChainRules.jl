@@ -6,17 +6,29 @@ _denom(x, dims::Colon) = length(x)
 _denom(x, dims::Integer) = size(x, dims)
 _denom(x, dims) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
 
-# TODO: We have `mean(f, x; dims)` as of 1.3.0-DEV.36
-# https://github.com/JuliaDiff/ChainRules.jl/issues/85
-function rrule(::typeof(mean), x::AbstractArray{<:Real}; dims=:)
-    y_sum, sum_pullback = rrule(sum, x; dims=dims)
+function rrule(::typeof(mean), x::AbstractArray{<:Union{Real,Complex,AbstractArray}}; dims=:)
+    y_sum, sum_pullback = rrule(sum, x; dims)
     n = _denom(x, dims)
     function mean_pullback(ȳ)
-        _, ∂sum_x = sum_pullback(ȳ)
-        ∂x = unthunk(∂sum_x) / n
+        _, ∂x = sum_pullback(unthunk(ȳ) / n)
         return (NoTangent(), ∂x)
     end
     return y_sum / n, mean_pullback
+end
+
+function rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(mean),
+    f::F,
+    x::AbstractArray{T};
+    dims=:,
+) where {F, T<:Union{Real,Complex,AbstractArray}}
+    y_sum, sum_pullback = rrule(config, sum, f, x; dims)
+    n = _denom(x, dims)
+    function mean_pullback_f(ȳ)
+        return sum_pullback(unthunk(ȳ) / n)
+    end
+    return y_sum / n, mean_pullback_f
 end
 
 #####

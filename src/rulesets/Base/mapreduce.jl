@@ -51,26 +51,6 @@ end
 ##### `sum(f, x)`
 #####
 
-# Can't map over Adjoint/Transpose Vector
-function rrule(
-    config::RuleConfig{>:HasReverseMode},
-    ::typeof(sum),
-    f,
-    xs::Union{Adjoint{<:Number,<:AbstractVector},Transpose{<:Number,<:AbstractVector}};
-    kwargs...
-)
-    op = xs isa Adjoint ? adjoint : transpose
-    # since summing a vector we don't need to worry about dims which simplifies adjointing
-    vector = parent(xs)
-    y, vector_sum_pb = rrule(config, sum, f, vector; kwargs...)
-    function covector_sum_pb(ȳ)
-        s̄um, f̄, v̄ = vector_sum_pb(ȳ)
-        return s̄um, f̄, op(v̄)
-    end
-
-    return y, covector_sum_pb
-end
-
 function rrule(
     config::RuleConfig{>:HasReverseMode},
     ::typeof(sum),
@@ -96,7 +76,8 @@ function rrule(
     # see `f.(xs)` but we don't need the pullbacks. Not implemented at present.)
 
     # In the general case, we need to save all the pullbacks:
-    fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
+    # (Here `map` or `broadcast` would fail for adjoint vectors.)
+    fx_and_pullbacks = [rrule_via_ad(config, f, xᵢ) for xᵢ in xs]
     y = sum(first, fx_and_pullbacks; dims)
 
     function sum_pullback_f2(dy)

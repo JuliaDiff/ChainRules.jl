@@ -4,7 +4,7 @@
 
 function frule((_, Δx), ::typeof(norm), x)
     y = norm(x)
-    return y, _norm2_forward(x, Δx, norm(x))
+    return y, _norm2_forward(x, Δx, y)
 end
 
 function frule((_, ẋ), ::typeof(norm), x::Number, p::Real)
