@@ -1,24 +1,27 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.14.0"
+version = "1.31.0"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+IrrationalConstants = "92d709cd-6900-40b7-9082-c6be49f344b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RealDot = "c1ae055f-0cd5-4b69-90a6-9a35b1a98df9"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-ChainRulesCore = "1.11"
-ChainRulesTestUtils = "1"
-Compat = "3.35"
+ChainRulesCore = "1.12"
+ChainRulesTestUtils = "1.5"
+Compat = "3.42.0"
 FiniteDifferences = "0.12.20"
-JuliaInterpreter = "0.8"
+IrrationalConstants = "0.1.1"
+JuliaInterpreter = "0.8,0.9"
 RealDot = "0.1"
 StaticArrays = "1.2"
-julia = "1"
+julia = "1.6"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"

@@ -43,6 +43,11 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         end
     end
 
+    @testset "sum!(y, x)" begin
+        test_frule(sum!, rand(3), rand(3, 5))
+        test_frule(sum!, rand(ComplexF64, 1, 4), rand(3, 4))
+    end
+
     @testset "sum abs2" begin
         sizes = (3, 4, 7)
         @testset "dims = $dims" for dims in (:, 1)
@@ -60,10 +65,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
         # Complex numbers
+        test_rrule(sum, log, rand(ComplexF64, 5))
         test_rrule(sum, sqrt, rand(ComplexF64, 5))
         test_rrule(sum, abs, rand(ComplexF64, 3, 4))  # complex -> real
 
@@ -76,6 +83,12 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
+
+        # Make sure the above test both `derivatives_given_output` path and general case:
+        @test ChainRules._uses_input_only(abs, Float32)
+        @test !ChainRules._uses_input_only(cbrt, Float64)
+        @test ChainRules._uses_input_only(log, ComplexF64)
+        @test !ChainRules._uses_input_only(abs, ComplexF64)
 
         # covectors
         x = [-4.0 2.0; 2.0 -1.0]
@@ -97,7 +110,8 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         # ... and Bool produced by function
         # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/219
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
-        _, pb = rrule(ADviaRuleConfig(), sum, iszero, randn(5))
+
+        _, pb = rrule(CFG, sum, iszero, randn(5))
         @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent(),)
 
         # Functions that return a Vector
@@ -107,6 +121,15 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=2))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=1))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=(3, 4)))
+
+        # arrays of arrays, functions which return a scalar:
+        test_rrule(sum, sum, [[1,2], [3,4], [5,6]]; check_inferred=false)
+        x2345 = [rand(2,3) for _ in 1:4, _ in 1:5]
+        test_rrule(sum, prod, x2345; check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=1), check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=(1,2)), check_inferred=false)
+
+        test_rrule(sum, cumprod, [[1,2], [3,4], [5,6]]; check_inferred=false)
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522
@@ -224,7 +247,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(foldl, +, rand(ComplexF64,7); fkwargs=(; init=rand(ComplexF64)))
         test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
     end
-    VERSION >= v"1.5" && @testset "foldl(f, ::Tuple)" begin
+    @testset "foldl(f, ::Tuple)" begin
         y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
         @test y1 == 6
         b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
@@ -240,6 +263,21 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 end
 
 @testset "Accumulations" begin
+    @testset "cumsum" begin
+        v = round.(10 .* randn(9), digits=3)
+        m = round.(10 .* randn(4, 5), digits=3)
+
+        # Forward
+        test_frule(cumsum, v)
+        test_frule(cumsum, m; fkwargs=(;dims=1))
+        test_frule(cumsum!, rand(9), v)
+        test_frule(cumsum!, rand(4, 5), m; fkwargs=(;dims=1))
+
+        # Reverse
+        test_rrule(cumsum, v)
+        test_rrule(cumsum, v; fkwargs=(;dims=1))
+        test_rrule(cumsum, m; fkwargs=(;dims=2))
+    end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)
         test_rrule(cumprod, v)
@@ -282,11 +320,9 @@ end
         @test y1 == [1, 2, 6, 24]
         @test b1([1, 1, 1, 1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
 
-        if VERSION >= v"1.5"
-            y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
-            @test y2 ≈ accumulate(/, [1 2; 3 4])
-            @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
-        end
+        y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
+        @test y2 ≈ accumulate(/, [1 2; 3 4])
+        @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
 
         # Test execution order
         c3 = Counter()
@@ -315,12 +351,10 @@ end
 
         # Finite differencing
         test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
-        if VERSION >= v"1.5"
-            test_rrule(accumulate, /, 1 .+ rand(3, 4))
-            test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
-        end
+        test_rrule(accumulate, /, 1 .+ rand(3, 4))
+        test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
     end
-    VERSION >= v"1.5" && @testset "accumulate(f, ::Tuple)" begin
+    @testset "accumulate(f, ::Tuple)" begin
         # Simple
         y1, b1 = rrule(CFG, accumulate, *, (1, 2, 3, 4); init=1)
         @test y1 == (1, 2, 6, 24)

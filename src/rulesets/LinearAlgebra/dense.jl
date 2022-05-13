@@ -60,6 +60,38 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}
 end
 
 #####
+##### `mul!`
+#####
+
+function frule((_, ΔC, ΔA, ΔB), ::typeof(mul!), C::AbstractArray, A, B)
+    mul!(C, A, B) 
+    mul!(ΔC, ΔA, B)
+    mul!(ΔC, A, ΔB, true, true)
+    return C, ΔC
+end
+
+function frule((_, ΔC, ΔA, ΔB), ::typeof(mul!), C::AbstractArray, A, B, α::Bool, β::Bool)
+    #  D = A*B*α + C*β
+    mul!(C, A, B, α, β)
+    # ΔD = ΔA*B*α + ΔC*β  +  A*ΔB*α
+    mul!(ΔC, ΔA, B, α, β)
+    mul!(ΔC, A, ΔB, α, true)
+    return C, ΔC
+end
+
+function frule((_, ΔC, ΔA, ΔB, Δα, Δβ), ::typeof(mul!), C::AbstractArray, A, B, α::Number, β::Number)
+    # This is used twice:
+    AB = A * B
+    # ΔD = ΔC*β + C*Δβ + A*B*Δα  +  ΔA*B*α + A*ΔB*α
+    @. ΔC = ΔC * β + C * Δβ + AB * Δα
+    mul!(ΔC, ΔA, B, α, true)
+    mul!(ΔC, A, ΔB, α, true)
+    # D = A*B*α + C*β
+    @. C = AB * α + C*β  # Must be done last, as C enters above
+    return C, ΔC
+end
+
+#####
 ##### `cross`
 #####
 
@@ -97,7 +129,7 @@ frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
+        ∂x = x isa Number ? ΔΩ : inv(x)' * dot(Ω, ΔΩ)
         return (NoTangent(), ∂x)
     end
     return Ω, det_pullback

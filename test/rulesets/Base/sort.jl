@@ -1,11 +1,19 @@
 @testset "sort.jl" begin
     @testset "sort" begin
         a = rand(10)
+        # fwd
+        test_frule(sort, a)
+        test_frule(sort, a; fkwargs=(;rev=true))
+        # rev
         test_rrule(sort, a)
         test_rrule(sort, a; fkwargs=(;rev=true))
     end
     @testset "partialsort" begin
         a = rand(10)
+        # fwd
+        test_frule(partialsort, a, 3:5)
+        test_frule(partialsort, a, 4, fkwargs=(;rev=true))
+        # rev
         test_rrule(partialsort, a, 4)
         test_rrule(partialsort, a, 3:5)
         test_rrule(partialsort, a, 1:2:6)
@@ -14,6 +22,8 @@
     end
 
     @testset "sortslices" begin
+        test_frule(sortslices, rand(3,4); fkwargs=(; dims=2))
+
         test_rrule(sortslices, rand(3,4); fkwargs=(; dims=2))
         test_rrule(sortslices, rand(5,4); fkwargs=(; dims=1, rev=true, by=last))
         test_rrule(sortslices, rand(3,4,5); fkwargs=(; dims=3, by=sum), check_inferred=false)

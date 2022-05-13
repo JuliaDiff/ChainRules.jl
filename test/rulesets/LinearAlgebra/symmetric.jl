@@ -233,7 +233,7 @@
         end
 
         n = 10
-        VERSION ≥ v"1.3.0" && @testset "rrule for svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
+        @testset "rrule for svd(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
             T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
             uplo in (:L, :U)
 
@@ -262,7 +262,7 @@
                     return (; (s => getproperty(F_, s) for s in nzprops)...)
                 end
 
-                VERSION ≥ v"1.6.0-DEV.1686" && @maybe_inferred back(∂F)
+                @maybe_inferred back(∂F)
                 ∂self, ∂symA = back(∂F)
                 @test ∂self === NoTangent()
                 @test ∂symA isa typeof(symA)
@@ -305,7 +305,9 @@
             U = Matrix(qr(randn(T, n, n)).Q)
             if hermout # f(A) will also be a TA
                 λ = if f in (acos, asin, atanh)
-                    2 .* rand(real(T), n) .- 1
+                    # generate random number between -1 and 0.9. This would be between
+                    # -1 and 1 but we want to avoid domain errors from numerical error
+                    T(1.9) .* rand(real(T), n) .- 1
                 elseif f in (log, sqrt)
                     abs.(randn(real(T), n))
                 elseif f === acosh

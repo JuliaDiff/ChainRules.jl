@@ -4,10 +4,25 @@
 
 ChainRules.@non_differentiable (::Type{T} where {T<:Array})(::UndefInitializer, args...)
 
+function frule((_, ẋ), ::Type{T}, x::AbstractArray) where {T<:Array}
+    return T(x), T(ẋ)
+end
+
+function frule((_, ẋ), ::Type{AbstractArray{T}}, x::AbstractArray) where {T}
+    return AbstractArray{T}(x), AbstractArray{T}(ẋ)
+end
+
 function rrule(::Type{T}, x::AbstractArray) where {T<:Array}
     project_x = ProjectTo(x)
     Array_pullback(ȳ) = (NoTangent(), project_x(ȳ))
     return T(x), Array_pullback
+end
+
+# This abstract one is used for `float(x)` and other float conversion purposes:
+function rrule(::Type{AbstractArray{T}}, x::AbstractArray) where {T}
+    project_x = ProjectTo(x)
+    AbstractArray_pullback(ȳ) = (NoTangent(), project_x(ȳ))
+    return AbstractArray{T}(x), AbstractArray_pullback
 end
 
 #####
@@ -15,6 +30,10 @@ end
 #####
 
 @non_differentiable Base.vect()
+
+function frule((_, ẋs...), ::typeof(Base.vect), xs::Number...)
+    return Base.vect(xs...), Base.vect(_instantiate_zeros(ẋs, xs)...)
+end
 
 # Case of uniform type `T`: the data passes straight through,
 # so no projection should be required.
@@ -43,31 +62,110 @@ function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
     return Base.vect(X...), vect_pullback
 end
 
+"""
+    _instantiate_zeros(ẋs, xs)
+
+Forward rules for `vect`, `cat` etc may receive a mixture of data and `ZeroTangent`s.
+To avoid `vect(1, ZeroTangent(), 3)` or worse `vcat([1,2], ZeroTangent(), [6,7])`, this
+materialises each zero `ẋ` to be `zero(x)`.
+"""
+_instantiate_zeros(ẋs, xs) = map(_i_zero, ẋs, xs)
+_i_zero(ẋ, x) = ẋ
+_i_zero(ẋ::AbstractZero, x) = zero(x)
+# Possibly this won't work for partly non-diff arrays, sometihng like `gradient(x -> ["abc", x][end], 1)`
+# may give a MethodError for `zero` but won't be wrong.
+
+# Fast paths. Should it also collapse all-Zero cases?
+_instantiate_zeros(ẋs::Tuple{Vararg{<:Number}}, xs) = ẋs
+_instantiate_zeros(ẋs::Tuple{Vararg{<:AbstractArray}}, xs) = ẋs
+_instantiate_zeros(ẋs::AbstractArray{<:Number}, xs) = ẋs
+_instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
+
+#####
+##### `copyto!`
+#####
+
+function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
+    return copyto!(y, x), copyto!(ẏ, ẋ)
+end
+
+function frule((_, ẏ, _, ẋ), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
+    return copyto!(y, i, x, js...), copyto!(ẏ, i, ẋ, js...)
+end
+
 #####
 ##### `reshape`
 #####
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Tuple{Vararg{Union{Colon,Int}}})
-    A_dims = size(A)
-    function reshape_pullback(Ȳ)
-        return (NoTangent(), reshape(Ȳ, A_dims), NoTangent())
-    end
-    return reshape(A, dims), reshape_pullback
+function frule((_, ẋ), ::typeof(reshape), x::AbstractArray, dims...)
+    return reshape(x, dims...), reshape(ẋ, dims...)
 end
 
-function rrule(::typeof(reshape), A::AbstractArray, dims::Union{Colon,Int}...)
-    A_dims = size(A)
-    function reshape_pullback(Ȳ)
-        ∂A = reshape(Ȳ, A_dims)
-        ∂dims = broadcast(Returns(NoTangent()), dims)
-        return (NoTangent(), ∂A, ∂dims...)
-    end
+function rrule(::typeof(reshape), A::AbstractArray, dims...)
+    ax = axes(A)
+    project = ProjectTo(A)  # Projection is here for e.g. reshape(::Diagonal, :)
+    ∂dims = broadcast(Returns(NoTangent()), dims)
+    reshape_pullback(Ȳ) = (NoTangent(), project(reshape(Ȳ, ax)), ∂dims...)
     return reshape(A, dims...), reshape_pullback
+end
+
+#####
+##### `dropdims`
+#####
+
+function frule((_, ẋ), ::typeof(dropdims), x::AbstractArray; dims)
+    return dropdims(x; dims), dropdims(ẋ; dims)
+end
+
+function rrule(::typeof(dropdims), A::AbstractArray; dims)
+    ax = axes(A)
+    project = ProjectTo(A)
+    dropdims_pullback(Ȳ) = (NoTangent(), project(reshape(Ȳ, ax)))
+    return dropdims(A; dims), dropdims_pullback
+end
+
+#####
+##### `permutedims`
+#####
+
+function frule((_, ẋ), ::typeof(permutedims), x::AbstractArray, perm...)
+    return permutedims(x, perm...), permutedims(ẋ, perm...)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(permutedims!), y::AbstractArray, x::AbstractArray, perm...)
+    return permutedims!(y, x, perm...), permutedims!(ẏ, ẋ, perm...)
+end
+
+function frule((_, ẋ), ::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
+    return PermutedDimsArray(x, perm), PermutedDimsArray(ẋ, perm)
+end
+
+function rrule(::typeof(permutedims), x::AbstractVector)
+    project = ProjectTo(x)
+    permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
+    return permutedims(x), permutedims_pullback_1
+end
+
+function rrule(::typeof(permutedims), x::AbstractArray, perm)
+    pr = ProjectTo(x)  # projection restores e.g. transpose([1,2,3])
+    permutedims_back_2(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return permutedims(x, perm), permutedims_back_2
+end
+
+function rrule(::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
+    pr = ProjectTo(x)
+    permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    return PermutedDimsArray(x, perm), permutedims_back_3
 end
 
 #####
 ##### `repeat`
 #####
+
+function frule((_, ẋs), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
+    return repeat(xs, cnt...; kw...), repeat(ẋs, cnt...; kw...)
+end
+
 function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
 
     project_Xs = ProjectTo(xs)
@@ -107,10 +205,18 @@ end
 ##### `hcat`
 #####
 
-function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
+function frule((_, ẋs...), ::typeof(hcat), xs...)
+    return hcat(xs...), hcat(_instantiate_zeros(ẋs, xs)...)
+end
+
+# All the [hv]cat functions treat anything that's not an array as a scalar. 
+_catsize(x) = ()
+_catsize(x::AbstractArray) = size(x)
+
+function rrule(::typeof(hcat), Xs...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
-    sizes = map(size, Xs)   # this avoids closing over Xs
+    sizes = map(_catsize, Xs)   # this avoids closing over Xs
     project_Xs = map(ProjectTo, Xs)
     function hcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -141,6 +247,10 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
     return Y, hcat_pullback
 end
 
+function frule((_, _, Ȧs), ::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(hcat, As), reduce(hcat, _instantiate_zeros(Ȧs, As))
+end
+
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
     widths = map(A -> size(A,2), As)
     function reduce_hcat_pullback_2(dY)
@@ -169,10 +279,14 @@ end
 ##### `vcat`
 #####
 
-function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
+function frule((_, ẋs...), ::typeof(vcat), xs...)
+    return vcat(xs...), vcat(_instantiate_zeros(ẋs, xs)...)
+end
+
+function rrule(::typeof(vcat), Xs...)
     Y = vcat(Xs...)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function vcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -201,6 +315,10 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
     return Y, vcat_pullback
 end
 
+function frule((_, _, Ȧs), ::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
+    return reduce(vcat, As), reduce(vcat, _instantiate_zeros(Ȧs, As))
+end
+
 function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
     Y = reduce(vcat, As)
     ndimsY = Val(ndims(Y))
@@ -224,11 +342,15 @@ end
 
 _val(::Val{x}) where {x} = x
 
-function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
+function frule((_, ẋs...), ::typeof(cat), xs...; dims)
+    return cat(xs...; dims), cat(_instantiate_zeros(ẋs, xs)...; dims)
+end
+
+function rrule(::typeof(cat), Xs...; dims)
     Y = cat(Xs...; dims=dims)
     cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function cat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -239,7 +361,7 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
                 if d in cdims
                     d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
                 else
-                    d > ndimsX ? 1 : (:)
+                    d > ndimsX ? 1 : 1:sizeX[d]
                 end
             end
             for d in cdims
@@ -262,11 +384,15 @@ end
 ##### `hvcat`
 #####
 
-function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
+function frule((_, _, ẋs...), ::typeof(hvcat), rows, xs...)
+    return hvcat(rows, xs...), hvcat(rows, _instantiate_zeros(ẋs, xs)...)
+end
+
+function rrule(::typeof(hvcat), rows, values...)
     Y = hvcat(rows, values...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, values)
+    sizes = map(_catsize, values)
     project_Vs = map(ProjectTo, values)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
@@ -298,11 +424,15 @@ end
 # 1-dim case allows start/stop, N-dim case takes dims keyword
 # whose defaults changed in Julia 1.6... just pass them all through:
 
-function frule((_, xdot), ::typeof(reverse), x::AbstractArray, args...; kw...)
-    return reverse(x, args...; kw...), reverse(xdot, args...; kw...)
+function frule((_, ẋ), ::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
+    return reverse(x, args...; kw...), reverse(ẋ, args...; kw...)
 end
 
-function rrule(::typeof(reverse), x::AbstractArray, args...; kw...)
+function frule((_, ẋ), ::typeof(reverse!), x::Union{AbstractArray, Tuple}, args...; kw...)
+    return reverse!(x, args...; kw...), reverse!(ẋ, args...; kw...)
+end
+
+function rrule(::typeof(reverse), x::Union{AbstractArray, Tuple}, args...; kw...)
     nots = map(Returns(NoTangent()), args)
     function reverse_pullback(dy)
         dx = @thunk reverse(unthunk(dy), args...; kw...)
@@ -315,8 +445,12 @@ end
 ##### `circshift`
 #####
 
-function frule((_, xdot), ::typeof(circshift), x::AbstractArray, shifts)
-    return circshift(x, shifts), circshift(xdot, shifts)
+function frule((_, ẋ), ::typeof(circshift), x::AbstractArray, shifts)
+    return circshift(x, shifts), circshift(ẋ, shifts)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(circshift!), y::AbstractArray, x::AbstractArray, shifts)
+    return circshift!(y, x, shifts), circshift!(ẏ, ẋ, shifts)
 end
 
 function rrule(::typeof(circshift), x::AbstractArray, shifts)
@@ -332,15 +466,38 @@ end
 ##### `fill`
 #####
 
-function frule((_, xdot), ::typeof(fill), x::Any, dims...)
-    return fill(x, dims...), fill(xdot, dims...)
+function frule((_, ẋ), ::typeof(fill), x::Any, dims...)
+    return fill(x, dims...), fill(ẋ, dims...)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(fill!), y::AbstractArray, x::Any)
+    return fill!(y, x), fill!(ẏ, ẋ)
 end
 
 function rrule(::typeof(fill), x::Any, dims...)
-    project = x isa Union{Number, AbstractArray{<:Number}} ? ProjectTo(x) : identity
+    project = ProjectTo(x)
     nots = map(Returns(NoTangent()), dims)
     fill_pullback(Ȳ) = (NoTangent(), project(sum(Ȳ)), nots...)
     return fill(x, dims...), fill_pullback
+end
+
+#####
+##### `filter`
+#####
+
+function frule((_, _, ẋ), ::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    return x[inds], ẋ[inds]
+end
+
+function rrule(::typeof(filter), f, x::AbstractArray)
+    inds = findall(f, x)
+    y, back = rrule(getindex, x, inds)
+    function filter_pullback(dy)
+        _, dx, _ = back(dy)
+        return (NoTangent(), NoTangent(), dx)
+    end
+    return y, filter_pullback
 end
 
 #####
@@ -350,9 +507,9 @@ end
 for findm in (:findmin, :findmax)
     findm_pullback = Symbol(findm, :_pullback)
 
-    @eval function frule((_, xdot), ::typeof($findm), x; dims=:)
+    @eval function frule((_, ẋ), ::typeof($findm), x; dims=:)
         y, ind = $findm(x; dims=dims)
-        return (y, ind), Tangent{typeof((y, ind))}(xdot[ind], NoTangent())
+        return (y, ind), Tangent{typeof((y, ind))}(ẋ[ind], NoTangent())
     end
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
@@ -399,8 +556,8 @@ end
 # Allow for second derivatives, by writing rules for `_zerolike_writeat`;
 # these rules are the reason it takes a `dims` argument.
 
-function frule((_, _, dydot), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dydot, dims, inds...)
+function frule((_, _, dẏ), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
+    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dẏ, dims, inds...)
 end
 
 function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
@@ -415,9 +572,9 @@ end
 
 # These rules for `maximum` pick the same subgradient as `findmax`:
 
-function frule((_, xdot), ::typeof(maximum), x; dims=:)
+function frule((_, ẋ), ::typeof(maximum), x; dims=:)
     y, ind = findmax(x; dims=dims)
-    return y, xdot[ind]
+    return y, ẋ[ind]
 end
 
 function rrule(::typeof(maximum), x::AbstractArray; dims=:)
@@ -426,9 +583,9 @@ function rrule(::typeof(maximum), x::AbstractArray; dims=:)
     return y, maximum_pullback
 end
 
-function frule((_, xdot), ::typeof(minimum), x; dims=:)
+function frule((_, ẋ), ::typeof(minimum), x; dims=:)
     y, ind = findmin(x; dims=dims)
-    return y, xdot[ind]
+    return y, ẋ[ind]
 end
 
 function rrule(::typeof(minimum), x::AbstractArray; dims=:)

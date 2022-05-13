@@ -5,8 +5,13 @@
 function frule((_, ẋ), ::typeof(sum), x::Tuple)
     return sum(x), sum(ẋ)
 end
+
 function frule((_, ẋ), ::typeof(sum), x; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
+end
+
+function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray)
+    return sum!(y, x), sum!(ẏ, ẋ)
 end
 
 function rrule(::typeof(sum), x::AbstractArray; dims=:)
@@ -67,30 +72,74 @@ function rrule(
 end
 
 function rrule(
-    config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f, xs::AbstractArray; dims=:
-)
-    fx_and_pullbacks = map(x->rrule_via_ad(config, f, x), xs)
-    y = sum(first, fx_and_pullbacks; dims=dims)
-
-    pullbacks = last.(fx_and_pullbacks)
-
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(sum),
+    f::F,
+    xs::AbstractArray{T};
+    dims = :,
+) where {F,T}
     project = ProjectTo(xs)
 
-    function sum_pullback(ȳ)
-        call(f, x) = f(x)
-        # if dims is :, then need only left-handed only broadcast
-        broadcast_ȳ = dims isa Colon  ? (ȳ,) : ȳ
-        f̄_and_x̄s = call.(pullbacks, broadcast_ȳ)
-        # no point thunking as most of work is in f̄_and_x̄s which we need to compute for both
-        f̄ = if fieldcount(typeof(f)) === 0 # Then don't need to worry about derivative wrt f
-            NoTangent()
-        else
-            sum(first, f̄_and_x̄s)
+    if _uses_input_only(f, T)
+        # Then we can compute the forward pass as usual, save nothing but `xs`:
+        function sum_pullback_f1(dy)
+            dxs = broadcast(unthunk(dy), xs) do dyₖ, xᵢ
+                ∂yₖ∂xᵢ = only(only(derivatives_given_output(nothing, f, xᵢ)))
+                dyₖ * conj(∂yₖ∂xᵢ)
+            end
+            return (NoTangent(), NoTangent(), project(dxs))
         end
-        x̄s = map(unthunk ∘ last, f̄_and_x̄s) # project does not support receiving InplaceableThunks
-        return NoTangent(), f̄, project(x̄s)
+        return sum(f, xs; dims), sum_pullback_f1
     end
-    return y, sum_pullback
+
+    # (There is an intermediate case, where `derivatives_given_output` needs to
+    # see `f.(xs)` but we don't need the pullbacks. Not implemented at present.)
+
+    # In the general case, we need to save all the pullbacks:
+    fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
+    y = sum(first, fx_and_pullbacks; dims)
+
+    function sum_pullback_f2(dy)
+        # For arrays of arrays, we ought to protect the element against broadcasting:
+        broadcast_dy = dims isa Colon ? Ref(unthunk(dy)) : unthunk(dy)
+        if Base.issingletontype(F)
+            # Then at least `f` has no gradient. 
+            # Broadcasting here gets the shape right with or without `dims` keyword.
+            dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
+                unthunk(last(pbᵢ(dyₖ)))
+            end
+            return (NoTangent(), NoTangent(), project(dxs))
+
+        else
+            # Most general case. If `f` were stateful, we would need to reverse the order
+            # of iteration here, but since this function makes no guarantee, even the primal
+            # result is then ill-defined.
+            df_and_dxs = broadcast(fx_and_pullbacks, broadcast_dy) do (_, pbᵢ), dyₖ
+                pbᵢ(dyₖ)
+            end
+            df = sum(first, df_and_dxs)
+            dxs = map(unthunk ∘ last, df_and_dxs)
+            return (NoTangent(), df, project(dxs))
+        end
+    end
+    return y, sum_pullback_f2
+end
+
+"""
+    _uses_input_only(f, xT::Type)
+
+Returns `true` if it can prove that `derivatives_given_output` will work using only the input
+of the given type. Thus there is no need to store the output `y = f(x::xT)`, allowing us to take
+a fast path in the `rrule` for `sum(f, xs)`.
+
+Works by seeing if the result of `derivatives_given_output(nothing, f, x)` can be inferred.
+The method of `derivatives_given_output` usually comes from `@scalar_rule`.
+"""
+function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
+    gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
+    # Here we must check `<: Number`, to avoid this, the one rule which can return the `nothing`:
+    # ChainRules.derivatives_given_output("anything", exp, 1) == (("anything",),)
+    return isconcretetype(gT) && gT <: Tuple{Tuple{Number}}
 end
 
 # https://github.com/JuliaDiff/ChainRules.jl/issues/522
@@ -115,12 +164,10 @@ function frule(
     y = sum(abs2, x; dims=dims)
     ∂y = if dims isa Colon
         2 * realdot(x, ẋ)
-    elseif VERSION ≥ v"1.2" # multi-iterator mapreduce introduced in v1.2
+    else
         mapreduce(+, x, ẋ; dims=dims) do xi, dxi
             2 * realdot(xi, dxi)
         end
-    else
-        2 * sum(realdot.(x, ẋ); dims=dims)
     end
     return y, ∂y
 end
@@ -152,6 +199,37 @@ for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
         return rrule(sum, abs2, x; dims=dims)
     end
 end
+
+#####
+##### `cumsum`
+#####
+
+function frule((_, xdot), ::typeof(cumsum), x::AbstractArray; dims::Integer)
+    return cumsum(x; dims=dims), cumsum(xdot; dims=dims)
+end
+frule(tang, ::typeof(cumsum), x::AbstractVector) = frule(tang, cumsum, x; dims=1)
+
+function frule((_, ydot, xdot), ::typeof(cumsum!), y::AbstractArray, x::AbstractArray; dims::Integer)
+    return cumsum!(y, x; dims=dims), cumsum!(ydot, xdot; dims=dims)
+end
+frule(t, ::typeof(cumsum!), y::AbstractVector, x::AbstractVector) = frule(t, cumsum!, y, x; dims=1)
+
+function rrule(::typeof(cumsum), x::AbstractArray; dims::Integer)
+    project = ProjectTo(x)
+    function cumsum_pullback(dy)
+        step1 = reverse(unthunk(dy); dims=dims)
+        if ChainRulesCore.is_inplaceable_destination(step1) && VERSION >= v"1.6"
+            step2 = cumsum!(step1, step1; dims=dims)
+            step3 = reverse!(step2; dims=dims)
+        else
+            step2 = cumsum(step1; dims=dims)
+            step3 = reverse(step2; dims=dims)
+        end
+        return (NoTangent(), project(step3))
+    end
+    return cumsum(x; dims=dims), cumsum_pullback
+end
+rrule(::typeof(cumsum), x::AbstractVector) = rrule(cumsum, x; dims=1)
 
 #####
 ##### `prod`
@@ -194,6 +272,7 @@ function ∇prod_dims(vald::Val{dims}, x, dy, y=prod(x; dims=dims)) where {dims}
     ∇prod_dims!(dx, vald, x, dy, y)
     return dx
 end
+∇prod_dims(::Val, x, dy::AbstractZero, y=0) = dy
 
 function ∇prod_dims!(dx, ::Val{dims}, x, dy, y) where {dims}
     iters = ntuple(d -> d in dims ? tuple(:) : axes(x,d), ndims(x))  # Without Val(dims) this is a serious type instability
@@ -210,6 +289,7 @@ function ∇prod(x, dy::Number=1, y::Number=prod(x))
     ∇prod!(dx, x, dy, y)
     return dx
 end
+∇prod(x, dy::AbstractZero, y::Number=0) = dy
 
 function ∇prod!(dx, x, dy::Number=1, y::Number=prod(x))
     numzero = iszero(y) ? count(iszero, x) : 0
@@ -292,7 +372,8 @@ function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y
      dx = fill!(similar(x, T, axes(x)), zero(T))
      ∇cumprod_dim!(dx, vald, x, dy, y)
      return dx
- end
+end
+∇cumprod_dim(vald::Val, x::AbstractArray, dy::AbstractZero, y=0) = dy
 
 @inline function ∇cumprod_dim!(dx::AbstractArray, ::Val{dim}, x::AbstractArray, dy, y) where {dim}
     iters = ntuple(k -> k==dim ? Ref(:) : axes(x,k), ndims(x))
@@ -308,6 +389,7 @@ function ∇cumprod(x::AbstractVector, dy=one(x), y=cumprod(x))
     ∇cumprod!(dx, x, dy, y)
     return dx
 end
+∇cumprod(x::AbstractVector, dy::AbstractZero, y=0) = dy
 
 @inline function ∇cumprod!(dx::AbstractVector, x::AbstractVector, dy, y)
     lo, hi = firstindex(x), lastindex(x)
@@ -388,16 +470,10 @@ end
 # To support 2nd derivatives, some may need their own gradient rules. And _drop1 should perhaps
 # be replaced by _peel1 like Iterators.peel
 
-if VERSION >= v"1.6"
-    _reverse1(x) = Iterators.reverse(x)
-    _drop1(x) = Iterators.drop(x, 1)
-    _zip2(x, y) = zip(x, y)  # for `accumulate`, below
-else
-    # Old versions don't support accumulate(::itr), nor multi-dim reverse
-    _reverse1(x) = reverse(vec(x))
-    _drop1(x) = vec(x)[2:end]
-    _zip2(x, y) = collect(zip(x, y))
-end
+_reverse1(x) = Iterators.reverse(x)
+_drop1(x) = Iterators.drop(x, 1)
+_zip2(x, y) = zip(x, y)  # for `accumulate`, below
+
 _reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
@@ -449,16 +525,9 @@ function rrule(
     function decumulate(dy)
         dy_plain = _no_tuple_tangent(unthunk(dy))
         rev_list = if init === _InitialValue()
-            if VERSION >= v"1.6"
-                # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
-                # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
-                _zip2(_reverse1(hobbits), _reverse1(dy_plain))
-            else
-                # However, on 1.0 and some others, zip does not stop early. But since accumulate
-                # also doesn't work on iterators, `_drop1` doesn't make one, so this should work:
-                _zip2(_reverse1(hobbits), _reverse1(_drop1(dy_plain)))
-                # What an awful tangle.
-            end
+            # Here we rely on `zip` to stop early. Begin explicit with _reverse1(_drop1(...))
+            # gets "no method matching iterate(::Base.Iterators.Reverse{Base.Iterators.Drop{Array{"
+            _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         else
             _zip2(_reverse1(hobbits), _reverse1(dy_plain))
         end

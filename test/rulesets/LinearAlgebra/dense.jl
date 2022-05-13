@@ -35,6 +35,22 @@
         end
     end
 
+    @testset "mul!" begin
+        test_frule(mul!, rand(4), rand(4, 5), rand(5))
+        test_frule(mul!, rand(3, 3), rand(3, 3), rand(3, 3))
+        test_frule(mul!, rand(3, 3), rand(), rand(3, 3))
+
+        # Rule with α,β::Bool is only visually more complicated:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, false)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, false)
+
+        # Rule with nontrivial α, β allocates A*B:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, randn())
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), randn(), randn())
+    end
+
     @testset "cross" begin
         test_frule(cross, randn(3), randn(3))
         test_frule(cross, randn(ComplexF64, 3), randn(ComplexF64, 3))
@@ -64,8 +80,7 @@
 
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
             test_frule(pinv, F(randn(T, 3)))
-            check_inferred = VERSION ≥ v"1.5"
-            test_rrule(pinv, F(randn(T, 3)); check_inferred=check_inferred)
+            test_rrule(pinv, F(randn(T, 3)))
 
             # Check types.
             # TODO: Do we need this still?
@@ -103,6 +118,12 @@
                 test_frule(f, B)
                 test_rrule(f, B)
             end
+        end
+        @testset "$f(complex determinant)" begin
+            B = randn(ComplexF64, 4, 4)
+            U = exp(B - B')
+            test_frule(f, U)
+            test_rrule(f, U)
         end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
