@@ -95,6 +95,10 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, inv, x[1, :]')
         test_rrule(sum, inv, x[1:1, :]')
         test_rrule(sum, inv, transpose(view(x, 1, :)))
+        # Cases from https://github.com/JuliaDiff/ChainRules.jl/issues/530
+        test_rrule(sum, log, [1, 2, 3.0]'; fkwargs=(;dims=1))
+        test_rrule(sum, log, [1, 2, 3.0]'; fkwargs=(;dims=2))
+        test_rrule(sum, imag, [1+2im, 3+4.0im]')
 
         # Make sure we preserve type for StaticArrays
         _, pb = rrule(CFG, sum, abs, @SVector[1.0, -3.0])
