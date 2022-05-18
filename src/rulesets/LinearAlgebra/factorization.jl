@@ -551,3 +551,31 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end
+
+# `det` and `logdet` for `Cholesky`
+function rrule(::typeof(det), C::Cholesky)
+    y = det(C)
+    diagF = _diag_view(C.factors)
+    function det_Cholesky_pullback(ȳ)
+        ΔF = Diagonal(_x_divide_conj_y.(2 * ȳ * conj(y), diagF))
+        ΔC = Tangent{typeof(C)}(; factors=ΔF)
+        return NoTangent(), ΔC
+    end
+    return y, det_Cholesky_pullback
+end
+
+function rrule(::typeof(logdet), C::Cholesky)
+    y = logdet(C)
+    diagF = _diag_view(C.factors)
+    function logdet_Cholesky_pullback(ȳ)
+        ΔC = Tangent{typeof(C)}(; factors=Diagonal(_x_divide_conj_y.(2 * ȳ, diagF)))
+        return NoTangent(), ΔC
+    end
+    return y, logdet_Cholesky_pullback
+end
+
+# Return `x / conj(y)`, or a type-stable 0 if `iszero(x)`
+function _x_divide_conj_y(x, y)
+    z = x / conj(y)
+    return iszero(x) ? zero(z) : z
+end

@@ -432,5 +432,39 @@ end
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
+
+        @testset "det and logdet (uplo=$p)" for p in (:U, :L)
+            @testset "$op" for op in (det, logdet)
+                @testset "$T" for T in (Float64, ComplexF64)
+                    n = 5
+                    # rand (not randn) so det will be postive, so logdet will be defined
+                    A = 3 * rand(T, (n, n))
+                    X = Cholesky(A * A' + I, p, 0)
+                    X̄_acc = Tangent{typeof(X)}(; factors=Diagonal(randn(T, n))) # sensitivity is always a diagonal
+                    test_rrule(op, X ⊢ X̄_acc)
+
+                    # return type
+                    _, op_pullback = rrule(op, X)
+                    X̄ = op_pullback(2.7)[2]
+                    @test X̄ isa Tangent{<:Cholesky}
+                    @test X̄.factors isa Diagonal
+
+                    # zero co-tangent
+                    X̄ = op_pullback(0.0)[2]
+                    @test all(iszero, X̄.factors)
+                end
+            end
+
+            @testset "singular ($T)" for T in (Float64, ComplexF64)
+                n = 5
+                L = LowerTriangular(randn(T, (n, n)))
+                L[1, 1] = zero(T)
+                X = cholesky(L * L'; check=false)
+                detX, det_pullback = rrule(det, X)
+                ΔX = det_pullback(rand())[2]
+                @test iszero(detX)
+                @test ΔX.factors isa Diagonal && all(iszero, ΔX.factors)
+            end
+        end
     end
 end
