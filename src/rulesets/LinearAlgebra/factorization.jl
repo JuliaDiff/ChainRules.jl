@@ -555,19 +555,26 @@ end
 # `det` and `logdet` for `Cholesky`
 function rrule(::typeof(det), C::Cholesky)
     y = det(C)
-    s = conj!((2 * y) ./ _diag_view(C.factors))
+    diagF = _diag_view(C.factors)
     function det_Cholesky_pullback(ȳ)
-        ΔC = Tangent{typeof(C)}(; factors=Diagonal(ȳ .* s))
+        ΔF = Diagonal(_x_divide_conj_y.(2 * ȳ * conj(y), diagF))
+        ΔC = Tangent{typeof(C)}(; factors=ΔF)
         return NoTangent(), ΔC
     end
     return y, det_Cholesky_pullback
 end
+# compute `x / conj(y)`, handling `x = y = 0`
+function _x_divide_conj_y(x, y)
+    z = x / conj(y)
+    # in our case `iszero(x)` implies `iszero(y)`
+    return iszero(x) ? zero(z) : z
+end
 
 function rrule(::typeof(logdet), C::Cholesky)
     y = logdet(C)
-    s = conj!((2 * one(eltype(C))) ./ _diag_view(C.factors))
+    diagF = _diag_view(C.factors)
     function logdet_Cholesky_pullback(ȳ)
-        ΔC = Tangent{typeof(C)}(; factors=Diagonal(ȳ .* s))
+        ΔC = Tangent{typeof(C)}(; factors=Diagonal((2 * ȳ) ./ conj.(diagF)))
         return NoTangent(), ΔC
     end
     return y, logdet_Cholesky_pullback

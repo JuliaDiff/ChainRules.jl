@@ -450,6 +450,17 @@ end
                     @test X̄.factors isa Diagonal
                 end
             end
+
+            @testset "singular ($T)" for T in (Float64, ComplexF64)
+                n = 5
+                L = LowerTriangular(randn(T, (n, n)))
+                L[1, 1] = zero(T)
+                X = cholesky(L * L'; check=false)
+                detX, det_pullback = rrule(det, X)
+                ΔX = det_pullback(rand())[2]
+                @test iszero(detX)
+                @test ΔX.factors isa Diagonal && all(iszero, ΔX.factors)
+            end
         end
     end
 end
