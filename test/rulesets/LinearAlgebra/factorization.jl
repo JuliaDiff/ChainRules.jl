@@ -448,6 +448,10 @@ end
                     X̄ = op_pullback(2.7)[2]
                     @test X̄ isa Tangent{<:Cholesky}
                     @test X̄.factors isa Diagonal
+
+                    # zero co-tangent
+                    X̄ = op_pullback(0.0)[2]
+                    @test all(iszero, X̄.factors)
                 end
             end
 
