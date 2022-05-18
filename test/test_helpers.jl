@@ -36,28 +36,6 @@ function ChainRulesCore.rrule(m::Multiplier, y, z)
 end
 
 """
-    Divider(x)
-
-Stores a fixed `x` and divides by it, then squares the result.
-
-Especially for testing the gradient of higher order functions with respect to `x`.
-```
-julia> map(Divider(2), [1 2 3 4 10])
-1×5 Matrix{Float64}:
- 0.25  1.0  2.25  4.0  25.0
-```
-"""
-struct Divider{T<:Real}
-    x::T
-end
-(d::Divider)(y::Real) = (y / d.x)^2
-
-function ChainRulesCore.rrule(d::Divider, y::Real)
-    Divider_pullback(dΩ) = (Tangent{typeof(d)}(; x = -2 * dΩ * y^2 / d.x^3), 2 * dΩ * y / d.x^2)
-    return d(y), Divider_pullback
-end
-
-"""
     Counter()
 
 Multiplies its input by number that increments on each call,
@@ -109,11 +87,6 @@ end
         test_rrule(Multiplier(1.2), 3.4, 5.6)
         test_rrule(Multiplier(1.0 + 2im), 3.0 + 4im, 5.0 - 6im)
         test_rrule(Multiplier(rand(2,3)), rand(3,4), rand(4,5))
-    end
-    
-    @testset "Divider" begin
-        test_rrule(Divider(2.3), 4.5)
-        test_rrule(Divider(0.2), -3.4)
     end
 
     @testset "Counter" begin
