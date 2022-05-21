@@ -162,6 +162,7 @@
 @non_differentiable fieldnames(T)
 
 @non_differentiable factorial(n::Integer)
+@non_differentiable binomial(n::Integer, k::Integer)
 
 @non_differentiable findall(::Union{Regex, AbstractString, Function}, ::AbstractString)
 @non_differentiable findall(::Function, ::AbstractArray)
