@@ -77,6 +77,15 @@
             test_rrule(getindex, x, [2,2], [3,3])
         end
     end
+    
+    @testset "second derivatives" begin
+        test_frule(ChainRules.∇getindex, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+        test_rrule(ChainRules.∇getindex, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
+        @test_skip test_rrule(ChainRules.∇getindex, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching isapprox(::Matrix{Float64}, ::Float64; rtol=1.0e-9, atol=1.0e-9)
+        y, bk = rrule(ChainRules.∇getindex, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
+        @test y == [0 0; 5 5]
+        @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
+    end    
 end
 
 @testset "first & tail" begin

@@ -86,6 +86,49 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     return y, getindex_pullback
 end
 
+
+"""
+    ∇getindex(x, dy, dims, inds...)
+
+This function is roughly `setindex!(zero(x), dy, inds...)`.
+
+"""
+function ∇getindex(x::AbstractArray{<:Number}, dy, dims, inds...)
+    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
+    # allow `eltype(dy)`, nor does it work for many structured matrices.
+    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
+    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
+    dx
+end
+function ∇getindex(x::AbstractArray, dy, dims, inds...)
+    # Since we have `x`, we can also handle arrays of arrays.
+    dx = map(zero, x)
+    if dims isa Colon
+        view(dx, inds...) .= Ref(dy)
+    else
+        view(dx, inds...) .= dy
+    end
+    dx
+end
+
+# Allow for second derivatives, by writing rules for `∇getindex`;
+# these rules are the reason it takes a `dims` argument.
+
+function frule((_, _, dẏ), ::typeof(∇getindex), x, dy, dims, inds...)
+    return ∇getindex(x, dy, dims, inds...), ∇getindex(x, dẏ, dims, inds...)
+end
+
+function rrule(::typeof(∇getindex), x, dy, dims, inds...)
+    z = ∇getindex(x, dy, dims, inds...)
+    function ∇getindex_pullback(dz)
+        dx = sum(view(unthunk(dz), inds...); dims=dims)
+        nots = map(_ -> NoTangent(), inds)
+        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
+    end
+    return z, ∇getindex_pullback
+end
+
+
 #####
 ##### first, tail
 #####
