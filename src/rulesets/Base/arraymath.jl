@@ -46,9 +46,9 @@ end
 # https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
 function rrule(
     ::typeof(*),
-    A::StridedMatrix{<:CommutativeMulNumber},
-    B::StridedVecOrMat{<:CommutativeMulNumber},
-)
+    A::StridedMatrix{T},
+    B::StridedVecOrMat{T},
+) where {T<:CommutativeMulNumber}
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
