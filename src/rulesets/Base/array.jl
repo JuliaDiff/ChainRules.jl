@@ -166,18 +166,19 @@ function frule((_, ẋs), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
     return repeat(xs, cnt...; kw...), repeat(ẋs, cnt...; kw...)
 end
 
-function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
+function rrule(::typeof(repeat), xs::AbstractArray; inner=nothing, outer=nothing)
 
     project_Xs = ProjectTo(xs)
     S = size(xs)
+    inner_size = inner === nothing ? ntuple(Returns(1), ndims(xs)) : inner
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
         Δ′ = zero(xs)
         # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
         for (dest_idx, val) in pairs(IndexCartesian(), dY)
-            # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
+            # First, round dest_idx[dim] to nearest gridpoint defined by inner_dims[dim], then
             # wrap around based on original size S.
-            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
+            src_idx = [mod1(div(dest_idx[dim] - 1, inner_size[dim]) + 1, S[dim]) for dim in 1:length(S)]
             Δ′[src_idx...] += val
         end
         x̄ = project_Xs(Δ′)

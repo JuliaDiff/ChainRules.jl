@@ -128,6 +128,7 @@ end
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+    test_rrule(repeat, rand(4, 5); fkwargs = (outer=2,))
 
     test_rrule(repeat, rand(4, ), 2)
     test_rrule(repeat, rand(4, 5), 2)
