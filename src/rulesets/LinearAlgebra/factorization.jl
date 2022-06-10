@@ -536,15 +536,15 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
         C = Tangent{T}
         ∂F = if x === :U
             if F.uplo === 'U'
-                C(U=UpperTriangular(Ȳ),)
+                C(factors=UpperTriangular(Ȳ),)
             else
-                C(L=LowerTriangular(Ȳ'),)
+                C(factors=LowerTriangular(Ȳ'),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                C(L=LowerTriangular(Ȳ),)
+                C(factors=LowerTriangular(Ȳ),)
             else
-                C(U=UpperTriangular(Ȳ'),)
+                C(factors=UpperTriangular(Ȳ'),)
             end
         end
         return NoTangent(), ∂F, NoTangent()
