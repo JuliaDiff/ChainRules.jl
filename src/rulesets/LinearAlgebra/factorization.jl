@@ -495,8 +495,8 @@ function rrule(
 )
     C = cholesky(A, Val(false); check=check)
     function _cholesky_HermOrSym_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
+        Ā = _cholesky_pullback_shared_code(C, ΔC)
+        rmul!(Ā, one(eltype(Ā)) / 2)
         return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
     _cholesky_HermOrSym_pullback(Ȳ::AbstractThunk) = _cholesky_HermOrSym_pullback(unthunk(Ȳ))
@@ -511,8 +511,7 @@ function rrule(
 )
     C = cholesky(A, Val(false); check=check)
     function _cholesky_Strided_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
+        Ā = _cholesky_pullback_shared_code(C, ΔC)
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NoTangent(), UpperTriangular(Ā), NoTangent())
@@ -522,13 +521,24 @@ function rrule(
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
-    U = C.U
-    Ū = ΔC.U
-    Ā = similar(U.data)
-    Ā = mul!(Ā, Ū, U')
-    Ā = LinearAlgebra.copytri!(Ā, 'U', true)
-    Ā = ldiv!(U, Ā)
-    return Ā, U
+    Δfactors = ΔC.factors
+    Ā = similar(C.factors)
+    if C.uplo === 'U'
+        U = C.U
+        Ū = triu(Δfactors)
+        mul!(Ā, Ū, U')
+        LinearAlgebra.copytri!(Ā, 'U', true)
+        ldiv!(U, Ā)
+        rdiv!(Ā, U')
+    else  # C.uplo === 'L'
+        L = C.L
+        L̄ = tril(Δfactors)
+        mul!(Ā, L', L̄)
+        LinearAlgebra.copytri!(Ā, 'L', true)
+        rdiv!(Ā, L)
+        ldiv!(L', Ā)
+    end
+    return Ā
 end
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
