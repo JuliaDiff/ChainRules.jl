@@ -428,7 +428,7 @@ end
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
