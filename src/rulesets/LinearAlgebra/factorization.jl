@@ -450,14 +450,13 @@ function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
     return C, cholesky_pullback
 end
 
-function _cholesky_Diagonal_pullback(ΔC::Tangent, C)
+function _cholesky_Diagonal_pullback(ΔC, C)
     Ā = Diagonal((2 .* C.factors.diag) .\ real.(diag(ΔC.factors)))
     return NoTangent(), Ā, NoTangent()
 end
-_cholesky_Diagonal_pullback(Ȳ::AbstractThunk, C) = _cholesky_Diagonal_pullback(unthunk(Ȳ), C)
 function rrule(::typeof(cholesky), A::Diagonal{<:Union{Real,Complex}}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
-    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(ȳ, C)
+    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(unthunk(ȳ), C)
     return C, cholesky_pullback
 end
 
@@ -471,13 +470,12 @@ function rrule(
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function _cholesky_HermOrSym_pullback(ΔC::Tangent)
-        Ā = _cholesky_pullback_shared_code(C, ΔC)
+    function cholesky_HermOrSym_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         rmul!(Ā, one(eltype(Ā)) / 2)
         return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
-    _cholesky_HermOrSym_pullback(Ȳ::AbstractThunk) = _cholesky_HermOrSym_pullback(unthunk(Ȳ))
-    return C, _cholesky_HermOrSym_pullback
+    return C, cholesky_HermOrSym_pullback
 end
 
 function rrule(
