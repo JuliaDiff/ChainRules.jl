@@ -391,7 +391,7 @@ end
 
         @testset "Diagonal" begin
             @testset "Diagonal{<:Real}" begin
-                test_rrule(cholesky, Diagonal(rand(5) .+ 0.1), Val(false);)
+                test_rrule(cholesky, Diagonal(rand(5) .+ 0.1), Val(false))
             end
             @testset "Diagonal{<:Complex}" begin
                 # finite differences in general will produce matrices with non-real
@@ -404,6 +404,10 @@ end
                     output_tangent=Tangent{typeof(C)}(factors=Diagonal(complex(randn(5)))),
                     fkwargs=(; check=false),
                 )
+            end
+            @testset "check has correct default and passed to primal" begin
+                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), Val(false))
+                rrule(cholesky, Diagonal(-rand(5)), Val(false); check=false)
             end
         end
 
@@ -432,6 +436,12 @@ end
                     end
                     @test X̄_ad ≈ X̄_fd rtol=1e-4
                 end
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Matrix(Symmetric(randn(10, 10)))
+                @test_throws Exception rrule(cholesky, X, Val(false))
+                rrule(cholesky, X, Val(false); check=false)
             end
         end
 
@@ -462,6 +472,12 @@ end
                 Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(T, size(X)))))
                 ΔX_hermitian = chol_back_herm(Δ)[2]
                 @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(Δ)[2]
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Hermitian(randn(10, 10))
+                @test_throws Exception rrule(cholesky, X, Val(false))
+                rrule(cholesky, X, Val(false); check=false)
             end
         end
 
