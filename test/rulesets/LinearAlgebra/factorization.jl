@@ -437,12 +437,31 @@ end
         # Ensure that cotangents of cholesky(::StridedMatrix) and
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
+            X = generate_well_conditioned_matrix(10)
+            F, dX_pullback = rrule(cholesky, X, Val(false))
+
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
             Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(size(X)))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+        end
+
+        # Ensure that cotangents of cholesky(::StridedMatrix) and
+        # (cholesky ∘ Hermitian)(::StridedMatrix) are equal.
+        @testset "Hermitian" begin
+            @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
+                X = generate_well_conditioned_matrix(T, 10)
+                F, dX_pullback = rrule(cholesky, X, Val(false))
+
+                X_hermitian, herm_back = rrule(Hermitian, X, :U)
+                C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
+
+                Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(T, size(X)))))
+                ΔX_hermitian = chol_back_herm(Δ)[2]
+                @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(Δ)[2]
+            end
         end
 
         @testset "det and logdet (uplo=$p)" for p in (:U, :L)

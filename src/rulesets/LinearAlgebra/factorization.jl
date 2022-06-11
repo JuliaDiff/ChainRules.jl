@@ -482,7 +482,7 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
+    A::LinearAlgebra.RealHermSymComplexHerm{<:Real, <:StridedMatrix},
     ::Val{false};
     check::Bool=true,
 )
