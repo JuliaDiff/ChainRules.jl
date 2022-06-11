@@ -441,12 +441,6 @@ end
 ##### `cholesky`
 #####
 
-# these functions are defined outside the rrule because otherwise type inference breaks
-# see https://github.com/JuliaLang/julia/issues/40990
-_cholesky_real_pullback(ΔC::Tangent, full_pb) = return full_pb(ΔC)[1:2]
-function _cholesky_real_pullback(Ȳ::AbstractThunk, full_pb)
-    return _cholesky_real_pullback(unthunk(Ȳ), full_pb)
-end
 function rrule(::typeof(cholesky),
     A::Union{
         Real,
@@ -463,13 +457,12 @@ function rrule(::typeof(cholesky),
     return C, cholesky_pullback
 end
 
-function _cholesky_realuplo_pullback(ΔC::Tangent, C)
-    return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
-end
-_cholesky_realuplo_pullback(Ȳ::AbstractThunk, C) = _cholesky_realuplo_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
-    C = cholesky(A, uplo)
-    cholesky_pullback(ȳ) = _cholesky_realuplo_pullback(ȳ, C)
+function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
+    C = cholesky(x, uplo)
+    function cholesky_pullback(ΔC)
+        Ā = (2 * C.factors[1, 1]) \ real(unthunk(ΔC).factors[1, 1])
+        return NoTangent(), Ā, NoTangent()
+    end
     return C, cholesky_pullback
 end
 

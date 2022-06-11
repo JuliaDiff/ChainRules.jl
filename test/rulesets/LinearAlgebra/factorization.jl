@@ -382,8 +382,11 @@ end
     # have fantastic support for this stuff at the minute.
     # also we might be missing some overloads for different tangent-types in the rules
     @testset "cholesky" begin
-        @testset "Real" begin
-            test_rrule(cholesky, 0.8)
+        @testset "Number" begin
+            @testset "uplo=$uplo" for uplo in (:U, :L)
+                test_rrule(cholesky, 0.8, uplo ⊢ NoTangent())
+                test_rrule(cholesky, 0.23 + 0im, uplo ⊢ NoTangent())
+            end
         end
         @testset "Diagonal{<:Real}" begin
             D = Diagonal(rand(5) .+ 0.1)
