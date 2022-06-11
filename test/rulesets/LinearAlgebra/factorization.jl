@@ -404,7 +404,7 @@ end
                 C = cholesky(D)
                 test_rrule(
                     cholesky, D, Val(false);
-                    output_tangent=Tangent{typeof(C)}(factors=Diagonal(complex(randn(5)))),
+                    output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
                     fkwargs=(; check=false),
                 )
             end
@@ -421,7 +421,7 @@ end
                 F, dX_pullback = rrule(cholesky, X, Val(false))
                 @testset "uplo=$p" for p in [:U, :L]
                     Y, dF_pullback = rrule(getproperty, F, p)
-                    Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(T, size(Y)))
+                    Ȳ = randn(T, size(Y))
                     (dself, dF, dp) = dF_pullback(Ȳ)
                     @test dself === NoTangent()
                     @test dp === NoTangent()
@@ -457,7 +457,7 @@ end
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(size(X)))))
+            Δ = Tangent{typeof(C)}((factors=randn(size(X))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
         end
@@ -472,7 +472,7 @@ end
                 X_hermitian, herm_back = rrule(Hermitian, X, :U)
                 C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
 
-                Δ = Tangent{typeof(C)}((factors=UpperTriangular(randn(T, size(X)))))
+                Δ = Tangent{typeof(C)}((factors=randn(T, size(X))))
                 ΔX_hermitian = chol_back_herm(Δ)[2]
                 @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(Δ)[2]
             end
