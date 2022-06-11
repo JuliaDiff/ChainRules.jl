@@ -517,16 +517,18 @@ function _cholesky_pullback_shared_code(C, ΔC)
     Ā = similar(C.factors)
     if C.uplo === 'U'
         U = C.U
-        Ū = triu(Δfactors)
+        Ū = eltype(U) <: Real ? real(triu(Δfactors)) : triu(Δfactors)
         mul!(Ā, Ū, U')
         LinearAlgebra.copytri!(Ā, 'U', true)
+        eltype(Ā) <: Complex && _realifydiag!(Ā)
         ldiv!(U, Ā)
         rdiv!(Ā, U')
     else  # C.uplo === 'L'
         L = C.L
-        L̄ = tril(Δfactors)
+        L̄ = eltype(L) <: Real ? real(tril(Δfactors)) : tril(Δfactors)
         mul!(Ā, L', L̄)
         LinearAlgebra.copytri!(Ā, 'L', true)
+        eltype(Ā) <: Complex && _realifydiag!(Ā)
         rdiv!(Ā, L)
         ldiv!(L', Ā)
     end
