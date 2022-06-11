@@ -385,7 +385,10 @@ end
         @testset "Number" begin
             @testset "uplo=$uplo" for uplo in (:U, :L)
                 test_rrule(cholesky, 0.8, uplo)
+                test_rrule(cholesky, -0.3, uplo)
                 test_rrule(cholesky, 0.23 + 0im, uplo)
+                test_rrule(cholesky, 0.78 + 0.5im, uplo)
+                test_rrule(cholesky, -0.34 + 0.1im, uplo)
             end
         end
 

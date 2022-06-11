@@ -444,7 +444,7 @@ end
 function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
     C = cholesky(x, uplo)
     function cholesky_pullback(ΔC)
-        Ā = (2 * C.factors[1, 1]) \ real(unthunk(ΔC).factors[1, 1])
+        Ā = real(unthunk(ΔC).factors[1, 1]) / (2 * sign(real(x)) * C.factors[1, 1])
         return NoTangent(), Ā, NoTangent()
     end
     return C, cholesky_pullback
