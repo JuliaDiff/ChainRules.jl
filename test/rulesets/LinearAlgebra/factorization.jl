@@ -388,6 +388,7 @@ end
                 test_rrule(cholesky, 0.23 + 0im, uplo)
             end
         end
+
         @testset "Diagonal" begin
             @testset "Diagonal{<:Real}" begin
                 test_rrule(cholesky, Diagonal(rand(5) .+ 0.1), Val(false);)
