@@ -462,7 +462,7 @@ function _cholesky_Diagonal_pullback(ΔC, C)
     end
     return NoTangent(), Diagonal(Ādiag), NoTangent()
 end
-function rrule(::typeof(cholesky), A::Diagonal{<:Union{Real,Complex}}, ::Val{false}; check::Bool=true)
+function rrule(::typeof(cholesky), A::Diagonal{<:Number}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
     cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(unthunk(ȳ), C)
     return C, cholesky_pullback
