@@ -384,8 +384,8 @@ end
     @testset "cholesky" begin
         @testset "Number" begin
             @testset "uplo=$uplo" for uplo in (:U, :L)
-                test_rrule(cholesky, 0.8, uplo ⊢ NoTangent())
-                test_rrule(cholesky, 0.23 + 0im, uplo ⊢ NoTangent())
+                test_rrule(cholesky, 0.8, uplo)
+                test_rrule(cholesky, 0.23 + 0im, uplo)
             end
         end
         @testset "Diagonal{<:Real}" begin
