@@ -451,8 +451,16 @@ function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
 end
 
 function _cholesky_Diagonal_pullback(ΔC, C)
-    Ā = Diagonal((2 .* C.factors.diag) .\ real.(diag(ΔC.factors)))
-    return NoTangent(), Ā, NoTangent()
+    Udiag = C.factors.diag
+    ΔUdiag = diag(ΔC.factors)
+    Ādiag = real.(ΔUdiag) ./ (2 .* Udiag)
+    if !issuccess(C)
+        # cholesky computes the factor diagonal from the beginning until it encounters the
+        # first failure. The remainder of the diagonal is then copied from the input.
+        i = findfirst(x -> !isreal(x) || !(real(x) > 0), Udiag)
+        Ādiag[i:end] .= ΔUdiag[i:end]
+    end
+    return NoTangent(), Diagonal(Ādiag), NoTangent()
 end
 function rrule(::typeof(cholesky), A::Diagonal{<:Union{Real,Complex}}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)

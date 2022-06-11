@@ -412,6 +412,10 @@ end
                 @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), Val(false))
                 rrule(cholesky, Diagonal(-rand(5)), Val(false); check=false)
             end
+            @testset "failed factorization" begin
+                A = Diagonal(vcat(rand(4), -rand(4), rand(4)))
+                test_rrule(cholesky, A, Val(false); fkwargs=(; check=false))
+            end
         end
 
         @testset "StridedMatrix" begin
