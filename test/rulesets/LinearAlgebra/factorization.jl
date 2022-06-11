@@ -434,7 +434,7 @@ end
                     _, dX, darg2 = dX_pullback(ΔF)
                     @test darg2 === NoTangent()
                     X̄_ad = real(dot(unthunk(dX), V))
-                    X̄_fd = central_fdm(5, 1)(0.000_001) do ε
+                    X̄_fd = central_fdm(5, 1)(0.000_0001) do ε
                         real(dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p)))
                     end
                     @test X̄_ad ≈ X̄_fd rtol=1e-4
