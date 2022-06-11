@@ -507,7 +507,7 @@ function _cholesky_pullback_shared_code(C, ΔC)
     Ā = similar(C.factors)
     if C.uplo === 'U'
         U = C.U
-        Ū = eltype(U) <: Real ? real(triu(Δfactors)) : triu(Δfactors)
+        Ū = eltype(U) <: Real ? real(_maybeUpperTri(Δfactors)) : _maybeUpperTri(Δfactors)
         mul!(Ā, Ū, U')
         LinearAlgebra.copytri!(Ā, 'U', true)
         eltype(Ā) <: Real || _realifydiag!(Ā)
@@ -515,7 +515,7 @@ function _cholesky_pullback_shared_code(C, ΔC)
         rdiv!(Ā, U')
     else  # C.uplo === 'L'
         L = C.L
-        L̄ = eltype(L) <: Real ? real(tril(Δfactors)) : tril(Δfactors)
+        L̄ = eltype(L) <: Real ? real(_maybeLowerTri(Δfactors)) : _maybeLowerTri(Δfactors)
         mul!(Ā, L', L̄)
         LinearAlgebra.copytri!(Ā, 'L', true)
         eltype(Ā) <: Real || _realifydiag!(Ā)
@@ -530,21 +530,26 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
         C = Tangent{T}
         ∂F = if x === :U
             if F.uplo === 'U'
-                C(factors=UpperTriangular(Ȳ),)
+                C(factors=_maybeUpperTri(Ȳ),)
             else
-                C(factors=LowerTriangular(Ȳ'),)
+                C(factors=_maybeLowerTri(Ȳ'),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                C(factors=LowerTriangular(Ȳ),)
+                C(factors=_maybeLowerTri(Ȳ),)
             else
-                C(factors=UpperTriangular(Ȳ'),)
+                C(factors=_maybeUpperTri(Ȳ'),)
             end
         end
         return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end
+
+_maybeUpperTri(A) = UpperTriangular(A)
+_maybeUpperTri(A::Diagonal) = A
+_maybeLowerTri(A) = LowerTriangular(A)
+_maybeLowerTri(A::Diagonal) = A
 
 # `det` and `logdet` for `Cholesky`
 function rrule(::typeof(det), C::Cholesky)
