@@ -498,19 +498,18 @@ end
 
 function rrule(
     ::typeof(cholesky),
-    A::StridedMatrix{<:LinearAlgebra.BlasReal},
+    A::StridedMatrix{<:Union{Real,Complex}},
     ::Val{false};
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function _cholesky_Strided_pullback(ΔC::Tangent)
-        Ā = _cholesky_pullback_shared_code(C, ΔC)
+    function cholesky_Strided_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NoTangent(), UpperTriangular(Ā), NoTangent())
     end
-    _cholesky_Strided_pullback(Ȳ::AbstractThunk) = _cholesky_Strided_pullback(unthunk(Ȳ))
-    return C, _cholesky_Strided_pullback
+    return C, cholesky_Strided_pullback
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
