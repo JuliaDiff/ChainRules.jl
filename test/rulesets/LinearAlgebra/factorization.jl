@@ -419,9 +419,9 @@ end
                 X = generate_well_conditioned_matrix(T, 10)
                 V = generate_well_conditioned_matrix(T, 10)
                 F, dX_pullback = rrule(cholesky, X, Val(false))
-                @testset "uplo=$p" for p in [:U, :L]
+                @testset "uplo=$p, cotangent eltype=$T" for p in [:U, :L], S in unique([T, complex(T)])
                     Y, dF_pullback = rrule(getproperty, F, p)
-                    Ȳ = randn(T, size(Y))
+                    Ȳ = randn(S, size(Y))
                     (dself, dF, dp) = dF_pullback(Ȳ)
                     @test dself === NoTangent()
                     @test dp === NoTangent()
