@@ -388,13 +388,27 @@ end
                 test_rrule(cholesky, 0.23 + 0im, uplo)
             end
         end
-        @testset "Diagonal{<:Real}" begin
-            D = Diagonal(rand(5) .+ 0.1)
-            C = cholesky(D)
-            test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false);
-                output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
-            )
+        @testset "Diagonal" begin
+            @testset "Diagonal{Real}" begin
+                D = Diagonal(rand(5) .+ 0.1)
+                C = cholesky(D)
+                test_rrule(
+                    cholesky, D ⊢ Diagonal(randn(5)), Val(false);
+                    output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
+                )
+            end
+            @testset "Diagonal{Complex}" begin
+                # finite differences in general will produce matrices with non-real
+                # diagonals, which cause factorization to fail. If we turn of the check and
+                # ensure the cotangent is real, then test_rrule still works.
+                D = Diagonal(complex.(rand(5)) .+ 0.1)
+                C = cholesky(D)
+                test_rrule(
+                    cholesky, D ⊢ Diagonal(randn(ComplexF64, 5)), Val(false);
+                    output_tangent=Tangent{typeof(C)}(factors=Diagonal(complex(randn(5)))),
+                    fkwargs=(; check=false),
+                )
+            end
         end
 
         X = generate_well_conditioned_matrix(10)

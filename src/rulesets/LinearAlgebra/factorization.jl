@@ -467,11 +467,11 @@ function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
 end
 
 function _cholesky_Diagonal_pullback(ΔC::Tangent, C)
-    Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
+    Ā = Diagonal((2 .* C.factors.diag) .\ real.(diag(ΔC.factors)))
     return NoTangent(), Ā, NoTangent()
 end
 _cholesky_Diagonal_pullback(Ȳ::AbstractThunk, C) = _cholesky_Diagonal_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
+function rrule(::typeof(cholesky), A::Diagonal{<:Union{Real,Complex}}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
     cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(ȳ, C)
     return C, cholesky_pullback
