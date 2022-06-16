@@ -394,13 +394,13 @@ end
 
         @testset "Diagonal" begin
             @testset "Diagonal{<:Real}" begin
-                test_rrule(cholesky, Diagonal(rand(5) .+ 0.1), Val(false))
+                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), Val(false))
             end
             @testset "Diagonal{<:Complex}" begin
                 # finite differences in general will produce matrices with non-real
-                # diagonals, which cause factorization to fail. If we turn of the check and
+                # diagonals, which cause factorization to fail. If we turn off the check and
                 # ensure the cotangent is real, then test_rrule still works.
-                D = Diagonal(complex.(rand(5)) .+ 0.1)
+                D = Diagonal(Complex[0.3, 0.2, 0.5, 0.6, 0.9])
                 C = cholesky(D)
                 test_rrule(
                     cholesky, D, Val(false);
@@ -448,7 +448,7 @@ end
                 # this will almost certainly be a non-PD matrix
                 X = Matrix(Symmetric(randn(10, 10)))
                 @test_throws Exception rrule(cholesky, X, Val(false))
-                rrule(cholesky, X, Val(false); check=false)
+                rrule(cholesky, X, Val(false); check=false)  # just check it doesn't throw
             end
         end
 
