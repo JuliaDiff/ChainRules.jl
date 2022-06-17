@@ -18,6 +18,8 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
 const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
 
+const CHOLESKY_NoPivot = VERSION >= v"1.8.0-rc1" ? Union{NoPivot, Val{false}} : Val{false}
+
 function frule(
     (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
 )
@@ -462,8 +464,8 @@ function _cholesky_Diagonal_pullback(ΔC, C)
     end
     return NoTangent(), Diagonal(Ādiag), NoTangent()
 end
-function rrule(::typeof(cholesky), A::Diagonal{<:Number}, ::Val{false}; check::Bool=true)
-    C = cholesky(A, Val(false); check=check)
+function rrule(::typeof(cholesky), A::Diagonal{<:Number}, pivot::CHOLESKY_NoPivot; check::Bool=true)
+    C = cholesky(A, pivot; check=check)
     cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(unthunk(ȳ), C)
     return C, cholesky_pullback
 end
@@ -474,10 +476,10 @@ end
 function rrule(
     ::typeof(cholesky),
     A::LinearAlgebra.RealHermSymComplexHerm{<:Real, <:StridedMatrix},
-    ::Val{false};
+    pivot::CHOLESKY_NoPivot;
     check::Bool=true,
 )
-    C = cholesky(A, Val(false); check=check)
+    C = cholesky(A, pivot; check=check)
     function cholesky_HermOrSym_pullback(ΔC)
         Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         rmul!(Ā, one(eltype(Ā)) / 2)
@@ -489,10 +491,10 @@ end
 function rrule(
     ::typeof(cholesky),
     A::StridedMatrix{<:Union{Real,Complex}},
-    ::Val{false};
+    pivot::CHOLESKY_NoPivot;
     check::Bool=true,
 )
-    C = cholesky(A, Val(false); check=check)
+    C = cholesky(A, pivot; check=check)
     function cholesky_Strided_pullback(ΔC)
         Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         idx = diagind(Ā)
