@@ -382,55 +382,110 @@ end
     # have fantastic support for this stuff at the minute.
     # also we might be missing some overloads for different tangent-types in the rules
     @testset "cholesky" begin
-        @testset "Real" begin
-            test_rrule(cholesky, 0.8)
-        end
-        @testset "Diagonal{<:Real}" begin
-            D = Diagonal(rand(5) .+ 0.1)
-            C = cholesky(D)
-            test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false);
-                output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
-            )
-        end
-
-        X = generate_well_conditioned_matrix(10)
-        V = generate_well_conditioned_matrix(10)
-        F, dX_pullback = rrule(cholesky, X, Val(false))
-        F_1arg, dX_pullback_1arg = rrule(cholesky, X)  # to test not passing the Val(false)
-        @test F == F_1arg
-        @testset "uplo=$p" for p in [:U, :L]
-            Y, dF_pullback = rrule(getproperty, F, p)
-            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-            (dself, dF, dp) = dF_pullback(Ȳ)
-            @test dself === NoTangent()
-            @test dp === NoTangent()
-
-            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-            # machinery from FiniteDifferences because that isn't set up to respect
-            # necessary special properties of the input. In the case of the Cholesky
-            # factorization, we need the input to be Hermitian.
-            ΔF = unthunk(dF)
-            _, dX, darg2 = dX_pullback(ΔF)
-            _, dX_1arg = dX_pullback_1arg(ΔF)
-            @test dX == dX_1arg
-            @test darg2 === NoTangent()
-            X̄_ad = dot(unthunk(dX), V)
-            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+        @testset "Number" begin
+            @testset "uplo=$uplo" for uplo in (:U, :L)
+                test_rrule(cholesky, 0.8, uplo)
+                test_rrule(cholesky, -0.3, uplo)
+                test_rrule(cholesky, 0.23 + 0im, uplo)
+                test_rrule(cholesky, 0.78 + 0.5im, uplo)
+                test_rrule(cholesky, -0.34 + 0.1im, uplo)
             end
-            @test X̄_ad ≈ X̄_fd rtol=1e-4
+        end
+
+        @testset "Diagonal" begin
+            @testset "Diagonal{<:Real}" begin
+                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), Val(false))
+            end
+            @testset "Diagonal{<:Complex}" begin
+                # finite differences in general will produce matrices with non-real
+                # diagonals, which cause factorization to fail. If we turn off the check and
+                # ensure the cotangent is real, then test_rrule still works.
+                D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
+                C = cholesky(D)
+                test_rrule(
+                    cholesky, D, Val(false);
+                    output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
+                    fkwargs=(; check=false),
+                )
+            end
+            @testset "check has correct default and passed to primal" begin
+                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), Val(false))
+                rrule(cholesky, Diagonal(-rand(5)), Val(false); check=false)
+            end
+            @testset "failed factorization" begin
+                A = Diagonal(vcat(rand(4), -rand(4), rand(4)))
+                test_rrule(cholesky, A, Val(false); fkwargs=(; check=false))
+            end
+        end
+
+        @testset "StridedMatrix" begin
+            @testset "Matrix{$T}" for T in (Float64, ComplexF64)
+                X = generate_well_conditioned_matrix(T, 10)
+                V = generate_well_conditioned_matrix(T, 10)
+                F, dX_pullback = rrule(cholesky, X, Val(false))
+                @testset "uplo=$p, cotangent eltype=$T" for p in [:U, :L], S in unique([T, complex(T)])
+                    Y, dF_pullback = rrule(getproperty, F, p)
+                    Ȳ = randn(S, size(Y))
+                    (dself, dF, dp) = dF_pullback(Ȳ)
+                    @test dself === NoTangent()
+                    @test dp === NoTangent()
+
+                    # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
+                    # machinery from FiniteDifferences because that isn't set up to respect
+                    # necessary special properties of the input. In the case of the Cholesky
+                    # factorization, we need the input to be Hermitian.
+                    ΔF = unthunk(dF)
+                    _, dX, darg2 = dX_pullback(ΔF)
+                    @test darg2 === NoTangent()
+                    X̄_ad = real(dot(unthunk(dX), V))
+                    X̄_fd = central_fdm(5, 1)(0.000_0001) do ε
+                        real(dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p)))
+                    end
+                    @test X̄_ad ≈ X̄_fd rtol=1e-4
+                end
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Matrix(Symmetric(randn(10, 10)))
+                @test_throws Exception rrule(cholesky, X, Val(false))
+                rrule(cholesky, X, Val(false); check=false)  # just check it doesn't throw
+            end
         end
 
         # Ensure that cotangents of cholesky(::StridedMatrix) and
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
+            X = generate_well_conditioned_matrix(10)
+            F, dX_pullback = rrule(cholesky, X, Val(false))
+
             X_symmetric, sym_back = rrule(Symmetric, X, :U)
             C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
+            Δ = Tangent{typeof(C)}((factors=randn(size(X))))
             ΔX_symmetric = chol_back_sym(Δ)[2]
             @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+        end
+
+        # Ensure that cotangents of cholesky(::StridedMatrix) and
+        # (cholesky ∘ Hermitian)(::StridedMatrix) are equal.
+        @testset "Hermitian" begin
+            @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
+                X = generate_well_conditioned_matrix(T, 10)
+                F, dX_pullback = rrule(cholesky, X, Val(false))
+
+                X_hermitian, herm_back = rrule(Hermitian, X, :U)
+                C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
+
+                Δ = Tangent{typeof(C)}((factors=randn(T, size(X))))
+                ΔX_hermitian = chol_back_herm(Δ)[2]
+                @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(Δ)[2]
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Hermitian(randn(10, 10))
+                @test_throws Exception rrule(cholesky, X, Val(false))
+                rrule(cholesky, X, Val(false); check=false)
+            end
         end
 
         @testset "det and logdet (uplo=$p)" for p in (:U, :L)

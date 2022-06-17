@@ -441,46 +441,30 @@ end
 ##### `cholesky`
 #####
 
-# these functions are defined outside the rrule because otherwise type inference breaks
-# see https://github.com/JuliaLang/julia/issues/40990
-_cholesky_real_pullback(ΔC::Tangent, full_pb) = return full_pb(ΔC)[1:2]
-function _cholesky_real_pullback(Ȳ::AbstractThunk, full_pb)
-    return _cholesky_real_pullback(unthunk(Ȳ), full_pb)
-end
-function rrule(::typeof(cholesky),
-    A::Union{
-        Real,
-        Diagonal{<:Real},
-        LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal,<:StridedMatrix},
-        StridedMatrix{<:LinearAlgebra.BlasReal}
-    }
-    # Handle not passing in the uplo
-)
-    arg2 = A isa Real ? :U : Val(false)
-    C, full_pb = rrule(cholesky, A, arg2)
-
-    cholesky_pullback(ȳ) = return _cholesky_real_pullback(ȳ, full_pb)
+function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
+    C = cholesky(x, uplo)
+    function cholesky_pullback(ΔC)
+        Ā = real(only(unthunk(ΔC).factors)) / (2 * sign(real(x)) * only(C.factors))
+        return NoTangent(), Ā, NoTangent()
+    end
     return C, cholesky_pullback
 end
 
-function _cholesky_realuplo_pullback(ΔC::Tangent, C)
-    return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
+function _cholesky_Diagonal_pullback(ΔC, C)
+    Udiag = C.factors.diag
+    ΔUdiag = diag(ΔC.factors)
+    Ādiag = real.(ΔUdiag) ./ (2 .* Udiag)
+    if !issuccess(C)
+        # cholesky computes the factor diagonal from the beginning until it encounters the
+        # first failure. The remainder of the diagonal is then copied from the input.
+        i = findfirst(x -> !isreal(x) || !(real(x) > 0), Udiag)
+        Ādiag[i:end] .= ΔUdiag[i:end]
+    end
+    return NoTangent(), Diagonal(Ādiag), NoTangent()
 end
-_cholesky_realuplo_pullback(Ȳ::AbstractThunk, C) = _cholesky_realuplo_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
-    C = cholesky(A, uplo)
-    cholesky_pullback(ȳ) = _cholesky_realuplo_pullback(ȳ, C)
-    return C, cholesky_pullback
-end
-
-function _cholesky_Diagonal_pullback(ΔC::Tangent, C)
-    Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
-    return NoTangent(), Ā, NoTangent()
-end
-_cholesky_Diagonal_pullback(Ȳ::AbstractThunk, C) = _cholesky_Diagonal_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
+function rrule(::typeof(cholesky), A::Diagonal{<:Number}, ::Val{false}; check::Bool=true)
     C = cholesky(A, Val(false); check=check)
-    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(ȳ, C)
+    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(unthunk(ȳ), C)
     return C, cholesky_pullback
 end
 
@@ -489,46 +473,56 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
+    A::LinearAlgebra.RealHermSymComplexHerm{<:Real, <:StridedMatrix},
     ::Val{false};
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function _cholesky_HermOrSym_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
+    function cholesky_HermOrSym_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
+        rmul!(Ā, one(eltype(Ā)) / 2)
         return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
-    _cholesky_HermOrSym_pullback(Ȳ::AbstractThunk) = _cholesky_HermOrSym_pullback(unthunk(Ȳ))
-    return C, _cholesky_HermOrSym_pullback
+    return C, cholesky_HermOrSym_pullback
 end
 
 function rrule(
     ::typeof(cholesky),
-    A::StridedMatrix{<:LinearAlgebra.BlasReal},
+    A::StridedMatrix{<:Union{Real,Complex}},
     ::Val{false};
     check::Bool=true,
 )
     C = cholesky(A, Val(false); check=check)
-    function _cholesky_Strided_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
+    function cholesky_Strided_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NoTangent(), UpperTriangular(Ā), NoTangent())
     end
-    _cholesky_Strided_pullback(Ȳ::AbstractThunk) = _cholesky_Strided_pullback(unthunk(Ȳ))
-    return C, _cholesky_Strided_pullback
+    return C, cholesky_Strided_pullback
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
-    U = C.U
-    Ū = ΔC.U
-    Ā = similar(U.data)
-    Ā = mul!(Ā, Ū, U')
-    Ā = LinearAlgebra.copytri!(Ā, 'U', true)
-    Ā = ldiv!(U, Ā)
-    return Ā, U
+    Δfactors = ΔC.factors
+    Ā = similar(C.factors)
+    if C.uplo === 'U'
+        U = C.U
+        Ū = eltype(U) <: Real ? real(_maybeUpperTri(Δfactors)) : _maybeUpperTri(Δfactors)
+        mul!(Ā, Ū, U')
+        LinearAlgebra.copytri!(Ā, 'U', true)
+        eltype(Ā) <: Real || _realifydiag!(Ā)
+        ldiv!(U, Ā)
+        rdiv!(Ā, U')
+    else  # C.uplo === 'L'
+        L = C.L
+        L̄ = eltype(L) <: Real ? real(_maybeLowerTri(Δfactors)) : _maybeLowerTri(Δfactors)
+        mul!(Ā, L', L̄)
+        LinearAlgebra.copytri!(Ā, 'L', true)
+        eltype(Ā) <: Real || _realifydiag!(Ā)
+        rdiv!(Ā, L)
+        ldiv!(L', Ā)
+    end
+    return Ā
 end
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
@@ -536,21 +530,26 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
         C = Tangent{T}
         ∂F = if x === :U
             if F.uplo === 'U'
-                C(U=UpperTriangular(Ȳ),)
+                C(factors=_maybeUpperTri(Ȳ),)
             else
-                C(L=LowerTriangular(Ȳ'),)
+                C(factors=_maybeLowerTri(Ȳ'),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                C(L=LowerTriangular(Ȳ),)
+                C(factors=_maybeLowerTri(Ȳ),)
             else
-                C(U=UpperTriangular(Ȳ'),)
+                C(factors=_maybeUpperTri(Ȳ'),)
             end
         end
         return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
 end
+
+_maybeUpperTri(A) = UpperTriangular(A)
+_maybeUpperTri(A::Diagonal) = A
+_maybeLowerTri(A) = LowerTriangular(A)
+_maybeLowerTri(A::Diagonal) = A
 
 # `det` and `logdet` for `Cholesky`
 function rrule(::typeof(det), C::Cholesky)
