@@ -400,7 +400,7 @@ end
                 # finite differences in general will produce matrices with non-real
                 # diagonals, which cause factorization to fail. If we turn off the check and
                 # ensure the cotangent is real, then test_rrule still works.
-                D = Diagonal(Complex[0.3, 0.2, 0.5, 0.6, 0.9])
+                D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
                 C = cholesky(D)
                 test_rrule(
                     cholesky, D, Val(false);
