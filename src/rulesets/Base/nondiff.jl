@@ -114,7 +114,6 @@
 @non_differentiable CartesianIndices(::Any)
 @non_differentiable Channel(::Any...)
 @non_differentiable cd(::AbstractString)
-@non_differentiable ceil(::Any...)
 @non_differentiable chomp(::AbstractString)
 @non_differentiable chop(::AbstractString)
 @non_differentiable cld(::Any, ::Any)
@@ -188,7 +187,6 @@
 @non_differentiable fld(::Any, ::Any, ::RoundingMode)
 @non_differentiable floatmax(::Any)
 @non_differentiable floatmin(::Any)
-@non_differentiable floor(::Any...)
 @non_differentiable flush(::Any)
 
 @non_differentiable gensym(::Symbol)
@@ -383,7 +381,6 @@ end
 @non_differentiable reset(::IO)
 @non_differentiable reverse(::AbstractString)
 @non_differentiable rm(::AbstractString)
-@non_differentiable round(::Any...)
 @non_differentiable rsplit(::AbstractString)
 @non_differentiable rsplit(::AbstractString, ::AbstractChar)
 @non_differentiable rstrip(::AbstractString)
