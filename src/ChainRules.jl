@@ -3,6 +3,7 @@ module ChainRules
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
 using Compat
+using Distributed
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -33,6 +34,8 @@ include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
 include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
+
+include("rulesets/Distributed/nondiff.jl")
 
 include("rulesets/Statistics/statistics.jl")
 

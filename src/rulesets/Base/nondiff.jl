@@ -93,6 +93,8 @@
 ##### Exported functions, alphabetically
 #####
 
+@non_differentiable (:)(::Any...) # same as the Colon() singleton instance
+
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
 @non_differentiable all(::Any, ::Any)
@@ -110,6 +112,7 @@
 @non_differentiable bytesavailable(::Any)
 
 @non_differentiable CartesianIndices(::Any)
+@non_differentiable Channel(::Any...)
 @non_differentiable cd(::AbstractString)
 @non_differentiable ceil(::Any...)
 @non_differentiable chomp(::AbstractString)
@@ -470,6 +473,7 @@ elseif isdefined(Base, :cumulative_compile_time_ns)
     @non_differentiable Base.cumulative_compile_time_ns()
 end
 @non_differentiable Base.time_print(::Any...)
+@non_differentiable Base.OneTo(::Any...)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)
