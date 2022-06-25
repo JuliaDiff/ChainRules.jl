@@ -195,9 +195,12 @@ function frule((_, ydot, xdot), ::typeof(cumsum!), y::AbstractArray, x::Abstract
 end
 frule(t, ::typeof(cumsum!), y::AbstractVector, x::AbstractVector) = frule(t, cumsum!, y, x; dims=1)
 
-function rrule(::typeof(cumsum), x::AbstractArray; dims::Integer)
+function rrule(::typeof(cumsum), x::AbstractArray{T,N}; dims::Integer) where {T,N}
     project = ProjectTo(x)
     function cumsum_pullback(dy)
+        if dims > N  # trivial case, for which reverse fails
+            return (NoTangent(), project(unthunk(dy)))
+        end
         step1 = reverse(unthunk(dy); dims=dims)
         if ChainRulesCore.is_inplaceable_destination(step1) && VERSION >= v"1.6"
             step2 = cumsum!(step1, step1; dims=dims)
