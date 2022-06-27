@@ -277,6 +277,7 @@ end
         test_rrule(cumsum, v)
         test_rrule(cumsum, v; fkwargs=(;dims=1))
         test_rrule(cumsum, m; fkwargs=(;dims=2))
+        test_rrule(cumsum, m; fkwargs=(;dims=3))  # trivial
     end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)
