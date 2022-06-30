@@ -93,6 +93,7 @@ function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
     end
     return ProjectTo(x)(dx)
 end
+∇eachslice(dys::AbstractZero, x::AbstractArray, vd::Val{dim}) where {dim} = dys
 
 _zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
 _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
