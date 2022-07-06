@@ -39,6 +39,7 @@ include("rulesets/Distributed/nondiff.jl")
 
 include("rulesets/Statistics/statistics.jl")
 
+include("rulesets/LinearAlgebra/nondiff.jl")
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/lapack.jl")
