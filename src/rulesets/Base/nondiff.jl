@@ -93,6 +93,8 @@
 ##### Exported functions, alphabetically
 #####
 
+@non_differentiable (:)(::Any...) # same as the Colon() singleton instance
+
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
 @non_differentiable all(::Any, ::Any)
@@ -110,8 +112,8 @@
 @non_differentiable bytesavailable(::Any)
 
 @non_differentiable CartesianIndices(::Any)
+@non_differentiable Channel(::Any...)
 @non_differentiable cd(::AbstractString)
-@non_differentiable ceil(::Any...)
 @non_differentiable chomp(::AbstractString)
 @non_differentiable chop(::AbstractString)
 @non_differentiable cld(::Any, ::Any)
@@ -185,7 +187,6 @@
 @non_differentiable fld(::Any, ::Any, ::RoundingMode)
 @non_differentiable floatmax(::Any)
 @non_differentiable floatmin(::Any)
-@non_differentiable floor(::Any...)
 @non_differentiable flush(::Any)
 
 @non_differentiable gensym(::Symbol)
@@ -380,7 +381,6 @@ end
 @non_differentiable reset(::IO)
 @non_differentiable reverse(::AbstractString)
 @non_differentiable rm(::AbstractString)
-@non_differentiable round(::Any...)
 @non_differentiable rsplit(::AbstractString)
 @non_differentiable rsplit(::AbstractString, ::AbstractChar)
 @non_differentiable rstrip(::AbstractString)
@@ -470,6 +470,7 @@ elseif isdefined(Base, :cumulative_compile_time_ns)
     @non_differentiable Base.cumulative_compile_time_ns()
 end
 @non_differentiable Base.time_print(::Any...)
+@non_differentiable Base.OneTo(::Any...)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)
