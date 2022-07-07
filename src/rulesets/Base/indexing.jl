@@ -100,11 +100,7 @@ function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
 end
 
 function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
-    function tail_pullback(dy_raw)
-        dy = unthunk(dy_raw)
-        dx = ntuple(j -> j == 1 ? NoTangent() : dy[j-1], _tuple_N(T))
-        return (NoTangent(), Tangent{T}(dx...))
-    end
+    tail_pullback(dy) = (NoTangent(), Tangent{T}(NoTangent(), dy...))
     return Base.tail(x), tail_pullback
 end
 
