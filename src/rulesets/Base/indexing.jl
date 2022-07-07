@@ -43,6 +43,12 @@ function rrule(::typeof(getindex), x::Tuple, inds)  # e.g. ranges, not type-stab
     return x[inds], getindex_back_3
 end
 
+function rrule(::typeof(getindex), x::Tuple, ::Colon)
+    getindex_back_4(dy) = (NoTangent(), dy, NoTangent())
+    return x, getindex_back_4
+end
+
+
 #####
 ##### getindex
 #####
