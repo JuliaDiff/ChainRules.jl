@@ -14,6 +14,17 @@ function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray
     return sum!(y, x), sum!(ẏ, ẋ)
 end
 
+function rrule(::typeof(sum), x::Tuple)
+    project = ProjectTo(x)
+    len = Val(length(x))
+    function sum_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = dy isa AbstractZero ? dy : ntuple(Returns(dy), len)
+        return (NoTangent(), project(dx))
+    end
+    return sum(x), sum_pullback
+end
+
 function rrule(::typeof(sum), x::AbstractArray; dims=:)
     project = ProjectTo(x)
     y = sum(x; dims=dims)
