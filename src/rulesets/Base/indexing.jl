@@ -82,6 +82,33 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
 end
 
 #####
+##### first, tail
+#####
+
+function frule((_, ẋ), ::typeof(first), x::Tuple)
+    return first(x), first(ẋ)
+end
+
+function rrule(::typeof(first), x::T) where {T<:Tuple}
+    first_back(dy) = (NoTangent(), Tangent{T}(ntuple(j -> j == 1 ? dy : NoTangent(), _tuple_N(T))...))
+    return first(x), first_back
+end
+
+function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
+    y = Base.tail(x)
+    return y, Tangent{typeof(y)}(Base.tail(Tuple(ẋ))...)
+end
+
+function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
+    function tail_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = ntuple(j -> j == 1 ? NoTangent() : dy[j-1], _tuple_N(T))
+        return (NoTangent(), Tangent{T}(dx...))
+    end
+    return Base.tail(x), tail_pullback
+end
+
+#####
 ##### view
 #####
 
