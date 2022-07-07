@@ -217,8 +217,10 @@
         @test rrule(NoRules, 1.0) === nothing
     end
     
-    @testset "map" begin
-        test_rrule(map, identity, (1, 2), check_inferred=false)
-        test_rrule(map, +, (1, 2), (3, 4), check_inferred=false)
+    @testset "map(f, ::Tuple...)" begin
+        test_rrule(map, identity, (1.0, 2.0), check_inferred=false)
+        test_rrule(map, +, (1.0, 2.0), (3.0, 4.0), check_inferred=false)
+        test_rrule(map, make_two_vec, (4.0, 5.0 + 6im), check_inferred=false)
+        test_rrule(map, Multiplier(rand() + im), Tuple(rand(3)), check_inferred=false)
     end
 end
