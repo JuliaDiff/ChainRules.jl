@@ -218,20 +218,22 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     end
     y = map(first, hobbits)
     num_xs = Val(length(xs))
-    paddings = map(x -> ntuple(i -> NoTangent(), (length(x) - length_y)), xs)
+    paddings = map(x -> ntuple(Returns(NoTangent()), (length(x) - length_y)), xs)
     function map_back(dy)
         # We want to call the pullbacks in `rrule_via_ad` in reverse sequence to the forward pass:
         backevals = ntuple(length_y) do i
             rev_i = length_y - i + 1
             last(hobbits[rev_i])(dy[rev_i])
         end |> reverse
-        # Now unzip that. Because `map` like `zip` stops when any `x` stops, some `dx`s may need padding.
-        df = sum(first, backevals)
+        # Now unzip that. Because `map` like `zip` should when any `x` stops, some `dx`s may need padding.
+        # Although in fact, `map(+, (1,2), (3,4,5))` is an error... https://github.com/JuliaLang/julia/issues/42216
+        df = ProjectTo(f)(sum(first, backevals))
         dxs = ntuple(num_xs) do k
             dx_short = map(bv -> bv[k+1], backevals)
-            (dx_short..., paddings[k]...)
+            ProjectTo(xs[k])((dx_short..., paddings[k]...))  # ProjectTo makes the Tangent for us
         end
         return (NoTangent(), df, dxs...)
     end
+    map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
     return y, map_back
 end

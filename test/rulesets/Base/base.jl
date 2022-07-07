@@ -216,4 +216,9 @@
         @test frule(NoRules, 1.0) === nothing
         @test rrule(NoRules, 1.0) === nothing
     end
+    
+    @testset "map" begin
+        test_rrule(map, identity, (1, 2), check_inferred=false)
+        test_rrule(map, +, (1, 2), (3, 4), check_inferred=false)
+    end
 end
