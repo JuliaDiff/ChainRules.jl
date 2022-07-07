@@ -1,4 +1,20 @@
 @testset "getindex" begin
+    @testset "getindex(::Tuple, ...)" begin
+        x = (1.2, 3.4, 5.6)
+        x2 = (rand(2), (a=1.0, b=x))
+        
+        test_frule(getindex, x, 2)
+        test_frule(getindex, x2, 1)
+        # test_frule(getindex, x, 1:2)
+        # Expression: ActualPrimal === ExpectedPrimal
+        #  Evaluated: Tuple{Float64, Float64, Float64} === Tuple{Float64, Float64}
+        
+        test_rrule(getindex, x, 2)
+        test_rrule(getindex, x2, 1, check_inferred=false)
+        test_rrule(getindex, x, 2:3; check_inferred=false)
+        test_rrule(getindex, x2, 1:2, check_inferred=false)
+    end
+    
     @testset "getindex(::Matrix{<:Number}, ...)" begin
         x = [1.0 2.0 3.0; 10.0 20.0 30.0]
         

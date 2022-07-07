@@ -1,4 +1,48 @@
 #####
+##### getindex(::Tuple)
+#####
+
+function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
+    return x[i], ẋ[i]
+end
+
+function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
+    @show i x[i]
+    return x[i], Tangent{typeof(x)}(ẋ[i]...)
+end
+
+function rrule(::typeof(getindex), x::Tuple, i::Integer)
+    proj = ProjectTo(x)
+    len = Val(length(x))
+    getindex_back_1(dy) = (NoTangent(), proj(ntuple(j -> j == i ? dy : NoTangent(), len)), NoTangent())
+    return x[i], getindex_back_1
+end
+
+function rrule(::typeof(getindex), x::NTuple{N,T}, i::Integer) where {N, T<:Number}
+    proj = ProjectTo(x)
+    len = Val(N)
+    function getindex_back_2(dy_raw)
+        dy = unthunk(dy_raw)
+        return (NoTangent(), proj(ntuple(j -> j == i ? dy : zero(dy), len)), NoTangent())
+    end
+    return x[i], getindex_back_2
+end
+
+function rrule(::typeof(getindex), x::Tuple, inds)  # e.g. ranges, not type-stable
+    proj = ProjectTo(x)
+    len = Val(length(x))
+    function getindex_back_3(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = ntuple(Returns(NoTangent()), len)
+        for (dyi, i) in zip(dy, inds)
+            dx = Base.setindex(dx, dyi, i)
+        end
+        (NoTangent(), proj(dx), NoTangent())
+    end
+    return x[inds], getindex_back_3
+end
+
+#####
 ##### getindex
 #####
 
