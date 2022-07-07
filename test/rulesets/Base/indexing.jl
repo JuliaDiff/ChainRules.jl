@@ -11,7 +11,9 @@
         
         test_rrule(getindex, x, 2)
         test_rrule(getindex, x2, 1, check_inferred=false)
+        
         test_rrule(getindex, x, 2:3; check_inferred=false)
+        test_rrule(getindex, x, [1,1,2], check_inferred=false)
         test_rrule(getindex, x2, 1:2, check_inferred=false)
     end
     

@@ -23,7 +23,8 @@ function rrule(::typeof(getindex), x::NTuple{N,T}, i::Integer) where {N, T<:Numb
     len = Val(N)
     function getindex_back_2(dy_raw)
         dy = unthunk(dy_raw)
-        return (NoTangent(), proj(ntuple(j -> j == i ? dy : zero(dy), len)), NoTangent())
+        dx = ntuple(j -> j == i ? dy : zero(dy), len)
+        return (NoTangent(), proj(dx), NoTangent())
     end
     return x[i], getindex_back_2
 end
@@ -35,9 +36,9 @@ function rrule(::typeof(getindex), x::Tuple, inds)  # e.g. ranges, not type-stab
         dy = unthunk(dy_raw)
         dx = ntuple(Returns(NoTangent()), len)
         for (dyi, i) in zip(dy, inds)
-            dx = Base.setindex(dx, dyi, i)
+            dx = Base.setindex(dx, dyi + dx[i], i)
         end
-        (NoTangent(), proj(dx), NoTangent())
+        return (NoTangent(), proj(dx), NoTangent())
     end
     return x[inds], getindex_back_3
 end
