@@ -7,38 +7,37 @@ function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
 end
 
 function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
-    @show i x[i]
-    return x[i], Tangent{typeof(x)}(ẋ[i]...)
+    y = x[i]
+    return y, Tangent{typeof(y)}(ẋ[i]...)
 end
 
-function rrule(::typeof(getindex), x::Tuple, i::Integer)
-    proj = ProjectTo(x)
-    len = Val(length(x))
-    getindex_back_1(dy) = (NoTangent(), proj(ntuple(j -> j == i ? dy : NoTangent(), len)), NoTangent())
+_tuple_N(::Type{<:Tuple{Vararg{<:Any, N}}}) where {N} = Val(N)
+
+function rrule(::typeof(getindex), x::T, i::Integer) where {T<:Tuple}
+    function getindex_back_1(dy)
+        dx = ntuple(j -> j == i ? dy : NoTangent(), _tuple_N(T))
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
+    end
     return x[i], getindex_back_1
 end
 
-function rrule(::typeof(getindex), x::NTuple{N,T}, i::Integer) where {N, T<:Number}
-    proj = ProjectTo(x)
-    len = Val(N)
+function rrule(::typeof(getindex), x::T, i::Integer) where {T<:NTuple{<:Any,<:Number}}
     function getindex_back_2(dy_raw)
         dy = unthunk(dy_raw)
-        dx = ntuple(j -> j == i ? dy : zero(dy), len)
-        return (NoTangent(), proj(dx), NoTangent())
+        dx = ntuple(j -> j == i ? dy : zero(dy), _tuple_N(T))
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
     end
     return x[i], getindex_back_2
 end
 
-function rrule(::typeof(getindex), x::Tuple, inds)  # e.g. ranges, not type-stable
-    proj = ProjectTo(x)
-    len = Val(length(x))
+function rrule(::typeof(getindex), x::T, inds) where {T<:Tuple}  # e.g. ranges, not type-stable
     function getindex_back_3(dy_raw)
         dy = unthunk(dy_raw)
-        dx = ntuple(Returns(NoTangent()), len)
+        dx = ntuple(Returns(NoTangent()), _tuple_N(T))
         for (dyi, i) in zip(dy, inds)
             dx = Base.setindex(dx, dyi + dx[i], i)
         end
-        return (NoTangent(), proj(dx), NoTangent())
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
     end
     return x[inds], getindex_back_3
 end
