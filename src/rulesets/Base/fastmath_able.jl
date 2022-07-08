@@ -167,6 +167,16 @@ let
         @scalar_rule x + y (true, true)
         @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
+        
+        ## many-arg +
+        function frule((_, Δx, Δy...), ::typeof(+), x::Number, ys::Number...)
+            +(x, ys...), +(Δx, Δy...)
+        end
+        
+        function rrule(::typeof(+), x::Number, ys::Number...)
+            plus_back(dz) = (NoTangent(), dz, map(Returns(dz), ys)...)
+            +(x, ys...), plus_back
+        end        
 
         ## power
         # literal_pow is in base.jl
@@ -276,6 +286,10 @@ let
             return Ω4, times_pullback4
         end
         rrule(::typeof(*), x::Number) = rrule(identity, x)
+        
+        # This is used to choose a faster path in some broadcasting operations:
+        ChainRulesCore.derivatives_given_output(Ω, ::typeof(*), x::Number, y::Number) = tuple((y', x'))
+        ChainRulesCore.derivatives_given_output(Ω, ::typeof(*), x::Number, y::Number, z::Number) = tuple((y'z', x'z', x'y'))
     end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
@@ -288,12 +302,12 @@ let
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
-        error(
-            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
-            join(non_transformed_definitions, "\n")
-        )
+        # error(
+        #     "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
+        #     join(non_transformed_definitions, "\n")
+        # )
         # This error() may not play well with Revise. But a wanring @error does:
-        # @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
+        @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
     eval(fast_ast)

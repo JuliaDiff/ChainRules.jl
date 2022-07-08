@@ -44,6 +44,7 @@ end
 
 @testset "ChainRules" begin  # One overall @testset ensures it keeps going after failures
     include("test_helpers.jl")
+    include("tuplecast.jl")
     println()
 
     test_method_tables()  # Check the global method tables are consistent
@@ -57,6 +58,7 @@ end
     include_test("rulesets/Base/indexing.jl")
     include_test("rulesets/Base/mapreduce.jl")
     include_test("rulesets/Base/sort.jl")
+    include_test("rulesets/Base/broadcast.jl")
 
     println()
 
