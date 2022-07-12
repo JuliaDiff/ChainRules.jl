@@ -98,6 +98,7 @@ function _gpu_test(::typeof(frule), f::Function, g::Function, xs...; kw...)  # s
     _gpu_test(frule, xdots, f, g, xs...; kw...)
 end
 
+const CFG = ChainRulesTestUtils.TestConfig()
 
 """
     Multiplier(x)
@@ -181,8 +182,8 @@ fstar(A, B) = A * B
 ChainRulesCore.frule((_, ΔA, ΔB), ::typeof(fstar), A, B) = A * B, muladd(ΔA, B, A * ΔB)
 
 "A version of `log` with only an `frule` defined"
-flog(x:::Number) = log(x)
-ChainRulesCore.frule((_, xdot), ::typeof(flog), x::Number) = log(x), inv(x) * xdot
+flog(x::Number) = log(x)
+ChainRulesCore.frule((_, Δx), ::typeof(flog), x::Number) = log(x), inv(x) * Δx
 
 @testset "test_helpers.jl" begin
 

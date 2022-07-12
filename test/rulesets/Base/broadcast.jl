@@ -60,7 +60,7 @@ using Base.Broadcast: broadcasted
         test_rrule(copy∘broadcasted, /, (rand(2),), rand(3), check_inferred=false)
     end
 
-    @testset "lazy rules" begin
+    @testset "fused rules" begin
         @testset "arithmetic" begin
             test_rrule(copy∘broadcasted, +, rand(3), rand(3))
             test_rrule(copy∘broadcasted, +, rand(3), rand(4)')
@@ -88,8 +88,9 @@ using Base.Broadcast: broadcasted
             @test y4 == [im, 2im, 3im]
             @test unthunk(bk4([4, 5im, 6+7im])[4]) == [0,5,7]
 
-            test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3))
-            test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)')
+            test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3), check_inferred=false)  # Union{NoTangent, ZeroTangent}
+            test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)', check_inferred=false)  # Union{NoTangent, ZeroTangent}
+            # (These two may infer with vararg rrule)
     
             test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
             test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
@@ -134,6 +135,7 @@ using Base.Broadcast: broadcasted
             test_rrule(copy∘broadcasted, -, rand(), rand())
             test_rrule(copy∘broadcasted, -, rand())
             test_rrule(copy∘broadcasted, *, rand(), rand())
+            test_rrule(copy∘broadcasted, *, rand(), rand(), rand(), rand())
             test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(), Val(2))
             test_rrule(copy∘broadcasted, /, rand(), rand())
         end

@@ -3,7 +3,7 @@
     tuplecast(f, args...)
 
 For a function `f` which returns a tuple, this is `== unzip(broadcast(f, args...))`,
-but performed using `StructArrays` for efficiency.
+but performed using `StructArrays` for efficiency. Used in the gradient of broadcasting.
 
 # Examples
 ```
@@ -52,7 +52,8 @@ function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplec
     return z, untuplecast
 end
 
-function rrule(cfg::RCR, ::typeof(collect∘tuplecast), f, args...)  # for testing, but doesn't work?
+# This is for testing, but the tests using it don't work.
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(collect∘tuplecast), f, args...)
     y, back = rrule(cfg, tuplecast, f, args...)
     return collect(y), back
 end
@@ -62,6 +63,8 @@ end
 
 For a function `f` which returns a tuple, this is `== unzip(map(f, args...))`,
 but performed using `StructArrays` for efficiency.
+
+Not in use at present, but see `tuplecast`.
 """
 function tuplemap(f::F, args...) where {F}
     T = Broadcast.combine_eltypes(f, args)
