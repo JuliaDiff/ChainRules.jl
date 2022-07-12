@@ -1,7 +1,7 @@
 using Base.Broadcast: broadcasted
 
 @testset "Broadcasting" begin
-    @testset "generic 1: trivial path" begin
+    @testset "split 1: trivial path" begin
         # test_rrule(copy∘broadcasted, >, rand(3), rand(3))  # MethodError: no method matching eps(::UInt64) inside FiniteDifferences
         y1, bk1 = rrule(CFG, copy∘broadcasted, >, rand(3), rand(3))
         @test y1 isa AbstractArray{Bool}
@@ -12,7 +12,7 @@ using Base.Broadcast: broadcasted
         @test all(d -> d isa AbstractZero, bk2(99))
     end
 
-    @testset "generic 2: fast path" begin
+    @testset "split 2: derivatives" begin
         test_rrule(copy∘broadcasted, log, rand(3))
         test_rrule(copy∘broadcasted, log, Tuple(rand(3)))
 
@@ -23,16 +23,22 @@ using Base.Broadcast: broadcasted
         test_rrule(copy∘broadcasted, atan, rand(3), Tuple(rand(1)))
         test_rrule(copy∘broadcasted, atan, Tuple(rand(3)), Tuple(rand(3)))
         
-        # Protected by Ref/Tuple:
         test_rrule(copy∘broadcasted, *, rand(3), Ref(rand()))
-        test_rrule(copy∘broadcasted, *, rand(3), Ref(rand(2)))
+    end
+    
+    @testset "split 3: forwards" begin
+        test_rrule(copy∘broadcasted, flog, rand(3))
+        test_rrule(copy∘broadcasted, flog, rand(3) .+ im)
+        # Also, `sin∘cos` may use this path as CFG uses frule_via_ad
     end
 
-    @testset "generic 3: slow path" begin
+    @testset "split 4: generic" begin
         test_rrule(copy∘broadcasted, sin∘cos, rand(3), check_inferred=false)
         test_rrule(copy∘broadcasted, sin∘atan, rand(3), rand(3)', check_inferred=false)
         test_rrule(copy∘broadcasted, sin∘atan, rand(), rand(3), check_inferred=false)
-        test_rrule(copy∘broadcasted, ^, rand(3), 3.0, check_inferred=false)
+        test_rrule(copy∘broadcasted, ^, rand(3), 3.0, check_inferred=false)  # NoTangent vs. Union{NoTangent, ZeroTangent}
+        # Many have quite small inference failures, like:
+        # return type Tuple{NoTangent, NoTangent, Vector{Float64}, Float64} does not match inferred return type Tuple{NoTangent, Union{NoTangent, ZeroTangent}, Vector{Float64}, Float64}
 
         # From test_helpers.jl
         test_rrule(copy∘broadcasted, Multiplier(rand()), rand(3), check_inferred=false)

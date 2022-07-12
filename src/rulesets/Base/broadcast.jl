@@ -18,56 +18,121 @@ _print(args...) = nothing # println(join(args, " ")) #
 ##### Split broadcasting
 #####
 
+# For `z = g.(f.(xs))`, this finds `y = f.(x)` eagerly because the rules for either `f` or `g` may need it,
+# and we don't know whether re-computing `y` is cheap. 
+# (We could check `f` first like `sum(f, x)` does, but checking whether `g` needs `y` is tricky.)
+
 function rrule(cfg::RCR, ::typeof(broadcasted), f::F, args::Vararg{Any,N}) where {F,N}
- # = split_bc_rule(cfg, f, args...)
- # function split_bc_rule(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
     T = Broadcast.combine_eltypes(f, args)
-    TΔ = Core.Compiler._return_type(derivatives_given_output, Tuple{T, F, map(eltype, args)...})
-    if T === Bool
+    if T === Bool  # TODO use nondifftype here
         # 1: Trivial case: non-differentiable output, e.g. `x .> 0`
-        _print("split_bc_rule 1 ", f)
-        back_1(_) = ntuple(Returns(ZeroTangent()), length(args)+2)
-        return f.(args...), back_1
-    elseif T <: Number && isconcretetype(TΔ)
-        # 2: Fast path: just broadcast, and use arguments & result to find derivatives.
-        _print("split_bc_rule 2", f, N)
-        ys = f.(args...)
-        function back_2_one(dys)  # For f.(x) we do not need StructArrays / unzip at all
-            delta = broadcast(unthunk(dys), ys, args...) do dy, y, a
-                das = only(derivatives_given_output(y, f, a))
-                dy * conj(only(das))  # possibly this * should be made nan-safe.
-            end
-            (NoTangent(), NoTangent(), ProjectTo(only(args))(delta))
-        end
-        back_2_one(z::AbstractZero) = (NoTangent(), NoTangent(), z)
-        function back_2_many(dys)
-            deltas = tuplecast(unthunk(dys), ys, args...) do dy, y, as...
-                das = only(derivatives_given_output(y, f, as...))
-                map(da -> dy * conj(da), das)
-            end
-            dargs = map(unbroadcast, args, deltas)  # ideally sum in unbroadcast could be part of tuplecast?
-            (NoTangent(), NoTangent(), dargs...)
-        end
-        back_2_many(z::AbstractZero) = (NoTangent(), NoTangent(), map(Returns(z), args)...)
-        return ys, N==1 ? back_2_one : back_2_many
+        _print("split_bc_trivial", f)
+        bc_trivial_back(_) = (NoTangent(), NoTangent(), ntuple(Returns(ZeroTangent()), length(args))...)
+        return f.(args...), bc_trivial_back
+    elseif T <: Number && may_bc_derivatives(T, f, args...)
+        # 2: Fast path: use arguments & result to find derivatives.
+        return split_bc_derivatives(f, args...)
+    elseif T <: Number && may_bc_forwards(cfg, f, args...)
+        # 3: Future path: use `frule_via_ad`?
+        return split_bc_forwards(cfg, f, args...)
     else
-        _print("split_bc_rule 3", f, N)
-        # 3: Slow path: collect all the pullbacks & apply them later.
-        # (Since broadcast makes no guarantee about order of calls, and un-fusing 
-        # can change the number of calls, don't bother to try to reverse the iteration.)
-        ys3, backs = tuplecast(args...) do a...
-            rrule_via_ad(cfg, f, a...)
-        end
-        function back_3(dys)
-            deltas = tuplecast(backs, unthunk(dys)) do back, dy  # could be map, sizes match
-                map(unthunk, back(dy))
-            end
-            dargs = map(unbroadcast, args, Base.tail(deltas))
-            (NoTangent(), ProjectTo(f)(sum(first(deltas))), dargs...)
-        end
-        back_3(z::AbstractZero) = (NoTangent(), NoTangent(), map(Returns(z), args)...)
-        return ys3, back_3
+        # 4: Slow path: collect all the pullbacks & apply them later.
+        return split_bc_pullbacks(cfg, f, args...)
     end
+end
+
+# Path 2: This is roughly what `derivatives_given_output` is designed for, should be fast.
+
+function may_bc_derivatives(::Type{T}, f::F, args::Vararg{Any,N}) where {T,F,N}
+    TΔ = Core.Compiler._return_type(derivatives_given_output, Tuple{T, F, map(_eltype, args)...})
+    return isconcretetype(TΔ)
+end
+
+_eltype(x) = eltype(x)  # ... but try harder to avoid `eltype(Broadcast.broadcasted(+, [1,2,3], 4.5)) == Any`:
+_eltype(bc::Broadcast.Broadcasted) = Broadcast.combine_eltypes(bc.f, bc.args)
+
+function split_bc_derivatives(f::F, arg) where {F}
+    _print("split_bc_derivative", f)
+    ys = f.(arg)
+    function bc_one_back(dys)  # For f.(x) we do not need StructArrays / unzip at all
+        delta = broadcast(unthunk(dys), ys, arg) do dy, y, a
+            das = only(derivatives_given_output(y, f, a))
+            dy * conj(only(das))  # possibly this * should be made nan-safe.
+        end
+        return (NoTangent(), NoTangent(), ProjectTo(arg)(delta))
+    end
+    bc_one_back(z::AbstractZero) = (NoTangent(), NoTangent(), z)
+    return ys, bc_one_back
+end
+function split_bc_derivatives(f::F, args::Vararg{Any,N}) where {F,N}
+    _print("split_bc_derivatives", f, N)
+    ys = f.(args...)
+    function bc_many_back(dys)
+        deltas = tuplecast(unthunk(dys), ys, args...) do dy, y, as...
+            das = only(derivatives_given_output(y, f, as...))
+            map(da -> dy * conj(da), das)  # possibly this * should be made nan-safe.
+        end
+        dargs = map(unbroadcast, args, deltas)  # ideally sum in unbroadcast could be part of tuplecast?
+        return (NoTangent(), NoTangent(), dargs...)
+    end
+    bc_many_back(z::AbstractZero) = (NoTangent(), NoTangent(), map(Returns(z), args)...)
+    return ys, bc_many_back
+end
+
+# Path 3: Use forward mode, or an `frule` if one exists.
+# To allow `args...` we need either chunked forward mode, with `adot::Tuple` perhaps:
+#   https://github.com/JuliaDiff/ChainRulesCore.jl/issues/92
+#   https://github.com/JuliaDiff/Diffractor.jl/pull/54
+# Or else we need to call the `f` multiple times, and maybe that's OK: 
+# We do know that `f` doesn't have parameters, so maybe it's pure enough,
+# and split broadcasting may anyway change N^2 executions into N, e.g. `g.(v ./ f.(v'))`.
+# We don't know `f` is cheap, but `split_bc_pullbacks` tends to be very slow.
+
+function may_bc_forwards(cfg::C, f::F, args::Vararg{Any,N}) where {C,F,N}
+    Base.issingletontype(F) || return false
+    N==1 || return false  # Could weaken this to 1 differentiable
+    cfg isa RuleConfig{>:HasForwardsMode} && return true  # allows frule_via_ad
+    TA = map(_eltype, args)
+    TF = Core.Compiler._return_type(frule, Tuple{C, Tuple{NoTangent, TA...}, F, TA...})
+    return isconcretetype(TF) && TF <: Tuple
+end
+
+split_bc_forwards(cfg::RuleConfig{>:HasForwardsMode}, f::F, arg) where {F} = split_bc_inner(frule_via_ad, cfg, f, arg)
+split_bc_forwards(cfg::RuleConfig, f::F, arg) where {F} = split_bc_inner(frule, cfg, f, arg)
+function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
+    _print("split_bc_forwards", frule_fun, f)
+    ys, ydots = tuplecast(arg) do a
+        frule_fun(cfg, (NoTangent(), one(a)), f, a)
+    end
+    function back_forwards(dys)
+        delta = broadcast(ydots, unthunk(dys), arg) do ydot, dy, a
+            ProjectTo(a)(conj(ydot) * dy)  # possibly this * should be made nan-safe.
+        end
+        return (NoTangent(), NoTangent(), ProjectTo(arg)(delta))
+    end
+    back_forwards(z::AbstractZero) = (NoTangent(), NoTangent(), z)
+    return ys, back_forwards
+end
+
+# Path 4: The most generic, save all the pullbacks. Can be 1000x slower.
+# Since broadcast makes no guarantee about order of calls, and un-fusing
+# can change the number of calls, don't bother to try to reverse the iteration.
+
+function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
+    _print("split_bc_generic", f, N)
+    ys3, backs = tuplecast(args...) do a...
+        rrule_via_ad(cfg, f, a...)
+    end
+    function back_generic(dys)
+        deltas = tuplecast(backs, unthunk(dys)) do back, dy  # (could be map, sizes match)
+            map(unthunk, back(dy))
+        end
+        dargs = map(unbroadcast, args, Base.tail(deltas))
+        df = ProjectTo(f)(sum(first(deltas)))
+        return (NoTangent(), df, dargs...)
+    end
+    back_generic(z::AbstractZero) = (NoTangent(), NoTangent(), map(Returns(z), args)...)
+    return ys3, back_generic
 end
 
 # Don't run broadcasting on scalars
@@ -158,8 +223,8 @@ function rrule(::RCR, ::typeof(broadcasted), ::typeof(/), x::NumericOrBroadcast,
         dz = unthunk(dz_raw)
         dx = @thunk unbroadcast(x, dz ./ conj.(y))
         # dy = @thunk -LinearAlgebra.dot(z, dz) / conj(y)  # the reason to be eager is to allow dot here
-        dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast?
-        (NoTangent(), NoTangent(), dx, dy)
+        dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast
+        return (NoTangent(), NoTangent(), dx, dy)
     end
     return z, bc_divide_back
 end
@@ -234,6 +299,13 @@ function rrule(::RCR, ::typeof(broadcasted), ::typeof(imag), x::AbstractArray{<:
     return broadcasted(imag, x), bc_imag_back_2
 end
 
+function rrule(::RCR, ::typeof(broadcasted), ::typeof(complex), x::NumericOrBroadcast)
+    _print("bc complex")
+    bc_complex_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    return broadcasted(complex, x), bc_complex_back
+end
+rrule(::RCR, ::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |> _prepend_zero
+
 #####
 ##### Shape fixing
 #####
@@ -259,7 +331,7 @@ function unbroadcast(x::T, dx) where {T<:Tuple{Vararg{Any,N}}} where {N}
     else
         sum(dx; dims=2:ndims(dx))
     end
-    ProjectTo(x)(NTuple{length(x)}(val)) # Tangent
+    return ProjectTo(x)(NTuple{length(x)}(val)) # Tangent
 end
 
 unbroadcast(f::Function, df) = sum(df)
