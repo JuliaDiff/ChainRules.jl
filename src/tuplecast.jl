@@ -26,28 +26,36 @@ function tuplecast(f::F, args...) where {F}
         T <: Tuple || throw(ArgumentError("""tuplecast(f, args) only works on functions returning a tuple,
             but f = $(sprint(show, f)) returns type T = $T"""))
     end
+    # TODO allow GPU arrays, possibly just as a fallback unzip, but see also: 
+    #   https://github.com/JuliaArrays/StructArrays.jl/issues/150
     # if any(a -> a isa CuArray, args)
     #     return unzip(broadcast(f, args...))
     # end
     bc = Broadcast.instantiate(Broadcast.broadcasted(f, args...))
-    StructArrays.components(StructArray(bc))
+    if Broadcast.BroadcastStyle(typeof(bc)) isa Broadcast.AbstractArrayStyle
+        return StructArrays.components(StructArray(bc))
+    else
+        return unzip(broadcast(f, args...))  # e.g. tuples
+    end
 end
 
 function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplecast), f::F, args...) where {F}
-    y, back = rrule_via_ad(cfg, broadcasted, f, args...)
+    y, back = rrule_via_ad(cfg, broadcast, f, args...)
     z = unzip(y)
     function untuplecast(dz)
-        dy = StructArray(map(unthunk, dz))
+        # dy = StructArray(map(unthunk, dz))  # fails for e.g. StructArray(([1,2,3], ZeroTangent()))
+        dy = broadcast(tuple, map(unthunk, dz)...)
         db, df, dargs... = back(dy)
-        (db, sum(df), map(unbroadcast, args, dargs)...)
+        return (db, sum(df), map(unbroadcast, args, dargs)...)
     end
+    untuplecast(dz::AbstractZero) = (NoTangent(), NoTangent(), map(Returns(dz), args))
     return z, untuplecast
 end
 
-# function rrule(cfg::RCR, ::typeof(collect∘tuplecast), f, args...)
-#     y, back = rrule(cfg, tuplecast, f, args...)
-#     return collect(y), back
-# end
+function rrule(cfg::RCR, ::typeof(collect∘tuplecast), f, args...)  # for testing, but doesn't work?
+    y, back = rrule(cfg, tuplecast, f, args...)
+    return collect(y), back
+end
 
 """
     tuplemap(f, args...)
@@ -64,18 +72,19 @@ function tuplemap(f::F, args...) where {F}
     # if any(a -> a isa CuArray, args)
     #     return unzip(map(f, args...))
     # end
-    StructArrays.components(StructArray(Iterators.map(f, args...)))
+    return StructArrays.components(StructArray(Iterators.map(f, args...)))
 end
 
-# function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplemap), f::F, args...) where {F}
-#     y, back = rrule(cfg, map, f, xs...)  # won't work, but also, you want the lazier fwd
-#     z = unzip(y)
-#     function untuplemap(dz)
-#         dy = StructArray(map(unthunk, dz))
-#         back(dy)
-#     end
-#     return unzip(xs), untuplemap
-# end
+function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplemap), f::F, xs...) where {F}
+    y, back = rrule_via_ad(cfg, map, f, xs...)
+    z = unzip(y)
+    function untuplemap(dz)
+        # dy = StructArray(map(unthunk, dz))  # fails for e.g. StructArray(([1,2,3], ZeroTangent()))
+        dy = broadcast(tuple, map(unthunk, dz)...)
+        return back(dy)
+    end
+    return z, untuplemap
+end
 
 """
     unzip(A)
@@ -84,8 +93,8 @@ Converts an array of tuples into a tuple of arrays.
 Eager. Will work by `reinterpret` when possible.
 
 ```jldoctest
-julia> ChainRules.unzip([(1,2), (3,4), (5,6)])  # makes two new Arrays:
-([1, 3, 5], [2, 4, 6])
+julia> ChainRules.unzip([(1,2), (30,40), (500,600)])  # makes two new Arrays:
+([1, 30, 500], [2, 40, 600])
 
 julia> typeof(ans)
 Tuple{Vector{Int64}, Vector{Int64}}
@@ -102,7 +111,7 @@ function unzip(xs::AbstractArray)
     x1 = first(xs)
     x1 isa Tuple || throw(ArgumentError("unzip only accepts arrays of tuples"))
     N = length(x1)
-    unzip(xs, Val(N))  # like Zygote's unzip, here this is the fallback case.
+    return unzip(xs, Val(N))  # like Zygote's unzip, here this is the fallback case.
 end
 
 @generated function unzip(xs, ::Val{N}) where {N}
@@ -122,16 +131,44 @@ unzip(xs::AbstractArray{Tuple{T}}) where {T} = (reinterpret(T, xs),)  # best cas
     Expr(:tuple, each...)
 end
 
+"""
+    unzip(t)
+
+Also works on a tuple of tuples:
+
+```jldoctest
+julia> unzip(((1,2), (30,40), (500,600)))
+((1, 30, 500), (2, 40, 600))
+```
+"""
+function unzip(xs::Tuple)
+    x1 = first(xs)
+    x1 isa Tuple || throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
+    return ntuple(i -> map(Get(i), xs),length(x1))
+end
+
 struct Get{i} end
 Get(i) = Get{Int(i)}()
 (::Get{i})(x) where {i} = x[i]
 
 function ChainRulesCore.rrule(::typeof(unzip), xs::AbstractArray{T}) where {T <: Tuple}
     function rezip(dy)
-        dxs = map(unthunk.(dy)...) do ys...
-            Tangent{T}(ys...)
+        dxs = broadcast(xs, unthunk.(dy)...) do x, ys...
+            ProjectTo(x)(Tangent{T}(ys...))
         end
-        (NoTangent(), dxs)
+        return (NoTangent(), dxs)
     end
+    rezip(dz::AbstractZero) = (NoTangent(), dz)
     return unzip(xs), rezip
+end
+
+function ChainRulesCore.rrule(::typeof(unzip), xs::Tuple)
+    function rezip_2(dy)
+        dxs = broadcast(xs, unthunk.(dy)...) do x, ys...
+            Tangent{typeof(x)}(ys...)
+        end
+        return (NoTangent(), ProjectTo(xs)(dxs))
+    end
+    rezip_2(dz::AbstractZero) = (NoTangent(), dz)
+    return unzip(xs), rezip_2
 end
