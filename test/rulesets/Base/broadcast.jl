@@ -13,15 +13,15 @@ using Base.Broadcast: broadcasted
     end
 
     @testset "split 2: derivatives" begin
-        test_rrule(copy∘broadcasted, log, rand(3))
-        test_rrule(copy∘broadcasted, log, Tuple(rand(3)))
+        test_rrule(copy∘broadcasted, log, rand(3) .+ 1)
+        test_rrule(copy∘broadcasted, log, Tuple(rand(3) .+ 1))
 
         # Two args uses StructArrays
         test_rrule(copy∘broadcasted, atan, rand(3), rand(3))
         test_rrule(copy∘broadcasted, atan, rand(3), rand(4)')
         test_rrule(copy∘broadcasted, atan, rand(3), rand())
         test_rrule(copy∘broadcasted, atan, rand(3), Tuple(rand(1)))
-        test_rrule(copy∘broadcasted, atan, Tuple(rand(3)), Tuple(rand(3)))
+        test_rrule(copy∘broadcasted, atan, Tuple(rand(3)), Tuple(rand(3)), check_inferred = VERSION > v"1.7")
         
         test_rrule(copy∘broadcasted, *, rand(3), Ref(rand()))
     end
