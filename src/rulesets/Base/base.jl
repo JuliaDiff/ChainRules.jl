@@ -219,6 +219,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     y = map(first, hobbits)
     num_xs = Val(length(xs))
     paddings = map(x -> ntuple(Returns(NoTangent()), (length(x) - length_y)), xs)
+    all(isempty, paddings) || @error "rrule(map, f, xs::Tuple...) allows mistmatched lengths, although Base does not!"
     function map_back(dy)
         # We want to call the pullbacks in `rrule_via_ad` in reverse sequence to the forward pass:
         backevals = ntuple(length_y) do i
