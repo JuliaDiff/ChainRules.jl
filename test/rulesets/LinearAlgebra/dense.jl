@@ -33,6 +33,9 @@
             # Inference failure due to https://github.com/JuliaDiff/ChainRulesCore.jl/issues/407
             test_rrule(dot, Diagonal(rand(2)), rand(2, 2); check_inferred=false)
         end
+        @testset "gpu" begin
+            @test_broken @gpu_test rrule(dot, randn(Float32, 3, 5), randn(Float32, 5, 3))
+        end
     end
 
     @testset "mul!" begin

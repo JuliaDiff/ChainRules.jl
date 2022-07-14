@@ -1,3 +1,66 @@
+# import CUDA
+# if CUDA.functional()
+#     using CUDA  # exports CuArray, etc
+# else
+    @info "CUDA not functional, testing via GPUArrays"
+    using GPUArrays
+    GPUArrays.allowscalar(false)
+
+    # GPUArrays provides a fake GPU array, for testing
+    jl_file = normpath(joinpath(pathof(GPUArrays), "..", "..", "test", "jlarray.jl"))
+    using Random  # loaded within jl_file
+    include(jl_file)
+    using .JLArrays
+    cu = jl
+    CuArray{T,N} = JLArray{T,N}
+# end
+@test cu(rand(3)) .+ 1 isa CuArray
+
+
+"""
+    @gpu_test rrule(sum, rand(3))
+    @gpu_test frule((0, rand(3)), sum, rand(3))
+
+Runs the rule as shown, and then with all arrays replaced by `GPUArray`s,
+and checks that the two results agree.
+
+NB it does not check that the rule computes derivatives correctly.
+"""
+macro gpu_test(ex)
+    if Meta.isexpr(ex, :call) && ex.args[1] in (:rrule, :frule)
+        :($_gpu_test($(ex.args...))) |> esc
+    else
+        error("@gpu_test only acts on one rrule(...) or frule(...) expression")
+    end
+end
+
+function _gpu_test(::typeof(rrule), xs...; kw...)
+    y, bk = rrule(xs...; kw...)
+    y1 = one.(y)  # crude way to get input sensitivity
+    dxs = bk(y1)
+
+    gpu_y, gpu_bk = rrule(_gpu(xs)...; kw...)
+    gpu_dxs = gpu_bk(one.(gpu_y))
+
+    ChainRulesTestUtils.test_approx(gpu_dxs, _gpu(dxs))  # this contains @test
+end
+
+function _gpu_test(::typeof(frule), xdots, f::Function, xs...; kw...)
+    y = frule(xdots, f, xs...; kw...)
+    gpu_y = frule(_gpu(xdots), f, _gpu(xs)...; kw...)
+    ChainRulesTestUtils.test_approx(gpu_y, _gpu(y))
+end
+function _gpu_test(::typeof(frule), f::Function, xs...; kw...)
+    xdots = (NoTangent(), xs...)  # a pretty crude way to generate xdots for you
+    _gpu_test(frule, xdots, f, xs...; kw...)
+end
+
+_gpu(x::AbstractArray) = CuArray(x)  # make a GPUArray
+_gpu(x) = x  # ignore numbers, functions, etc.
+_gpu(xs::Union{Tuple, NamedTuple}) = map(_gpu, xs)  # recurse into arguments
+_gpu(x::AbstractArray{<:AbstractArray}) = map(_gpu, xs)
+_gpu(x::AbstractThunk) = _gpu(unthunk(x))
+
 """
     Multiplier(x)
 

@@ -84,6 +84,11 @@ end
     @test rrule(reshape, Diagonal(rand(4)), (2, :))[2](ones(2,8))[2] isa Diagonal
     @test_skip test_rrule(reshape, Diagonal(rand(4)), 2, :)  # DimensionMismatch("second dimension of A, 22, does not match length of x, 16")
     @test_skip test_rrule(reshape, UpperTriangular(rand(4,4)), (8, 2)) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
+    
+    @testset "gpu" begin
+        @gpu_test frule(reshape, rand(Float32, 4, 3), 2, :)
+        @gpu_test rrule(reshape, rand(Float32, 4, 5), 2, 10)
+    end
 end
 
 @testset "dropdims" begin
@@ -153,7 +158,11 @@ end
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
-
+    
+    @testset "gpu" begin
+        @gpu_test rrule(repeat, rand(Float32, 4), 2)
+        @test_broken @gpu_test rrule(repeat, rand(Float32, 2, 3), inner=(1,2), outer=(1,3))
+    end
 end
 
 @testset "hcat" begin
@@ -169,6 +178,11 @@ end
     # mix types
     test_rrule(hcat, rand(1, 3), rand(2)')
     test_rrule(hcat, rand(1), (nothing, rand()), check_inferred=false)
+    
+    @testset "gpu" begin
+        @gpu_test rrule(hcat, randn(Float32, 3, 2), randn(Float32, 3), randn(Float32, 3, 3))
+        @gpu_test rrule(hcat, rand(Float32), rand(Float32, 1,2))
+    end
 end
 
 @testset "reduce hcat" begin
@@ -209,6 +223,10 @@ end
     test_rrule(vcat, rand(2, 2), rand(2, 2)')
     test_rrule(vcat, rand(), rand() => rand(); check_inferred=false)
     test_rrule(vcat, rand(3), (rand(), nothing), pi/2; check_inferred=false)
+    
+    @testset "gpu" begin
+        @gpu_test rrule(vcat, randn(Float32, 2, 4), randn(Float32, 1, 4), randn(Float32, 3, 4))
+    end
 end
 
 @testset "reduce vcat" begin
@@ -288,6 +306,10 @@ end
         # We only preserve structure in this case if given structured tangent (no ProjectTo)
         @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
         @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
+    end
+    
+    @testset "gpu" begin
+        @test_broken @gpu_test rrule(reverse, rand(Float32, 5))
     end
 end
 

@@ -176,6 +176,14 @@
             @test back(ZeroTangent()) == (NoTangent(), ZeroTangent(), ZeroTangent())
         end
     end
+    
+    # GPU tests
+    # =========
+    
+    @testset "gpu: $p" for p in (-1, 0, 0.5, 1, 2, 2.5, Inf)
+        @test_broken @gpu_test rrule(norm, randn(ComplexF32, 5), p)
+    end
+    
 end
 
 # normalise(x, p) and normalise(A, p)
@@ -198,5 +206,8 @@ end
 
         test_rrule(normalize, rand(T, 3, 4), p)
         test_rrule(normalize, adjoint(rand(T, 5)), p)
+    end
+    @testset "gpu, p=$p" for p in (1.0, 2.0, -Inf, Inf, 2.5)
+        @test_broken @gpu_test rrule(normalize, randn(ComplexF32, 5), p)
     end
 end
