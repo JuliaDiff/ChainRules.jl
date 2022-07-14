@@ -7,6 +7,11 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
+        test_frule(sum, (rand(2), rand(2)))
+        
+        test_rrule(sum, Tuple(rand(5)))
+        test_rrule(sum, (1.2, 3.4 + 5im))
+        test_rrule(sum, (rand(2)', rand(1,2)))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
