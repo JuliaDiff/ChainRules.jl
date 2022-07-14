@@ -68,7 +68,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
     end  # sum abs2
 
     @testset "sum(f, xs::Tuple)" begin
-        test_rrule(sum, sqrt, Tuple(rand(3)))
+        test_rrule(sum, sqrt, Tuple(rand(3)), check_inferred=false)
     end
 
     @testset "sum(f, xs)" begin

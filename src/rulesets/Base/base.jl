@@ -226,9 +226,10 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
             rev_i = length_y - i + 1
             last(hobbits[rev_i])(dy[rev_i])
         end |> reverse
+        # This df doesn't infer, could test Base.issingletontype(F), but it's not the only inference problem.
+        df = ProjectTo(f)(sum(first, backevals))
         # Now unzip that. Because `map` like `zip` should when any `x` stops, some `dx`s may need padding.
         # Although in fact, `map(+, (1,2), (3,4,5))` is an error... https://github.com/JuliaLang/julia/issues/42216
-        df = ProjectTo(f)(sum(first, backevals))
         dxs = ntuple(num_xs) do k
             dx_short = map(bv -> bv[k+1], backevals)
             ProjectTo(xs[k])((dx_short..., paddings[k]...))  # ProjectTo makes the Tangent for us
