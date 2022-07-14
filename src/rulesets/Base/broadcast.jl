@@ -12,7 +12,7 @@ function rrule(::typeof(Broadcast.instantiate), bc::Broadcasted)
     return Broadcast.instantiate(bc), uninstantiate
 end
 
-_print(args...) = nothing # println(join(args, " ")) # 
+_print(args...) = printstyled("CR: ", join(args, " "), "\n", color=:magenta) # nothing # 
 
 #####
 ##### Split broadcasting

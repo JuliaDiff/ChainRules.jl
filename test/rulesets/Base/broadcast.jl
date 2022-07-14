@@ -52,6 +52,10 @@ using Base.Broadcast: broadcasted
         test_rrule(copy∘broadcasted, |>, rand(3), sin, check_inferred=false)
         _call(f, x...) = f(x...)
         test_rrule(copy∘broadcasted, _call, atan, rand(3), rand(4)', check_inferred=false)
+        
+        test_rrule(copy∘broadcasted, getindex, [rand(3) for _ in 1:2], [3,1], check_inferred=false)
+        # test_rrule(copy∘broadcasted, getindex, [rand(3) for _ in 1:2], (3,1), check_inferred=false)
+        # test_rrule(copy∘broadcasted, getindex, [rand(3) for _ in 1:2], Ref(CartesianIndex(2)), check_inferred=false)
 
         # Protected by Ref/Tuple:
         test_rrule(copy∘broadcasted, *, rand(3), Ref(rand(2)), check_inferred=false)
