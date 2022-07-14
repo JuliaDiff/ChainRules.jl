@@ -32,6 +32,9 @@ function rrule(::typeof(getindex), x::T, i::Integer) where {T<:NTuple{<:Any,<:Nu
     return x[i], getindex_back_2
 end
 
+# Note Zygote has getindex(::Tuple, ::UnitRange) separately from getindex(::Tuple, ::AbstractVector),
+# whether that's more efficient has not been investigated here.
+# https://github.com/FluxML/Zygote.jl/blob/master/src/lib/lib.jl#L125-L142
 function rrule(::typeof(getindex), x::T, inds) where {T<:Tuple}  # e.g. ranges, not type-stable
     function getindex_back_3(dy_raw)
         dy = unthunk(dy_raw)
