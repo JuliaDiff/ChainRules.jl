@@ -62,6 +62,17 @@ end
 ##### `sum(f, x)`
 #####
 
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::Tuple) where {F}
+    fxs, unmap = rrule(config, map, f, xs)
+    y, unsum = rrule(config, sum, fxs)
+    function sum_pullback_f(dy)
+        _, dfxs = unsum(dy)
+        _, df, dxs = unmap(dfxs)
+        (NoTangent(), df, dxs)
+    end
+    y, sum_pullback_f
+end
+
 function rrule(
     config::RuleConfig{>:HasReverseMode},
     ::typeof(sum),
