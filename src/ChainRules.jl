@@ -34,6 +34,7 @@ include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
 include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
+include("rulesets/Base/dict.jl")
 
 include("rulesets/Distributed/nondiff.jl")
 
