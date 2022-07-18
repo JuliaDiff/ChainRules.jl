@@ -219,8 +219,10 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     y = map(first, hobbits)
     num_xs = Val(length(xs))
     paddings = map(x -> ntuple(Returns(NoTangent()), (length(x) - length_y)), xs)
-    all(isempty, paddings) || @error "rrule(map, f, xs::Tuple...) allows mistmatched lengths, although Base does not!"
-    function map_back(dy)
+    all(isempty, paddings) || @error """map(f, xs::Tuple...) does not allow mistmatched lengths!
+        But its `rrule` does; when JuliaLang/julia #42216 is fixed this warning should be removed."""
+    function map_pullback(dy_raw)
+        dy = unthunk(dy_raw)
         # We want to call the pullbacks in `rrule_via_ad` in reverse sequence to the forward pass:
         backevals = ntuple(length_y) do i
             rev_i = length_y - i + 1
@@ -237,5 +239,5 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
         return (NoTangent(), df, dxs...)
     end
     map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
-    return y, map_back
+    return y, map_pullback
 end
