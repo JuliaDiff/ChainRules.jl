@@ -417,6 +417,25 @@ end
 end
 
 #####
+##### `mapfoldl(f, g, ::Tuple)`
+#####
+
+# For tuples there should be no harm in handling `map` first.
+# This will also catch `mapreduce`.
+
+function rrule(
+        cfg::RuleConfig{>:HasReverseMode}, ::typeof(Base.mapfoldl_impl), f::F, op::G, init, x::Tuple;
+    ) where {F,G}
+    y, backmap = rrule(cfg, map, f, x)
+    z, backred = rrule(cfg, Base.mapfoldl_impl, identity, op, init, y)
+    function mapfoldl_pullback_tuple(dz)
+        _, _, dop, dinit, dy = backred(dz)
+        _, df, dx = backmap(dy)
+        return (NoTangent(), df, dop, dinit, dx)
+    end
+    return z, mapfoldl_pullback_tuple
+end
+
 #####
 ##### `foldl(f, ::Tuple)`
 #####

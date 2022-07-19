@@ -304,6 +304,11 @@ const _INIT = Base._InitialValue()
         test_rrule(mapfoldl_impl, identity, /, _INIT, Tuple(1 .+ rand(5)))
         test_rrule(mapfoldl_impl, identity, *, 1+rand(), Tuple(rand(ComplexF64, 5)))
     end
+    @testset "mapfoldl(f, g, ::Tuple)" begin
+        test_rrule(mapfoldl_impl, cbrt, /, _INIT, Tuple(1 .+ rand(5)), check_inferred=false)
+        test_rrule(mapfoldl_impl, abs2, *, 1+rand(), Tuple(rand(ComplexF64, 5)), check_inferred=false)
+        # TODO make the `map(f, ::Tuple)` rule infer better!
+    end
 end
 
 @testset "Accumulations" begin
