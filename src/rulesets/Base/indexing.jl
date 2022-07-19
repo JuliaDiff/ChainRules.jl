@@ -101,7 +101,7 @@ end
 
 function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
     y = Base.tail(x)
-    return y, Tangent{typeof(y)}(Base.tail(Tuple(ẋ))...)
+    return y, Tangent{typeof(y)}(Base.tail(ẋ)...)
 end
 
 function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
