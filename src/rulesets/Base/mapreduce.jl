@@ -417,17 +417,73 @@ end
 end
 
 #####
-##### `foldl`
+#####
+##### `foldl(f, ::Tuple)`
 #####
 
 # `foldl` guarantees to execute `f` in order, left to right. So it makes sense even when
-# this `f` is stateful, in which case the gradient must be calculated in the reverse order. 
+# this `f` is stateful, in which case the gradient must be calculated in the reverse order.
 
-# The implementation aims to be efficient for both tuples and arrays, although using accumulate
-# to carry intermediate results along creates arrays of tuples which could be avoided; using a
-# loop can be a few times faster. Note also that it does not return a gradient for `init`.
+# The rule is attached to `Base.mapfoldl_impl` because this gets the `init` keyword as an argument,
+# which is handled below. For tuples, `reduce` also comes here.
 
-# Maybe that's a problem. Let's move the rule to `mapfoldr_impl(f, op, init, itr)`, where it's easier?
+function rrule(
+        config::RuleConfig{>:HasReverseMode},
+        ::typeof(Base.mapfoldl_impl),
+        ::typeof(identity),
+        op::G, 
+        init::Base._InitialValue, 
+        x::Tuple;
+    ) where {G}
+    hobbits = accumulate(Base.tail(x); init=(first(x), nothing)) do (a, _), b
+        # Here `a` is what we would normally cary forward, and `_` ignores
+        # the previous iteration's pullback function (needed later),
+        # while `b` is the fresh input from `list` as usual.
+        c, back = rrule_via_ad(config, op, a, b)
+        # We don't really need to store every `c`, last one is `foldl` output.
+        # (The name, BTW, is because "there and back again" is the subtitle of Tolkien's book.)
+    end
+    y = first(last(hobbits))
+    project = ProjectTo(x)
+    function foldl_pullback_tuple(dy)
+        trio = accumulate(_reverse1(hobbits); init=(0, dy, 0)) do (_, dc, _), (_, back)
+            ds, da, db = back(dc)
+            # Don't need to store every `da`, need one for the next iteration + the last.
+        end
+        dop = sum(first, trio)
+        dx = (trio[end][2], reverse(map(last, trio))...)
+        return (NoTangent(), NoTangent(), ProjectTo(op)(dop), NoTangent(), project(dx))
+    end
+    return y, foldl_pullback_tuple
+end
+
+function rrule(
+        config::RuleConfig{>:HasReverseMode},
+        ::typeof(Base.mapfoldl_impl),
+        ::typeof(identity),
+        op::G, 
+        init, 
+        x::Tuple;
+    ) where {G}
+    # Treat `init` by simply appending it to the `x`:
+    y, back = rrule(config, Base.mapfoldl_impl, identity, op, Base._InitialValue(), (init, x...))
+    project_x = ProjectTo(x)
+    project_in = ProjectTo(init)
+    function foldl_pullback_tuple_init(dy)
+        _, _, dop, _, dxplus = back(dy)
+        return (NoTangent(), NoTangent(), dop, project_in(first(dxplus)), project_x(Base.tail(dxplus)))
+    end
+    return y, foldl_pullback_tuple_init
+end
+
+#####
+##### `foldl(f, ::Array)`
+#####
+
+# The implementation was originally for both tuples and arrays, although using accumulate
+# to carry intermediate results along creates arrays of tuples which could be avoided.
+# Using a loop can be a few times faster, this should be replaced.
+# Note also that it does not return a gradient for `init`.
 
 function rrule(
         config::RuleConfig{>:HasReverseMode}, ::typeof(Base.mapfoldl_impl), ::typeof(identity), op::G, init, x::Union{AbstractArray, Tuple};        
@@ -486,8 +542,7 @@ _reverse1(x::Tuple) = reverse(x)
 _drop1(x::Tuple) = Base.tail(x)
 _zip2(x::Tuple{Vararg{Any,N}}, y::Tuple{Vararg{Any,N}}) where N = ntuple(i -> (x[i],y[i]), N)
 
-# struct _InitialValue end  # Old versions don't have `Base._InitialValue`
-const _INIT = VERSION >= v"1.5" ? Base._InitialValue() : NamedTuple()
+const _INIT = Base._InitialValue()
 
 _vcat1(x, ys::AbstractVector) = vcat(x, ys)
 _vcat1(x::AbstractArray, ys::AbstractVector) = vcat([x], ys)

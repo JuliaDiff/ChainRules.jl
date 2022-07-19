@@ -2,6 +2,11 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
+const CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
+using Base: mapfoldl_impl, _accumulate!  # for foldl & accumulate rules
+const _INIT = Base._InitialValue()
+
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
@@ -215,8 +220,6 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
     @testset "foldl(f, ::Array)" begin
         # `foldl(op, itr; init)` goes to `mapfoldr_impl(identity, op, init, itr)`. The rule is
         # now attached there, as this is the simplest way to handle `init` keyword.
-        @eval using Base: mapfoldl_impl
-        _INIT = VERSION >= v"1.5" ? Base._InitialValue() : NamedTuple()
 
         # Simple
         y1, b1 = rrule(CFG, mapfoldl_impl, identity, *, 1, [1, 2, 3])
@@ -267,7 +270,6 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(mapfoldl_impl, identity, max, 999, rand(3))
     end
     @testset "foldl(f, ::Tuple)" begin
-        y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
         y1, b1 = rrule(CFG, mapfoldl_impl, identity, *, 1, (1,2,3))
         @test y1 == 6
         @test b1(7)[5] == Tangent{NTuple{3,Int}}(42, 21, 14)
@@ -275,10 +277,32 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         y2, b2 = rrule(CFG, mapfoldl_impl, identity, *, _INIT, (1, 2, 0, 4))
         @test y2 == 0
         @test b2(8)[5] == Tangent{NTuple{4,Int}}(0, 0, 64, 0)
+        
+        # Test execution order
+        c5 = Counter()
+        y5, b5 = rrule(CFG, mapfoldl_impl, identity, c5, _INIT, (5, 7, 11))
+        @test c5 == Counter(2)
+        @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), (5, 7, 11))
+        @test collect(b5(1)[5]) == [12*32, 12*42, 22]
+        @test c5 == Counter(42)
+
+        c6 = Counter()
+        y6, b6 = rrule(CFG, mapfoldl_impl, identity, c6, 3, (5, 7, 11))
+        @test c6 == Counter(3)
+        @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), (5, 7, 11), init=3)
+        @test collect(b6(1)[5]) == [63*33*13, 43*13, 23]
+        @test c6 == Counter(63)
+
+        # Test gradient of function
+        y7, b7 = rrule(CFG, mapfoldl_impl, identity, Multiplier(3), _INIT, (5, 7, 11))
+        @test y7 == foldl((x,y)->x*y*3, (5, 7, 11))
+        b7_1 = b7(1)
+        @test b7_1[3] == Tangent{Multiplier{Int}}(x = 2310,)
+        @test collect(b7_1[5]) == [693, 495, 315]
 
         # Finite differencing
         test_rrule(mapfoldl_impl, identity, /, _INIT, Tuple(1 .+ rand(5)))
-        test_rrule(mapfoldl_impl, identity, *, _INIT, Tuple(rand(ComplexF64, 5)))
+        test_rrule(mapfoldl_impl, identity, *, 1+rand(), Tuple(rand(ComplexF64, 5)))
     end
 end
 
