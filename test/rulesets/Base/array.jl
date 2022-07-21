@@ -68,12 +68,12 @@ end
 
 @testset "reshape" begin
     # Forward
-    test_frule(reshape, rand(4, 3), 2, :)
+    @gpu test_frule(reshape, rand(4, 3), 2, :)
     test_frule(reshape, rand(4, 3), axes(rand(6, 2)))
     @test_skip test_frule(reshape, Diagonal(rand(4)), 2, :) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
 
     # Reverse
-    test_rrule(reshape, rand(4, 5), (2, 10))
+    @gpu test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
     test_rrule(reshape, rand(4, 5), 2, :)
     test_rrule(reshape, rand(4, 5), axes(rand(10, 2)))
@@ -84,11 +84,6 @@ end
     @test rrule(reshape, Diagonal(rand(4)), (2, :))[2](ones(2,8))[2] isa Diagonal
     @test_skip test_rrule(reshape, Diagonal(rand(4)), 2, :)  # DimensionMismatch("second dimension of A, 22, does not match length of x, 16")
     @test_skip test_rrule(reshape, UpperTriangular(rand(4,4)), (8, 2)) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
-    
-    @testset "gpu" begin
-        @gpu_test frule(reshape, rand(Float32, 4, 3), 2, :)
-        @gpu_test rrule(reshape, rand(Float32, 4, 5), 2, 10)
-    end
 end
 
 @testset "dropdims" begin
@@ -103,14 +98,14 @@ end
 
 @testset "permutedims + PermutedDimsArray" begin
     # Forward
-    test_frule(permutedims, rand(5))
-    test_frule(permutedims, rand(3, 4), (2, 1))
+    @gpu test_frule(permutedims, rand(5))
+    @gpu test_frule(permutedims, rand(3, 4), (2, 1))
     test_frule(permutedims!, rand(4,3), rand(3, 4), (2, 1))
     test_frule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
 
     # Reverse
-    test_rrule(permutedims, rand(5))
-    test_rrule(permutedims, rand(3, 4), (2, 1))
+    @gpu test_rrule(permutedims, rand(5))
+    @gpu test_rrule(permutedims, rand(3, 4), (2, 1))
     test_rrule(permutedims, Diagonal(rand(5)), (2, 1))
     # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
 
@@ -132,12 +127,12 @@ end
     test_rrule(repeat, rand(4, ))
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
-    test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
-    test_rrule(repeat, rand(4, 5); fkwargs = (outer=2,))
+    @gpu_broken test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+    @gpu_broken test_rrule(repeat, rand(4, 5); fkwargs = (outer=2,))
 
-    test_rrule(repeat, rand(4, ), 2)
-    test_rrule(repeat, rand(4, 5), 2)
-    test_rrule(repeat, rand(4, 5), 2, 3)
+    @gpu test_rrule(repeat, rand(4, ), 2)
+    @gpu test_rrule(repeat, rand(4, 5), 2)
+    @gpu test_rrule(repeat, rand(4, 5), 2, 3)
     test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
     test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
     test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
@@ -158,31 +153,22 @@ end
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
-    
-    @testset "gpu" begin
-        @gpu_test rrule(repeat, rand(Float32, 4), 2)
-        @test_broken @gpu_test rrule(repeat, rand(Float32, 2, 3), inner=(1,2), outer=(1,3))
-    end
 end
 
 @testset "hcat" begin
     # forward
-    test_frule(hcat, randn(3, 2), randn(3))
-    test_frule(hcat, randn(), randn(1,3))
+    @gpu test_frule(hcat, randn(3, 2), randn(3))
+    @gpu test_frule(hcat, randn(), randn(1,3))
 
     # reverse
-    test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3))
+    @gpu test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3))
+    @gpu test_rrule(hcat, rand(1,2), rand(), rand(1,3))
     test_rrule(hcat, rand(), rand(1,2), rand(1,2,1))
     test_rrule(hcat, rand(3,1,1,2), rand(3,3,1,2))
 
     # mix types
     test_rrule(hcat, rand(1, 3), rand(2)')
     test_rrule(hcat, rand(1), (nothing, rand()), check_inferred=false)
-    
-    @testset "gpu" begin
-        @gpu_test rrule(hcat, randn(Float32, 3, 2), randn(Float32, 3), randn(Float32, 3, 3))
-        @gpu_test rrule(hcat, rand(Float32), rand(Float32, 1,2))
-    end
 end
 
 @testset "reduce hcat" begin
@@ -208,13 +194,14 @@ end
 end
 
 @testset "vcat" begin
-
     # forward
     test_frule(vcat, randn(), randn(3), rand())
-    test_frule(vcat, randn(3, 1), randn(3))
+    @gpu test_frule(vcat, randn(3), rand(), randn(3))
+    @gpu test_frule(vcat, randn(3, 1), randn(3))
 
     # reverse
-    test_rrule(vcat, randn(2, 4), randn(1, 4), randn(3, 4))
+    @gpu test_rrule(vcat, randn(3), rand(), randn(3))
+    @gpu test_rrule(vcat, randn(2, 4), randn(1, 4), randn(3, 4))
     test_rrule(vcat, rand(), rand())
     test_rrule(vcat, rand(), rand(3), rand(3,1,1))
     test_rrule(vcat, rand(3,1,2), rand(4,1,2))
@@ -223,10 +210,6 @@ end
     test_rrule(vcat, rand(2, 2), rand(2, 2)')
     test_rrule(vcat, rand(), rand() => rand(); check_inferred=false)
     test_rrule(vcat, rand(3), (rand(), nothing), pi/2; check_inferred=false)
-    
-    @testset "gpu" begin
-        @gpu_test rrule(vcat, randn(Float32, 2, 4), randn(Float32, 1, 4), randn(Float32, 3, 4))
-    end
 end
 
 @testset "reduce vcat" begin
@@ -248,8 +231,8 @@ end
     test_frule(cat, rand(), rand(2,3); fkwargs=(dims=(1,2),))
 
     # reverse
-    test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
-    test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
+    @gpu test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
+    @gpu test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
     test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
     test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
 
@@ -281,7 +264,7 @@ end
     end
     @testset "Array" begin
         # Forward
-        test_frule(reverse, rand(5))
+        @gpu_broken test_frule(reverse, rand(5))
         test_frule(reverse, rand(5), 2, 4)
         test_frule(reverse, rand(5), fkwargs=(dims=1,))
         test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
@@ -293,7 +276,7 @@ end
         test_frule(reverse!, rand(3,4), fkwargs=(dims=2,))
 
         # Reverse
-        test_rrule(reverse, rand(5))
+        @gpu_broken test_rrule(reverse, rand(5))
         test_rrule(reverse, rand(5), 2, 4)
         test_rrule(reverse, rand(5), fkwargs=(dims=1,))
 
@@ -307,15 +290,11 @@ end
         @test unthunk(pb(Diagonal([1.1, 2.1, 3.1]))[2]) isa Diagonal
         @test unthunk(pb(rand(3, 3))[2]) isa AbstractArray
     end
-    
-    @testset "gpu" begin
-        @test_broken @gpu_test rrule(reverse, rand(Float32, 5))
-    end
 end
 
 @testset "circshift" begin
     # Forward
-    test_frule(circshift, rand(10), 1)
+    @gpu test_frule(circshift, rand(10), 1)
     test_frule(circshift, rand(10), (1,))
     test_frule(circshift, rand(3,4), (-7,2))
 
@@ -323,7 +302,7 @@ end
     test_frule(circshift!, rand(3,4), rand(3,4), (-7,2))
 
     # Reverse
-    test_rrule(circshift, rand(10), 1)
+    @gpu test_rrule(circshift, rand(10), 1)
     test_rrule(circshift, rand(10) .+ im, -2)
     test_rrule(circshift, rand(10), (1,))
     test_rrule(circshift, rand(3,4), (-7,2))
@@ -401,14 +380,14 @@ end
     # Forward
     test_frule(imum, rand(10))
     test_frule(imum, rand(3,4))
-    test_frule(imum, rand(3,4), fkwargs=(dims=1,))
+    @gpu_broken test_frule(imum, rand(3,4), fkwargs=(dims=1,))
     test_frule(imum, [rand(2) for _ in 1:3])
     test_frule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,))
 
     # Reverse
     test_rrule(imum, rand(10))
     test_rrule(imum, rand(3,4))
-    test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
+    @gpu_broken test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
 
     # Arrays of arrays

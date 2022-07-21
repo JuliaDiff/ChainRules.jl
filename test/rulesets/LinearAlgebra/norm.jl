@@ -149,6 +149,16 @@
         ȳ = rand_tangent(norm(x, p))
         @test unthunk(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
+    @testset "gpu test norm" begin
+        @gpu test_rrule(norm, rand(2,3).+im)
+
+        @gpu test_rrule(norm, rand(2,3).+im, 1.0)
+        @gpu test_rrule(norm, rand(2,3).+im, 2.0)
+        @gpu test_rrule(norm, rand(2,3).+im, 2.5)
+
+        @gpu_broken test_rrule(norm, rand(2,3), Inf)
+        @gpu_broken test_rrule(norm, rand(2,3), -Inf)
+    end
 
     # Scalar norm(x, p)
     # =================
@@ -175,15 +185,7 @@
             @test back(ȳ) == (NoTangent(), zero(x), ZeroTangent())
             @test back(ZeroTangent()) == (NoTangent(), ZeroTangent(), ZeroTangent())
         end
-    end
-    
-    # GPU tests
-    # =========
-    
-    @testset "gpu: $p" for p in (-1, 0, 0.5, 1, 2, 2.5, Inf)
-        @test_broken @gpu_test rrule(norm, randn(ComplexF32, 5), p)
-    end
-    
+    end  
 end
 
 # normalise(x, p) and normalise(A, p)
@@ -195,7 +197,7 @@ end
         test_rrule(normalize, x)
         @test rrule(normalize, x)[2](ZeroTangent()) === (NoTangent(), ZeroTangent())
 
-        test_rrule(normalize, rand(T, 3, 4))
+        @gpu_broken test_rrule(normalize, rand(T, 3, 4))
         test_rrule(normalize, adjoint(rand(T, 5)))
     end
     @testset "x::Array{$T}, p=$p" for T in (Float64, ComplexF64), p in (1.0, 2.0, -Inf, Inf, 2.5)
@@ -204,10 +206,7 @@ end
         test_rrule(normalize, x, p)
         @test rrule(normalize, x, p)[2](ZeroTangent()) === (NoTangent(), ZeroTangent(), ZeroTangent())
 
-        test_rrule(normalize, rand(T, 3, 4), p)
+        @gpu_broken test_rrule(normalize, rand(T, 3, 4), p)
         test_rrule(normalize, adjoint(rand(T, 5)), p)
-    end
-    @testset "gpu, p=$p" for p in (1.0, 2.0, -Inf, Inf, 2.5)
-        @test_broken @gpu_test rrule(normalize, randn(ComplexF32, 5), p)
     end
 end

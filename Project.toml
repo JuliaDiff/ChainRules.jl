@@ -21,6 +21,7 @@ Compat = "3.42.0, 4"
 FiniteDifferences = "0.12.20"
 GPUArraysCore = "0.1.0"
 IrrationalConstants = "0.1.1"
+JLArrays = "0.1"
 JuliaInterpreter = "0.8,0.9"
 RealDot = "0.1"
 StaticArrays = "1.2"
@@ -31,11 +32,11 @@ Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
-GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
 JuliaInterpreter = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Adapt", "CUDA", "ChainRulesTestUtils", "FiniteDifferences", "GPUArrays", "JuliaInterpreter", "Random", "StaticArrays", "Test"]
+test = ["Adapt", "CUDA", "ChainRulesTestUtils", "FiniteDifferences", "JLArrays", "JuliaInterpreter", "Random", "StaticArrays", "Test"]

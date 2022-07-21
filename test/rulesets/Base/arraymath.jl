@@ -196,17 +196,17 @@
         A = randn(4, 4)
         Ā = randn(4, 4)
         # fwd
-        test_frule(-, A)
+        @gpu test_frule(-, A)
         # rev
-        test_rrule(-, A)
+        @gpu test_rrule(-, A)
         test_rrule(-, Diagonal(A); output_tangent=Diagonal(Ā))
     end
 
     @testset "addition" begin
         # fwd
-        test_frule(+, randn(2), randn(2), randn(2))
+        @gpu test_frule(+, randn(2), randn(2), randn(2))
         # rev
-        test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
+        @gpu test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
         test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
     end
 end

@@ -2,64 +2,108 @@
 # if CUDA.functional()
 #     using CUDA  # exports CuArray, etc
 # else
-    @info "CUDA not functional, testing via GPUArrays"
-    using GPUArrays
-    GPUArrays.allowscalar(false)
-
-    # GPUArrays provides a fake GPU array, for testing
-    jl_file = normpath(joinpath(pathof(GPUArrays), "..", "..", "test", "jlarray.jl"))
-    using Random  # loaded within jl_file
-    include(jl_file)
-    using .JLArrays
-    cu = jl
+    @info "CUDA not functional, testing with JLArrays"
+    using JLArrays  # provides a fake GPU array
+    JLArrays.allowscalar(false)
+    
+    using Adapt
+    jl32(xs) = adapt(JLArray{Float32}, xs)
+    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex}) = convert(JLArray{ComplexF32}, xs)
+    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::Float64) = Float32(x)
+    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::ComplexF64) = ComplexF32(x)
+    
+    f32(xs) = adapt(Array{Float32}, xs)
+    Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex}) = convert(Array{ComplexF32}, xs)
+    Adapt.adapt_storage(::Type{<:Array{Float32}}, x::Float64) = Float32(x)
+    Adapt.adapt_storage(::Type{<:Array{Float32}}, x::ComplexF64) = ComplexF32(x)
+    
+    Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
+    Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
+    
+    cu = jl32
     CuArray{T,N} = JLArray{T,N}
 # end
 @test cu(rand(3)) .+ 1 isa CuArray
 
 
 """
-    @gpu_test rrule(sum, rand(3))
-    @gpu_test frule((0, rand(3)), sum, rand(3))
+    @gpu test_rrule(sum, rand(3))
+    @gpu test_frule((0, rand(3)), sum, rand(3))
 
-Runs the rule as shown, and then with all arrays replaced by `GPUArray`s,
-and checks that the two results agree.
+After running the test shown, this converts all arrays to `GPUArray`s,
+and checks that the rule accepts this, and produces the same result.
 
-NB it does not check that the rule computes derivatives correctly.
+  @gpu rrule(sum, rand(3))
+  @gpu frule((0, rand(3)), sum, rand(3))
+  
+Used directly on a rule, this compares a CPU to a GPU run, without
+checking correctness. Both should use `Float32`.
 """
-macro gpu_test(ex)
-    if Meta.isexpr(ex, :call) && ex.args[1] in (:rrule, :frule)
-        :($_gpu_test($(ex.args...))) |> esc
+macro gpu(ex)
+    _gpu_macro(ex)
+end
+macro gpu_broken(ex)
+    _gpu_macro(ex, true)
+end 
+function _gpu_macro(ex, broken=false)
+    Meta.isexpr(ex, :call) && ex.args[1] in (:test_rrule, :test_frule, :rrule, :frule) ||
+      error("@gpu doesn't understand this input")
+    ex2 = if Meta.isexpr(ex.args[2], :parameters)
+        :($_gpu_test($(ex.args[2]), $(ex.args[1]), $(ex.args[3:end]...)))
     else
-        error("@gpu_test only acts on one rrule(...) or frule(...) expression")
+        :($_gpu_test($(ex.args[1]), $(ex.args[2:end]...)))
+    end
+    return if broken
+        :($ex; @test_broken $ex2) |> esc
+    else
+        :($ex; @test $ex2) |> esc
     end
 end
 
-function _gpu_test(::typeof(rrule), xs...; kw...)
-    y, bk = rrule(xs...; kw...)
-    y1 = one.(y)  # crude way to get input sensitivity
-    dxs = bk(y1)
-
-    gpu_y, gpu_bk = rrule(_gpu(xs)...; kw...)
-    gpu_dxs = gpu_bk(one.(gpu_y))
-
-    ChainRulesTestUtils.test_approx(gpu_dxs, _gpu(dxs))  # this contains @test
+function _gpu_test(::typeof(test_rrule), xs...; fkwargs = (;), kw...)
+    _gpu_test(rrule, xs...; fkwargs...)
 end
 
+function _gpu_test(::typeof(test_frule), xs...; fkwargs = (;), kw...)
+    _gpu_test(frule, xs...; fkwargs...)
+end
+
+function _gpu_test(::typeof(rrule), xs...; kw...)
+    y, bk = rrule(f32(xs)...; kw...)
+
+    eltype(y) in (Float64, ComplexF64) && return false  # test for accidental Float64 promotion
+
+    y1 = one.(y)  # crude way to get input sensitivity
+    dxs = unthunk.(bk(y1))
+
+    gpu_y, gpu_bk = rrule(jl32(xs)...; kw...)
+    gpu_dxs = adapt(Array, unthunk.(gpu_bk(one.(gpu_y))))
+
+    agree = map(gpu_dxs, dxs) do a, b
+        a isa AbstractZero && return b isa AbstractZero
+        isapprox(a, b)  # compare on CPU to avoid error from e.g.  isapprox(jl(x), jl(permutedims(x))')
+    end
+    return all(agree)
+end
+
+Base.isapprox(::AbstractZero, ::AbstractZero) = true
+
 function _gpu_test(::typeof(frule), xdots, f::Function, xs...; kw...)
-    y = frule(xdots, f, xs...; kw...)
-    gpu_y = frule(_gpu(xdots), f, _gpu(xs)...; kw...)
-    ChainRulesTestUtils.test_approx(gpu_y, _gpu(y))
+    y = frule(f32(xdots), f, f32(xs)...; kw...)
+    @test eltype(y[2]) ∉ (Float64, ComplexF64)
+    gpu_y = frule(jl32(xdots), f, jl32(xs)...; kw...)
+    ChainRulesTestUtils.test_approx(gpu_y, jl32(y))
+    true
 end
 function _gpu_test(::typeof(frule), f::Function, xs...; kw...)
     xdots = (NoTangent(), xs...)  # a pretty crude way to generate xdots for you
     _gpu_test(frule, xdots, f, xs...; kw...)
 end
+function _gpu_test(::typeof(frule), f::Function, g::Function, xs...; kw...)  # solves an ambiguity
+    xdots = (NoTangent(), NoTangent(), xs...)
+    _gpu_test(frule, xdots, f, g, xs...; kw...)
+end
 
-_gpu(x::AbstractArray) = CuArray(x)  # make a GPUArray
-_gpu(x) = x  # ignore numbers, functions, etc.
-_gpu(xs::Union{Tuple, NamedTuple}) = map(_gpu, xs)  # recurse into arguments
-_gpu(x::AbstractArray{<:AbstractArray}) = map(_gpu, xs)
-_gpu(x::AbstractThunk) = _gpu(unthunk(x))
 
 """
     Multiplier(x)
