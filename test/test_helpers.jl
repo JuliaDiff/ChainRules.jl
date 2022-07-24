@@ -1,30 +1,20 @@
-# import CUDA
-# if CUDA.functional()
-#     using CUDA  # exports CuArray, etc
-# else
-    @info "CUDA not functional, testing with JLArrays"
-    using JLArrays  # provides a fake GPU array
-    JLArrays.allowscalar(false)
-    
-    using Adapt
-    jl32(xs) = adapt(JLArray{Float32}, xs)
-    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex}) = convert(JLArray{ComplexF32}, xs)
-    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::Float64) = Float32(x)
-    Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::ComplexF64) = ComplexF32(x)
-    
-    f32(xs) = adapt(Array{Float32}, xs)
-    Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex}) = convert(Array{ComplexF32}, xs)
-    Adapt.adapt_storage(::Type{<:Array{Float32}}, x::Float64) = Float32(x)
-    Adapt.adapt_storage(::Type{<:Array{Float32}}, x::ComplexF64) = ComplexF32(x)
-    
-    Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
-    Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
-    
-    cu = jl32
-    CuArray{T,N} = JLArray{T,N}
-# end
-@test cu(rand(3)) .+ 1 isa CuArray
+using JLArrays  # provides a fake GPU array
+JLArrays.allowscalar(false)
 
+using Adapt
+jl32(xs) = adapt(JLArray{Float32}, xs)
+Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex}) = convert(JLArray{ComplexF32}, xs)
+Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::Float64) = Float32(x)
+Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::ComplexF64) = ComplexF32(x)
+
+f32(xs) = adapt(Array{Float32}, xs)  # these adapt methods are piracy, just for testing though!
+Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex}) = convert(Array{ComplexF32}, xs)
+Adapt.adapt_storage(::Type{<:Array{Float32}}, x::Float64) = Float32(x)
+Adapt.adapt_storage(::Type{<:Array{Float32}}, x::ComplexF64) = ComplexF32(x)
+
+Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
+Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
+    
 
 """
     @gpu test_rrule(sum, rand(3))
@@ -56,7 +46,7 @@ function _gpu_macro(ex, broken=false)
     return if broken
         :($ex; @test_broken $ex2) |> esc
     else
-        :($ex; @test $ex2) |> esc
+        :($ex; @test $ex2) |> esc  # NB this @test should report a line number in your tests, not here. 
     end
 end
 
@@ -84,9 +74,8 @@ function _gpu_test(::typeof(rrule), xs...; kw...)
         isapprox(a, b)  # compare on CPU to avoid error from e.g.  isapprox(jl(x), jl(permutedims(x))')
     end
     return all(agree)
+    # NB this does not contain @test, it just returns true/false. Then it can be used with `@test_broken` without going mad.
 end
-
-Base.isapprox(::AbstractZero, ::AbstractZero) = true
 
 function _gpu_test(::typeof(frule), xdots, f::Function, xs...; kw...)
     y = frule(f32(xdots), f, f32(xs)...; kw...)
