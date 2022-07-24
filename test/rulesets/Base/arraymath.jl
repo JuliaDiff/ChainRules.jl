@@ -1,8 +1,8 @@
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        test_frule(inv, B)
-        test_rrule(inv, B)
+        @gpu test_frule(inv, B)
+        @gpu test_rrule(inv, B)
     end
 
     @testset "*: $T" for T in (Float64, ComplexF64)
@@ -10,12 +10,12 @@
         ⋆(a, b) = ⋆((a, b))  # matrix
         ⋆() = only(⋆(()))  # scalar
 
-        @testset "Scalar-Array $dims" for dims in ((3,), (5,4), (2, 3, 4, 5))
-            test_frule(*, ⋆(), ⋆(dims))
-            test_frule(*, ⋆(dims), ⋆())
+        @testset "Scalar-Array $dims" for dims in ((3,), (2, 3, 4))
+            @gpu test_frule(*, ⋆(), ⋆(dims))
+            @gpu test_frule(*, ⋆(dims), ⋆())
 
-            test_rrule(*, ⋆(), ⋆(dims))
-            test_rrule(*, ⋆(dims), ⋆())
+            @gpu test_rrule(*, ⋆(), ⋆(dims))
+            @gpu test_rrule(*, ⋆(dims), ⋆())
         end
 
         @testset "AbstractMatrix-AbstractVector n=$n, m=$m" for n in (2, 3), m in (4, 5)
@@ -60,41 +60,39 @@
 
         @testset "Diagonal" begin
             # fwd
-            test_frule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
-            test_frule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
+            @gpu test_frule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            @gpu test_frule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # rev
-            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
-            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
+            @gpu_broken test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # Needs to not try and inplace, as `mul!` will do wrong.
             # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
-            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3,3))
+            @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3,3))
         end
 
-        @testset "Covector * Vector n=$n" for n in (3, 5)
-            @testset "$f" for f in (adjoint, transpose)
-                # This should be same as dot product and give a scalar
-                test_rrule(*, f(⋆(n)) ⊢ f(⋆(n)), ⋆(n))
-            end
+        @testset "$adj * Vector" for adj in (adjoint, transpose)
+            # This should be same as dot product and give a scalar
+            test_rrule(*, adj(⋆(5)) ⊢ adj(⋆(5)), ⋆(5))
         end
     end
 
     @testset "muladd: $T" for T in (Float64, ComplexF64)
-        @testset "add $(typeof(z))" for z in [rand(T), rand(T, 3), rand(T, 3, 3), false]
+        @testset "add $(typeof(z))" for z in [rand(), rand(T, 3), rand(T, 3, 3), false]
             @testset "forward mode" begin
-                test_frule(muladd, rand(T, 3, 5), rand(T, 5, 3), z)
+                @gpu test_frule(muladd, rand(T, 3, 5), rand(T, 5, 3), z)
             end
             @testset "matrix * matrix" begin
                 A = rand(T, 3, 3)
                 B = rand(T, 3, 3)
-                test_rrule(muladd, A, B, z)
-                test_rrule(muladd, A', B, z)
-                test_rrule(muladd, A , B', z)
+                @gpu test_rrule(muladd, A, B, z)
+                @gpu test_rrule(muladd, A', B, z)
+                @gpu test_rrule(muladd, A , B', z)
 
                 C = rand(T, 3, 5)
                 D = rand(T, 5, 3)
-                test_rrule(muladd, C, D, z)
+                @gpu test_rrule(muladd, C, D, z)
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
@@ -181,15 +179,15 @@
     @testset "/ and \\ Scalar-AbstractArray" begin
         A = round.(10 .* randn(3, 4, 5), digits=1)
         # fwd
-        test_frule(/, A, 7.2)
-        test_frule(\, 7.2, A)
+        @gpu test_frule(/, A, 7.2)
+        @gpu test_frule(\, 7.2, A)
         # rev
-        test_rrule(/, A, 7.2)
-        test_rrule(\, 7.2, A)
+        @gpu test_rrule(/, A, 7.2)
+        @gpu test_rrule(\, 7.2, A)
 
         C = round.(10 .* randn(6) .+ im .* 10 .* randn(6), digits=1)
-        test_rrule(/, C, 7.2+8.3im)
-        test_rrule(\, 7.2+8.3im, C)
+        @gpu test_rrule(/, C, 7.2+8.3im)
+        @gpu test_rrule(\, 7.2+8.3im, C)
     end
 
     @testset "negation" begin
@@ -199,7 +197,7 @@
         @gpu test_frule(-, A)
         # rev
         @gpu test_rrule(-, A)
-        test_rrule(-, Diagonal(A); output_tangent=Diagonal(Ā))
+        @gpu test_rrule(-, Diagonal(A); output_tangent=Diagonal(Ā))
     end
 
     @testset "addition" begin
@@ -207,6 +205,6 @@
         @gpu test_frule(+, randn(2), randn(2), randn(2))
         # rev
         @gpu test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
-        test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
+        @gpu test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
     end
 end
