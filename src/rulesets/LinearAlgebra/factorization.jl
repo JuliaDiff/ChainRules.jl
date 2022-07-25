@@ -578,3 +578,11 @@ function _x_divide_conj_y(x, y)
     z = x / conj(y)
     return iszero(x) ? zero(z) : z
 end
+
+# Support both factors and U / L properties on cholesky tangent types
+# TOODO: Maybe we should check the type of U or L first?
+function Base.getproperty(tangent::Tangent{P, T}, sym::Symbol) where {P <: Cholesky, T <: NamedTuple}
+    idx = if hasfield(T, :factors) && sym in (:U, :L) ? :factors : sym
+    hasfield(T, idx) || return ZeroTangent()
+    return unthunk(getfield(ChainRulesCore.backing(tangent), idx))
+end
