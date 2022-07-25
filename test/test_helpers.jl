@@ -30,12 +30,12 @@ Used directly on a rule, this compares a CPU to a GPU run, without
 checking correctness. Both should use `Float32`.
 """
 macro gpu(ex)
-    _gpu_macro(ex)
+    _gpu_macro(ex, false, __source__)
 end
 macro gpu_broken(ex)
-    _gpu_macro(ex, true)
+    _gpu_macro(ex, true, __source__)
 end 
-function _gpu_macro(ex, broken=false)
+function _gpu_macro(ex, broken::Bool, __source__)
     Meta.isexpr(ex, :call) && ex.args[1] in (:test_rrule, :test_frule, :rrule, :frule) ||
       error("@gpu doesn't understand this input")
     ex2 = if Meta.isexpr(ex.args[2], :parameters)
@@ -44,9 +44,10 @@ function _gpu_macro(ex, broken=false)
         :($_gpu_test($(ex.args[1]), $(ex.args[2:end]...)))
     end
     return if broken
-        :($ex; @test_broken $ex2) |> esc
+        Expr(:block, ex, Expr(:macrocall, Symbol("@test_broken"), __source__, ex2)) |> esc
     else
-        :($ex; @test $ex2) |> esc  # NB this @test should report a line number in your tests, not here. 
+        Expr(:block, ex, Expr(:macrocall, Symbol("@test"), __source__, ex2)) |> esc
+        # NB this @test should report a line number in your tests, not here.
     end
 end
 
