@@ -64,7 +64,7 @@
             @gpu test_frule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # rev
-            @gpu_broken test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
             @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # Needs to not try and inplace, as `mul!` will do wrong.
