@@ -1,8 +1,13 @@
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        @gpu test_frule(inv, B)
-        @gpu test_rrule(inv, B)
+        if VERSION >= v"1.7"
+          @gpu test_frule(inv, B)
+          @gpu test_rrule(inv, B)
+        else
+          @gpu_broken test_frule(inv, B)
+          @gpu_broken test_rrule(inv, B)
+        end
     end
 
     @testset "*: $T" for T in (Float64, ComplexF64)
