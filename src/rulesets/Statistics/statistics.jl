@@ -2,9 +2,9 @@
 ##### `mean`
 #####
 
+_denom(x, dims) = size(x, dims)
 _denom(x, dims::Colon) = length(x)
-_denom(x, dims::Integer) = size(x, dims)
-_denom(x, dims) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
+_denom(x, dims::Union{Tuple, AbstractArray}) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
 
 # TODO: We have `mean(f, x; dims)` as of 1.3.0-DEV.36
 # https://github.com/JuliaDiff/ChainRules.jl/issues/85
