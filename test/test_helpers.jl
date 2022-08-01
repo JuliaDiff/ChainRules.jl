@@ -2,17 +2,19 @@ using JLArrays  # provides a fake GPU array
 JLArrays.allowscalar(false)
 
 using Adapt
-jl32(xs) = adapt(JLArray{Float32}, xs)
+jl32(xs) = adapt(JLArray{Float32}, xs)  # this works much like `CUDA.cu`
+# This defines the behaviour of `adapt(JLArray{Float32}, xs)` on arrays.
+# This is piracy, but only while running these tests... could avoid by defining a struct.
 Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex}) = convert(JLArray{ComplexF32}, xs)
 Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::Float64) = Float32(x)
 Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::ComplexF64) = ComplexF32(x)
+Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
 
-f32(xs) = adapt(Array{Float32}, xs)  # these adapt methods are piracy, just for testing though!
+f32(xs) = adapt(Array{Float32}, xs)
+# This maps things back to the CPU. Or, applied to CPU arrays, changes to Float32 to match GPU calculation.
 Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex}) = convert(Array{ComplexF32}, xs)
 Adapt.adapt_storage(::Type{<:Array{Float32}}, x::Float64) = Float32(x)
 Adapt.adapt_storage(::Type{<:Array{Float32}}, x::ComplexF64) = ComplexF32(x)
-
-Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
 Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
     
 
@@ -22,12 +24,14 @@ Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
 
 After running the test shown, this converts all arrays to `GPUArray`s,
 and checks that the rule accepts this, and produces the same result.
+Uses the mock GPU array from JLArrays.jl, even if you have a real GPU available.
+Does not understand all features of `test_rrule`, in particular `⊢`.
 
   @gpu rrule(sum, rand(3))
   @gpu frule((0, rand(3)), sum, rand(3))
   
 Used directly on a rule, this compares a CPU to a GPU run, without
-checking correctness. Both should use `Float32`.
+checking correctness. Both runs will convert numbers to `Float32` first.
 """
 macro gpu(ex)
     _gpu_macro(ex, false, __source__)
@@ -72,7 +76,7 @@ function _gpu_test(::typeof(rrule), xs...; kw...)
 
     agree = map(gpu_dxs, dxs) do a, b
         a isa AbstractZero && return b isa AbstractZero
-        isapprox(a, b)  # compare on CPU to avoid error from e.g.  isapprox(jl(x), jl(permutedims(x))')
+        isapprox(a, b)  # compare on CPU to avoid error from e.g. `isapprox(jl(x), jl(permutedims(x))')`
     end
     return all(agree)
     # NB this does not contain @test, it just returns true/false. Then it can be used with `@test_broken` without going mad.
