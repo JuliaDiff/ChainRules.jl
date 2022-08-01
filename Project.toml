@@ -29,7 +29,6 @@ julia = "1.6"
 
 [extras]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
@@ -39,4 +38,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Adapt", "CUDA", "ChainRulesTestUtils", "FiniteDifferences", "JLArrays", "JuliaInterpreter", "Random", "StaticArrays", "Test"]
+test = ["Adapt", "ChainRulesTestUtils", "FiniteDifferences", "JLArrays", "JuliaInterpreter", "Random", "StaticArrays", "Test"]
