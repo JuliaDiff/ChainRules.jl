@@ -54,80 +54,76 @@ end
 
 
 #####
-##### getindex
+##### getindex(::AbstractArray)
 #####
 
 function frule((_, ẋ), ::typeof(getindex), x::AbstractArray, inds...)
     return x[inds...], ẋ[inds...]
 end
 
-function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
+function rrule(::typeof(getindex), x::AbstractArray, inds...)
     # removes any logical indexing, CartesianIndex etc
     # leaving us just with a tuple of Int, Arrays of Int and Ranges of Int
     plain_inds = Base.to_indices(x, inds)
     y = getindex(x, plain_inds...)
     function getindex_pullback(ȳ)
-        function getindex_add!(Δ)
-            # this a optimizes away for simple cases
-            for (ȳ_ii, ii) in zip(ȳ, Iterators.product(plain_inds...))
-                Δ[ii...] += ȳ_ii
-            end
-            return Δ
-        end
-
-        x̄ = InplaceableThunk(
-            getindex_add!,
-            @thunk(getindex_add!(zero(x))),
+        xthunk = InplaceableThunk(
+            x̄ -> ∇getindex!(x̄, x, unthunk(ȳ), plain_inds...),
+            @thunk(∇getindex(x, unthunk(ȳ), plain_inds...)),
         )
-        īnds = broadcast(Returns(NoTangent()), inds)
-        return (NoTangent(), x̄, īnds...)
+        nots = map(Returns(NoTangent()), inds)
+        return (NoTangent(), xthunk, nots...)
     end
-
     return y, getindex_pullback
 end
 
-
 """
-    ∇getindex(x, dy, dims, inds...)
+    ∇getindex(x, dy, inds...)
 
-This function is roughly `setindex!(zero(x), dy, inds...)`.
-
+For the `rrule` of `y = x[inds...]`, this function is roughly 
+`setindex(zero(x), dy, inds...)`, returning the array `dx`.
+Differentiable. Includes `ProjectTo(x)(dx)`.
 """
-function ∇getindex(x::AbstractArray{<:Number}, dy, dims, inds...)
+function ∇getindex(x::AbstractArray{<:Number}, dy, inds...)
     # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
     # allow `eltype(dy)`, nor does it work for many structured matrices.
     dx = fill!(similar(x, eltype(dy), axes(x)), 0)
-    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-    dx
+    ∇getindex!(dx, x, dy, inds...)
+    return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
-function ∇getindex(x::AbstractArray, dy, dims, inds...)
+function ∇getindex(x::AbstractArray, dy, inds...)
     # Since we have `x`, we can also handle arrays of arrays.
-    dx = map(zero, x)
-    if dims isa Colon
-        view(dx, inds...) .= Ref(dy)
-    else
-        view(dx, inds...) .= dy
-    end
-    dx
+    dx = map(zero, x)  # this ignores type of dy, TODO?
+    ∇getindex!(dx, x, dy, inds...)
+    return ProjectTo(x)(dx)
 end
 
-# Allow for second derivatives, by writing rules for `∇getindex`;
-# these rules are the reason it takes a `dims` argument.
-
-function frule((_, _, dẏ), ::typeof(∇getindex), x, dy, dims, inds...)
-    return ∇getindex(x, dy, dims, inds...), ∇getindex(x, dẏ, dims, inds...)
+function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds::Integer...)
+    view(dx, inds...) .+= Ref(dy)
+    return dx
+end
+function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds...)
+    view(dx, inds...) .+= dy
+    # For GPU arrays, `inds::Union{Integer, Base.Slice}...` is fine, but any other AbstractArray risks overwriting.
+    # Those should call `NNlib.scatter!`, alla https://github.com/FluxML/Zygote.jl/pull/1131
+    return dx
 end
 
-function rrule(::typeof(∇getindex), x, dy, dims, inds...)
-    z = ∇getindex(x, dy, dims, inds...)
+# Allow for second derivatives, by writing rules for `∇getindex`:
+
+function frule((_, _, dẏ), ::typeof(∇getindex), x, dy, inds...)
+    return ∇getindex(x, dy, inds...), ∇getindex(x, dẏ, inds...)
+end
+
+function rrule(::typeof(∇getindex), x, dy, inds...)
+    z = ∇getindex(x, dy, inds...)
     function ∇getindex_pullback(dz)
-        dx = sum(view(unthunk(dz), inds...); dims=dims)
-        nots = map(_ -> NoTangent(), inds)
-        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
+        d2y = getindex(unthunk(dz), inds...)
+        nots = map(Returns(NoTangent()), inds)
+        return (NoTangent(), NoTangent(), ProjectTo(dy)(d2y), nots...)
     end
     return z, ∇getindex_pullback
 end
-
 
 #####
 ##### first, tail
@@ -160,6 +156,21 @@ function frule((_, ẋ), ::typeof(view), x::AbstractArray, inds...)
     return view(x, inds...), view(ẋ, inds...)
 end
 
+# Identical to `getindex` above:
+function rrule(::typeof(view), x::AbstractArray, inds...)
+    plain_inds = Base.to_indices(x, inds)
+    y = view(x, plain_inds...)
+    function view_pullback(ȳ)
+        xthunk = InplaceableThunk(
+            x̄ -> ∇getindex!(x̄, x, unthunk(ȳ), plain_inds...),
+            @thunk(∇getindex(x, unthunk(ȳ), plain_inds...)),
+        )
+        nots = map(Returns(NoTangent()), inds)
+        return (NoTangent(), xthunk, nots...)
+    end
+    return y, view_pullback
+end
+
 #####
 ##### setindex!
 #####
@@ -167,7 +178,6 @@ end
 function frule((_, ẋ, v̇), ::typeof(setindex!), x::AbstractArray, v, inds...)
     return setindex!(x, v, inds...), setindex!(ẋ, v̇, inds...)
 end
-
 
 #####
 ##### `eachslice` and friends

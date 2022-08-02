@@ -78,14 +78,56 @@
         end
     end
     
-    @testset "second derivatives" begin
-        test_frule(ChainRules.∇getindex, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
-        test_rrule(ChainRules.∇getindex, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
-        @test_skip test_rrule(ChainRules.∇getindex, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching isapprox(::Matrix{Float64}, ::Float64; rtol=1.0e-9, atol=1.0e-9)
-        y, bk = rrule(ChainRules.∇getindex, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
-        @test y == [0 0; 5 5]
-        @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
-    end    
+    @testset "getindex for structured arrays" begin
+        test_frule(getindex, Diagonal(rand(3)), 1)
+        test_frule(getindex, Symmetric(rand(3, 3)), 2, 3)
+        
+        test_rrule(getindex, Diagonal(rand(3)), 1)
+        @test_skip test_rrule(getindex, Diagonal(rand(3)), 2, :)  # in-place update of off-diagonal entries
+        dgrad = rrule(getindex, Diagonal(rand(3)), 2, :)[2]([1,2,3])[2]
+        @test unthunk(dgrad) ≈ Diagonal([0, 2, 0])
+        
+        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2)
+        sgrad = rrule(getindex, Symmetric(rand(3, 3)), 2, 3)[2](1.0)[2]
+        @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]
+    end
+    
+    @testset "getindex(::Array{<:Array})" begin
+        test_frule(getindex, [rand(2) for _ in 1:3], 1)
+        test_frule(getindex, [rand(2) for _ in 1:3], 2:3)
+        test_frule(getindex, [rand(2) for _ in 1:3], [true, false, true])
+        
+        test_rrule(getindex, [rand(2) for _ in 1:3], 1; check_inferred=false)
+        test_rrule(getindex, [rand(2) for _ in 1:3], 2:3; check_inferred=false)
+        test_frule(getindex, [rand(2) for _ in 1:3], [true, false, true]; check_inferred=false)
+    end
+
+    @testset "second derivatives: ∇getindex" begin
+        @eval using ChainRules: ∇getindex
+        # Forward, scalar result
+        test_frule(∇getindex, rand(2, 3), rand(), 3)
+        test_frule(∇getindex, rand(2, 3), rand()+im, 2, 1)
+        # array result
+        test_frule(∇getindex, rand(2, 3), rand(2), 4:5)
+        test_frule(∇getindex, rand(2, 3), rand(3), 1, :)
+        test_frule(∇getindex, rand(2, 3), rand(1, 2), [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())
+        test_frule(∇getindex, rand(2, 3), rand(3), Bool[1 0 1; 0 1 0])
+        # arrays of arrays
+        test_frule(∇getindex, [rand(2) for _ in 1:3], rand(2), 3)
+        test_frule(∇getindex, [rand(2) for _ in 1:3], [rand(2), rand(2)], 1:2)
+
+        # Reverse, scalar result
+        test_rrule(∇getindex, rand(2, 3), rand(), 3; check_inferred=false)
+        test_rrule(∇getindex, rand(2, 3), rand()+im, 2, 1; check_inferred=false)
+        # array result
+        test_rrule(∇getindex, rand(2, 3), rand(2), 4:5; check_inferred=false)
+        test_rrule(∇getindex, rand(2, 3), rand(3), 1, :; check_inferred=false)
+        test_rrule(∇getindex, rand(2, 3), rand(1, 2), [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent(); check_inferred=false)
+        test_rrule(∇getindex, rand(2, 3), rand(3), Bool[1 0 1; 0 1 0]; check_inferred=false)
+        # arrays of arrays
+        test_rrule(∇getindex, [rand(2) for _ in 1:3], rand(2), 3; check_inferred=false)
+        test_rrule(∇getindex, [rand(2) for _ in 1:3], [rand(2), rand(2)], 1:2; check_inferred=false)
+    end
 end
 
 @testset "first & tail" begin

@@ -62,10 +62,7 @@ function rrule(::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
     inds = ntuple(d -> d == dims ? p : (:), ndims(x))
     function sortslices_pullback(dy)
-        # No actual need to zero this, and if you didn't, then you could widen eltype
-        # Also, you could use similar(dy) here not x, same size?
-        dx = ∇getindex(x, unthunk(dy), (), inds...)
-        return (NoTangent(), ProjectTo(x)(dx))
+        return (NoTangent(), ∇getindex(x, unthunk(dy), inds...))
     end
     return x[inds...], sortslices_pullback
 end
@@ -95,10 +92,10 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
         keep = map(I -> I[1], findall(mask))
         if dims isa Colon
             # The function `∇getindex` allows second derivatives.
-            dx = reshape(∇getindex(vec(x), vec(dy), (), keep), axes_x)
+            dx = reshape(∇getindex(vec(x), vec(dy), keep), axes_x) ## TODO understand again why vec!
         else
             inds = ntuple(d -> d==dims ? keep : (:), length(axes_x))
-            dx = ∇getindex(x, dy, (), inds...)
+            dx = ∇getindex(x, dy, inds...)
         end
         return (NoTangent(), ProjectTo(x)(dx))
     end

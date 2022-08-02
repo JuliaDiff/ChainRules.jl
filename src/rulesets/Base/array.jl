@@ -515,20 +515,15 @@ for findm in (:findmin, :findmax)
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
         y, ind = $findm(x; dims=dims)
+        plain_inds = Base.to_indices(x, (ind,))
         project = ProjectTo(x)
-        # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk project(∇getindex(x, unthunk(dy), dims, ind))
-            x_ithunk = InplaceableThunk(x_thunk) do dx
-                if dims isa Colon
-                    view(dx, ind) .= view(dx, ind) .+ Ref(unthunk(dy))
-                else
-                    view(dx, ind) .= view(dx, ind) .+ unthunk(dy)  # this could be .+=, but not on Julia 1.0
-                end
-                dx
-            end
-            return (NoTangent(), x_ithunk)
+            xthunk = InplaceableThunk(
+                dx -> ∇getindex!(dx, x, unthunk(dy), plain_inds...),
+                @thunk(∇getindex(x, unthunk(dy), plain_inds...)),
+            )
+            return (NoTangent(), xthunk)
         end
         return (y, ind), $findm_pullback
     end
