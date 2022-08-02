@@ -62,19 +62,18 @@ function frule((_, ẋ), ::typeof(getindex), x::AbstractArray, inds...)
 end
 
 function rrule(::typeof(getindex), x::AbstractArray, inds...)
-    # removes any logical indexing, CartesianIndex etc
-    # leaving us just with a tuple of Int, Arrays of Int and Ranges of Int
-    plain_inds = Base.to_indices(x, inds)
-    y = getindex(x, plain_inds...)
-    function getindex_pullback(ȳ)
-        xthunk = InplaceableThunk(
-            x̄ -> ∇getindex!(x̄, x, unthunk(ȳ), plain_inds...),
-            @thunk(∇getindex(x, unthunk(ȳ), plain_inds...)),
-        )
+    function getindex_pullback(dy)
         nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), xthunk, nots...)
+        return (NoTangent(), thunked∇getindex(x, dy, inds...), nots...)
     end
-    return y, getindex_pullback
+    return x[inds...], getindex_pullback
+end
+
+function thunked∇getindex(x, dy, inds...)
+    return InplaceableThunk(
+        dx -> ∇getindex!(dx, x, unthunk(dy), Base.to_indices(x, inds)...),
+        @thunk(∇getindex(x, unthunk(dy), inds...)),
+    )
 end
 
 """
@@ -84,19 +83,30 @@ For the `rrule` of `y = x[inds...]`, this function is roughly
 `setindex(zero(x), dy, inds...)`, returning the array `dx`.
 Differentiable. Includes `ProjectTo(x)(dx)`.
 """
-function ∇getindex(x::AbstractArray{<:Number}, dy, inds...)
-    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-    # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
-    ∇getindex!(dx, x, dy, inds...)
+function ∇getindex(x::AbstractArray, dy, inds...)
+    # `to_indices` removes any logical indexing, colons, CartesianIndex etc,
+    # leaving just Int / AbstractVector of Int
+    plain_inds = Base.to_indices(x, inds)
+    dx = _setindex_zero(x, dy, plain_inds...)
+    ∇getindex!(dx, x, dy, plain_inds...)
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
-function ∇getindex(x::AbstractArray, dy, inds...)
-    # Since we have `x`, we can also handle arrays of arrays.
-    dx = map(zero, x)  # this ignores type of dy, TODO?
-    ∇getindex!(dx, x, dy, inds...)
-    return ProjectTo(x)(dx)
+
+# It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
+# allow `eltype(dy)`, nor does it work for many structured matrices.
+_setindex_zero(x::AbstractArray{<:Number}, dy, inds::Integer...) = fill!(similar(x, typeof(dy), axes(x)), 0)
+_setindex_zero(x::AbstractArray{<:Number}, dy, inds...) = fill!(similar(x, eltype(dy), axes(x)), 0)
+function _setindex_zero(x::AbstractArray, dy, inds::Integer...)
+    # This allows for types which don't define zero (like Vector) and types whose zero special (like Tangent),
+    # but always makes an abstract type. TODO: make it infer concrete type for e.g. vectors of SVectors
+    T = Union{typeof(dy), ZeroTangent}
+    return fill!(similar(x, T, axes(x)), ZeroTangent())
 end
+function _setindex_zero(x::AbstractArray, dy, inds...)
+    T = Union{eltype(dy), ZeroTangent}
+    return fill!(similar(x, T, axes(x)), ZeroTangent())
+end
+ChainRules.@non_differentiable _setindex_zero(x::AbstractArray, dy::Any, inds::Any...)
 
 function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
@@ -156,19 +166,12 @@ function frule((_, ẋ), ::typeof(view), x::AbstractArray, inds...)
     return view(x, inds...), view(ẋ, inds...)
 end
 
-# Identical to `getindex` above:
 function rrule(::typeof(view), x::AbstractArray, inds...)
-    plain_inds = Base.to_indices(x, inds)
-    y = view(x, plain_inds...)
-    function view_pullback(ȳ)
-        xthunk = InplaceableThunk(
-            x̄ -> ∇getindex!(x̄, x, unthunk(ȳ), plain_inds...),
-            @thunk(∇getindex(x, unthunk(ȳ), plain_inds...)),
-        )
+    function view_pullback(dy)
         nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), xthunk, nots...)
+        return (NoTangent(), thunked∇getindex(x, dy, inds...), nots...)
     end
-    return y, view_pullback
+    return view(x, inds...), view_pullback
 end
 
 #####

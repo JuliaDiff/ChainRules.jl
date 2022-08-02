@@ -101,6 +101,21 @@
         test_rrule(getindex, [rand(2) for _ in 1:3], 2:3; check_inferred=false)
         test_frule(getindex, [rand(2) for _ in 1:3], [true, false, true]; check_inferred=false)
     end
+    
+    @testset "getindex(::Array{<:Weird})" begin
+        xfix = [Base.Fix1(*, pi), Base.Fix1(^, ℯ), Base.Fix1(/, -1)]
+        dxfix = [Tangent{Base.Fix1}(; x = i/10) for i in 1:3]
+        # test_frule(getindex, xfix ⊢ dxfix, 1)
+        # test_rrule(getindex, xfix ⊢ dxfix, 1)
+        
+        dx1 = unthunk(rrule(getindex, xfix, 1)[2](dxfix[1])[2])
+        @test dx1[1] == dxfix[1]
+        @test iszero(dx1[2])
+        
+        dx23 = unthunk(rrule(getindex, xfix, 2:3)[2](dxfix[2:3])[2])
+        @test iszero(dx23[1])
+        @test dx23[3] == dxfix[3]
+    end
 
     @testset "second derivatives: ∇getindex" begin
         @eval using ChainRules: ∇getindex
@@ -151,6 +166,10 @@ end
     test_frule(view, rand(3, 4), :, 1)
     test_frule(view, rand(3, 4), 2, [1, 1, 2])
     test_frule(view, rand(3, 4), 3, 4)
+
+    test_rrule(view, rand(3, 4), :, 1)
+    test_rrule(view, rand(3, 4), 2, [1, 1, 2])
+    @test_broken test_rrule(view, rand(3, 4), 3, 4)  # This is why ∇getindex needs one more argument, dammit
 end
 
 @testset "setindex!" begin

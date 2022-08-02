@@ -515,15 +515,9 @@ for findm in (:findmin, :findmax)
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
         y, ind = $findm(x; dims=dims)
-        plain_inds = Base.to_indices(x, (ind,))
-        project = ProjectTo(x)
         function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            xthunk = InplaceableThunk(
-                dx -> ∇getindex!(dx, x, unthunk(dy), plain_inds...),
-                @thunk(∇getindex(x, unthunk(dy), plain_inds...)),
-            )
-            return (NoTangent(), xthunk)
+            return (NoTangent(), thunked∇getindex(x, dy, ind),)
         end
         return (y, ind), $findm_pullback
     end
