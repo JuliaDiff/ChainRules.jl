@@ -180,6 +180,17 @@ function frule((_, ẋ, v̇), ::typeof(setindex!), x::AbstractArray, v, inds...)
 end
 
 #####
+##### unsafe_getindex
+#####
+
+# This is called by e.g. `iterate(1:0.1:2)`,
+# and fixes https://github.com/FluxML/Zygote.jl/issues/1247
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(Base.unsafe_getindex), x::AbstractRange, i::Integer)
+  return rrule_via_ad(cfg, getindex, x, i)
+end
+
+#####
 ##### `eachslice` and friends
 #####
 
