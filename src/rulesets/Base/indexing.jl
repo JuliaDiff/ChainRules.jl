@@ -52,7 +52,6 @@ function rrule(::typeof(getindex), x::Tuple, ::Colon)
     return x, getindex_back_4
 end
 
-
 #####
 ##### getindex(::AbstractArray)
 #####
@@ -172,6 +171,15 @@ function rrule(::typeof(view), x::AbstractArray, inds...)
         return (NoTangent(), thunked∇getindex(x, dy, inds...), nots...)
     end
     return view(x, inds...), view_pullback
+end
+
+function rrule(::typeof(view), x::AbstractArray, i::Integer, jkl::Integer...)
+    # This case returns a zero-dim array, unlike getindex. So we fool ∇getindex:
+    function view_pullback_0(dy)
+        nots = map(Returns(NoTangent()), (i, jkl...))
+        return (NoTangent(), thunked∇getindex(x, dy, i:i, jkl...), nots...)
+    end
+    return view(x, i, jkl...), view_pullback_0
 end
 
 #####

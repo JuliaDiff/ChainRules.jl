@@ -169,7 +169,7 @@ end
 
     test_rrule(view, rand(3, 4), :, 1)
     test_rrule(view, rand(3, 4), 2, [1, 1, 2])
-    @test_broken test_rrule(view, rand(3, 4), 3, 4)  # This is why ∇getindex needs one more argument, dammit
+    test_rrule(view, rand(3, 4), 3, 4)
 end
 
 @testset "setindex!" begin

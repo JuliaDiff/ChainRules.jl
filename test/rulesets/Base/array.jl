@@ -366,6 +366,7 @@ end
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
     test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()))
     test_rrule(findmin, rand(3,4), fkwargs=(dims=2,))
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=(1,2),))
 end
 
 @testset "$imum" for imum in [maximum, minimum]
