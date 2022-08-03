@@ -196,9 +196,14 @@ end
 
 # This is called by e.g. `iterate(1:0.1:2)`,
 # and fixes https://github.com/FluxML/Zygote.jl/issues/1247
+# Only needs to accept AbstractRange, but AbstractVector makes testing easier.
 
-function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(Base.unsafe_getindex), x::AbstractRange, i::Integer)
-  return rrule_via_ad(cfg, getindex, x, i)
+function frule((_, ẋ), ::typeof(Base.unsafe_getindex), x::AbstractVector, i::Integer)
+    return Base.unsafe_getindex(x, i), getindex(ẋ, i)
+end
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(Base.unsafe_getindex), x::AbstractVector, i::Integer)
+    return rrule_via_ad(cfg, getindex, x, i)
 end
 
 #####

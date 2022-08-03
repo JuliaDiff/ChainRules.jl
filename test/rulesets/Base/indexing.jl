@@ -177,6 +177,11 @@ end
     test_frule(setindex!, rand(3, 4), [1,10,100.0], :, 3)
 end
 
+@testset "unsafe_getindex" begin
+    test_frule(Base.unsafe_getindex, collect(1:0.1:2), 3)
+    test_rrule(Base.unsafe_getindex, collect(1:0.1:2), 3)
+end
+
 @testset "eachslice" begin
     # Testing eachrow not collect∘eachrow leads to errors, e.g.
     # test_rrule: eachrow on Vector{Float64}: Error During Test at /Users/me/.julia/packages/ChainRulesTestUtils/8dFTY/src/testers.jl:195
