@@ -1,4 +1,59 @@
 #####
+##### getindex(::Tuple)
+#####
+
+function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
+    return x[i], ẋ[i]
+end
+
+function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
+    y = x[i]
+    return y, Tangent{typeof(y)}(ẋ[i]...)
+end
+
+"for a given typle type, returns a Val{N} where N is the length of the tuple"
+_tuple_N(::Type{<:Tuple{Vararg{<:Any, N}}}) where {N} = Val(N)
+
+function rrule(::typeof(getindex), x::T, i::Integer) where {T<:Tuple}
+    function getindex_back_1(dy)
+        dx = ntuple(j -> j == i ? dy : NoTangent(), _tuple_N(T))
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
+    end
+    return x[i], getindex_back_1
+end
+
+# Special case for tuples of only numbers
+function rrule(::typeof(getindex), x::T, i::Integer) where {T<:NTuple{<:Any,<:Number}}
+    function getindex_back_2(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = ntuple(j -> j == i ? dy : zero(dy), _tuple_N(T))
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
+    end
+    return x[i], getindex_back_2
+end
+
+# Note Zygote has getindex(::Tuple, ::UnitRange) separately from getindex(::Tuple, ::AbstractVector),
+# whether that's more efficient has not been investigated here.
+# https://github.com/FluxML/Zygote.jl/blob/master/src/lib/lib.jl#L125-L142
+function rrule(::typeof(getindex), x::T, inds) where {T<:Tuple}  # e.g. ranges, not type-stable
+    function getindex_back_3(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = ntuple(Returns(NoTangent()), _tuple_N(T))
+        for (dyi, i) in zip(dy, inds)
+            dx = Base.setindex(dx, dyi + dx[i], i)
+        end
+        return (NoTangent(), Tangent{T}(dx...), NoTangent())
+    end
+    return x[inds], getindex_back_3
+end
+
+function rrule(::typeof(getindex), x::Tuple, ::Colon)
+    getindex_back_4(dy) = (NoTangent(), dy, NoTangent())
+    return x, getindex_back_4
+end
+
+
+#####
 ##### getindex
 #####
 
@@ -29,6 +84,29 @@ function rrule(::typeof(getindex), x::Array{<:Number}, inds...)
     end
 
     return y, getindex_pullback
+end
+
+#####
+##### first, tail
+#####
+
+function frule((_, ẋ), ::typeof(first), x::Tuple)
+    return first(x), first(ẋ)
+end
+
+function rrule(::typeof(first), x::T) where {T<:Tuple}
+    first_back(dy) = (NoTangent(), Tangent{T}(ntuple(j -> j == 1 ? dy : NoTangent(), _tuple_N(T))...))
+    return first(x), first_back
+end
+
+function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
+    y = Base.tail(x)
+    return y, Tangent{typeof(y)}(Base.tail(ẋ)...)
+end
+
+function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
+    tail_pullback(dy) = (NoTangent(), Tangent{T}(NoTangent(), dy...))
+    return Base.tail(x), tail_pullback
 end
 
 #####
@@ -93,6 +171,7 @@ function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
     end
     return ProjectTo(x)(dx)
 end
+∇eachslice(dys::AbstractZero, x::AbstractArray, vd::Val{dim}) where {dim} = dys
 
 _zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
 _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
