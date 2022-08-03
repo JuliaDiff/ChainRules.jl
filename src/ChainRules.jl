@@ -1,10 +1,11 @@
 module ChainRules
 
+using Adapt: adapt
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
 using Compat
 using Distributed
-using GPUArraysCore: AbstractGPUArrayStyle
+using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS

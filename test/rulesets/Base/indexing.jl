@@ -143,6 +143,25 @@
         test_rrule(∇getindex, [rand(2) for _ in 1:3], rand(2), 3; check_inferred=false)
         test_rrule(∇getindex, [rand(2) for _ in 1:3], [rand(2), rand(2)], 1:2; check_inferred=false)
     end
+
+    @testset "GPU" begin
+        x_23_gpu = jl(rand(2, 3))
+    
+        # Scalar indexing, copied from:  @macroexpand @allowscalar A[i]
+        # Gives an error in Pkg.test, no idea why
+        # y1, bk1 = rrule(CFG, Base.task_local_storage, () -> x_23_gpu[1], :ScalarIndexing, ScalarAllowed)
+        # @test y1 == @allowscalar x_gpu[1]
+        # bk1(1.0)  # This is zero, because finite-differencing ignores the function
+        # ... but this works, and calls the rule:
+        # Zygote.gradient(x -> @allowscalar(x[1]), jl(rand(3)))[1]
+        
+        y2, bk2 = rrule(getindex, x_23_gpu, :, 2:3)  # fast path, just broadcast .+=
+        @test unthunk(bk2(jl(ones(2,2)))[2]) == jl([0 1 1; 0 1 1])
+
+        y3, bk3 = rrule(getindex, x_23_gpu, 1, [1,1,2])  # slow path, copy to CPU
+        @test_skip Array(y3) == Array(x_gpu)[1, [1,1,2]]  # error in Pkg.test, no idea why
+        @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
+    end
 end
 
 @testset "first & tail" begin
@@ -178,6 +197,7 @@ end
 end
 
 @testset "unsafe_getindex" begin
+    # In real life this is called only on some AbstractRanges, but easier to test on Array:
     test_frule(Base.unsafe_getindex, collect(1:0.1:2), 3)
     test_rrule(Base.unsafe_getindex, collect(1:0.1:2), 3)
 end

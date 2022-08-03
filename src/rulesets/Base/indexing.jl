@@ -113,8 +113,6 @@ function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds::Integer...)
 end
 function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds...)
     view(dx, inds...) .+= dy
-    # For GPU arrays, `inds::Union{Integer, Base.Slice}...` is fine, but any other AbstractArray risks overwriting.
-    # Those should call `NNlib.scatter!`, alla https://github.com/FluxML/Zygote.jl/pull/1131
     return dx
 end
 
@@ -132,6 +130,25 @@ function rrule(::typeof(∇getindex), x, dy, inds...)
         return (NoTangent(), NoTangent(), ProjectTo(dy)(d2y), nots...)
     end
     return z, ∇getindex_pullback
+end
+
+# Indexing with repeated indices on a GPU will lead ∇getindex to have race conditions & wrong answers.
+# To avoid this, copy everything back to the CPU.
+# But don't do that for indices which are known to be unique, e.g. `A[1, 2:3, :]` the colon gives Base.Slice:
+
+function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds::Integer...)
+    view(dx, inds...) .+= Ref(dy)
+    return dx
+end
+function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds::Union{Integer, AbstractUnitRange, Base.Slice}...)
+    view(dx, inds...) .+= dy
+    return dx
+end
+function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds...)
+    dx_cpu = adapt(Array, dx)
+    view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
+    copyto!(dx, dx_cpu)
+    return dx
 end
 
 #####
