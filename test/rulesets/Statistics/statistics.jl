@@ -1,17 +1,16 @@
 @testset "mean" begin
-    n = 9
     @testset "Basic" begin
-        test_rrule(mean, randn(n))
+        @gpu test_rrule(mean, randn(9))
     end
     @testset "with dims kwargs" begin
-        test_rrule(mean, randn(n); fkwargs=(;dims=1))
-        test_rrule(mean, randn(n,4); fkwargs=(;dims=2))
+        @gpu test_rrule(mean, randn(9); fkwargs=(;dims=1))
+        @gpu test_rrule(mean, randn(9,4); fkwargs=(;dims=2))
     end
 end
 
 @testset "variation: $var" for var in (std, var)
-    test_rrule(var, randn(3))
-    test_rrule(var, randn(4, 5); fkwargs=(; corrected=false))
+    @gpu test_rrule(var, randn(3))
+    @gpu test_rrule(var, randn(4, 5); fkwargs=(; corrected=false))
     test_rrule(var, randn(ComplexF64, 6))
     test_rrule(var, Diagonal(randn(6)))
 

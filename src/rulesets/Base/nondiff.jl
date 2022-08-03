@@ -93,6 +93,8 @@
 ##### Exported functions, alphabetically
 #####
 
+@non_differentiable (:)(::Any...) # same as the Colon() singleton instance
+
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
 @non_differentiable all(::Any, ::Any)
@@ -110,6 +112,7 @@
 @non_differentiable bytesavailable(::Any)
 
 @non_differentiable CartesianIndices(::Any)
+@non_differentiable Channel(::Any...)
 @non_differentiable cd(::AbstractString)
 @non_differentiable chomp(::AbstractString)
 @non_differentiable chop(::AbstractString)
@@ -147,9 +150,11 @@
 @non_differentiable endswith(::AbstractString, ::AbstractString)
 @non_differentiable endswith(::AbstractString, ::Regex)
 @non_differentiable eof(::Any)
+@non_differentiable eps(::Any...)
 @non_differentiable error(::AbstractString)
 @non_differentiable escape_string(::AbstractString)
 @non_differentiable escape_string(::IO, ::AbstractString)
+@non_differentiable eval(::Any...)
 @non_differentiable evalfile(::AbstractString)
 @non_differentiable evalfile(::AbstractString, ::Array{String,1})
 @non_differentiable expanduser(::AbstractString)
@@ -391,6 +396,7 @@ end
 @non_differentiable similar(::Any...)
 @non_differentiable size(::Any)
 @non_differentiable size(::Any, ::Any)
+@non_differentiable sizehint!(::Any...)
 @non_differentiable sizeof(::Any)
 @non_differentiable sleep(::Any)
 @non_differentiable sortperm(::AbstractVector)
@@ -424,6 +430,8 @@ end
 @non_differentiable titlecase(::AbstractString)
 @non_differentiable titlecase(::AbstractChar)
 @non_differentiable touch(::AbstractString)
+@non_differentiable trunc(::Any...)
+@non_differentiable typeintersect(::Any, ::Any)
 @non_differentiable typemax(::Any)
 @non_differentiable typemin(::Any)
 
@@ -450,6 +458,7 @@ end
 ##### Non-exported functions
 #####
 
+@non_differentiable Base.eval(Any...)
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
@@ -461,6 +470,7 @@ elseif isdefined(Base, :cumulative_compile_time_ns)
     @non_differentiable Base.cumulative_compile_time_ns()
 end
 @non_differentiable Base.time_print(::Any...)
+@non_differentiable Base.OneTo(::Any...)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)

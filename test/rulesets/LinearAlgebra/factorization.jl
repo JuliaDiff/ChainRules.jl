@@ -537,5 +537,29 @@ end
                 @test ΔX.factors isa Diagonal && all(iszero, ΔX.factors)
             end
         end
+
+        @testset "\\(::Cholesky, ::AbstractVecOrMat)" begin
+            n = 10
+            for T in (Float64, ComplexF64), sz in (n, (n, 5))
+                A = generate_well_conditioned_matrix(T, n)
+                C = cholesky(A)
+                B = randn(T, sz)
+                # because the rule calls the rrule for getproperty, its rrule is not
+                # completely type-inferrable
+                test_rrule(\, C, B; check_inferred=false)
+            end
+        end
+
+        @testset "/(::AbstractMatrix, ::Cholesky)" begin
+            n = 10
+            for T in (Float64, ComplexF64)
+                A = generate_well_conditioned_matrix(T, n)
+                C = cholesky(A)
+                B = randn(T, 5, n)
+                # because the rule calls the rrule for getproperty, its rrule is not
+                # completely type-inferrable
+                test_rrule(/, B, C; check_inferred=false)
+            end
+        end
     end
 end
