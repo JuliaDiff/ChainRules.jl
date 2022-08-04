@@ -23,6 +23,8 @@ end
 const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
 const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
 
+const CHOLESKY_NO_PIVOT = VERSION >= v"1.8.0-rc1" ? NoPivot() : Val(false)
+
 # well-conditioned random n×n matrix with elements of type `T` for testing `eigen`
 function rand_eigen(T::Type, n::Int)
     # uniform distribution over `(-1, 1)` / `(-1, 1)^2`
@@ -394,7 +396,7 @@ end
 
         @testset "Diagonal" begin
             @testset "Diagonal{<:Real}" begin
-                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), Val(false))
+                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), CHOLESKY_NO_PIVOT)
             end
             @testset "Diagonal{<:Complex}" begin
                 # finite differences in general will produce matrices with non-real
@@ -403,18 +405,18 @@ end
                 D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
                 C = cholesky(D)
                 test_rrule(
-                    cholesky, D, Val(false);
+                    cholesky, D, CHOLESKY_NO_PIVOT;
                     output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
                     fkwargs=(; check=false),
                 )
             end
             @testset "check has correct default and passed to primal" begin
-                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), Val(false))
-                rrule(cholesky, Diagonal(-rand(5)), Val(false); check=false)
+                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), CHOLESKY_NO_PIVOT)
+                rrule(cholesky, Diagonal(-rand(5)), CHOLESKY_NO_PIVOT; check=false)
             end
             @testset "failed factorization" begin
                 A = Diagonal(vcat(rand(4), -rand(4), rand(4)))
-                test_rrule(cholesky, A, Val(false); fkwargs=(; check=false))
+                test_rrule(cholesky, A, CHOLESKY_NO_PIVOT; fkwargs=(; check=false))
             end
         end
 
@@ -422,7 +424,7 @@ end
             @testset "Matrix{$T}" for T in (Float64, ComplexF64)
                 X = generate_well_conditioned_matrix(T, 10)
                 V = generate_well_conditioned_matrix(T, 10)
-                F, dX_pullback = rrule(cholesky, X, Val(false))
+                F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
                 @testset "uplo=$p, cotangent eltype=$T" for p in [:U, :L], S in unique([T, complex(T)])
                     Y, dF_pullback = rrule(getproperty, F, p)
                     Ȳ = randn(S, size(Y))
@@ -447,8 +449,8 @@ end
             @testset "check has correct default and passed to primal" begin
                 # this will almost certainly be a non-PD matrix
                 X = Matrix(Symmetric(randn(10, 10)))
-                @test_throws Exception rrule(cholesky, X, Val(false))
-                rrule(cholesky, X, Val(false); check=false)  # just check it doesn't throw
+                @test_throws Exception rrule(cholesky, X, CHOLESKY_NO_PIVOT)
+                rrule(cholesky, X, CHOLESKY_NO_PIVOT; check=false)  # just check it doesn't throw
             end
         end
 
@@ -456,13 +458,13 @@ end
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
             X = generate_well_conditioned_matrix(10)
-            F, dX_pullback = rrule(cholesky, X, Val(false))
+            F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
             ΔU = randn(size(X))
             ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
             @testset for uplo in (:L, :U)
                 X_symmetric, sym_back = rrule(Symmetric, X, uplo)
-                C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
+                C, chol_back_sym = rrule(cholesky, X_symmetric, CHOLESKY_NO_PIVOT)
 
                 ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
                 ΔX_symmetric = chol_back_sym(ΔC)[2]
@@ -479,13 +481,13 @@ end
         @testset "Hermitian" begin
             @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
                 X = generate_well_conditioned_matrix(T, 10)
-                F, dX_pullback = rrule(cholesky, X, Val(false))
+                F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
                 ΔU = randn(T, size(X))
                 ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
                 @testset for uplo in (:L, :U)
                     X_hermitian, herm_back = rrule(Hermitian, X, uplo)
-                    C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
+                    C, chol_back_herm = rrule(cholesky, X_hermitian, CHOLESKY_NO_PIVOT)
 
                     ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
                     ΔX_hermitian = chol_back_herm(ΔC)[2]
@@ -499,8 +501,8 @@ end
             @testset "check has correct default and passed to primal" begin
                 # this will almost certainly be a non-PD matrix
                 X = Hermitian(randn(10, 10))
-                @test_throws Exception rrule(cholesky, X, Val(false))
-                rrule(cholesky, X, Val(false); check=false)
+                @test_throws Exception rrule(cholesky, X, CHOLESKY_NO_PIVOT)
+                rrule(cholesky, X, CHOLESKY_NO_PIVOT; check=false)
             end
         end
 
