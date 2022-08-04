@@ -457,13 +457,21 @@ end
         @testset "Symmetric" begin
             X = generate_well_conditioned_matrix(10)
             F, dX_pullback = rrule(cholesky, X, Val(false))
+            ΔU = randn(size(X))
+            ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
-            X_symmetric, sym_back = rrule(Symmetric, X, :U)
-            C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
+            @testset for uplo in (:L, :U)
+                X_symmetric, sym_back = rrule(Symmetric, X, uplo)
+                C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
 
-            Δ = Tangent{typeof(C)}((factors=randn(size(X))))
-            ΔX_symmetric = chol_back_sym(Δ)[2]
-            @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+                ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
+                ΔX_symmetric = chol_back_sym(ΔC)[2]
+                if uplo === :U
+                    @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(ΔF)[2]
+                else
+                    @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(ΔF)[2]'
+                end
+            end
         end
 
         # Ensure that cotangents of cholesky(::StridedMatrix) and
@@ -472,13 +480,21 @@ end
             @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
                 X = generate_well_conditioned_matrix(T, 10)
                 F, dX_pullback = rrule(cholesky, X, Val(false))
+                ΔU = randn(T, size(X))
+                ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
-                X_hermitian, herm_back = rrule(Hermitian, X, :U)
-                C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
+                @testset for uplo in (:L, :U)
+                    X_hermitian, herm_back = rrule(Hermitian, X, uplo)
+                    C, chol_back_herm = rrule(cholesky, X_hermitian, Val(false))
 
-                Δ = Tangent{typeof(C)}((factors=randn(T, size(X))))
-                ΔX_hermitian = chol_back_herm(Δ)[2]
-                @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(Δ)[2]
+                    ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
+                    ΔX_hermitian = chol_back_herm(ΔC)[2]
+                    if uplo === :U
+                        @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(ΔF)[2]
+                    else
+                        @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(ΔF)[2]'
+                    end
+                end
             end
             @testset "check has correct default and passed to primal" begin
                 # this will almost certainly be a non-PD matrix
