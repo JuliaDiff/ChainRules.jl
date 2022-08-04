@@ -580,3 +580,38 @@ function _x_divide_conj_y(x, y)
     z = x / conj(y)
     return iszero(x) ? zero(z) : z
 end
+
+# these rules exists because the primals mutates using `ldiv!` and `rdiv!`
+function rrule(::typeof(\), A::Cholesky, B::AbstractVecOrMat{<:Union{Real,Complex}})
+    U, getproperty_back = rrule(getproperty, A, :U)
+    Z = U' \ B
+    Y = U \ Z
+    project_B = ProjectTo(B)
+    function ldiv_Cholesky_AbsVecOrMat_pullback(ΔY)
+        ∂Z = U' \ ΔY
+        ∂B = U \ ∂Z
+        ∂A = Thunk() do
+            _, Ā = getproperty_back(-add!!(∂Z * Y', Z * ∂B'))
+            return Ā
+        end
+        return NoTangent(), ∂A, project_B(∂B)
+    end
+    return Y, ldiv_Cholesky_AbsVecOrMat_pullback
+end
+
+function rrule(::typeof(/), B::AbstractMatrix{<:Union{Real,Complex}}, A::Cholesky)
+    U, getproperty_back = rrule(getproperty, A, :U)
+    Z = B / U
+    Y = Z / U'
+    project_B = ProjectTo(B)
+    function rdiv_AbstractMatrix_Cholesky_pullback(ΔY)
+        ∂Z = ΔY / U
+        ∂B = ∂Z / U'
+        ∂A = Thunk() do
+            _, Ā = getproperty_back(-add!!(∂Z' * Y, Z' * ∂B))
+            return Ā
+        end
+        return NoTangent(), project_B(∂B), ∂A
+    end
+    return Y, rdiv_AbstractMatrix_Cholesky_pullback
+end

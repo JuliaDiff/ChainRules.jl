@@ -7,15 +7,20 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
+        test_frule(sum, (rand(2), rand(2)))
+        
+        test_rrule(sum, Tuple(rand(5)))
+        test_rrule(sum, (1.2, 3.4 + 5im))
+        test_rrule(sum, (rand(2)', rand(1,2)))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
-        test_frule(sum, rand(5); fkwargs=(;dims=dims))
-        test_frule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+        @gpu test_frule(sum, rand(5); fkwargs=(;dims=dims))
+        @gpu test_frule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
 
         # Reverse
-        test_rrule(sum, rand(5); fkwargs=(;dims=dims))
-        test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+        @gpu test_rrule(sum, rand(5); fkwargs=(;dims=dims))
+        @gpu test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
 
         # Structured matrices
         test_rrule(sum, rand(5)'; fkwargs=(;dims=dims))
@@ -53,14 +58,18 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         @testset "dims = $dims" for dims in (:, 1)
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
                 x = randn(T, sizes[1:N]...)
-                test_frule(sum, abs2, x; fkwargs=(;dims=dims))
-                test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
+                @gpu test_frule(sum, abs2, x; fkwargs=(;dims=dims))
+                @gpu test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
             end
 
             # Boolean -- via @non_differentiable, test that this isn't ambiguous
             test_rrule(sum, abs2, randn(5) .> 0; fkwargs=(;dims=dims))
         end
     end  # sum abs2
+
+    @testset "sum(f, xs::Tuple)" begin
+        test_rrule(sum, sqrt, Tuple(rand(3)), check_inferred=false)
+    end
 
     @testset "sum(f, xs)" begin
         # This calls back into AD
@@ -147,10 +156,10 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
                 ((3,4), 1), ((3,4), 2), ((3,4), :), ((3,4), [1,2]),
                 ((3,4,1), 1), ((3,2,2), 3), ((3,2,2), 2:3),
                 ]
-                x = randn(T, sz)
-                test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
+                x = rand(T, sz) .+ 1  # no zeros
+                @gpu test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[1] = 0
-                test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
+                @gpu_broken test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[5] = 0
                 test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[3] = x[7] = 0  # two zeros along some slice, for any dims
@@ -277,6 +286,7 @@ end
         test_rrule(cumsum, v)
         test_rrule(cumsum, v; fkwargs=(;dims=1))
         test_rrule(cumsum, m; fkwargs=(;dims=2))
+        test_rrule(cumsum, m; fkwargs=(;dims=3))  # trivial
     end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)
