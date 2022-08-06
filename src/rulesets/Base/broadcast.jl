@@ -13,7 +13,6 @@ function rrule(::typeof(Broadcast.instantiate), bc::Broadcasted)
     return Broadcast.instantiate(bc), uninstantiate
 end
 
-_print(args...) = printstyled("CR: ", join(args, " "), "\n", color=:magenta) # nothing # 
 
 #####
 ##### Split broadcasting
@@ -31,7 +30,7 @@ function rrule(cfg::RCR, ::typeof(broadcasted), ::BroadcastStyle, f::F, args::Va
     T = Broadcast.combine_eltypes(f, args)
     if T === Bool  # TODO use nondifftype here
         # 1: Trivial case: non-differentiable output, e.g. `x .> 0`
-        _print("split_bc_trivial", f)
+        @debug("split broadcasting trivial", f, T)
         bc_trivial_back(_) = (TRI_NO..., ntuple(Returns(ZeroTangent()), length(args))...)
         return f.(args...), bc_trivial_back
     elseif T <: Number && may_bc_derivatives(T, f, args...)
@@ -57,7 +56,7 @@ _eltype(x) = eltype(x)  # ... but try harder to avoid `eltype(Broadcast.broadcas
 _eltype(bc::Broadcast.Broadcasted) = Broadcast.combine_eltypes(bc.f, bc.args)
 
 function split_bc_derivatives(f::F, arg) where {F}
-    _print("split_bc_derivative", f)
+    @debug("split broadcasting derivative", f)
     ys = f.(arg)
     function bc_one_back(dys)  # For f.(x) we do not need StructArrays / unzip at all
         delta = broadcast(unthunk(dys), ys, arg) do dy, y, a
@@ -70,7 +69,7 @@ function split_bc_derivatives(f::F, arg) where {F}
     return ys, bc_one_back
 end
 function split_bc_derivatives(f::F, args::Vararg{Any,N}) where {F,N}
-    _print("split_bc_derivatives", f, N)
+    @debug("split broadcasting derivatives", f, N)
     ys = f.(args...)
     function bc_many_back(dys)
         deltas = tuplecast(unthunk(dys), ys, args...) do dy, y, as...
@@ -105,7 +104,7 @@ end
 split_bc_forwards(cfg::RuleConfig{>:HasForwardsMode}, f::F, arg) where {F} = split_bc_inner(frule_via_ad, cfg, f, arg)
 split_bc_forwards(cfg::RuleConfig, f::F, arg) where {F} = split_bc_inner(frule, cfg, f, arg)
 function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
-    _print("split_bc_forwards", frule_fun, f)
+    @debug("split broadcasting forwards", frule_fun, f)
     ys, ydots = tuplecast(arg) do a
         frule_fun(cfg, (NoTangent(), one(a)), f, a)
     end
@@ -124,7 +123,7 @@ end
 # can change the number of calls, don't bother to try to reverse the iteration.
 
 function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
-    _print("split_bc_generic", f, N)
+    @debug("split broadcasting generic", f, N)
     ys3, backs = tuplecast(args...) do a...
         rrule_via_ad(cfg, f, a...)
     end
@@ -142,7 +141,7 @@ end
 
 # Don't run broadcasting on scalars
 function rrule(cfg::RCR, ::typeof(broadcasted), ::BroadcastStyle, f::F, args::Number...) where {F}
-    _print("split_bc_scalar", f)
+    @debug("split broadcasting scalar", f)
     z, back = rrule_via_ad(cfg, f, args...)
     return z, dz -> (NoTangent(), NoTangent(), back(dz)...)
 end
@@ -159,7 +158,7 @@ const NumericOrBroadcast = Union{Number, AbstractArray{<:Number}, NTuple{<:Any,N
 ##### Arithmetic: +, -, *, ^2, /
 
 function rrule(::typeof(broadcasted), ::typeof(+), xs::NumericOrBroadcast...)
-    _print("plus", length(xs))
+    @debug("broadcasting: plus", length(xs))
     function bc_plus_back(dy_raw)
         dy = unthunk(dy_raw)
         return (NoTangent(), NoTangent(), map(x -> unbroadcast(x, dy), xs)...)  # no copies, this may return dx2 === dx3
@@ -168,7 +167,7 @@ function rrule(::typeof(broadcasted), ::typeof(+), xs::NumericOrBroadcast...)
 end
 
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast, y::NumericOrBroadcast)
-    _print("minus 2")
+    @debug("broadcasting: minus 2")
     function bc_minus_back(dz_raw)
         dz = unthunk(dz_raw)
         return (NoTangent(), NoTangent(), @thunk(unbroadcast(x, dz)), @thunk(-unbroadcast(y, dz)))
@@ -177,13 +176,13 @@ function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast, y::Num
 end
 
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast)
-    _print("minus 1")
+    @debug("broadcasting: minus 1")
     bc_minus_back(dy) = (NoTangent(), NoTangent(), @thunk -unthunk(dy))
     return broadcasted(-, x), bc_minus_back
 end
 
 function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::NumericOrBroadcast)
-    _print("times")
+    @debug("broadcasting: times")
     function bc_times_back(Δraw)
         Δ = unthunk(Δraw)
         return (NoTangent(), NoTangent(), _back_star(x, y, Δ), _back_star(y, x, Δ))
@@ -197,7 +196,7 @@ _back_star(x::Complex{Bool}, y, Δ) = NoTangent()  # e.g. for fun.(im.*x)
 
 # This works, but not sure it improves any benchmarks. Needs corresponding scalar rule to avoid ambiguities.
 function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::NumericOrBroadcast, zs::NumericOrBroadcast...)
-    _print("times", 2 + length(zs))
+    @debug("broadcasting: times", 2 + length(zs))
     xy, back1 = rrule(broadcasted, *, x, y)
     xyz, back2 = rrule(broadcasted, *, xy, zs...)
     function bc_times3_back(dxyz)
@@ -209,7 +208,7 @@ function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::Num
 end
 
 function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x::NumericOrBroadcast, ::Val{2})
-    _print("square")
+    @debug("broadcasting: square")
     function bc_square_back(dy_raw)
         dx = @thunk ProjectTo(x)(2 .* unthunk(dy_raw) .* conj.(x))
         return (NoTangent(), NoTangent(), NoTangent(), dx, NoTangent())
@@ -218,7 +217,7 @@ function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x
 end
 
 function rrule(::typeof(broadcasted), ::typeof(/), x::NumericOrBroadcast, y::Number)
-    _print("divide")
+    @debug("broadcasting: divide")
     # z = broadcast(/, x, y)
     z = broadcasted(/, x, y)
     function bc_divide_back(dz_raw)
@@ -255,14 +254,14 @@ rrule(::typeof(broadcasted), ::typeof(identity), x::NumericOrBroadcast) = rrule(
 rrule(::typeof(broadcasted), ::typeof(identity), x::Number) = rrule(identity, x) |> _prepend_zero  # ambiguity
 
 function rrule(::typeof(broadcasted), ::Type{T}, x::NumericOrBroadcast) where {T<:Number}
-    _print("bc type", T)
+    @debug("broadcasting: type", T)
     bc_type_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
     return broadcasted(T, x), bc_type_back
 end
 rrule(::typeof(broadcasted), ::Type{T}, x::Number) where {T<:Number} = rrule(T, x) |> _prepend_zero
 
 function rrule(::typeof(broadcasted), ::typeof(float), x::NumericOrBroadcast)
-    _print("bc float")
+    @debug("broadcasting: float")
     bc_float_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
     return broadcasted(float, x), bc_float_back
 end
@@ -284,7 +283,7 @@ for conj in [:conj, :adjoint]  # identical as we know eltype <: Number
 end
 
 function rrule(::typeof(broadcasted), ::typeof(real), x::NumericOrBroadcast)
-    _print("real")
+    @debug("broadcasting: real")
     bc_real_back(dz) = (NoTangent(), NoTangent(), @thunk(real(unthunk(dz))))
     return broadcasted(real, x), bc_real_back
 end
@@ -292,19 +291,19 @@ rrule(::typeof(broadcasted), ::typeof(real), x::Number) = rrule(real, x) |> _pre
 rrule(::typeof(broadcasted), ::typeof(real), x::AbstractArray{<:Real}) = rrule(identity, x) |> _prepend_zero
 
 function rrule(::typeof(broadcasted), ::typeof(imag), x::NumericOrBroadcast)
-    _print("imag")
+    @debug("broadcasting: imag")
     bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(unthunk(dz))))
     return broadcasted(imag, x), bc_imag_back
 end
 rrule(::typeof(broadcasted), ::typeof(imag), x::Number) = rrule(imag, x) |> _prepend_zero
 function rrule(::typeof(broadcasted), ::typeof(imag), x::AbstractArray{<:Real})
-    _print("imag(real)")
+    @debug("broadcasting: imag(real)")
     bc_imag_back_2(dz) = (NoTangent(), NoTangent(), ZeroTangent())
     return broadcasted(imag, x), bc_imag_back_2
 end
 
 function rrule(::typeof(broadcasted), ::typeof(complex), x::NumericOrBroadcast)
-    _print("bc complex")
+    @debug("broadcasting: complex")
     bc_complex_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
     return broadcasted(complex, x), bc_complex_back
 end
