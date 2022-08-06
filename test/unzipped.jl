@@ -1,8 +1,8 @@
 
-using ChainRules: tuplecast, unzip, tuplemap
+using ChainRules: unzip_broadcast, unzip #, unzip_map
 
-@testset "tuplecast.jl" begin
-    @testset "basics: $(sprint(show, fun))" for fun in [tuplemap, tuplecast, unzip∘map, unzip∘broadcast]
+@testset "unzip_broadcast.jl" begin
+    @testset "basics: $(sprint(show, fun))" for fun in [unzip_broadcast, unzip∘map, unzip∘broadcast] # unzip_map, 
         @test_throws Exception fun(sqrt, 1:3)
 
         @test fun(tuple, 1:3, 4:6) == ([1, 2, 3], [4, 5, 6])
@@ -17,7 +17,7 @@ using ChainRules: tuplecast, unzip, tuplemap
             @test fun(tuple, [1,2,3], [4 5]) == ([1 1; 2 2; 3 3], [4 5; 4 5; 4 5])
         end
         
-        if fun == tuplemap
+        if fun == unzip_map
             @test_broken fun(tuple, (1,2,3), (4,5,6)) == ((1, 2, 3), (4, 5, 6))
         elseif fun == unzip∘map
             @test fun(tuple, (1,2,3), (4,5,6)) == ((1, 2, 3), (4, 5, 6))
@@ -32,19 +32,19 @@ using ChainRules: tuplecast, unzip, tuplemap
     @testset "rrules" begin
         # These exist to allow for second derivatives
 
-        # test_rrule(collect∘tuplecast, tuple, [1,2,3.], [4,5,6.], collectheck_inferred=false) # return type Tuple{NoTangent, NoTangent, Vector{Float64}, Vector{Float64}} does not match inferred return type NTuple{4, Any}
+        # test_rrule(collect∘unzip_broadcast, tuple, [1,2,3.], [4,5,6.], collectheck_inferred=false) # return type Tuple{NoTangent, NoTangent, Vector{Float64}, Vector{Float64}} does not match inferred return type NTuple{4, Any}
 
-        y1, bk1 = rrule(CFG, tuplecast, tuple, [1,2,3.0], [4,5,6.0])
+        y1, bk1 = rrule(CFG, unzip_broadcast, tuple, [1,2,3.0], [4,5,6.0])
         @test y1 == ([1, 2, 3], [4, 5, 6])
         @test bk1(([1,10,100.0], [7,8,9.0]))[3] ≈ [1,10,100]
         
         # bk1(([1,10,100.0], NoTangent()))  # DimensionMismatch in FiniteDifferences
         
-        y2, bk2 = rrule(CFG, tuplecast, tuple, [1,2,3.0], [4 5.0], 6.0)
+        y2, bk2 = rrule(CFG, unzip_broadcast, tuple, [1,2,3.0], [4 5.0], 6.0)
         @test y2 == ([1 1; 2 2; 3 3], [4 5; 4 5; 4 5], [6 6; 6 6; 6 6])
         @test bk2(y2)[5] ≈ 36
 
-        y4, bk4 = rrule(CFG, tuplemap, tuple, [1,2,3.0], [4,5,6.0])
+        y4, bk4 = rrule(CFG, unzip_map, tuple, [1,2,3.0], [4,5,6.0])
         @test y4 == ([1, 2, 3], [4, 5, 6])
         @test bk4(([1,10,100.0], [7,8,9.0]))[3] ≈ [1,10,100]
     end

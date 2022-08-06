@@ -72,11 +72,11 @@ function split_bc_derivatives(f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting derivatives", f, N)
     ys = f.(args...)
     function bc_many_back(dys)
-        deltas = tuplecast(unthunk(dys), ys, args...) do dy, y, as...
+        deltas = unzip_broadcast(unthunk(dys), ys, args...) do dy, y, as...
             das = only(derivatives_given_output(y, f, as...))
             map(da -> dy * conj(da), das)  # possibly this * should be made nan-safe.
         end
-        dargs = map(unbroadcast, args, deltas)  # ideally sum in unbroadcast could be part of tuplecast?
+        dargs = map(unbroadcast, args, deltas)  # ideally sum in unbroadcast could be part of unzip_broadcast?
         return (TRI_NO..., dargs...)
     end
     bc_many_back(z::AbstractZero) = (TRI_NO..., map(Returns(z), args)...)
@@ -105,7 +105,7 @@ split_bc_forwards(cfg::RuleConfig{>:HasForwardsMode}, f::F, arg) where {F} = spl
 split_bc_forwards(cfg::RuleConfig, f::F, arg) where {F} = split_bc_inner(frule, cfg, f, arg)
 function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
     @debug("split broadcasting forwards", frule_fun, f)
-    ys, ydots = tuplecast(arg) do a
+    ys, ydots = unzip_broadcast(arg) do a
         frule_fun(cfg, (NoTangent(), one(a)), f, a)
     end
     function back_forwards(dys)
@@ -124,11 +124,11 @@ end
 
 function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting generic", f, N)
-    ys3, backs = tuplecast(args...) do a...
+    ys3, backs = unzip_broadcast(args...) do a...
         rrule_via_ad(cfg, f, a...)
     end
     function back_generic(dys)
-        deltas = tuplecast(backs, unthunk(dys)) do back, dy  # (could be map, sizes match)
+        deltas = unzip_broadcast(backs, unthunk(dys)) do back, dy  # (could be map, sizes match)
             map(unthunk, back(dy))
         end
         dargs = map(unbroadcast, args, Base.tail(deltas))

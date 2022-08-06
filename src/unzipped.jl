@@ -1,18 +1,18 @@
 
 """
-    tuplecast(f, args...)
+    unzip_broadcast(f, args...)
 
 For a function `f` which returns a tuple, this is `== unzip(broadcast(f, args...))`,
 but performed using `StructArrays` for efficiency. Used in the gradient of broadcasting.
 
 # Examples
 ```
-julia> using ChainRules: tuplecast, unzip
+julia> using ChainRules: unzip_broadcast, unzip
 
-julia> tuplecast(x -> (x,2x), 1:3)
+julia> unzip_broadcast(x -> (x,2x), 1:3)
 ([1, 2, 3], [2, 4, 6])
 
-julia> mats = @btime tuplecast((x,y) -> (x+y, x-y), 1:1000, transpose(1:1000));  # 2 arrays, each 7.63 MiB
+julia> mats = @btime unzip_broadcast((x,y) -> (x+y, x-y), 1:1000, transpose(1:1000));  # 2 arrays, each 7.63 MiB
   min 1.776 ms, mean 20.421 ms (4 allocations, 15.26 MiB)
 
 julia> mats == @btime unzip(broadcast((x,y) -> (x+y, x-y), 1:1000, transpose(1:1000)))  # intermediate matrix of tuples
@@ -20,10 +20,10 @@ julia> mats == @btime unzip(broadcast((x,y) -> (x+y, x-y), 1:1000, transpose(1:1
 true
 ```
 """
-function tuplecast(f::F, args...) where {F}
+function unzip_broadcast(f::F, args...) where {F}
     T = Broadcast.combine_eltypes(f, args)
     if isconcretetype(T)
-        T <: Tuple || throw(ArgumentError("""tuplecast(f, args) only works on functions returning a tuple,
+        T <: Tuple || throw(ArgumentError("""unzip_broadcast(f, args) only works on functions returning a tuple,
             but f = $(sprint(show, f)) returns type T = $T"""))
     end
     # TODO allow GPU arrays, possibly just as a fallback unzip, but see also: 
@@ -39,7 +39,7 @@ function tuplecast(f::F, args...) where {F}
     end
 end
 
-function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplecast), f::F, args...) where {F}
+function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(unzip_broadcast), f::F, args...) where {F}
     y, back = rrule_via_ad(cfg, broadcast, f, args...)
     z = unzip(y)
     function untuplecast(dz)
@@ -53,23 +53,25 @@ function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplec
 end
 
 # This is for testing, but the tests using it don't work.
-function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(collect∘tuplecast), f, args...)
-    y, back = rrule(cfg, tuplecast, f, args...)
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(collect∘unzip_broadcast), f, args...)
+    y, back = rrule(cfg, unzip_broadcast, f, args...)
     return collect(y), back
 end
 
+#=
+
 """
-    tuplemap(f, args...)
+    unzip_map(f, args...)
 
 For a function `f` which returns a tuple, this is `== unzip(map(f, args...))`,
 but performed using `StructArrays` for efficiency.
 
-Not in use at present, but see `tuplecast`.
+Not in use at present, but see `unzip_broadcast`.
 """
-function tuplemap(f::F, args...) where {F}
+function unzip_map(f::F, args...) where {F}
     T = Broadcast.combine_eltypes(f, args)
     if isconcretetype(T)
-        T <: Tuple || throw(ArgumentError("""tuplemap(f, args) only works on functions returning a tuple,
+        T <: Tuple || throw(ArgumentError("""unzip_map(f, args) only works on functions returning a tuple,
             but f = $(sprint(show, f)) returns type T = $T"""))
     end
     # if any(a -> a isa CuArray, args)
@@ -78,16 +80,18 @@ function tuplemap(f::F, args...) where {F}
     return StructArrays.components(StructArray(Iterators.map(f, args...)))
 end
 
-function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(tuplemap), f::F, xs...) where {F}
+function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(unzip_map), f::F, xs...) where {F}
     y, back = rrule_via_ad(cfg, map, f, xs...)
     z = unzip(y)
-    function untuplemap(dz)
+    function ununzip_map(dz)
         # dy = StructArray(map(unthunk, dz))  # fails for e.g. StructArray(([1,2,3], ZeroTangent()))
         dy = broadcast(tuple, map(unthunk, dz)...)
         return back(dy)
     end
-    return z, untuplemap
+    return z, ununzip_map
 end
+
+=#
 
 """
     unzip(A)
@@ -114,7 +118,7 @@ function unzip(xs::AbstractArray)
     x1 = first(xs)
     x1 isa Tuple || throw(ArgumentError("unzip only accepts arrays of tuples"))
     N = length(x1)
-    return unzip(xs, Val(N))  # like Zygote's unzip, here this is the fallback case.
+    return unzip(xs, Val(N))  # like Zygote's unzip. Here this is the fallback case.
 end
 
 @generated function unzip(xs, ::Val{N}) where {N}
