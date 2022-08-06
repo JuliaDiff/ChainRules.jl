@@ -393,13 +393,13 @@ end
 
 function rrule(cfg::RCR, ::typeof(copy∘broadcasted), f_args...)
     tmp = rrule(cfg, broadcasted, f_args...)
-    isnothing(tmp) && throw("rrule gave nothing")
+    isnothing(tmp) && return nothing
     y, back = tmp
     return _maybe_copy(y), back
 end
 function rrule(::typeof(copy∘broadcasted), f_args...)
     tmp = rrule(broadcasted, f_args...)
-    isnothing(tmp) && throw("rrule gave nothing")
+    isnothing(tmp) && return nothing
     y, back = tmp
     return _maybe_copy(y), back
 end
