@@ -1,7 +1,10 @@
 using Base.Broadcast: broadcasted
 
+if VERSION < v"1.7"
+    Base.ndims(::Type{<:AbstractArray{<:Any,N}}) where {N} = N
+end
 BS0 = Broadcast.BroadcastStyle(Float64)
-BS1 = Broadcast.BroadcastStyle(Vector)
+BS1 = Broadcast.BroadcastStyle(Vector)  # without ndims method, error on 1.6
 BS2 = Broadcast.BroadcastStyle(Matrix)
 
 BT1 = Broadcast.BroadcastStyle(Tuple)
