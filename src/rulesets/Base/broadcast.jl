@@ -325,32 +325,60 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx)
 end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
 
-unbroadcast(x::T, dx) where {T<:Tuple{Any}} = ProjectTo(x)(Tangent{T}(sum(dx)))
 function unbroadcast(x::T, dx) where {T<:Tuple{Vararg{Any,N}}} where {N}
     val = if length(x) == length(dx)
         dx
     else
         sum(dx; dims=2:ndims(dx))
     end
+    eltype(val) <: AbstractZero && return NoTangent()
     return ProjectTo(x)(NTuple{length(x)}(val)) # Tangent
 end
+unbroadcast(x::Tuple, dx::AbstractZero) = dx
 
-unbroadcast(f::Function, df) = sum(df)
+# Scalar types
+
 unbroadcast(x::Number, dx) = ProjectTo(x)(sum(dx))
-unbroadcast(x::Base.RefValue, dx) = ProjectTo(x)(Ref(sum(dx)))
+
+function unbroadcast(x::T, dx) where {T<:Tuple{Any}}
+    p1 = ProjectTo(only(x))
+    p1 isa ProjectTo{<:AbstractZero} && return NoTangent()
+    dx1 = p1(sum(dx))
+    dx1 isa AbstractZero && return dx1
+    return Tangent{T}(dx1)
+end
+unbroadcast(x::Tuple{Any}, dx::AbstractZero) = dx
+
+function unbroadcast(x::Base.RefValue, dx)
+    p1 = ProjectTo(x.x)
+    p1 isa ProjectTo{<:AbstractZero} && return NoTangent()
+    dx1 = p1(sum(dx))
+    dx1 isa AbstractZero && return dx1
+    return Tangent{typeof(x)}(; x = dx1)
+end
+unbroadcast(x::Base.RefValue, dx::AbstractZero) = dx
+
+# Zero types
 
 unbroadcast(::Bool, dx) = NoTangent()
 unbroadcast(::AbstractArray{Bool}, dx) = NoTangent()
 unbroadcast(::AbstractArray{Bool}, dx::AbstractZero) = dx  # ambiguity
 unbroadcast(::Val, dx) = NoTangent()
 
+function unbroadcast(f::Function, df)
+    Base.issingletontype(typeof(f)) && return NoTangent() 
+    return sum(df)
+end
+
+# Fallback
+
 function unbroadcast(x, dx)
+    @info "last unbroadcast method!" x dx
+    dx isa AbstractZero && return dx
     p = ProjectTo(x)
-    if dx isa AbstractZero || p isa ProjectTo{<:AbstractZero}
+    if p isa ProjectTo{<:AbstractZero}
         return NoTangent()
-    end
-    b = Broadcast.broadcastable(x)
-    if b isa Ref  # then x is scalar under broadcast
+    elseif Broadcast.broadcastable(x) isa Ref  # then x is scalar under broadcast
         return p(sum(dx))
     else
         error("don't know how to handle broadcast gradient for x::$(typeof(x))")
