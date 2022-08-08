@@ -372,21 +372,6 @@ function unbroadcast(f::Function, df)
     return sum(df)
 end
 
-# Fallback
-
-function unbroadcast(x, dx)
-    @info "last unbroadcast method!" x dx
-    dx isa AbstractZero && return dx
-    p = ProjectTo(x)
-    if p isa ProjectTo{<:AbstractZero}
-        return NoTangent()
-    elseif Broadcast.broadcastable(x) isa Ref  # then x is scalar under broadcast
-        return p(sum(dx))
-    else
-        error("don't know how to handle broadcast gradient for x::$(typeof(x))")
-    end
-end
-
 #####
 ##### For testing
 #####
