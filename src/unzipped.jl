@@ -1,3 +1,6 @@
+#####
+##### broadcast
+#####
 
 """
     unzip_broadcast(f, args...)
@@ -26,17 +29,18 @@ function unzip_broadcast(f::F, args...) where {F}
         T <: Tuple || throw(ArgumentError("""unzip_broadcast(f, args) only works on functions returning a tuple,
             but f = $(sprint(show, f)) returns type T = $T"""))
     end
-    # TODO allow GPU arrays, possibly just as a fallback unzip, but see also: 
-    #   https://github.com/JuliaArrays/StructArrays.jl/issues/150
-    # if any(a -> a isa CuArray, args)
-    #     return unzip(broadcast(f, args...))
-    # end
     bc = Broadcast.instantiate(Broadcast.broadcasted(f, args...))
-    if Broadcast.BroadcastStyle(typeof(bc)) isa Broadcast.AbstractArrayStyle
+    bcs = Broadcast.BroadcastStyle(typeof(bc))
+    if bcs isa AbstractGPUArrayStyle
+        # This is a crude way to allow GPU arrays, not currently tested, TODO.
+        # See also https://github.com/JuliaArrays/StructArrays.jl/issues/150
+        return unzip(broadcast(f, args...))
+    elseif bcs isa Broadcast.AbstractArrayStyle
         return StructArrays.components(StructArray(bc))
     else
         return unzip(broadcast(f, args...))  # e.g. tuples
     end
+    # TODO maybe this if-else can be replaced by methods of `unzip(:::Broadcast.Broadcasted)`?
 end
 
 function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(unzip_broadcast), f::F, args...) where {F}
@@ -58,40 +62,17 @@ function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(collect∘unzip_broad
     return collect(y), back
 end
 
-#=
+#####
+##### map
+#####
 
-"""
-    unzip_map(f, args...)
+# `unzip_map` can use `StructArrays.components(StructArray(Iterators.map(f, args...)))`,
+# will be useful for the gradient of `map` etc.
 
-For a function `f` which returns a tuple, this is `== unzip(map(f, args...))`,
-but performed using `StructArrays` for efficiency.
 
-Not in use at present, but see `unzip_broadcast`.
-"""
-function unzip_map(f::F, args...) where {F}
-    T = Broadcast.combine_eltypes(f, args)
-    if isconcretetype(T)
-        T <: Tuple || throw(ArgumentError("""unzip_map(f, args) only works on functions returning a tuple,
-            but f = $(sprint(show, f)) returns type T = $T"""))
-    end
-    # if any(a -> a isa CuArray, args)
-    #     return unzip(map(f, args...))
-    # end
-    return StructArrays.components(StructArray(Iterators.map(f, args...)))
-end
-
-function ChainRulesCore.rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(unzip_map), f::F, xs...) where {F}
-    y, back = rrule_via_ad(cfg, map, f, xs...)
-    z = unzip(y)
-    function ununzip_map(dz)
-        # dy = StructArray(map(unthunk, dz))  # fails for e.g. StructArray(([1,2,3], ZeroTangent()))
-        dy = broadcast(tuple, map(unthunk, dz)...)
-        return back(dy)
-    end
-    return z, ununzip_map
-end
-
-=#
+#####
+##### unzip
+#####
 
 """
     unzip(A)

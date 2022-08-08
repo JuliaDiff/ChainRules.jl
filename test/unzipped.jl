@@ -17,7 +17,7 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
             @test fun(tuple, [1,2,3], [4 5]) == ([1 1; 2 2; 3 3], [4 5; 4 5; 4 5])
         end
 
-        if fun == unzip∘map
+        if contains(string(fun), "map")
             @test fun(tuple, (1,2,3), (4,5,6)) == ((1, 2, 3), (4, 5, 6))
         else
             @test fun(tuple, (1,2,3), (4,5,6)) == ((1, 2, 3), (4, 5, 6))
@@ -26,7 +26,7 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
         end
         @test fun(tuple, (1,2,3), [4,5,6]) == ([1, 2, 3], [4, 5, 6])  # mix tuple & vector
     end
-    
+
     @testset "rrules" begin
         # These exist to allow for second derivatives
 
