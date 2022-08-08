@@ -79,4 +79,19 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
         @test dx5[2] isa Tangent{<:Tuple}
         @test Tuple(dx5[2][2]) == (10, ZeroTangent())
     end
+    
+    @testset "JLArray tests" begin  # fake GPU testing
+        (y1, y2), bk = rrule(CFG, unzip_broadcast, tuple, [1,2,3.0], [4 5.0])
+        (y1jl, y2jl), bk_jl = rrule(CFG, unzip_broadcast, tuple, jl([1,2,3.0]), jl([4 5.0]))
+        @test y1 == Array(y1jl)
+        # TODO invent some tests of this rrule's pullback function
+
+        @test unzip(jl([(1,2), (3,4), (5,6)])) == (jl([1, 3, 5]), jl([2, 4, 6]))
+
+        @test unzip(jl([(missing,2), (missing,4), (missing,6)]))[2] == jl([2, 4, 6])
+        @test unzip(jl([(missing,2), (missing,4), (missing,6)]))[2] isa Base.ReinterpretArray
+
+        @test unzip(jl([(1,), (3,), (5,)]))[1] == jl([1, 3, 5])
+        @test unzip(jl([(1,), (3,), (5,)]))[1] isa Base.ReinterpretArray
+    end
 end

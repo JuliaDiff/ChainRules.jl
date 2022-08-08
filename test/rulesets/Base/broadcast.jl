@@ -80,21 +80,21 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
     @testset "fused rules" begin
         @testset "arithmetic" begin
-            test_rrule(copy∘broadcasted, +, rand(3), rand(3))
-            test_rrule(copy∘broadcasted, +, rand(3), rand(4)')
-            test_rrule(copy∘broadcasted, +, rand(3), rand(1), rand())
-            test_rrule(copy∘broadcasted, +, rand(3), 1.0*im)
-            test_rrule(copy∘broadcasted, +, rand(3), true)
-            test_rrule(copy∘broadcasted, +, rand(3), Tuple(rand(3)))
+            @gpu test_rrule(copy∘broadcasted, +, rand(3), rand(3))
+            @gpu test_rrule(copy∘broadcasted, +, rand(3), rand(4)')
+            @gpu test_rrule(copy∘broadcasted, +, rand(3), rand(1), rand())
+            @gpu test_rrule(copy∘broadcasted, +, rand(3), 1.0*im)
+            @gpu test_rrule(copy∘broadcasted, +, rand(3), true)
+            @gpu_broken test_rrule(copy∘broadcasted, +, rand(3), Tuple(rand(3)))
     
-            test_rrule(copy∘broadcasted, -, rand(3), rand(3))
-            test_rrule(copy∘broadcasted, -, rand(3), rand(4)')
-            test_rrule(copy∘broadcasted, -, rand(3))
+            @gpu test_rrule(copy∘broadcasted, -, rand(3), rand(3))
+            @gpu test_rrule(copy∘broadcasted, -, rand(3), rand(4)')
+            @gpu test_rrule(copy∘broadcasted, -, rand(3))
             test_rrule(copy∘broadcasted, -, Tuple(rand(3)))
     
-            test_rrule(copy∘broadcasted, *, rand(3), rand(3))
-            test_rrule(copy∘broadcasted, *, rand(3), rand())
-            test_rrule(copy∘broadcasted, *, rand(), rand(3))
+            @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3))
+            @gpu test_rrule(copy∘broadcasted, *, rand(3), rand())
+            @gpu test_rrule(copy∘broadcasted, *, rand(), rand(3))
 
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand(3) .+ 2im)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand() + 3im)
@@ -107,14 +107,15 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test unthunk(bk4([4, 5im, 6+7im])[4]) == [0,5,7]
 
             # These two test vararg rrule * rule:
-            test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3))
-            test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)')
+            @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3))
+            @gpu_broken test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)')
+            # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
 
-            test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
-            test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
+            @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
+            @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
     
-            test_rrule(copy∘broadcasted, /, rand(3), rand())
-            test_rrule(copy∘broadcasted, /, rand(3) .+ im, rand() + 3im)
+            @gpu test_rrule(copy∘broadcasted, /, rand(3), rand())
+            @gpu test_rrule(copy∘broadcasted, /, rand(3) .+ im, rand() + 3im)
         end
         @testset "identity etc" begin
             test_rrule(copy∘broadcasted, identity, rand(3))
