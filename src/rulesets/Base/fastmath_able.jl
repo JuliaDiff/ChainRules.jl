@@ -302,11 +302,11 @@ let
     non_transformed_definitions = intersect(fastable_ast.args, fast_ast.args)
     filter!(expr->!(expr isa LineNumberNode), non_transformed_definitions)
     if !isempty(non_transformed_definitions)
-        # error(
-        #     "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
-        #     join(non_transformed_definitions, "\n")
-        # )
-        # This error() may not play well with Revise. But a wanring @error does:
+        error(
+            "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
+            join(non_transformed_definitions, "\n")
+        )
+        # This error() may not play well with Revise. But a wanring @error does, we should change it:
         @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
