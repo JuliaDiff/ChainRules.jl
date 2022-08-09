@@ -72,6 +72,8 @@ function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
     return (T(x, y), Complex_pullback)
 end
 
+@scalar_rule complex(x) true
+
 # `hypot`
 
 @scalar_rule hypot(x::Real) sign(x)

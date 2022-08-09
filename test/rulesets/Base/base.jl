@@ -77,6 +77,7 @@
         for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(real, x)
             test_scalar(imag, x)
+            test_scalar(complex, x)
             test_scalar(hypot, x)
             test_scalar(adjoint, x)
         end

@@ -2,8 +2,6 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
-const CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
@@ -85,6 +83,7 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         # inference fails for array of arrays
         test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
+        test_rrule(sum, norm, collect.(eachcol(rand(3,4))); check_inferred=false)
         
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
