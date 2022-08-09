@@ -537,9 +537,11 @@ end
 # This function is roughly `setindex!(zero(x), dy, inds...)`:
 
 function _zerolike_writeat(x::AbstractArray{<:Number}, dy, dims, inds...)
+    _zero_fill = eltype(dy) == Any ? 0 : zero(eltype(dy))
+
     # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
     # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
+    dx = fill!(similar(x, eltype(dy), axes(x)), _zero_fill)
     view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
     dx
 end
