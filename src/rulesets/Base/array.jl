@@ -517,7 +517,7 @@ for findm in (:findmin, :findmax)
         y, ind = $findm(x; dims=dims)
         function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            return (NoTangent(), thunked∇getindex(x, dy, ind),)
+            return (NoTangent(), thunked_∇getindex(x, dy, ind),)
         end
         return (y, ind), $findm_pullback
     end

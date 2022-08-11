@@ -63,14 +63,14 @@ end
 function rrule(::typeof(getindex), x::AbstractArray, inds...)
     function getindex_pullback(dy)
         nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), thunked∇getindex(x, dy, inds...), nots...)
+        return (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
     end
     return x[inds...], getindex_pullback
 end
 
-function thunked∇getindex(x, dy, inds...)
+function thunked_∇getindex(x, dy, inds...)
     return InplaceableThunk(
-        dx -> ∇getindex!(dx, x, unthunk(dy), Base.to_indices(x, inds)...),
+        dx -> ∇getindex!(dx, unthunk(dy), Base.to_indices(x, inds)...),
         @thunk(∇getindex(x, unthunk(dy), inds...)),
     )
 end
@@ -87,14 +87,22 @@ function ∇getindex(x::AbstractArray, dy, inds...)
     # leaving just Int / AbstractVector of Int
     plain_inds = Base.to_indices(x, inds)
     dx = _setindex_zero(x, dy, plain_inds...)
-    ∇getindex!(dx, x, dy, plain_inds...)
+    ∇getindex!(dx, dy, plain_inds...)
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
 
-# It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-# allow `eltype(dy)`, nor does it work for many structured matrices.
-_setindex_zero(x::AbstractArray{<:Number}, dy, inds::Integer...) = fill!(similar(x, typeof(dy), axes(x)), 0)
-_setindex_zero(x::AbstractArray{<:Number}, dy, inds...) = fill!(similar(x, eltype(dy), axes(x)), 0)
+"""
+    _setindex_zero(x, dy, inds...)
+
+This returns roughly `dx = zero(x)`, except that this is guaranteed to be mutable via `similar`,
+and its element type is wide enough to allow `setindex!(dx, dy, inds...)`, which is exactly what
+`∇getindex` does next.
+
+It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't
+allow `eltype(dy)`, nor does it work for many structured matrices.
+"""
+_setindex_zero(x::AbstractArray{<:Number}, dy, inds::Integer...) = fill!(similar(x, typeof(dy), axes(x)), ZeroTangent())
+_setindex_zero(x::AbstractArray{<:Number}, dy, inds...) = fill!(similar(x, eltype(dy), axes(x)), ZeroTangent())
 function _setindex_zero(x::AbstractArray, dy, inds::Integer...)
     # This allows for types which don't define zero (like Vector) and types whose zero special (like Tangent),
     # but always makes an abstract type. TODO: make it infer concrete type for e.g. vectors of SVectors
@@ -107,11 +115,11 @@ function _setindex_zero(x::AbstractArray, dy, inds...)
 end
 ChainRules.@non_differentiable _setindex_zero(x::AbstractArray, dy::Any, inds::Any...)
 
-function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds::Integer...)
+function ∇getindex!(dx::AbstractArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
     return dx
 end
-function ∇getindex!(dx::AbstractArray, x::AbstractArray, dy, inds...)
+function ∇getindex!(dx::AbstractArray, dy, inds...)
     view(dx, inds...) .+= dy
     return dx
 end
@@ -136,15 +144,15 @@ end
 # To avoid this, copy everything back to the CPU.
 # But don't do that for indices which are known to be unique, e.g. `A[1, 2:3, :]` the colon gives Base.Slice:
 
-function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds::Integer...)
+function ∇getindex!(dx::AbstractGPUArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
     return dx
 end
-function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds::Union{Integer, AbstractUnitRange, Base.Slice}...)
+function ∇getindex!(dx::AbstractGPUArray, dy, inds::Union{Integer, AbstractUnitRange, Base.Slice}...)
     view(dx, inds...) .+= dy
     return dx
 end
-function ∇getindex!(dx::AbstractGPUArray, x::AbstractArray, dy, inds...)
+function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
     dx_cpu = adapt(Array, dx)
     view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
     copyto!(dx, dx_cpu)
@@ -185,7 +193,7 @@ end
 function rrule(::typeof(view), x::AbstractArray, inds...)
     function view_pullback(dy)
         nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), thunked∇getindex(x, dy, inds...), nots...)
+        return (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
     end
     return view(x, inds...), view_pullback
 end
@@ -194,7 +202,7 @@ function rrule(::typeof(view), x::AbstractArray, i::Integer, jkl::Integer...)
     # This case returns a zero-dim array, unlike getindex. So we fool ∇getindex:
     function view_pullback_0(dy)
         nots = map(Returns(NoTangent()), (i, jkl...))
-        return (NoTangent(), thunked∇getindex(x, dy, i:i, jkl...), nots...)
+        return (NoTangent(), thunked_∇getindex(x, dy, i:i, jkl...), nots...)
     end
     return view(x, i, jkl...), view_pullback_0
 end

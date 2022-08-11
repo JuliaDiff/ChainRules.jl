@@ -83,7 +83,7 @@
         test_frule(getindex, Symmetric(rand(3, 3)), 2, 3)
         
         test_rrule(getindex, Diagonal(rand(3)), 1)
-        @test_skip test_rrule(getindex, Diagonal(rand(3)), 2, :)  # in-place update of off-diagonal entries
+        @test_skip test_rrule(getindex, Diagonal(rand(3)), 2, :)  # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/260
         dgrad = rrule(getindex, Diagonal(rand(3)), 2, :)[2]([1,2,3])[2]
         @test unthunk(dgrad) ≈ Diagonal([0, 2, 0])
         
