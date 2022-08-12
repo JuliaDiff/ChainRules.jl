@@ -148,10 +148,15 @@
         x_23_gpu = jl(rand(2, 3))  # using JLArrays, loaded for @gpu in test_helpers.jl
     
         # Scalar indexing, copied from:  @macroexpand @allowscalar A[i]
-        y1, bk1 = rrule(CFG, Base.task_local_storage, () -> x_23_gpu[1], :ScalarIndexing, ScalarAllowed)
-        @test y1 == @allowscalar x_23_gpu[1]
-        # bk1(1.0) # This gives a StackOverflowError! 
-        # Also gives zero in global scope, error when in a let block? But this works, and calls the rule:
+        @test_skip begin  # This gives 
+          y1, bk1 = rrule(CFG, Base.task_local_storage, () -> x_23_gpu[1], :ScalarIndexing, ScalarAllowed)
+          @test y1 == @allowscalar x_23_gpu[1]
+        end
+        @test_skip begin
+          bk1(1.0) # This gives a StackOverflowError! Or gives zero in global scope.
+          true
+        end
+        # But this works, and calls the rule:
         # Zygote.gradient(x -> @allowscalar(x[1]), jl(rand(3)))[1]
 
         y2, bk2 = rrule(getindex, x_23_gpu, :, 2:3)  # fast path, just broadcast .+=
