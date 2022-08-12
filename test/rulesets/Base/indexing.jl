@@ -150,15 +150,15 @@
         # Scalar indexing, copied from:  @macroexpand @allowscalar A[i]
         y1, bk1 = rrule(CFG, Base.task_local_storage, () -> x_23_gpu[1], :ScalarIndexing, ScalarAllowed)
         @test y1 == @allowscalar x_23_gpu[1]
-        bk1(1.0) # This is zero, because finite-differencing ignores the function
-        # ... but this works, and calls the rule:
+        # bk1(1.0) # This gives a StackOverflowError! 
+        # Also gives zero in global scope, error when in a let block? But this works, and calls the rule:
         # Zygote.gradient(x -> @allowscalar(x[1]), jl(rand(3)))[1]
-        
+
         y2, bk2 = rrule(getindex, x_23_gpu, :, 2:3)  # fast path, just broadcast .+=
         @test unthunk(bk2(jl(ones(2,2)))[2]) == jl([0 1 1; 0 1 1])
 
         y3, bk3 = rrule(getindex, x_23_gpu, 1, [1,1,2])  # slow path, copy to CPU
-        @test Array(y3) == Array(x_gpu)[1, [1,1,2]]
+        @test Array(y3) == Array(x_23_gpu)[1, [1,1,2]]
         @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
     end
 end
