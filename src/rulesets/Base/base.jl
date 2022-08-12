@@ -243,3 +243,23 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
     return y, map_pullback
 end
+
+#####
+##### `task_local_storage`
+#####
+
+# Called by `@allowscalar` from GPUArrays
+
+ChainRules.@non_differentiable task_local_storage(key::Any)
+ChainRules.@non_differentiable task_local_storage(key::Any, value::Any)
+
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(task_local_storage), body::Function, key, value)
+    y, back = task_local_storage(key, value) do
+        rrule_via_ad(config, body)
+    end
+    function task_local_storage_pullback(dy)
+        dbody = only(back(dy))
+        return (NoTangent(), dbody, NoTangent(), NoTangent())
+    end
+    return y, task_local_storage_pullback
+end

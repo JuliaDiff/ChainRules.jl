@@ -2,12 +2,15 @@ using Test, ChainRulesCore, ChainRulesTestUtils
 
 @nospecialize
 
+using Adapt
 using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm
 using FiniteDifferences
+using GPUArraysCore
+using JLArrays
 using LinearAlgebra
 using LinearAlgebra.BLAS
 using LinearAlgebra: dot

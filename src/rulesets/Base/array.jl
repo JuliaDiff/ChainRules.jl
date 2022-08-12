@@ -515,62 +515,12 @@ for findm in (:findmin, :findmax)
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
         y, ind = $findm(x; dims=dims)
-        project = ProjectTo(x)
-        # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk project(_zerolike_writeat(x, unthunk(dy), dims, ind))
-            x_ithunk = InplaceableThunk(x_thunk) do dx
-                if dims isa Colon
-                    view(dx, ind) .= view(dx, ind) .+ Ref(unthunk(dy))
-                else
-                    view(dx, ind) .= view(dx, ind) .+ unthunk(dy)  # this could be .+=, but not on Julia 1.0
-                end
-                dx
-            end
-            return (NoTangent(), x_ithunk)
+            return (NoTangent(), thunked_∇getindex(x, dy, ind),)
         end
         return (y, ind), $findm_pullback
     end
-end
-
-# This function is roughly `setindex!(zero(x), dy, inds...)`:
-
-function _zerolike_writeat(x::AbstractArray{<:Number}, dy, dims, inds...)
-    _zero_fill = eltype(dy) == Any ? 0 : zero(eltype(dy))
-
-    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-    # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), _zero_fill)
-    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-    dx
-end
-function _zerolike_writeat(x::AbstractArray, dy, dims, inds...)
-    # Since we have `x`, we can also handle arrays of arrays.
-    dx = map(zero, x)
-    if dims isa Colon
-        view(dx, inds...) .= Ref(dy)
-    else
-        view(dx, inds...) .= dy
-    end
-    dx
-end
-
-# Allow for second derivatives, by writing rules for `_zerolike_writeat`;
-# these rules are the reason it takes a `dims` argument.
-
-function frule((_, _, dẏ), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dẏ, dims, inds...)
-end
-
-function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    z = _zerolike_writeat(x, dy, dims, inds...)
-    function _zerolike_writeat_pullback(dz)
-        dx = sum(view(unthunk(dz), inds...); dims=dims)
-        nots = map(_ -> NoTangent(), inds)
-        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
-    end
-    return z, _zerolike_writeat_pullback
 end
 
 # These rules for `maximum` pick the same subgradient as `findmax`:
