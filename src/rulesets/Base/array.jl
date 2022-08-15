@@ -234,10 +234,10 @@ function rrule(::typeof(hcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = @allowscalar dY[ind...]
-            # Here InplaceableThunk breaks @inferred, removed for now
-            # InplaceableThunk(dX -> dX .+= view(dY, ind...), @thunk(@allowscalar dY[ind...]))
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, ind...),
+                @thunk project(@allowscalar dY[ind...])
+            )
         end
         return (NoTangent(), dXs...)
     end
@@ -302,9 +302,10 @@ function rrule(::typeof(vcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = @allowscalar dY[ind...]
-            # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, ind...),
+                @thunk project(@allowscalar dY[ind...])
+            )
         end
         return (NoTangent(), dXs...)
     end
@@ -365,9 +366,10 @@ function rrule(::typeof(cat), Xs...; dims)
             for d in cdims
                 prev[d] += get(sizeX, d, 1)
             end
-            dX = @allowscalar dY[index...]
-            # InplaceableThunk(dX -> dX .+= view(dY, index...), @thunk(@allowscalar dY[index...]))
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, index...),
+                @thunk project(@allowscalar dY[index...])
+            )
         end
         return (NoTangent(), dXs...)
     end
