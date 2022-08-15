@@ -233,14 +233,9 @@ function rrule(::typeof(hcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = if ndimsX > 0
-                # Here InplaceableThunk breaks @inferred, removed for now
-                # InplaceableThunk(dX -> dX .+= view(dY, ind...), @thunk(dY[ind...]))
-                dY[ind...]
-            else
-                # This is a hack to perhaps avoid GPU scalar indexing
-                sum(view(dY, ind...))
-            end
+            dX = @allowscalar dY[ind...]
+            # Here InplaceableThunk breaks @inferred, removed for now
+            # InplaceableThunk(dX -> dX .+= view(dY, ind...), @thunk(@allowscalar dY[ind...]))
             return project(dX)
         end
         return (NoTangent(), dXs...)
@@ -303,12 +298,8 @@ function rrule(::typeof(vcat), Xs...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = if ndimsX > 0
-                # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
-                dY[ind...]
-            else
-                sum(view(dY, ind...))
-            end
+            dX = @allowscalar dY[ind...]
+            # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
             return project(dX)
         end
         return (NoTangent(), dXs...)
@@ -368,12 +359,8 @@ function rrule(::typeof(cat), Xs...; dims)
             for d in cdims
                 prev[d] += get(sizeX, d, 1)
             end
-            dX = if ndimsX > 0
-                # InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
-                dY[index...]
-            else
-                sum(view(dY, index...))
-            end
+            dX = @allowscalar dY[index...]
+            # InplaceableThunk(dX -> dX .+= view(dY, index...), @thunk(@allowscalar dY[index...]))
             return project(dX)
         end
         return (NoTangent(), dXs...)

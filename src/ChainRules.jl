@@ -5,7 +5,7 @@ using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broad
 using ChainRulesCore
 using Compat
 using Distributed
-using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle
+using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
