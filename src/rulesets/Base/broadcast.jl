@@ -328,13 +328,13 @@ end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
 
 function unbroadcast(x::T, dx) where {T<:Tuple{Vararg{Any,N}}} where {N}
-    val = if length(x) == length(dx)
+    val = if N == length(dx)
         dx
     else
         sum(dx; dims=2:ndims(dx))
     end
     eltype(val) <: AbstractZero && return NoTangent()
-    return ProjectTo(x)(NTuple{length(x)}(val)) # Tangent
+    return ProjectTo(x)(Tuple{Vararg{Any,N}}(val)) # Tangent
 end
 unbroadcast(x::Tuple, dx::AbstractZero) = dx
 
