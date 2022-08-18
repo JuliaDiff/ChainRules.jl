@@ -70,6 +70,21 @@ end
 # will be useful for the gradient of `map` etc.
 
 
+"""
+unzip_map(f, args...)
+
+For a function `f` which returns a tuple, this is `== unzip(map(f, args...))`,
+but performed using `StructArrays` for efficiency.
+"""
+function unzip_map(f::F, args...) where {F}
+    T = Broadcast.combine_eltypes(f, args)
+    if isconcretetype(T)
+        T <: Tuple || throw(ArgumentError("""unzip_map(f, args) only works on functions returning a tuple,
+        but f = $(sprint(show, f)) returns type T = $T"""))
+    end
+    return StructArrays.components(StructArray(Iterators.map(f, args...)))
+end
+
 #####
 ##### unzip
 #####

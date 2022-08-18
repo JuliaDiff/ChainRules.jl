@@ -204,7 +204,7 @@ function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
 end
 
 #####
-##### `map`
+##### `map(f, ::Tuple...)`
 #####
 
 # Ideally reverse mode should always iterate in reverse order. For `map` and broadcasting
@@ -243,6 +243,39 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
     return y, map_pullback
 end
+
+#####
+##### `map(f, ::AbstractArray...)`
+#####
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray) where {F}
+    y, back = rrule_via_ad(cfg, Broadcast.broadcasted, f, x)  # could be broadcast, but Yota likes this one
+    return Broadcast.materialize(y), back
+end
+
+# Could accept Any? 
+# `_unmap_pad` is also used for `zip`
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray, ys::AbstractArray...) where {F}
+    z, backs = unzip_map((xy...) -> rrule_via_ad(cfg, f, xy...)|>tup2, x, ys...)
+    # z, backs = unzip(map((xy...) -> rrule_via_ad(cfg, f, xy...)|>tup2, x, ys...))
+    function map_pullback(dz)
+        df, dxy... = unzip_map(|>, unthunk(dz), backs)
+        # df, dxy... = unzip(map(|>, unthunk(dz), backs))
+        return (NoTangent(), ProjectTo(sum(df)), map(_unmap_pad, (x, ys...), dxy)...)
+    end
+    z, map_pullback
+end
+
+# function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray, ys::AbstractArray...) where {F}
+#     z, zip_back = rrule(zip, x, ys...)
+#     m, map_back = rrule(config, map, Splat(f), z)  # maybe this is inefficient?
+#     function map_pullback(dm)
+#         _, dsplatf, dz = map_back(dm)
+#         _, dxys... = zip_back(dz)
+#         return (NoTangent(), 0, dxys...)
+#     end
+#     return m, map_back
+# end
 
 #####
 ##### `task_local_storage`
