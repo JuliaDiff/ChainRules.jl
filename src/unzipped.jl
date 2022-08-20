@@ -85,6 +85,65 @@ function unzip_map(f::F, args...) where {F}
     return StructArrays.components(StructArray(Iterators.map(f, args...)))
 end
 
+unzip_map(f::F, args::Tuple...) where {F} = unzip(map(f, args...))
+
+unzip_map(f::F, args::AbstractGPUArray...) where {F} = unzip(map(f, args...))
+
+function unzip_map_reversed(f::F, args...) where {F}
+    T = Broadcast.combine_eltypes(f, args)
+    if isconcretetype(T)
+        T <: Tuple || throw(ArgumentError("""unzip_map_reversed(f, args) only works on functions returning a tuple,
+        but f = $(sprint(show, f)) returns type T = $T"""))
+    end
+    len1 = length(first(args))
+    if all(a -> length(a)==len1, args)
+        rev_args = map(Iterators.reverse, args)
+        outs = StructArrays.components(StructArray(Iterators.map(f, rev_args...)))
+    else
+        len = minimum(length, args)
+        rev_args = map(a -> Iterators.reverse(@view a[begin:begin+len-1]), args)
+        outs = StructArrays.components(StructArray(Iterators.map(f, rev_args...)))
+    end
+    return map(reverse!!, outs)
+end
+
+function unzip_map_reversed(f::F, args::Tuple...) where {F}
+    len = minimum(length, args)
+    rev_args = map(a -> reverse(a[1:len]), args)
+    # vlen = Val(len)
+    # rev_args = map(args) do a
+    #     reverse(ntuple(i -> a[i], vlen))  # does not infer better
+    # end
+    return map(reverse, unzip(map(f, rev_args...)))
+end
+# function unzip_map_reversed(f::F, args::Tuple{Vararg{Any, N}}...) where {F,N}
+#     rev_args = map(reverse, args)
+#     return map(reverse, unzip(map(f, rev_args...)))
+# end
+
+"""
+    reverse!!(x)
+
+Reverses `x` in-place if possible, according to `ChainRulesCore.is_inplaceable_destination`.
+Only safe if you are quite sure nothing else closes over `x`.
+"""
+function reverse!!(x::AbstractArray)
+    if ChainRulesCore.is_inplaceable_destination(x)
+        Base.reverse!(x)
+    else
+        Base.reverse(x)
+    end
+end
+reverse!!(x::AbstractArray{<:AbstractZero}) = x
+
+frule((_, xdot), ::typeof(reverse!!), x::AbstractArray) = reverse!!(x), reverse!!(xdot)
+
+function rrule(::typeof(reverse!!), x::AbstractArray)
+    reverse!!_back(dy) = (NoTangent(), reverse(unthunk(dy)))
+    return reverse!!(x), reverse!!_back
+end
+
+
 #####
 ##### unzip
 #####

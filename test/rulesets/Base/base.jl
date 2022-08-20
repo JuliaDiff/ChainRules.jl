@@ -229,4 +229,38 @@
             test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
         end
     end
+    
+    @testset "map(f, ::Array)" begin
+        test_rrule(map, identity, [1.0, 2.0], check_inferred=false)
+        test_rrule(map, conj, [1, 2+im, 3.0]', check_inferred=false)
+        test_rrule(map, make_two_vec, [4.0, 5.0 + 6im], check_inferred=false)
+        # @test rrule(CFG, map, make_two_vec, [4.0, 5.0 + 6im])[2]([1:2, 3:4])[3] ≈ [1 + 2im, 3 + 4im]  # FiniteDifferences DimensionMismatch
+
+        @test_skip test_rrule(map, Multiplier(rand() + im), rand(3), check_inferred=false)
+        rrule(CFG, map, Multiplier(2.0), [3, 4, 5.0])[2]([10, 20, 30])  # (NoTangent(), Multiplier{Float64}(259.99999), [19.99999, 40.000, 60.000]) -- WTF?
+        @test_skip test_rrule(map, Multiplier(rand() + im) ⊢ NoTangent(), rand(3), check_inferred=false) # Expression: ad_cotangent isa NoTangent  Evaluated: Multiplier{ComplexF64}(-3.7869064372333963 + 2.046139872866103im) isa NoTangent
+
+        y1, bk1 = rrule(CFG, map, abs2, [1.0, 2.0, 3.0])
+        @test y1 == [1, 4, 9]
+        @test bk1([4, 5, 6.0])[3] ≈ 2 .* (1:3) .* (4:6)
+
+        y2, bk2 = rrule(CFG, map, Counter(), [11, 12, 13.0])
+        @test y2 == map(Counter(), 11:13)
+        @test_skip bk2(ones(3))[3] == [93, 83, 73]  # FiniteDifferences has incremented the counter very high
+    end
+
+    @testset "map(f, ::Array, ::Array)" begin
+        test_rrule(map, +, [1.0, 2.0], [3.0, 4.0], check_inferred=false)  # NoTangent does not match Union{NoTangent, ZeroTangent}
+        test_rrule(map, /, [1.0, 2.0], [3.0, 4.0, 5.0], check_inferred=false)
+        test_rrule(map, atan, [1, 2, 3.0], [4 5; 6 7.0], check_inferred=false)
+
+        test_rrule(map, Multiplier(rand()), rand(3), rand(4), check_inferred=false)
+        
+        cnt3 = Counter()
+        y3, bk3 = rrule(CFG, map, cnt3, [1, 2, 3.0], [0, -1, -2, -33.3])
+        @test y3 == 1:3
+        @test cnt3 == Counter(3)
+        z3 = bk3([1, 1, 1000])
+        @test z3[3] == [53, 33, 13000]
+    end
 end

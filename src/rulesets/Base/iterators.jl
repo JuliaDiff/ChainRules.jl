@@ -1,4 +1,4 @@
-tup2(x) = Tuple{Any,Any}(x)  # temp fix for Diffractor
+tup2(x) = Tuple{Any,Any}(x)  # temp fix for Diffractor, https://github.com/JuliaDiff/Diffractor.jl/pull/86
 
 #####
 ##### Comprehension: Iterators.map
@@ -7,36 +7,16 @@ tup2(x) = Tuple{Any,Any}(x)  # temp fix for Diffractor
 # Comprehension does guarantee iteration order. Thus its gradient must reverse.
 
 function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(collect), gen::G) where {G<:Base.Generator}
-    # ys, backs = unzip_map(x -> rrule_via_ad(cfg, gen.f, x)|>tup2, gen.iter)
-    ys, backs = unzip(map(x -> rrule_via_ad(cfg, gen.f, x)|>tup2, gen.iter))
+    @debug "collect generator"
+    ys, backs = unzip_map(x -> rrule_via_ad(cfg, gen.f, x)|>tup2, gen.iter)
     proj_f = ProjectTo(gen.f)
     proj_iter = ProjectTo(gen.iter)
     function generator_pullback(dys_raw)
         dys = unthunk(dys_raw)
-        # dfs, dxs = unzip_map(|>, Iterators.reverse(dys), Iterators.reverse(backs))
-        dfs, dxs = unzip(map(|>, Iterators.reverse(dys), Iterators.reverse(backs)))
-        return (NoTangent(), Tangent{G}(; f = proj_f(sum(dfs)), iter = proj_iter(reverse!!(dxs))))
+        dfs, dxs = unzip_map_reversed(|>, dys, backs)
+        return (NoTangent(), Tangent{G}(; f = proj_f(sum(dfs)), iter = proj_iter(dxs)))
     end
     ys, generator_pullback
-end
-
-"""
-    reverse!!(x)
-
-Reverses `x` in-place if possible, according to `ChainRulesCore.is_inplaceable_destination`.
-Only safe if you are quite sure nothing else closes over `x`.
-"""
-function reverse!!(x::AbstractArray)
-    if ChainRulesCore.is_inplaceable_destination(x)
-        Base.reverse!(x)
-    else
-        Base.reverse(x)
-    end
-end
-frule((_, xdot), ::typeof(reverse!!), x::AbstractArray) = reverse!!(x), reverse!!(xdot)
-function rrule(::typeof(reverse!!), x::AbstractArray)
-    reverse!!_back(dy) = (NoTangent(), reverse(unthunk(dy)))
-    return reverse!!(x), reverse!!_back
 end
 
 # Needed for Yota, but shouldn't these be automatic?
@@ -107,12 +87,15 @@ function rrule(::typeof(zip), xs::AbstractArray...)
 end
 
 _tangent_unzip(xs::AbstractArray{Tangent{T,B}}) where {T<:Tuple, B<:Tuple} = unzip(reinterpret(B, xs))
-_tangent_unzip(xs::AbstractArray) = unzip(xs)  # Diffractor
+_tangent_unzip(xs::AbstractArray) = unzip(xs)  # temp fix for Diffractor
 
+# This is like unbroadcast, except for map's stopping-short behaviour, not broadcast's extension.
+# Closing over `x` lets us re-use ∇getindex.
 function _unmap_pad(x::AbstractArray, dx::AbstractArray)
     if length(x) == length(dx)
         ProjectTo(x)(reshape(dx, axes(x)))
     else
+        @debug "_unmap_pad is extending gradient" length(x) == length(dx)
         i1 = firstindex(x)
         ∇getindex(x, vec(dx), i1:i1+length(dx)-1)
         # dx2 = vcat(vec(dx), similar(x, ZeroTangent, length(x) - length(dx)))
@@ -120,5 +103,9 @@ function _unmap_pad(x::AbstractArray, dx::AbstractArray)
     end 
 end
 
-
+# For testing
+function rrule(::ComposedFunction{typeof(collect), typeof(zip)}, xs::AbstractArray...)
+    y, back = rrule(zip, xs...)
+    return collect(y), back
+end
 
