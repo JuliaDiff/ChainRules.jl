@@ -69,12 +69,12 @@
             @gpu test_frule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # rev
-            @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))
+            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), Diagonal([4.0, 5.0, 6.0]))  # @gpu broken on 1.8, worked on 1.7, https://github.com/JuliaGPU/GPUArrays.jl/issues/426
             @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3))
 
             # Needs to not try and inplace, as `mul!` will do wrong.
             # see https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
-            @gpu test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3,3))
+            test_rrule(*, Diagonal([1.0, 2.0, 3.0]), rand(3,3))  # @gpu broken on 1.8, worked on 1.7, https://github.com/JuliaGPU/GPUArrays.jl/issues/426
         end
 
         @testset "$adj * Vector" for adj in (adjoint, transpose)
