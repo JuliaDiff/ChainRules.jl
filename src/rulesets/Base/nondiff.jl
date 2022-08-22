@@ -54,7 +54,6 @@
 @non_differentiable invperm(::AbstractArray{Bool})
 @non_differentiable invpermute!(::Any, ::AbstractArray{Bool})
 @non_differentiable mapslices(::Any, ::AbstractArray{Bool})
-@non_differentiable Matrix(::AbstractArray{Bool})
 @non_differentiable ndims(::AbstractArray{Bool})
 @non_differentiable parent(::AbstractArray{Bool})
 @non_differentiable parentindices(::AbstractArray{Bool})
