@@ -153,6 +153,8 @@ end
 
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
+
+    test_rrule(repeat, [true, false], 3)
 end
 
 @testset "hcat" begin

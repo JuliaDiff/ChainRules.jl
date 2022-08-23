@@ -220,4 +220,9 @@ ChainRulesCore.frule((_, Δx), ::typeof(flog), x::Number) = log(x), inv(x) * Δx
         test_frule(flog, 8.9 + im)    
     end
 
+    @testset "ambiguities" begin
+        @test [] == filter(Test.detect_ambiguities(ChainRules, ChainRulesCore)) do t
+            (t[1].name in [:rrule, Symbol("rrule##kw")])
+        end
+    end
 end
