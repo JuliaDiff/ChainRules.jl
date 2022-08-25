@@ -316,7 +316,8 @@ rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |
 # When sizes disagree, broadcasting gradient uses `unbroadcast` to reduce to correct shape.
 # It's sometimes a little wasteful to allocate a too-large `dx`, but difficult to make more efficient.
 
-function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx)
+function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
+    dx = unthunk(dx_raw)
     N = ndims(dx)
     if length(x) == length(dx)
         ProjectTo(x)(dx)  # handles trivial reshapes, offsets, structured matrices, row vectors
@@ -327,7 +328,8 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx)
 end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
 
-function unbroadcast(x::T, dx) where {T<:Tuple{Vararg{Any,N}}} where {N}
+function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
+    dx = unthunk(dx_raw)
     val = if N == length(dx)
         dx
     else
