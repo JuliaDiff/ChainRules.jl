@@ -257,7 +257,7 @@ end
 
 function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray, ys::AbstractArray...) where {F}
     @debug "rrule(map, f, arrays...)" f
-    z, backs = unzip_map((xy...) -> rrule_via_ad(cfg, f, xy...)|>tup2, x, ys...)
+    z, backs = unzip_map((xy...) -> rrule_via_ad(cfg, f, xy...), x, ys...)
     function map_pullback_2(dz)
         df, dxy... = unzip_map_reversed(|>, unthunk(dz), backs)
         return (NoTangent(), ProjectTo(f)(sum(df)), map(_unmap_pad, (x, ys...), dxy)...)
