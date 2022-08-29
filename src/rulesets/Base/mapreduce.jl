@@ -420,11 +420,13 @@ end
 ##### `mapfoldl(f, g, ::Tuple)`
 #####
 
+using Base: mapfoldl_impl
+
 # For tuples there should be no harm in handling `map` first.
 # This will also catch `mapreduce`.
 
 function rrule(
-        cfg::RuleConfig{>:HasReverseMode}, ::typeof(Base.mapfoldl_impl), f::F, op::G, init, x::Tuple;
+        cfg::RuleConfig{>:HasReverseMode}, ::typeof(mapfoldl_impl), f::F, op::G, init, x::Tuple;
     ) where {F,G}
     y, backmap = rrule(cfg, map, f, x)
     z, backred = rrule(cfg, Base.mapfoldl_impl, identity, op, init, y)
@@ -434,6 +436,11 @@ function rrule(
         return (NoTangent(), df, dop, dinit, dx)
     end
     return z, mapfoldl_pullback_tuple
+end
+
+function rrule(::RuleConfig{>:HasReverseMode}, ::typeof(mapfoldl_impl), f, op, init, x::Tuple{})
+    foldl_pullback_empty(dy) = (NoTangent(), NoTangent(), NoTangent(), dy, NoTangent())
+    return init, foldl_pullback_empty
 end
 
 #####
@@ -493,6 +500,12 @@ function rrule(
         return (NoTangent(), NoTangent(), dop, project_in(first(dxplus)), project_x(Base.tail(dxplus)))
     end
     return y, foldl_pullback_tuple_init
+end
+
+# Base.tail doesn't work on (), trivial case:
+function rrule(::RuleConfig{>:HasReverseMode}, ::typeof(mapfoldl_impl), ::typeof(identity), op, init, x::Tuple{})
+    foldl_pullback_empty(dy) = (NoTangent(), NoTangent(), NoTangent(), dy, NoTangent())
+    return init, foldl_pullback_empty
 end
 
 #####
