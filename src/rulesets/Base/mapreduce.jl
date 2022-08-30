@@ -438,11 +438,6 @@ function rrule(
     return z, mapfoldl_pullback_tuple
 end
 
-function rrule(::RuleConfig{>:HasReverseMode}, ::typeof(mapfoldl_impl), f, op, init, x::Tuple{})
-    foldl_pullback_empty(dy) = (NoTangent(), NoTangent(), NoTangent(), dy, NoTangent())
-    return init, foldl_pullback_empty
-end
-
 #####
 ##### `foldl(f, ::Tuple)`
 #####
@@ -491,6 +486,10 @@ function rrule(
         init, 
         x::Tuple;
     ) where {G}
+    # Trivial case handled here to avoid ambiguities (and necc. because of Base.tail below)
+    foldl_pullback_empty(dy) = (NoTangent(), NoTangent(), NoTangent(), dy, NoTangent())
+    isempty(x) && return init, foldl_pullback_empty
+    
     # Treat `init` by simply appending it to the `x`:
     y, back = rrule(config, Base.mapfoldl_impl, identity, op, Base._InitialValue(), (init, x...))
     project_x = ProjectTo(x)
@@ -500,12 +499,6 @@ function rrule(
         return (NoTangent(), NoTangent(), dop, project_in(first(dxplus)), project_x(Base.tail(dxplus)))
     end
     return y, foldl_pullback_tuple_init
-end
-
-# Base.tail doesn't work on (), trivial case:
-function rrule(::RuleConfig{>:HasReverseMode}, ::typeof(mapfoldl_impl), ::typeof(identity), op, init, x::Tuple{})
-    foldl_pullback_empty(dy) = (NoTangent(), NoTangent(), NoTangent(), dy, NoTangent())
-    return init, foldl_pullback_empty
 end
 
 #####
