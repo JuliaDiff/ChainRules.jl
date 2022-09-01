@@ -176,5 +176,6 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
     
     @testset "bugs" begin
         @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
+        @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
     end
 end
