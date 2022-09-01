@@ -59,12 +59,13 @@ function split_bc_derivatives(f::F, arg) where {F}
     @debug("split broadcasting derivative", f)
     ys = f.(arg)
     function bc_one_back(dys)  # For f.(x) we do not need StructArrays / unzip at all
-        delta = broadcast(unthunk(dys), ys, arg) do dy, y, a
+        delta = broadcast(dys, ys, arg) do dy, y, a
             das = only(derivatives_given_output(y, f, a))
             dy * conj(only(das))  # possibly this * should be made nan-safe.
         end
         return (TRI_NO..., ProjectTo(arg)(delta))
     end
+    bc_one_back(dys::AbstractThunk) = bc_one_back(unthunk(dys))
     bc_one_back(z::AbstractZero) = (TRI_NO..., z)
     return ys, bc_one_back
 end
@@ -72,13 +73,14 @@ function split_bc_derivatives(f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting derivatives", f, N)
     ys = f.(args...)
     function bc_many_back(dys)
-        deltas = unzip_broadcast(unthunk(dys), ys, args...) do dy, y, as...
+        deltas = unzip_broadcast(dys, ys, args...) do dy, y, as...
             das = only(derivatives_given_output(y, f, as...))
             map(da -> dy * conj(da), das)  # possibly this * should be made nan-safe.
         end
         dargs = map(unbroadcast, args, deltas)  # ideally sum in unbroadcast could be part of unzip_broadcast?
         return (TRI_NO..., dargs...)
     end
+    bc_many_back(dys::AbstractThunk) = bc_many_back(unthunk(dys))
     bc_many_back(z::AbstractZero) = (TRI_NO..., map(Returns(z), args)...)
     return ys, bc_many_back
 end
@@ -109,11 +111,12 @@ function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
         frule_fun(cfg, (NoTangent(), one(a)), f, a)
     end
     function back_forwards(dys)
-        delta = broadcast(ydots, unthunk(dys), arg) do ydot, dy, a
+        delta = broadcast(ydots, dys, arg) do ydot, dy, a
             ProjectTo(a)(conj(ydot) * dy)  # possibly this * should be made nan-safe.
         end
         return (TRI_NO..., ProjectTo(arg)(delta))
     end
+    back_forwards(dys::AbstractThunk) = back_forwards(unthunk(dys))
     back_forwards(z::AbstractZero) = (TRI_NO..., z)
     return ys, back_forwards
 end
@@ -128,13 +131,14 @@ function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
         rrule_via_ad(cfg, f, a...)
     end
     function back_generic(dys)
-        deltas = unzip_broadcast(backs, unthunk(dys)) do back, dy  # (could be map, sizes match)
+        deltas = unzip_broadcast(backs, dys) do back, dy  # (could be map, sizes match)
             map(unthunk, back(dy))
         end
         dargs = map(unbroadcast, args, Base.tail(deltas))
         df = ProjectTo(f)(sum(first(deltas)))
         return (NoTangent(), NoTangent(), df, dargs...)
     end
+    back_generic(dys::AbstractThunk) = back_generic(unthunk(dys))
     back_generic(z::AbstractZero) = (TRI_NO..., map(Returns(z), args)...)
     return ys3, back_generic
 end
@@ -318,7 +322,7 @@ rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |
 
 function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     dx = unthunk(dx_raw)
-    N = ndims(dx)
+    N = _ndims(dx)
     if length(x) == length(dx)
         ProjectTo(x)(dx)  # handles trivial reshapes, offsets, structured matrices, row vectors
     else
@@ -327,6 +331,9 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     end
 end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
+
+_ndims(x) = ndims(x)
+_ndims(::Tuple) = 1
 
 function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
     dx = unthunk(dx_raw)
