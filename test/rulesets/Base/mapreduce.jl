@@ -376,7 +376,7 @@ end
         @test y1 == [1, 2, 6, 24]
         @test b1([1, 1, 1, 1])[3] isa ChainRulesCore.NotImplemented
         @test b1([1, 1, 1, 1])[4] == [33, 16, 10, 6]
-        @test b1([1, 1, 1, 1])[6] isa Tangent{Some{Int64}}
+        @test b1([1, 1, 1, 1])[6] isa Tangent{Some{Int}}
         @test b1([1, 1, 1, 1])[6].value isa ChainRulesCore.NotImplemented
 
         # y2, b2 = rrule(CFG, _accumulate!, /, [0 0; 0 0], [1 2; 3 4], :, nothing)
