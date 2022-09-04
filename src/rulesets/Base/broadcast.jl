@@ -128,13 +128,14 @@ function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
         rrule_via_ad(cfg, f, a...)
     end
     function back_generic(dys)
-        deltas = unzip_broadcast(backs, unthunk(dys)) do back, dy  # (could be map, sizes match)
+        deltas = unzip_broadcast(backs, dys) do back, dy  # (could be map, sizes match)
             map(unthunk, back(dy))
         end
         dargs = map(unbroadcast, args, Base.tail(deltas))
         df = ProjectTo(f)(sum(first(deltas)))
         return (NoTangent(), NoTangent(), df, dargs...)
     end
+    back_generic(dys::AbstractThunk) = back_generic(unthunk(dys))
     back_generic(z::AbstractZero) = (TRI_NO..., map(Returns(z), args)...)
     return ys3, back_generic
 end
@@ -318,7 +319,7 @@ rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |
 
 function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     dx = unthunk(dx_raw)
-    N = ndims(dx)
+    N = _ndims(dx)
     if length(x) == length(dx)
         ProjectTo(x)(dx)  # handles trivial reshapes, offsets, structured matrices, row vectors
     else
@@ -327,6 +328,9 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     end
 end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
+
+_ndims(x) = ndims(x)
+_ndims(::Tuple) = 1
 
 function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
     dx = unthunk(dx_raw)

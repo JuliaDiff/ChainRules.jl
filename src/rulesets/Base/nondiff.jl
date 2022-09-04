@@ -477,6 +477,11 @@ end
 @non_differentiable Broadcast.result_style(::Any)
 @non_differentiable Broadcast.result_style(::Any, ::Any)
 
+@non_differentiable Base.CoreLogging.current_logger_for_env(::Any...)
+@non_differentiable Base.CoreLogging._invoked_shouldlog(::Any...)
+@non_differentiable Base.CoreLogging.Base.fixup_stdlib_path(::Any)
+@non_differentiable Base.CoreLogging.handle_message(::Any...)
+
 @non_differentiable Libc.free(::Any)
 @non_differentiable Libc.getpid()
 @non_differentiable Libc.strptime(::AbstractString)
