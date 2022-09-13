@@ -15,7 +15,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         y1, bk1 = rrule(CFG, copy∘broadcasted, BS1, >, rand(3), rand(3))
         @test y1 isa AbstractArray{Bool}
         @test all(d -> d isa AbstractZero, bk1(99))
-    
+
         y2, bk2 = rrule(CFG, copy∘broadcasted, BT1, isinteger, Tuple(rand(3)))
         @test y2 isa Tuple{Bool,Bool,Bool}
         @test all(d -> d isa AbstractZero, bk2(99))
@@ -23,7 +23,9 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
     @testset "split 2: derivatives" begin
         test_rrule(copy∘broadcasted, BS1, log, rand(3) .+ 1)
-        test_rrule(copy∘broadcasted, BT1, log, Tuple(rand(3) .+ 1))
+        # `check_inferred` doesn't accept the `Union` returned from ProjectTo as of
+        # ChainRuleCore 1.15.4 https://github.com/JuliaDiff/ChainRulesCore.jl/issues/586
+        test_rrule(copy∘broadcasted, BT1, log, Tuple(rand(3) .+ 1); check_inferred=false)
 
         # Two args uses StructArrays
         test_rrule(copy∘broadcasted, BS1, atan, rand(3), rand(3))
@@ -31,10 +33,10 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         test_rrule(copy∘broadcasted, BS1, atan, rand(3), rand())
         test_rrule(copy∘broadcasted, BT1, atan, rand(3), Tuple(rand(1)))
         test_rrule(copy∘broadcasted, BT1, atan, Tuple(rand(3)), Tuple(rand(3)), check_inferred = VERSION > v"1.7")
-        
+
         # test_rrule(copy∘broadcasted, *, BS1, rand(3), Ref(rand()))  # don't know what I was testing
     end
-    
+
     @testset "split 3: forwards" begin
         # In test_helpers.jl, `flog` and `fstar` have only `frule`s defined, nothing else.
         test_rrule(copy∘broadcasted, BS1, flog, rand(3))
@@ -57,14 +59,14 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         test_rrule(copy∘broadcasted, BS2, Multiplier(rand()), rand(3), rand(4)', check_inferred=false)  # Union{ZeroTangent, Tangent{Multiplier{...
         @test_skip test_rrule(copy∘broadcasted, BS1, Multiplier(rand()), rand(3), 5.0im, check_inferred=false)  # ProjectTo(f) fails to remove the imaginary part of Multiplier's gradient
         test_rrule(copy∘broadcasted, BS1, make_two_vec, rand(3), check_inferred=false)
-        
+
         # Non-diff components -- note that with BroadcastStyle, Ref is from e.g. Broadcast.broadcastable(nothing)
         test_rrule(copy∘broadcasted, BS2, first∘tuple, rand(3), Ref(:sym), rand(4)', check_inferred=false)
         test_rrule(copy∘broadcasted, BS2, last∘tuple, rand(3), Ref(nothing), rand(4)', check_inferred=false)
         test_rrule(copy∘broadcasted, BS1, |>, rand(3), Ref(sin), check_inferred=false)
         _call(f, x...) = f(x...)
         test_rrule(copy∘broadcasted, BS2, _call, Ref(atan), rand(3), rand(4)', check_inferred=false)
-        
+
         test_rrule(copy∘broadcasted, BS1, getindex, [rand(3) for _ in 1:2], [3,1], check_inferred=false)
         test_rrule(copy∘broadcasted, BS1, getindex, [rand(3) for _ in 1:2], (3,1), check_inferred=false)
         test_rrule(copy∘broadcasted, BS1, getindex, [rand(3) for _ in 1:2], Ref(CartesianIndex(2)), check_inferred=false)
@@ -86,12 +88,12 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @gpu test_rrule(copy∘broadcasted, +, rand(3), 1.0*im)
             @gpu test_rrule(copy∘broadcasted, +, rand(3), true)
             @gpu_broken test_rrule(copy∘broadcasted, +, rand(3), Tuple(rand(3)))
-    
+
             @gpu test_rrule(copy∘broadcasted, -, rand(3), rand(3))
             @gpu test_rrule(copy∘broadcasted, -, rand(3), rand(4)')
             @gpu test_rrule(copy∘broadcasted, -, rand(3))
             test_rrule(copy∘broadcasted, -, Tuple(rand(3)))
-    
+
             @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3))
             @gpu test_rrule(copy∘broadcasted, *, rand(3), rand())
             @gpu test_rrule(copy∘broadcasted, *, rand(), rand(3))
@@ -99,7 +101,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand(3) .+ 2im)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand() + 3im)
             test_rrule(copy∘broadcasted, *, rand() + im, rand(3) .+ 4im)
-            
+
             @test_skip test_rrule(copy∘broadcasted, *, im, rand(3))  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
             @test_skip test_rrule(copy∘broadcasted, *, rand(3), im)  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
             y4, bk4 = rrule(CFG, copy∘broadcasted, *, im, [1,2,3.0])
@@ -113,16 +115,16 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
-    
+
             @gpu test_rrule(copy∘broadcasted, /, rand(3), rand())
             @gpu test_rrule(copy∘broadcasted, /, rand(3) .+ im, rand() + 3im)
         end
         @testset "identity etc" begin
             test_rrule(copy∘broadcasted, identity, rand(3))
-        
+
             test_rrule(copy∘broadcasted, Float32, rand(3), rtol=1e-4)
             test_rrule(copy∘broadcasted, ComplexF32, rand(3), rtol=1e-4)
-            
+
             test_rrule(copy∘broadcasted, float, rand(3))
         end
         @testset "complex" begin
@@ -136,7 +138,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
             test_rrule(copy∘broadcasted, imag, rand(3))
             test_rrule(copy∘broadcasted, imag, rand(3) .+ im .* rand.())
-            
+
             test_rrule(copy∘broadcasted, complex, rand(3))
         end
     end
@@ -173,7 +175,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             test_rrule(copy∘broadcasted, complex, rand())
         end
     end
-    
+
     @testset "bugs" begin
         @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
         @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
