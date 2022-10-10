@@ -347,7 +347,8 @@ end
 function rrule(::typeof(cat), Xs...; dims)
     Y = cat(Xs...; dims=dims)
     Base.require_one_based_indexing(Y)
-    cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
+    _cdims = dims isa Val ? _val(dims) : dims
+    cdims = _cdims isa Integer ? Int(_cdims) : Tuple(_cdims)
     ndimsY = Val(ndims(Y))
     sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
