@@ -237,7 +237,10 @@ end
     @gpu test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
     test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
     test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
-    test_rrule(cat, randn(3,2,4), randn(3,2,4); fkwargs=(dims=Val((1,2)),)) #678
+    
+    if VERSION ≥ v"1.8" # Val(tuple) dims support was added in v1.8
+        test_rrule(cat, randn(3,2,4), randn(3,2,4); fkwargs=(dims=Val((1,2)),)) #678
+    end
 
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
     # inference on exotic array types
