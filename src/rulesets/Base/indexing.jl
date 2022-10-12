@@ -1,16 +1,3 @@
-#####
-##### getindex(::Tuple)
-#####
-
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
-    return x[i], ẋ[i]
-end
-
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
-    y = x[i]
-    return y, Tangent{typeof(y)}(ẋ[i]...)
-end
-
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
 _tuple_N(::Type{<:Tuple{Vararg{Any, N}}}) where {N} = Val(N)
 
@@ -77,7 +64,7 @@ end
 """
     ∇getindex(x, dy, inds...)
 
-For the `rrule` of `y = x[inds...]`, this function is roughly 
+For the `rrule` of `y = x[inds...]`, this function is roughly
 `setindex(zero(x), dy, inds...)`, returning the array `dx`.
 Differentiable. Includes `ProjectTo(x)(dx)`.
 """
