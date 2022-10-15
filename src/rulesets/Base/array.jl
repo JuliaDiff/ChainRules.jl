@@ -610,3 +610,16 @@ function _extrema_dims(x, dims)
     end
     return y, extrema_pullback_dims
 end
+
+#####
+##### `stack`
+#####
+
+function rrule(::typeof(stack), xs; dims::Union{Integer, Colon} = :)
+    dims = dims === Colon() ? ndims(first(xs)) + 1 : dims
+    function stack_pullback(Δ)
+        dy = unthunk(Δ)
+        return (NoTangent(), [copy(selectdim(dy, dims, i)) for i in 1:size(dy, dims)])
+    end
+    return stack(xs; dims), stack_pullback
+end

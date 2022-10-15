@@ -416,3 +416,12 @@ end
     B = hcat(A[:,:,1], A[:,:,1])
     @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
 end
+
+@testset "stack" begin
+    xs = [rand(3, 4), rand(3, 4)]
+
+    test_rrule(stack, xs, check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=2,), check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=3,), check_inferred=false)
+end

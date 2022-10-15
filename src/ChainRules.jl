@@ -22,6 +22,12 @@ import ChainRulesCore: rrule, frule
 # Experimental:
 using ChainRulesCore: derivatives_given_output
 
+if isdefined(Base, :stack)
+    using Base: stack
+else
+    using Compat: stack
+end
+
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
 
