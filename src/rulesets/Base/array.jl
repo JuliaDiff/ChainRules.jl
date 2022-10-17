@@ -615,11 +615,48 @@ end
 ##### `stack`
 #####
 
-function rrule(::typeof(stack), xs; dims::Union{Integer, Colon} = :)
-    dims = dims === Colon() ? ndims(first(xs)) + 1 : dims
-    function stack_pullback(Δ)
-        dy = unthunk(Δ)
-        return (NoTangent(), [copy(selectdim(dy, dims, i)) for i in 1:size(dy, dims)])
-    end
-    return stack(xs; dims), stack_pullback
+# function rrule(::typeof(stack), xs; dims::Union{Integer, Colon} = :)
+#     dims = dims === Colon() ? ndims(first(xs)) + 1 : dims
+#     function stack_pullback(Δ)
+#         dy = unthunk(Δ)
+#         return (NoTangent(), [copy(selectdim(dy, dims, i)) for i in 1:size(dy, dims)])
+#     end
+#     return stack(xs; dims), stack_pullback
+# end
+
+
+function frule((_, ẋ), ::typeof(stack), x; dims::Union{Integer, Colon} = :)
+    return stack(x; dims), stack(ẋ; dims)
 end
+
+# Other iterable X also allowed, maybe this should be wider?
+function rrule(::typeof(stack), X::AbstractArray; dims::Union{Integer, Colon} = :)
+    Y = stack(X; dims)
+    sdims = if dims isa Colon
+        N = ndims(Y) - ndims(X)
+        X isa AbstractVector ? ndims(Y) : ntuple(i -> i + N, ndims(X))
+    else
+        dims
+    end
+    project = ProjectTo(X)
+    function stack_pullback(Δ)
+        dY = unthunk(Δ)
+        dY isa NoTangent && return (NoTangent(), NoTangent())
+        dY isa ZeroTangent && return (NoTangent(), ZeroTangent())
+        dX = collect(eachslice(unthunk(dY); dims = sdims))
+        return (NoTangent(), project(dX))
+    end
+    return Y, stack_pullback
+end
+
+# # This wants #671, but ought to work with Zygote already?
+# function rrule(config::RuleConfig, ::typeof(stack), f, args...; dims::Union{Integer, Colon} = :)
+#     y, unmap = rrule_via_ad(config, map, f, args...)
+#     z, unstack = rrule(stack, y)
+#     function stack_pullback_f(dz)
+#         _, dy = unstack(dz)
+#         _, df, dargs... = unmap(dy)
+#         return (NoTangent(), df, dargs...)
+#     end
+#     return z, stack_pullback_f
+# end

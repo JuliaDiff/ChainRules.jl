@@ -418,10 +418,18 @@ end
 end
 
 @testset "stack" begin
+    # vector container
     xs = [rand(3, 4), rand(3, 4)]
 
     test_rrule(stack, xs, check_inferred=false)
     test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
     test_rrule(stack, xs, fkwargs=(dims=2,), check_inferred=false)
     test_rrule(stack, xs, fkwargs=(dims=3,), check_inferred=false)
+
+    # multidimensional container
+    xs = [(1,2,3) (4,5,6); (7,8,9) (10,11,12)]
+
+    test_rrule(stack, xs, check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=2,), check_inferred=false) 
 end
