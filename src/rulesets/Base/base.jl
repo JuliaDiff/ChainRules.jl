@@ -249,13 +249,17 @@ end
 #####
 
 function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray) where {F}
-    # y, back = rrule_via_ad(cfg, Broadcast.broadcasted, f, x) # Yota likes this one
-    # return Broadcast.materialize(y), back
-    y, back = rrule_via_ad(cfg, broadcast, f, x)  # but testing like this one
+    # Here map agrees with broadcast, and we have a meta-rule with 4 different paths, should be fast:
+    y, back = rrule_via_ad(cfg, broadcast, f, x)
     return y, back
 end
 
 function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray, ys::AbstractArray...) where {F}
+    if all(==(size(x)), map(size, ys))
+        # Here too map agrees with broadcast, maybe the test could be more elegant?
+        y, back = rrule_via_ad(cfg, broadcast, f, x, ys...)
+        return y, back
+    end
     @debug "rrule(map, f, arrays...)" f
     z, backs = unzip_map((xy...) -> rrule_via_ad(cfg, f, xy...), x, ys...)
     function map_pullback_2(dz)

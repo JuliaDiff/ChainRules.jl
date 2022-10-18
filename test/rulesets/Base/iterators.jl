@@ -10,7 +10,7 @@
     
         y2, bk2 = rrule(CFG, collect, Iterators.map(Counter(), [11, 12, 13.0]))
         @test y2 == map(Counter(), 11:13)
-        @test bk2(ones(3))[2].iter == [93, 83, 73]
+        @test bk2(ones(3))[2].iter == [33, 23, 13]
     end
 end
 

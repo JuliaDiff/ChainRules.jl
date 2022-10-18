@@ -251,6 +251,8 @@
 
     @testset "map(f, ::Array, ::Array)" begin
         test_rrule(map, +, [1.0, 2.0], [3.0, 4.0], check_inferred=false)  # NoTangent does not match Union{NoTangent, ZeroTangent}
+        test_rrule(map, atan, [1 2; 3.0 4.0], [4 5; 6 7.0], check_inferred=false)  # same shape => just broadcast
+
         test_rrule(map, /, [1.0, 2.0], [3.0, 4.0, 5.0], check_inferred=false)
         test_rrule(map, atan, [1, 2, 3.0], [4 5; 6 7.0], check_inferred=false)
 

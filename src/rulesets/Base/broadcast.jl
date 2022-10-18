@@ -122,26 +122,6 @@ end
 # Path 4: The most generic, save all the pullbacks. Can be 1000x slower.
 # While broadcast makes no guarantee about order of calls, it's cheap to reverse the iteration.
 
-#=
-
-julia> Yota.grad(xs -> sum(abs2, (x -> abs(x)).(xs)), [1,2,3.0])
-┌ Debug: split broadcasting generic
-│   f = #69 (generic function with 1 method)
-│   N = 1
-└ @ ChainRules ~/.julia/dev/ChainRules/src/rulesets/Base/broadcast.jl:126
-(14.0, (ZeroTangent(), [2.0, 4.0, 6.0]))
-
-julia> ENV["JULIA_DEBUG"] = nothing
-
-julia> @btime Yota.grad(xs -> sum(abs2, (x -> abs(x)).(xs)), $(rand(1000)));
-  min 1.321 ms, mean 1.434 ms (23010 allocations, 594.66 KiB)  # with unzip_map, as before
-  min 1.279 ms, mean 1.393 ms (23029 allocations, 595.73 KiB)  # with unzip_map_reversed
-
-julia> @btime Yota.grad(xs -> sum(abs2, abs.(xs)), $(randn(1000)));  # Debug: split broadcasting derivative
-  min 2.144 μs, mean 6.620 μs (6 allocations, 23.88 KiB)
-
-=#
-
 function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting generic", f, N)
     ys3, backs = unzip_broadcast(args...) do a...
