@@ -21,7 +21,9 @@ end
 ##### `zip`
 #####
 
-function rrule(::typeof(zip), xs::AbstractArray...)
+# Attaching the rule to `zip` breaks Zygote, whose rule is on `Iterators.Zip`.
+# function rrule(::typeof(zip), xs::AbstractArray...)
+function rrule(::Type{<:Iterators.Zip}, xs::Tuple{Vararg{AbstractArray}})
     function zip_pullback(dy)
         @debug "zip array pullback" summary(dy)
         dxs = _tangent_unzip(unthunk(dy))
@@ -52,7 +54,7 @@ end
 
 # For testing
 function rrule(::ComposedFunction{typeof(collect), typeof(zip)}, xs::AbstractArray...)
-    y, back = rrule(zip, xs...)
+    y, back = rrule(Iterators.Zip, xs)
     return collect(y), back
 end
 
