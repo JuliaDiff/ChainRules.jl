@@ -644,19 +644,7 @@ function rrule(::typeof(stack), X::AbstractArray; dims::Union{Integer, Colon} = 
         dY isa NoTangent && return (NoTangent(), NoTangent())
         dY isa ZeroTangent && return (NoTangent(), ZeroTangent())
         dX = collect(eachslice(unthunk(dY); dims = sdims))
-        return (NoTangent(), project(dX))
+        return (NoTangent(), project(reshape(dX, project.axes)))
     end
     return Y, stack_pullback
 end
-
-# # This wants #671, but ought to work with Zygote already?
-# function rrule(config::RuleConfig, ::typeof(stack), f, args...; dims::Union{Integer, Colon} = :)
-#     y, unmap = rrule_via_ad(config, map, f, args...)
-#     z, unstack = rrule(stack, y)
-#     function stack_pullback_f(dz)
-#         _, dy = unstack(dz)
-#         _, df, dargs... = unmap(dy)
-#         return (NoTangent(), df, dargs...)
-#     end
-#     return z, stack_pullback_f
-# end

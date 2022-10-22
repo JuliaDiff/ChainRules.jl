@@ -420,6 +420,8 @@ end
 @testset "stack" begin
     # vector container
     xs = [rand(3, 4), rand(3, 4)]
+    test_frule(stack, xs)
+    test_frule(stack, xs; fkwargs=(dims=1,))
 
     test_rrule(stack, xs, check_inferred=false)
     test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
@@ -427,9 +429,20 @@ end
     test_rrule(stack, xs, fkwargs=(dims=3,), check_inferred=false)
 
     # multidimensional container
-    xs = [(1,2,3) (4,5,6); (7,8,9) (10,11,12)]
+    ms = [rand(2,3) for _ in 1:4, _ in 1:5];
 
-    test_rrule(stack, xs, check_inferred=false)
-    test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
-    test_rrule(stack, xs, fkwargs=(dims=2,), check_inferred=false) 
+    if VERSION > v"1.9-"  # this needs new eachslice, not yet in Compat
+        test_rrule(stack, ms, check_inferred=false)
+    end
+    test_rrule(stack, ms, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, ms, fkwargs=(dims=3,), check_inferred=false)
+    
+    # non-array inner objects
+    ts = [Tuple(rand(3)) for _ in 1:4, _ in 1:2];
+
+    if VERSION > v"1.9-"  
+        test_rrule(stack, ts, check_inferred=false)
+    end
+    test_rrule(stack, ts, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, ts, fkwargs=(dims=2,), check_inferred=false)
 end
