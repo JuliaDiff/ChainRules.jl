@@ -615,16 +615,6 @@ end
 ##### `stack`
 #####
 
-# function rrule(::typeof(stack), xs; dims::Union{Integer, Colon} = :)
-#     dims = dims === Colon() ? ndims(first(xs)) + 1 : dims
-#     function stack_pullback(Δ)
-#         dy = unthunk(Δ)
-#         return (NoTangent(), [copy(selectdim(dy, dims, i)) for i in 1:size(dy, dims)])
-#     end
-#     return stack(xs; dims), stack_pullback
-# end
-
-
 function frule((_, ẋ), ::typeof(stack), x; dims::Union{Integer, Colon} = :)
     return stack(x; dims), stack(ẋ; dims)
 end
