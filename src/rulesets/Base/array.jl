@@ -143,18 +143,21 @@ end
 function rrule(::typeof(permutedims), x::AbstractVector)
     project = ProjectTo(x)
     permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
+    permutedims_pullback_1(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return permutedims(x), permutedims_pullback_1
 end
 
 function rrule(::typeof(permutedims), x::AbstractArray, perm)
     pr = ProjectTo(x)  # projection restores e.g. transpose([1,2,3])
     permutedims_back_2(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    permutedims_back_2(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return permutedims(x, perm), permutedims_back_2
 end
 
 function rrule(::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
     pr = ProjectTo(x)
     permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    permutedims_back_3(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return PermutedDimsArray(x, perm), permutedims_back_3
 end
 
