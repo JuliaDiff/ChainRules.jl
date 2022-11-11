@@ -631,9 +631,8 @@ function rrule(::typeof(stack), X::AbstractArray; dims::Union{Integer, Colon} = 
     project = ProjectTo(X)
     function stack_pullback(Δ)
         dY = unthunk(Δ)
-        dY isa NoTangent && return (NoTangent(), NoTangent())
-        dY isa ZeroTangent && return (NoTangent(), ZeroTangent())
-        dX = collect(eachslice(unthunk(dY); dims = sdims))
+        dY isa AbstractZero && return (NoTangent(), dY)
+        dX = collect(eachslice(dY; dims = sdims))
         return (NoTangent(), project(reshape(dX, project.axes)))
     end
     return Y, stack_pullback
