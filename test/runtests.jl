@@ -5,6 +5,7 @@ using Test, ChainRulesCore, ChainRulesTestUtils
 using Adapt
 using Base.Broadcast: broadcastable
 using ChainRules
+using ChainRules: stack
 using ChainRulesCore
 using ChainRulesTestUtils
 using ChainRulesTestUtils: rand_tangent, _fdm

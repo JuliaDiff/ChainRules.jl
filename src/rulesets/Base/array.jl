@@ -610,3 +610,30 @@ function _extrema_dims(x, dims)
     end
     return y, extrema_pullback_dims
 end
+
+#####
+##### `stack`
+#####
+
+function frule((_, ẋ), ::typeof(stack), x; dims::Union{Integer, Colon} = :)
+    return stack(x; dims), stack(ẋ; dims)
+end
+
+# Other iterable X also allowed, maybe this should be wider?
+function rrule(::typeof(stack), X::AbstractArray; dims::Union{Integer, Colon} = :)
+    Y = stack(X; dims)
+    sdims = if dims isa Colon
+        N = ndims(Y) - ndims(X)
+        X isa AbstractVector ? ndims(Y) : ntuple(i -> i + N, ndims(X))
+    else
+        dims
+    end
+    project = ProjectTo(X)
+    function stack_pullback(Δ)
+        dY = unthunk(Δ)
+        dY isa AbstractZero && return (NoTangent(), dY)
+        dX = collect(eachslice(dY; dims = sdims))
+        return (NoTangent(), project(reshape(dX, project.axes)))
+    end
+    return Y, stack_pullback
+end
