@@ -8,7 +8,7 @@
     @testset "with dims kwargs" begin
         @gpu test_rrule(mean, randn(9); fkwargs=(;dims=1))
         @gpu test_rrule(mean, randn(9,4); fkwargs=(;dims=2))
-        @gpu test_rrule(mean, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(;dims=2), check_inferred=false)
+        test_rrule(mean, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(;dims=2), check_inferred=false)
     end
     @testset "mean(f, x)" begin
         # This shares its implementation with sum(f, x). Similar tests should cover all cases:
