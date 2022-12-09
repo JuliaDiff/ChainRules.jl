@@ -28,6 +28,13 @@
         test_rrule(mean, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=2))
         test_rrule(mean, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
     end
+
+    @testset "Regression Test against StatsBase-like Weighted Mean" begin
+        @eval struct DummyWeights <: AbstractVector{Float64}  # DummyType that looks like StatsBase's Weights types
+        end
+        # This should return nothing as we have no rule for this. (we opted opt)
+        @test nothing == rrule(ChainRulesTestUtils.TestConfig(), mean, [1.0, 2.0], DummyWeights())
+    end
 end
 
 @testset "variation: $var" for var in (std, var)

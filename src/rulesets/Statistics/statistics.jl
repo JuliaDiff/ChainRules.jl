@@ -31,6 +31,18 @@ function rrule(
     return y_sum / n, mean_pullback_f
 end
 
+# Similar to https://github.com/JuliaDiff/ChainRules.jl/issues/522
+# The rule above assumes `f` is callable. Arrays are not, this came up when taking 
+# the mean arrays with weights in StatsBase
+@opt_out ChainRulesCore.rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(mean),
+    x::AbstractArray,
+    wt::AbstractArray{<:Union{Real,Complex,AbstractArray}};
+    dims=:
+)
+
+
 #####
 ##### variance
 #####
