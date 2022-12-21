@@ -189,6 +189,7 @@
 @non_differentiable floatmax(::Any)
 @non_differentiable floatmin(::Any)
 @non_differentiable flush(::Any)
+@non_differentiable foreach(::Any, ::Tuple{})
 
 @non_differentiable gensym(::Symbol)
 @non_differentiable gensym(::String...)
