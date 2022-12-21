@@ -61,10 +61,9 @@ function frule((_, ẋ), ::typeof(getindex), x::AbstractArray, inds...)
 end
 
 function rrule(::typeof(getindex), x::AbstractArray, inds...)
-    function getindex_pullback(dy)
-        nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
-    end
+    nots = map(Returns(NoTangent()), inds)
+    getindex_pullback(dy) = (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
+    getindex_pullback(z::AbstractZero) = (NoTangent(), z, nots...)
     return x[inds...], getindex_pullback
 end
 
@@ -90,6 +89,7 @@ function ∇getindex(x::AbstractArray, dy, inds...)
     ∇getindex!(dx, dy, plain_inds...)
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
+∇getindex(x::AbstractArray, z::AbstractZero, inds...) = z
 
 """
     _setindex_zero(x, dy, inds...)
@@ -191,10 +191,9 @@ function frule((_, ẋ), ::typeof(view), x::AbstractArray, inds...)
 end
 
 function rrule(::typeof(view), x::AbstractArray, inds...)
-    function view_pullback(dy)
-        nots = map(Returns(NoTangent()), inds)
-        return (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
-    end
+    nots = map(Returns(NoTangent()), inds)
+    view_pullback(dy) = (NoTangent(), thunked_∇getindex(x, dy, inds...), nots...)
+    view_pullback(z::AbstractZero) = (NoTangent(), z, nots...)
     return view(x, inds...), view_pullback
 end
 
