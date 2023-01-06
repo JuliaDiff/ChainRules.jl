@@ -423,6 +423,7 @@ end
 @non_differentiable supertype(::Any)
 @non_differentiable Symbol(::Any...)
 @non_differentiable symlink(::AbstractString, ::AbstractString)
+@non_differentiable summary(::Any)
 
 @non_differentiable take!(::Base.GenericIOBuffer)
 @non_differentiable take!(::IOStream)
@@ -473,6 +474,7 @@ elseif isdefined(Base, :cumulative_compile_time_ns)
 end
 @non_differentiable Base.time_print(::Any...)
 @non_differentiable Base.OneTo(::Any...)
+@non_differentiable Base.array_summary(::Any)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)
