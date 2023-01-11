@@ -6,6 +6,8 @@ _denom(x, dims) = size(x, dims)
 _denom(x, dims::Colon) = length(x)
 _denom(x, dims::Union{Tuple, AbstractArray}) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
 
+@non_differentiable _denom(::Any, ::Any)  # else Zygote tries to AD unique(::Tuple)
+
 function rrule(::typeof(mean), x::AbstractArray{<:Union{Real,Complex,AbstractArray}}; dims=:)
     y_sum, sum_pullback = rrule(sum, x; dims)
     n = _denom(x, dims)
