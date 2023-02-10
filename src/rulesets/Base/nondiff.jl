@@ -350,6 +350,7 @@
 @non_differentiable println(::Any...)
 @non_differentiable process_exited(::Any)
 @non_differentiable process_running(::Any)
+@non_differentiable promote_type(::Type...)
 @non_differentiable pushdisplay(::AbstractDisplay)
 
 @non_differentiable read(::IO)
