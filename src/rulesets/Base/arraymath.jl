@@ -372,11 +372,12 @@ end
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
     function slash_pullback_scalar(ȳ)
-        Ȳ = unthunk(ȳ)
-        Athunk = InplaceableThunk(
-            dA -> dA .+= Ȳ ./ conj(b),
-            @thunk(Ȳ / conj(b)),
-        )
+        Ȳ = unthunk_bc(ȳ)
+        # Athunk = InplaceableThunk(
+        #     dA -> dA .+= Ȳ ./ conj(b),
+        #     @thunk(Ȳ / conj(b)),
+        # )
+        Athunk = @bc_thunk Ȳ / conj(b)
         bthunk = @thunk(-dot(A,Ȳ) / conj(b^2))
         return (NoTangent(), Athunk, bthunk)
     end
@@ -400,7 +401,9 @@ frule((_, ΔA), ::typeof(-), A::AbstractArray) = -A, -ΔA
 
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
-        return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
+        Ȳ = unthunk_bc(ȳ)
+        # return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
+        return (NoTangent(), @bc_thunk -Ȳ)
     end
     return -x, negation_pullback
 end
@@ -415,9 +418,17 @@ frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
     arr_axs = map(axes, arrs)
-    function add_pullback(dy_raw)
+    function add_pullback_2(dy_raw)
         dy = unthunk(dy_raw)  # reshape will otherwise unthunk N times
         return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
     end
-    return y, add_pullback
+    if all(ax -> ax===arr_axs[1], arr_axs)
+        # Here no reshape is needed, 
+        add_pullback_1(dy::AbstractArray) = (NoTangent(), map(Returns(dy), arr_axs)...)
+        add_pullback_1(dy::BroadcastThunk) = (NoTangent(), map(Returns(dy), arr_axs)...)
+        add_pullback_1(dy) = add_pullback_2(dy)
+        return y, add_pullback_1
+    else
+        return y, add_pullback_2
+    end
 end

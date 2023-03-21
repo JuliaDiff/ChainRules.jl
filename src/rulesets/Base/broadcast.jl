@@ -156,42 +156,50 @@ end
 
 const NumericOrBroadcast = Union{Number, AbstractArray{<:Number}, NTuple{<:Any,Number}, Broadcast.Broadcasted}
 
+# Experimentally, also allow fused reverse passes, via `dx::BroadcastThunk`. This should similarly
+# be used only on functions cheap enough that running twice is better than materialising the array.
+
+using ChainRulesCore: BroadcastThunk, unthunk_or_bc, @bc_thunk
+
 ##### Arithmetic: +, -, *, ^2, /
 
 function rrule(::typeof(broadcasted), ::typeof(+), xs::NumericOrBroadcast...)
     @debug("broadcasting: plus", length(xs))
     function bc_plus_back(dy_raw)
-        dy = unthunk(dy_raw)
+        dy = unthunk_or_bc(dy_raw)  # this allows BroadcastThunk through, which unbroadcast understands
         return (NoTangent(), NoTangent(), map(x -> unbroadcast(x, dy), xs)...)  # no copies, this may return dx2 === dx3
     end
     return broadcasted(+, xs...), bc_plus_back
 end
 
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast, y::NumericOrBroadcast)
-    @debug("broadcasting: minus 2")
+    @debug("broadcasting: 2-arg minus")
     function bc_minus_back(dz_raw)
         dz = unthunk(dz_raw)
         return (NoTangent(), NoTangent(), @thunk(unbroadcast(x, dz)), @thunk(-unbroadcast(y, dz)))
+    end
+    function bc_minus_back(dz::BroadcastThunk)  # ?? confused about double-thunking here
+        return (NoTangent(), NoTangent(), unbroadcast(x, dz), unbroadcast(y, -dz))
     end
     return broadcasted(-, x, y), bc_minus_back
 end
 
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast)
-    @debug("broadcasting: minus 1")
-    bc_minus_back(dy) = (NoTangent(), NoTangent(), @thunk -unthunk(dy))
+    @debug("broadcasting: 1-arg minus")
+    bc_minus_back(dy) = (NoTangent(), NoTangent(), -dy)
     return broadcasted(-, x), bc_minus_back
 end
 
 function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::NumericOrBroadcast)
     @debug("broadcasting: times")
     function bc_times_back(Δraw)
-        Δ = unthunk(Δraw)
+        Δ = unthunk_or_bc(Δraw)
         return (NoTangent(), NoTangent(), _back_star(x, y, Δ), _back_star(y, x, Δ))
     end
     return broadcasted(*, x, y), bc_times_back
 end
-_back_star(x, y, Δ) = @thunk unbroadcast(x, Δ .* conj.(y))  # this case probably isn't better than generic
-_back_star(x::Number, y, Δ) = @thunk LinearAlgebra.dot(y, Δ)  # ... but this is why the rule exists
+_back_star(x, y, Δ) = unbroadcast(x, @bc_thunk Δ * conj(y))  # ?? confused about double thunking
+_back_star(x::Number, y, Δ) = LinearAlgebra.dot(y, Δ)
 _back_star(x::Bool, y, Δ) = NoTangent()
 _back_star(x::Complex{Bool}, y, Δ) = NoTangent()  # e.g. for fun.(im.*x)
 
@@ -210,8 +218,8 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x::NumericOrBroadcast, ::Val{2})
     @debug("broadcasting: square")
-    function bc_square_back(dy_raw)
-        dx = @thunk ProjectTo(x)(2 .* unthunk(dy_raw) .* conj.(x))
+    function bc_square_back(dy)
+        dx = @thunk ProjectTo(x)(@bc_thunk 2 * dy * conj(x))
         return (NoTangent(), NoTangent(), NoTangent(), dx, NoTangent())
     end
     return broadcasted(Base.literal_pow, ^, x, Val(2)), bc_square_back
@@ -222,10 +230,10 @@ function rrule(::typeof(broadcasted), ::typeof(/), x::NumericOrBroadcast, y::Num
     # z = broadcast(/, x, y)
     z = broadcasted(/, x, y)
     function bc_divide_back(dz_raw)
-        dz = unthunk(dz_raw)
-        dx = @thunk unbroadcast(x, dz ./ conj.(y))
+        dz = unthunk(dz_raw)  # ??
+        dx = @thunk unbroadcast(x, @bc_thunk dz / conj(y))
         # dy = @thunk -LinearAlgebra.dot(z, dz) / conj(y)  # the reason to be eager is to allow dot here
-        dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast
+        dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast ??
         return (NoTangent(), NoTangent(), dx, dy)
     end
     return z, bc_divide_back
@@ -256,14 +264,14 @@ rrule(::typeof(broadcasted), ::typeof(identity), x::Number) = rrule(identity, x)
 
 function rrule(::typeof(broadcasted), ::Type{T}, x::NumericOrBroadcast) where {T<:Number}
     @debug("broadcasting: type", T)
-    bc_type_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_type_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk_or_bc(dz))))
     return broadcasted(T, x), bc_type_back
 end
 rrule(::typeof(broadcasted), ::Type{T}, x::Number) where {T<:Number} = rrule(T, x) |> _prepend_zero
 
 function rrule(::typeof(broadcasted), ::typeof(float), x::NumericOrBroadcast)
     @debug("broadcasting: float")
-    bc_float_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_float_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk_or_bc(dz))))
     return broadcasted(float, x), bc_float_back
 end
 rrule(::typeof(broadcasted), ::typeof(float), x::Number) = rrule(float, x) |> _prepend_zero
@@ -273,7 +281,7 @@ rrule(::typeof(broadcasted), ::typeof(float), x::Number) = rrule(float, x) |> _p
 for conj in [:conj, :adjoint]  # identical as we know eltype <: Number
     @eval begin
         function rrule(::typeof(broadcasted), ::typeof($conj), x::NumericOrBroadcast)
-            bc_conj_back(dx) = (NoTangent(), NoTangent(), conj(unthunk(dx)))
+            bc_conj_back(dx) = (NoTangent(), NoTangent(), conj(unthunk_or_bc(dx)))
             return broadcasted($conj, x), bc_conj_back
         end
         rrule(::typeof(broadcasted), ::typeof($conj), x::Number) = rrule($conj, x) |> _prepend_zero
@@ -285,7 +293,7 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(real), x::NumericOrBroadcast)
     @debug("broadcasting: real")
-    bc_real_back(dz) = (NoTangent(), NoTangent(), @thunk(real(unthunk(dz))))
+    bc_real_back(dz) = (NoTangent(), NoTangent(), @thunk(real(unthunk_or_bc(dz))))
     return broadcasted(real, x), bc_real_back
 end
 rrule(::typeof(broadcasted), ::typeof(real), x::Number) = rrule(real, x) |> _prepend_zero
@@ -293,7 +301,7 @@ rrule(::typeof(broadcasted), ::typeof(real), x::AbstractArray{<:Real}) = rrule(i
 
 function rrule(::typeof(broadcasted), ::typeof(imag), x::NumericOrBroadcast)
     @debug("broadcasting: imag")
-    bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(unthunk(dz))))
+    bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(unthunk_or_bc(dz))))
     return broadcasted(imag, x), bc_imag_back
 end
 rrule(::typeof(broadcasted), ::typeof(imag), x::Number) = rrule(imag, x) |> _prepend_zero
@@ -305,7 +313,7 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(complex), x::NumericOrBroadcast)
     @debug("broadcasting: complex")
-    bc_complex_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_complex_back(dz) = (NoTangent(), NoTangent(), @thunk unbroadcast(x, unthunk_or_bc(dz)))
     return broadcasted(complex, x), bc_complex_back
 end
 rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |> _prepend_zero
@@ -325,6 +333,17 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     else
         dims = ntuple(d -> get(size(x), d, 1) == 1 ? d : N+1, N)  # hack to get type-stable `dims`
         ProjectTo(x)(sum(dx; dims))
+    end
+end
+function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::BroadcastThunk)
+    N = ndims(dx.bc)
+    if length(x) == length(dx.bc)
+        ProjectTo(x)(dx)  # this may return a BroadcastThunk
+    else
+        T = Base.@default_eltype dx.bc
+        init = zero(T)  # hack around sum(::Broadcasted; dims) not working
+        dims = ntuple(d -> get(size(x), d, 1) == 1 ? d : N+1, N)
+        ProjectTo(x)(sum(dx.bc; dims, init))
     end
 end
 unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
