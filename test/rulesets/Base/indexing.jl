@@ -40,7 +40,7 @@
             test_rrule(getindex, x, CartesianIndex(2, 3))
         end
 
-        @testset "slice/index postions" begin
+        @testset "slice/index positions" begin
             test_rrule(getindex, x, 2:3)
             test_rrule(getindex, x, 3:-1:2)
             test_rrule(getindex, x, [3,2])

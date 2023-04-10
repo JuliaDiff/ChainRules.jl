@@ -72,7 +72,7 @@ materialises each zero `ẋ` to be `zero(x)`.
 _instantiate_zeros(ẋs, xs) = map(_i_zero, ẋs, xs)
 _i_zero(ẋ, x) = ẋ
 _i_zero(ẋ::AbstractZero, x) = zero(x)
-# Possibly this won't work for partly non-diff arrays, sometihng like `gradient(x -> ["abc", x][end], 1)`
+# Possibly this won't work for partly non-diff arrays, something like `gradient(x -> ["abc", x][end], 1)`
 # may give a MethodError for `zero` but won't be wrong.
 
 # Fast paths. Should it also collapse all-Zero cases?

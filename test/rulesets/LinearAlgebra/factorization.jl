@@ -510,7 +510,7 @@ end
             @testset "$op" for op in (det, logdet)
                 @testset "$T" for T in (Float64, ComplexF64)
                     n = 5
-                    # rand (not randn) so det will be postive, so logdet will be defined
+                    # rand (not randn) so det will be positive, so logdet will be defined
                     A = 3 * rand(T, (n, n))
                     X = Cholesky(A * A' + I, p, 0)
                     X̄_acc = Tangent{typeof(X)}(; factors=Diagonal(randn(T, n))) # sensitivity is always a diagonal
@@ -547,7 +547,7 @@ end
                 C = cholesky(A)
                 B = randn(T, sz)
                 # because the rule calls the rrule for getproperty, its rrule is not
-                # completely type-inferrable
+                # completely type-inferable
                 test_rrule(\, C, B; check_inferred=false)
             end
         end
@@ -559,7 +559,7 @@ end
                 C = cholesky(A)
                 B = randn(T, 5, n)
                 # because the rule calls the rrule for getproperty, its rrule is not
-                # completely type-inferrable
+                # completely type-inferable
                 test_rrule(/, B, C; check_inferred=false)
             end
         end
