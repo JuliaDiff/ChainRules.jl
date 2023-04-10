@@ -11,7 +11,7 @@ function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
     return y, Tangent{typeof(y)}(ẋ[i]...)
 end
 
-"for a given typle type, returns a Val{N} where N is the length of the tuple"
+"for a given tuple type, returns a Val{N} where N is the length of the tuple"
 _tuple_N(::Type{<:Tuple{Vararg{Any, N}}}) where {N} = Val(N)
 
 function rrule(::typeof(getindex), x::T, i::Integer) where {T<:Tuple}

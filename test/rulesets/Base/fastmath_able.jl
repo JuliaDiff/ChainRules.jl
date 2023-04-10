@@ -1,4 +1,4 @@
-# Add tests to the quote for functions with  FastMath varients.
+# Add tests to the quote for functions with  FastMath variants.
 function jacobian_via_frule(f,z)
     du_dx, dv_dx = reim(frule((ZeroTangent(), 1),f,z)[2])
     du_dy, dv_dy = reim(frule((ZeroTangent(),im),f,z)[2])
@@ -38,7 +38,7 @@ function complex_jacobian_test(f, z)
 end
 
 # IMPORTANT:
-# Do not add any tests here for functions that do not have varients in Base.FastMath
+# Do not add any tests here for functions that do not have variants in Base.FastMath
 # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
 const FASTABLE_AST = quote
     @testset "Trig" begin

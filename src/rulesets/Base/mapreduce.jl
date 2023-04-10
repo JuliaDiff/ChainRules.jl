@@ -194,7 +194,7 @@ end
 
 # Fix dispatch for this pidgeon-hole optimization,
 # Rules with RuleConfig dispatch with priority over without (regardless of other args).
-# and if we don't specify what do do for one that HasReverseMode then it is ambigious
+# and if we don't specify what do do for one that HasReverseMode then it is ambiguous
 for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
     @eval function rrule(
         ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T}; dims=:,

@@ -175,7 +175,7 @@ end
 
 ChainRulesCore.derivatives_given_output(Ω, ::typeof(identity), x) = tuple(tuple(true))
 
-# rouding related,
+# rounding related,
 # we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)

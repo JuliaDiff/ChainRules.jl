@@ -326,8 +326,8 @@
             return TA(U * Diagonal(λ) * U', uplo)
         end
 
-        # Adapted From ChainRulesTestUtils._is_inferrable
-        function is_inferrable(f, A)
+        # Adapted From ChainRulesTestUtils._is_inferable
+        function is_inferable(f, A)
             try
                 @maybe_inferred f(A)
                 return true
@@ -347,7 +347,7 @@
                 @testset for uplo in (:L, :U), hermout in (true, false)
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
@@ -400,7 +400,7 @@
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real

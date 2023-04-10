@@ -1,7 +1,7 @@
 let
     # Include inside this quote any rules that should have FastMath versions
     # IMPORTANT:
-    # Do not add any rules here for functions that do not have varients in Base.FastMath
+    # Do not add any rules here for functions that do not have variants in Base.FastMath
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics

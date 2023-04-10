@@ -47,7 +47,7 @@
 
             A = randn(T, n, n)
             A *= nrm / opnorm(A, 1)
-            # rrule is not inferrable, but pullback should be
+            # rrule is not inferable, but pullback should be
             tols = nrm == 0.1 ? (atol=1e-8, rtol=1e-8) : NamedTuple()
             test_rrule(exp, A; check_inferred=false, tols...)
             Y, back = rrule(exp, A)
