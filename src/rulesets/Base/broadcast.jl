@@ -344,6 +344,16 @@ function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
 end
 unbroadcast(x::Tuple, dx::AbstractZero) = dx
 
+# zero(::Tangent) is some Zero, which means sum(dx; dims) fails unless you do this:
+function Base.reducedim_init(
+    f::typeof(identity),
+    op::Union{typeof(+), typeof(Base.add_sum)},
+    A::AbstractArray{<:ChainRulesCore.AbstractTangent},
+    dims,
+)
+    return Base.reducedim_initarray(A, dims, ZeroTangent(), Union{ZeroTangent, eltype(A)})
+end
+
 # Scalar types
 
 unbroadcast(x::Number, dx) = ProjectTo(x)(sum(dx))
