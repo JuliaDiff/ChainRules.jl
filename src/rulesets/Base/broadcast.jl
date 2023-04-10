@@ -92,12 +92,13 @@ end
 # and split broadcasting may anyway change N^2 executions into N, e.g. `g.(v ./ f.(v'))`.
 # We don't know `f` is cheap, but `split_bc_pullbacks` tends to be very slow.
 
-function may_bc_forwards(cfg::C, f::F, args::Vararg{Any,N}) where {C,F,N}
+may_bc_forwards(cfg, f, args...) = false
+function may_bc_forwards(cfg::C, f::F, arg) where {C,F}
     Base.issingletontype(F) || return false
-    N==1 || return false  # Could weaken this to 1 differentiable
+    TA = _eltype(arg)
+    TA <: Real || return false
     cfg isa RuleConfig{>:HasForwardsMode} && return true  # allows frule_via_ad
-    TA = map(_eltype, args)
-    TF = Core.Compiler._return_type(frule, Tuple{C, Tuple{NoTangent, TA...}, F, TA...})
+    TF = Core.Compiler._return_type(frule, Tuple{C, Tuple{NoTangent, TA}, F, TA})
     return isconcretetype(TF) && TF <: Tuple
 end
 
