@@ -177,18 +177,21 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
     end
 
     @testset "bugs" begin
-        @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
-        @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
+        @testset "unbroadcast with NTuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/pull/661
+            @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
+            @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
+        end
+        @testset "unbroadcast with Matrix{Tangent}" begin  # https://github.com/JuliaDiff/ChainRules.jl/issues/708
+            x = Base.Fix1.(*, 1:3.0)
+            dx1 = [Tangent{Base.Fix1}(; x = i/2) for i in 1:3, _ in 1:1]
+            @test size(ChainRules.unbroadcast(x, dx1)) == size(x)
+            dx2 = [Tangent{Base.Fix1}(; x = i/j) for i in 1:3, j in 1:4]
+            @test size(ChainRules.unbroadcast(x, dx2)) == size(x)  # was an error, convert(::ZeroTangent, ::Tangent)
+            # sum(dx2; dims=2) isa Matrix{Union{ZeroTangent, Tangent{Base.Fix1...}}, ProjectTo copies this so that
+            # unbroadcast(x, dx2) isa Vector{Tangent{...}}, that's probably not ideal.
 
-        x = Base.Fix1.(*, 1:3.0)
-        dx1 = [Tangent{Base.Fix1}(; x = i/2) for i in 1:3, _ in 1:1]
-        @test size(ChainRules.unbroadcast(x, dx1)) == size(x)
-        dx2 = [Tangent{Base.Fix1}(; x = i/j) for i in 1:3, j in 1:4]
-        @test size(ChainRules.unbroadcast(x, dx2)) == size(x)  # was an error, convert(::ZeroTangent, ::Tangent)
-        # sum(dx2; dims=2) isa Matrix{Union{ZeroTangent, Tangent{Base.Fix1...}}, ProjectTo copies this so that
-        # unbroadcast(x, dx2) isa Vector{Tangent{...}}, that's probably not ideal.
-
-        @test sum(dx2; dims=2)[end] == Tangent{Base.Fix1}(x = 6.25,)
-        @test sum(dx1) isa Tangent{Base.Fix1}  # no special code required
+            @test sum(dx2; dims=2)[end] == Tangent{Base.Fix1}(x = 6.25,)
+            @test sum(dx1) isa Tangent{Base.Fix1}  # no special code required
+        end
     end
 end
