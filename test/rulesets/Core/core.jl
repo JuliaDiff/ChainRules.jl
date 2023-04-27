@@ -10,3 +10,9 @@ end
     test_rrule(ifelse, true, [1.1], [2.0]; check_inferred=false)
     test_frule(ifelse, false, [1.1], [2.0]; check_inferred=false)
 end
+
+isdefined(Core, :compilerbarrier) && @testset "compilerbarrier" begin
+    test_frule(Core.compilerbarrier, :const, 42.0)
+    test_rrule(Core.compilerbarrier, :const, 42.0) 
+end
+    
