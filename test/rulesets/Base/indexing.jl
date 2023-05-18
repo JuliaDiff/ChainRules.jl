@@ -89,7 +89,7 @@
         
         test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2)
         sgrad = rrule(getindex, Symmetric(rand(3, 3)), 2, 3)[2](1.0)[2]
-        @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]
+        @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]  # We are actually getting this wrong now
     end
     
     @testset "getindex(::Array{<:Array})" begin
