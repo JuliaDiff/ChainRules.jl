@@ -1,7 +1,7 @@
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        if VERSION >= v"1.7"
+        if v"1.7" <= VERSION < v"1.9"
           @gpu test_frule(inv, B)
           @gpu test_rrule(inv, B)
         else
