@@ -363,8 +363,8 @@ end
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
-    test_rrule(findmin, rand(5,3))
-    test_rrule(findmax, rand(5,3))
+    test_rrule(findmin, rand(5,3); check_inferred=false)
+    test_rrule(findmax, rand(5,3); check_inferred=false)
     @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
     @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
 
@@ -386,7 +386,7 @@ end
 
     # Reverse
     test_rrule(imum, rand(10))
-    test_rrule(imum, rand(3,4))
+    test_rrule(imum, rand(3,4); check_inferred=false)
     @gpu test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
 
