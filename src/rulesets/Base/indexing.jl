@@ -85,14 +85,14 @@ function ∇getindex(x::AbstractArray{T,N}, dy, inds...) where {T,N}
     # `to_indices` removes any logical indexing, colons, CartesianIndex etc,
     # leaving just Int / AbstractVector of Int
     plain_inds = Base.to_indices(x, inds)
-    if plain_inds isa NTuple{N, Int} && T<:Number
+    dx = if plain_inds isa NTuple{N, Int} && T<:Number
         # scalar indexing
-        return OneElement(dy, plain_inds, axes(x))
+        OneElement(dy, plain_inds, axes(x))
     else  # some from slicing (potentially noncontigous)
         dx = _setindex_zero(x, dy, plain_inds...)
         ∇getindex!(dx, dy, plain_inds...)
-        return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
     end
+    return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
 ∇getindex(x::AbstractArray, z::AbstractZero, inds...) = z
 
@@ -110,7 +110,7 @@ end
 Base.size(A::OneElement) = map(length, A.axes)
 Base.axes(A::OneElement) = A.axes
 Base.getindex(A::OneElement{T,N}, i::Vararg{Int,N}) where {T,N} = ifelse(i==A.ind, A.val, zero(T))
-# TODO: should we teach ProjectTo that OneElement is more structurally sparse than anything it intersects nonstructural zeros with?
+
 
 """
     _setindex_zero(x, dy, inds...)

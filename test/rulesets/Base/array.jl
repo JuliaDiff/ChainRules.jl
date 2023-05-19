@@ -358,14 +358,15 @@ end
     @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
     # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
+    # or by https://github.com/JuliaLang/julia/pull/48404
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
     test_rrule(findmin, rand(5,3))
     test_rrule(findmax, rand(5,3))
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
 
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
@@ -398,8 +399,8 @@ end
     @test res == @inferred unthunk(rrule(imum, [1,2,1,2,1,2])[2](1.0)[2])
 
     # Structured matrix -- NB the minimum is a structral zero here
-    @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Union{Diagonal, OneElement}
-    @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa Union{UpperTriangular{Float64}, ChainRules.OneElement{Float64}} # must be at least as structured
+    @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Diagonal
+    @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular{Float64}
     @test_skip test_rrule(imum, Diagonal(rand(3) .+ 1)) # MethodError: no method matching zero(::Type{Any}), from fill!(A::SparseArrays.SparseMatrixCSC{Any, Int64}, x::Bool)
 end
 
