@@ -342,21 +342,24 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     project_B = ProjectTo(B)
 
     Y = A \ B
-    # Ever since https://github.com/JuliaLang/julia/pull/44358
-    # we need to use `pinv` rather than `/` to support both the cases of Y being scalar and array
-    # See also https://github.com/JuliaLang/julia/issues/28827 which would improve this
+
+    Atf = factorize(A')
+    
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        Ati = pinv(A')
+        @static if VERSION >= v"1.9"
+            # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
+            Ȳ isa AbstractArray || Ȳ = [Ȳ]
+        end
+        Atf = factorize(A')
         ∂A = @thunk begin
-
-            B̄ = Ati * Ȳ
+            B̄ = Atf \ Ȳ
             Ā = -B̄ * Y'
-            Ā = add!!(Ā, ((B - A * Y) * B̄') * Ati)
-            Ā = add!!(Ā, Ati * Y * (Ȳ' - B̄'A))
+            Ā = add!!(Ā, ((B - A * Y) * B̄') / Atf)
+            Ā = add!!(Ā, Atf \ Y * (Ȳ' - B̄'A))
             project_A(Ā)
         end
-        ∂B = @thunk project_B(Ati * Ȳ)
+        ∂B = @thunk project_B(Atf \ Ȳ)
         return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
