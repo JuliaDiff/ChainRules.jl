@@ -179,29 +179,6 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
 end
 
 #####
-##### first, tail
-#####
-
-function frule((_, ẋ), ::typeof(first), x::Tuple)
-    return first(x), first(ẋ)
-end
-
-function rrule(::typeof(first), x::T) where {T<:Tuple}
-    first_back(dy) = (NoTangent(), Tangent{T}(ntuple(j -> j == 1 ? dy : NoTangent(), _tuple_N(T))...))
-    return first(x), first_back
-end
-
-function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
-    y = Base.tail(x)
-    return y, Tangent{typeof(y)}(Base.tail(ẋ)...)
-end
-
-function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
-    tail_pullback(dy) = (NoTangent(), Tangent{T}(NoTangent(), dy...))
-    return Base.tail(x), tail_pullback
-end
-
-#####
 ##### view
 #####
 
