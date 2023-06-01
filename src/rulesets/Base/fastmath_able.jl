@@ -169,8 +169,8 @@ let
         @scalar_rule x / y (one(x) / y, -(Ω / y))
         
         ## many-arg +
-        function frule((_, Δx, Δy...), ::typeof(+), x::Number, ys::Number...)
-            +(x, ys...), +(Δx, Δy...)
+        function frule(Δs, ::typeof(+), x::Number, ys::Number...)
+            +(x, ys...), +(Base.tail(Δs)...)
         end
         
         function rrule(::typeof(+), x::Number, ys::Number...)
