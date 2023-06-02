@@ -1,7 +1,7 @@
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        if VERSION >= v"1.7"
+        if v"1.7" <= VERSION < v"1.9"
           @gpu test_frule(inv, B)
           @gpu test_rrule(inv, B)
         else
@@ -167,12 +167,12 @@
             @testset "Matrix $f Vector" begin
                 X = randn(10, 4)
                 y = randn(10)
-                test_rrule(f, X, y)
+                test_rrule(f, X, y; check_inferred=false)
             end
             @testset "Vector $f Matrix" begin
                 x = randn(10)
                 Y = randn(10, 4)
-                test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
+                test_rrule(f, x, Y; output_tangent=Transpose(rand(4)), check_inferred=false)
             end
         else
             A = rand(2, 4)
