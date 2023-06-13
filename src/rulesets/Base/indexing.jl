@@ -81,15 +81,47 @@ For the `rrule` of `y = x[inds...]`, this function is roughly
 `setindex(zero(x), dy, inds...)`, returning the array `dx`.
 Differentiable. Includes `ProjectTo(x)(dx)`.
 """
-function ∇getindex(x::AbstractArray, dy, inds...)
+function ∇getindex(x::AbstractArray{T,N}, dy, inds...) where {T,N}
     # `to_indices` removes any logical indexing, colons, CartesianIndex etc,
     # leaving just Int / AbstractVector of Int
     plain_inds = Base.to_indices(x, inds)
-    dx = _setindex_zero(x, dy, plain_inds...)
-    ∇getindex!(dx, dy, plain_inds...)
+    dx = if plain_inds isa NTuple{N, Int} && T<:Number
+        # scalar indexing
+        OneElement(dy, plain_inds, axes(x))
+    else  # some from slicing (potentially noncontigous)
+        dx = _setindex_zero(x, dy, plain_inds...)
+        ∇getindex!(dx, dy, plain_inds...)
+    end
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
 ∇getindex(x::AbstractArray, z::AbstractZero, inds...) = z
+
+"""
+    OneElement(val, ind, axes) <: AbstractArray
+
+Extremely simple `struct` used for the gradient of scalar `getindex`.
+"""
+struct OneElement{T,N,I,A} <: AbstractArray{T,N}
+  val::T
+  ind::I
+  axes::A
+  OneElement(val::T, ind::I, axes::A) where {T<:Number, I<:NTuple{N,Int}, A<:NTuple{N,AbstractUnitRange}} where {N} = new{T,N,I,A}(val, ind, axes)
+end
+Base.size(A::OneElement) = map(length, A.axes)
+Base.axes(A::OneElement) = A.axes
+Base.getindex(A::OneElement{T,N}, i::Vararg{Int,N}) where {T,N} = ifelse(i==A.ind, A.val, zero(T))
+
+function ChainRulesCore.add!!(xs::AbstractArray{<:Any,N}, oe::OneElement{<:Any,N}) where {N}
+    if !ChainRulesCore.is_inplaceable_destination(xs)
+        xs = collect(xs)
+    end
+    xs[oe.ind...] += oe.val
+    return xs
+end
+
+Base.:(+)(xs::AbstractArray, oe::OneElement) = add!!(copy(xs), oe)
+Base.:(+)(oe::OneElement, xs::AbstractArray) = +(xs, oe)
+Base.:(+)(oe1::OneElement, oe2::OneElement) = +(collect(oe1), oe2)
 
 """
     _setindex_zero(x, dy, inds...)

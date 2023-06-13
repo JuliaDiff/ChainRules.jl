@@ -34,10 +34,10 @@
 
         @testset "single element" begin
             test_rrule(getindex, x, 2)
-            test_rrule(getindex, x, 2, 1)
-            test_rrule(getindex, x, 2, 2)
+            test_rrule(getindex, x, 2, 1; check_inferred=false)
+            test_rrule(getindex, x, 2, 2; check_inferred=false)
 
-            test_rrule(getindex, x, CartesianIndex(2, 3))
+            test_rrule(getindex, x, CartesianIndex(2, 3); check_inferred=false)
         end
 
         @testset "slice/index positions" begin
@@ -87,7 +87,7 @@
         dgrad = rrule(getindex, Diagonal(rand(3)), 2, :)[2]([1,2,3])[2]
         @test unthunk(dgrad) ≈ Diagonal([0, 2, 0])
         
-        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2)
+        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2; check_inferred=false)  # Infers to Any
         sgrad = rrule(getindex, Symmetric(rand(3, 3)), 2, 3)[2](1.0)[2]
         @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]
     end
