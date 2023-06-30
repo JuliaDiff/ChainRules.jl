@@ -381,33 +381,6 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     return Y, backslash_pullback
 end
 
-@static if VERSION >= v"1.9" 
-    # Need to ensure things are not scalar since since https://github.com/JuliaLang/julia/pull/44358
-    _maybe_descalar(x) = x isa AbstractArray ? x : [x]
-else
-    _maybe_descalar(x) = x
-end
-
-function rrule(A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Y = A \ B
-
-
-    function backslash_pullback(ȳ)
-        Ȳ = unthunk(ȳ)
-
-        ∂A = @thunk begin
-            B̄ = A' \ _maybe_descalar(Ȳ)
-            Ā = -B̄ * Y'
-            Ā += _maybe_descalar((B - A * Y) * B̄') / A'
-            Ā += (A' \ _maybe_descalar(Y)) * (Ȳ' - B̄'A)
-            (Ā)
-        end
-        ∂B = @thunk (A' \ _maybe_descalar(Ȳ))
-        return ∂A, ∂B
-    end
-    return Y, backslash_pullback
-end
-
 #####
 ##### `\`, `/` matrix-scalar_rule
 #####
