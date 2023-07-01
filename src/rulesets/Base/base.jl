@@ -3,8 +3,8 @@
 
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
 
-@scalar_rule one(x) zero(x)
-@scalar_rule zero(x) zero(x)
+@scalar_rule one(x) ZeroTangent()
+@scalar_rule zero(x) ZeroTangent()
 @scalar_rule transpose(x) true
 
 # `adjoint`
@@ -149,7 +149,7 @@ end
 
 @scalar_rule sinc(x) cosc(x)
 
-# the position of the minus sign below warrants the correct type for π  
+# the position of the minus sign below warrants the correct type for π
 @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
 @scalar_rule(
