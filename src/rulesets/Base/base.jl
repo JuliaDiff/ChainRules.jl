@@ -149,7 +149,7 @@ end
 
 @scalar_rule sinc(x) cosc(x)
 
-# the position of the minus sign below warrants the correct type for π  
+# the position of the minus sign below warrants the correct type for π
 @scalar_rule sincospi(x) @setup((sinpix, cospix) = Ω) (π * cospix)  (π * (-sinpix))
 
 @scalar_rule(
