@@ -1,3 +1,8 @@
+# Int rather than Int64/Integer is intentional
+function frule((_, ẋ), ::typeof(getfield), x::Tuple, i::Int)
+    return x.i, ẋ.i
+end
+
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
 _tuple_N(::Type{<:Tuple{Vararg{Any, N}}}) where {N} = Val(N)
 
