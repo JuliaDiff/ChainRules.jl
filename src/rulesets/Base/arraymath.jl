@@ -210,7 +210,7 @@ end # VERSION
 ##### `muladd`
 #####
 
-function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A::AbstractArray, B::AbstractArray, z::Union{Number, AbstractArray})
     Ω = muladd(A, B, z)
     return Ω, ΔA * B .+ A * ΔB .+ Δz
 end
@@ -345,7 +345,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
 
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        
+
         Ȳf = Ȳ
         @static if VERSION >= v"1.9"
             # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
@@ -354,7 +354,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             end
         end
         Yf = Y
-        @static if VERSION >= v"1.9" 
+        @static if VERSION >= v"1.9"
             # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
             if !isa(Y, AbstractArray)
                 Yf = [Y]
@@ -365,7 +365,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             B̄ = A' \ Ȳf
             Ā = -B̄ * Y'
             t = (B - A * Y) * B̄'
-            @static if VERSION >= v"1.9" 
+            @static if VERSION >= v"1.9"
                 # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
                 if !isa(t, AbstractArray)
                     t = [t]

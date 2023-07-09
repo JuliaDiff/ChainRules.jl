@@ -94,6 +94,7 @@ end
 
 @scalar_rule fma(x, y, z) (y, x, true)
 @scalar_rule muladd(x, y, z) (y, x, true)
+@scalar_rule muladd(x::Union{Number, ZeroTangent}, y::Union{Number, ZeroTangent}, z::Union{Number, ZeroTangent}) (y, x, true)
 @scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),
