@@ -210,7 +210,13 @@ end # VERSION
 ##### `muladd`
 #####
 
-function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+function frule(
+    (_, ΔA, ΔB, Δz),
+    ::typeof(muladd),
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
+    z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}}
+)
     Ω = muladd(A, B, z)
     return Ω, ΔA * B .+ A * ΔB .+ Δz
 end
