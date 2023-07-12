@@ -571,10 +571,8 @@ function rrule(
     hobbits = accumulate(list; init = (start, nothing)) do (a, _), b
         c, back = rrule_via_ad(config, op, a, b)
     end
-    # y = map(first, hobbits)
     if init === nothing
         # `hobbits` is one short, and first one doesn't invoke `op`
-        # y = _vcat1(first(x), y)
         y[1] = first(x)
         map!(first, @view(y[2:end]), hobbits)
     else
