@@ -18,6 +18,18 @@ end
     test_rrule(SparseVector{Float32}, Float32.(v), rtol=1e-4)
 end
 
+@testset "spdiagm" begin
+    @test 1 == 1
+    m = 5
+    n = 4
+    v1 = ones(m)
+    v2 = ones(n)
+    test_rrule(spdiagm, m, n, 0 => v2)
+
+    # test_rrule(spdiagm, 0 => v1)
+    # test_rrule(spdiagm, v1)
+end
+
 @testset "findnz" begin
     A = sprand(5, 5, 0.5)
     dA = similar(A)

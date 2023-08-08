@@ -49,3 +49,33 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
 
     return (I, V), findnz_pullback
 end
+
+function _spdiagm_back(p, ȳ)
+    k, v = p
+    d = diag(unthunk(ȳ), k)[1:length(v)] # handle if diagonal was smaller than matrix
+    return Tangent{typeof(p)}(second = d)
+end
+
+function rrule(::typeof(spdiagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(Δ)
+        _, ȳ = unthunk(Δ)
+        return (NoTangent(), NoTangent(), NoTangent(), _spdiagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(m, n, kv...), diagm_pullback
+end
+
+function rrule(::typeof(spdiagm), kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(Δ)
+        _, ȳ = unthunk(Δ)
+        return (NoTangent(), _spdiagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(kv...), diagm_pullback
+end
+
+function rrule(::typeof(spdiagm), v::AbstractVector)
+    function diagm_pullback(Δ)
+        _, ȳ = unthunk(Δ)
+        return (NoTangent(), diag(ȳ))
+    end
+    return spdiagm(v), diagm_pullback
+end
