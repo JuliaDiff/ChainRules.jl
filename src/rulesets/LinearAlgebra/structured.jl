@@ -290,7 +290,7 @@ function rrule(::typeof(logdet), x::SparseMatrixCSC)
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
         Z, p = sparseinv(x, depermute=true)
-        ∂x = x isa Number ? ΔΩ / x' : ΔΩ * Z'
+        ∂x = ΔΩ * Z'
         return (NoTangent(), ∂x)
     end
     return Ω, logdet_pullback
@@ -300,7 +300,7 @@ function rrule(::typeof(det), x::SparseMatrixCSC)
     Ω = det(x)
     function det_pullback(ΔΩ)
         Z, _ = sparseinv(x, depermute=true)
-        ∂x = x isa Number ? ΔΩ : Z' * dot(Ω, ΔΩ)
+        ∂x = Z' * dot(Ω, ΔΩ)
         return (NoTangent(), ∂x)
     end
     return Ω, det_pullback
