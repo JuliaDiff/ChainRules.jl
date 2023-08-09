@@ -210,7 +210,13 @@ end # VERSION
 ##### `muladd`
 #####
 
-function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+function frule(
+    (_, ΔA, ΔB, Δz),
+    ::typeof(muladd),
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
+    z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}}
+)
     Ω = muladd(A, B, z)
     return Ω, ΔA * B .+ A * ΔB .+ Δz
 end
@@ -342,20 +348,43 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     project_B = ProjectTo(B)
 
     Y = A \ B
+
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
+        
+        Ȳf = Ȳ
+        @static if VERSION >= v"1.9"
+            # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
+            if !isa(Ȳ, AbstractArray)
+                Ȳf = [Ȳ]
+            end
+        end
+        Yf = Y
+        @static if VERSION >= v"1.9" 
+            # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
+            if !isa(Y, AbstractArray)
+                Yf = [Y]
+            end
+        end
+        #@info "vars" typeof(Ȳ) typeof(Y) typeof(Yf) typeof(A) typeof(B)
         ∂A = @thunk begin
-            B̄ = A' \ Ȳ
+            B̄ = A' \ Ȳf
             Ā = -B̄ * Y'
-            Ā = add!!(Ā, (B - A * Y) * B̄' / A')
-            Ā = add!!(Ā, A' \ Y * (Ȳ' - B̄'A))
+            t = (B - A * Y) * B̄'
+            @static if VERSION >= v"1.9" 
+                # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
+                if !isa(t, AbstractArray)
+                    t = [t]
+                end
+            end
+            Ā = add!!(Ā, t / A')
+            Ā = add!!(Ā, A' \ Yf * (Ȳ' - B̄'A))
             project_A(Ā)
         end
-        ∂B = @thunk project_B(A' \ Ȳ)
+        ∂B = @thunk project_B(A' \ Ȳf)
         return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
-
 end
 
 #####

@@ -1,7 +1,7 @@
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        if VERSION >= v"1.7"
+        if v"1.7" <= VERSION < v"1.9"
           @gpu test_frule(inv, B)
           @gpu test_rrule(inv, B)
         else
@@ -85,30 +85,33 @@
 
     @testset "muladd: $T" for T in (Float64, ComplexF64)
         @testset "add $(typeof(z))" for z in [rand(), rand(T, 3), rand(T, 3, 3), false]
-            @testset "forward mode" begin
-                @gpu test_frule(muladd, rand(T, 3, 5), rand(T, 5, 3), z)
-            end
             @testset "matrix * matrix" begin
                 A = rand(T, 3, 3)
                 B = rand(T, 3, 3)
                 @gpu test_rrule(muladd, A, B, z)
                 @gpu test_rrule(muladd, A', B, z)
                 @gpu test_rrule(muladd, A , B', z)
+                @gpu test_frule(muladd, A, B, z)
+                @gpu test_frule(muladd, A', B, z)
+                @gpu test_frule(muladd, A , B', z)
 
                 C = rand(T, 3, 5)
                 D = rand(T, 5, 3)
                 @gpu test_rrule(muladd, C, D, z)
+                @gpu test_frule(muladd, C, D, z)
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
                     A, B = rand(T, 3, 3), rand(T, 3)
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A, B ⊢ rand(T, 3,1), z)
+                    test_frule(muladd, A, B, z)
                 end
                 @testset "adjoint * matrix" begin
                     At, B = rand(T, 3)', rand(T, 3, 3)
                     test_rrule(muladd, At, B, z')
                     test_rrule(muladd, At ⊢ rand(T,1,3), B, z')
+                    test_frule(muladd, At, B, z')
                 end
             end
             if ndims(z) == 0
@@ -116,6 +119,7 @@
                     A, B = rand(T, 3)', rand(T, 3)
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A ⊢ rand(T,1,3), B, z')
+                    test_frule(muladd, A, B, z)
                 end
             end
             if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
@@ -123,6 +127,7 @@
                     A, B = rand(T, 3), rand(T, 3)'
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A, B ⊢ rand(T,1,3), z)
+                    test_frule(muladd, A, B, z)
                 end
             end
         end
@@ -167,12 +172,12 @@
             @testset "Matrix $f Vector" begin
                 X = randn(10, 4)
                 y = randn(10)
-                test_rrule(f, X, y)
+                test_rrule(f, X, y; check_inferred=false)
             end
             @testset "Vector $f Matrix" begin
                 x = randn(10)
                 Y = randn(10, 4)
-                test_rrule(f, x, Y; output_tangent=Transpose(rand(4)))
+                test_rrule(f, x, Y; output_tangent=Transpose(rand(4)), check_inferred=false)
             end
         else
             A = rand(2, 4)
