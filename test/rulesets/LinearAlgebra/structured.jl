@@ -161,4 +161,14 @@
             end
         end
     end
+
+    @testset "[log[abs[det]]] SparseMatrixCSC" begin
+        ii = 1:5
+        jj = 1:5
+        x = ones(5)
+        A = sparse(ii, jj, x)
+        test_rrule(logabsdet, A)
+        test_rrule(logdet, A)
+        test_rrule(det, A)
+    end
 end

@@ -1,5 +1,6 @@
 # Structured matrices
 using LinearAlgebra: AbstractTriangular
+using SparseInverseSubset
 
 # Matrix wrapper types that we know are square and are thus potentially invertible. For
 # these we can use simpler definitions for `/` and `\`.
@@ -266,4 +267,41 @@ function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
         return (NoTangent(), Diagonal(ȳ .* s))
     end
     return y, logdet_pullback
+end
+
+function rrule(::typeof(logabsdet), x::SparseMatrixCSC)
+    F = cholesky(x)
+    L, D, U, P = SparseInverseSubset.get_ldup(F)
+    Ω = logabsdet(D)
+    function logabsdet_pullback(ΔΩ)
+        (Δy, Δsigny) = ΔΩ
+        (_, signy) = Ω
+        f = signy' * Δsigny
+        imagf = f - real(f)
+        g = real(Δy) + imagf
+        Z, P = sparseinv(F, depermute=true)
+        ∂x = g * Z'
+        return (NoTangent(), ∂x)
+    end
+    return Ω, logabsdet_pullback
+end
+
+function rrule(::typeof(logdet), x::SparseMatrixCSC)
+    Ω = logdet(x)
+    function logdet_pullback(ΔΩ)
+        Z, p = sparseinv(x, depermute=true)
+        ∂x = x isa Number ? ΔΩ / x' : ΔΩ * Z'
+        return (NoTangent(), ∂x)
+    end
+    return Ω, logdet_pullback
+end
+
+function rrule(::typeof(det), x::SparseMatrixCSC)
+    Ω = det(x)
+    function det_pullback(ΔΩ)
+        Z, _ = sparseinv(x, depermute=true)
+        ∂x = x isa Number ? ΔΩ : Z' * dot(Ω, ΔΩ)
+        return (NoTangent(), ∂x)
+    end
+    return Ω, det_pullback
 end
