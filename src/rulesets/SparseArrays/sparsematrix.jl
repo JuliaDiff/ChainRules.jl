@@ -52,15 +52,35 @@ end
 
 if VERSION < v"1.7"
     #=
-    This method for `logabsdet(F::UmfpackLU)` is required to calculate the (log)determinants
-    of sparse matrices, but was not defined prior to Julia v1.7. In order fo the rrules
-    for the determinants of sparse matrices below to work, they need to be able to 
-    compute the primals as well, so this import from the future is included. For more 
-    recent versions of Julia, this definition lives in:
+    The method below for `logabsdet(F::UmfpackLU)` is required to calculate the (log) 
+    determinants of sparse matrices, but was not defined prior to Julia v1.7. In order
+    for the rrules for the determinants of sparse matrices below to work, they need to be
+    able to compute the primals as well, so this import from the future is included. For
+    more recent versions of Julia, this definition lives in:
     julia/stdlib/SuiteSparse/src/umfpack.jl
     =#
-    using SuiteSparse.UMFPACK: _signperm, UmfpackLU
+    using SuiteSparse.UMFPACK: UmfpackLU
 
+    # compute the sign/parity of a permutation
+    function _signperm(p)
+        n = length(p)
+        result = 0
+        todo = trues(n)
+        while any(todo)
+            k = findfirst(todo)
+            todo[k] = false
+            result += 1 # increment element count
+            j = p[k]
+            while j != k
+                result += 1 # increment element count
+                todo[j] = false
+                j = p[j]
+            end
+            result += 1 # increment cycle count
+        end
+        return ifelse(isodd(result), -1, 1)
+    end
+    
     for itype in (:Int32, :Int64)
         @eval begin
             function LinearAlgebra.logabsdet(F::UmfpackLU{T, $itype}) where {T<:Union{Float64,ComplexF64}} 
