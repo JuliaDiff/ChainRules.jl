@@ -80,27 +80,23 @@ if VERSION < v"1.7"
         end
         return ifelse(isodd(result), -1, 1)
     end
-    
-    for itype in (:Int32, :Int64)
-        @eval begin
-            function LinearAlgebra.logabsdet(F::UmfpackLU{T, $itype}) where {T<:Union{Float64,ComplexF64}} 
-                n = checksquare(F)
-                issuccess(F) || return log(zero(real(T))), zero(T)
-                U = F.U
-                Rs = F.Rs
-                p = F.p
-                q = F.q
-                s = _signperm(p)*_signperm(q)*one(real(T))
-                P = one(T)
-                abs_det = zero(real(T))
-                @inbounds for i in 1:n
-                    dg_ii = U[i, i] / Rs[i]
-                    P *= sign(dg_ii)
-                    abs_det += log(abs(dg_ii))
-                end
-                return abs_det, s * P
-            end
+
+    function LinearAlgebra.logabsdet(F::UmfpackLU{T, TI}) where {T<:Union{Float64,ComplexF64},TI<:Union{Int32, Int64}} 
+        n = checksquare(F)
+        issuccess(F) || return log(zero(real(T))), zero(T)
+        U = F.U
+        Rs = F.Rs
+        p = F.p
+        q = F.q
+        s = _signperm(p)*_signperm(q)*one(real(T))
+        P = one(T)
+        abs_det = zero(real(T))
+        @inbounds for i in 1:n
+            dg_ii = U[i, i] / Rs[i]
+            P *= sign(dg_ii)
+            abs_det += log(abs(dg_ii))
         end
+        return abs_det, s * P
     end
 end
 
