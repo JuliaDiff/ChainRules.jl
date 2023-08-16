@@ -33,3 +33,13 @@ end
     V̄ = rand!(similar(V))
     test_rrule(findnz, v ⊢ dv, output_tangent=(zeros(length(I)), V̄))
 end
+
+@testset "[log[abs[det]]] SparseMatrixCSC" begin
+    ii = [1:5; 2; 4]
+    jj = [1:5; 4; 2]
+    x = [ones(5); 0.1; 0.1]
+    A = sparse(ii, jj, x)
+    test_rrule(logabsdet, A)
+    test_rrule(logdet, A)
+    test_rrule(det, A)
+end
