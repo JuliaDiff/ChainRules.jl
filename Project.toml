@@ -1,6 +1,6 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.54.0"
+version = "1.54.1"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -29,6 +29,7 @@ IrrationalConstants = "0.1.1, 0.2"
 JLArrays = "0.1"
 JuliaInterpreter = "0.8,0.9"
 RealDot = "0.1"
+SparseInverseSubset = "0.1"
 StaticArrays = "1.2"
 StructArrays = "0.6.11"
 julia = "1.6"
