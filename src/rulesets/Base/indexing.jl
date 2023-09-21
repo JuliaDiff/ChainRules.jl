@@ -1,6 +1,10 @@
 # Int rather than Int64/Integer is intentional
-function frule((_, ẋ), ::typeof(getfield), x::Tuple, i::Int)
-    return x.i, ẋ.i
+function ChainRulesCore.frule((_, Δ, _), ::typeof(getfield), strct, sym::Union{Int,Symbol})
+    return (getfield(strct, sym), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
+end
+
+function ChainRulesCore.frule((_, Δ, _, _), ::typeof(getfield), strct, sym::Union{Int,Symbol}, inbounds)
+    return (getfield(strct, sym, inbounds), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
 end
 
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
@@ -21,7 +25,6 @@ function rrule(::typeof(getindex), x::T, i::Integer) where {T<:NTuple{<:Any,<:Nu
         dx = ntuple(j -> j == i ? dy : zero(dy), _tuple_N(T))
         return (NoTangent(), Tangent{T}(dx...), NoTangent())
     end
-    return x[i], getindex_back_2
 end
 
 # Note Zygote has getindex(::Tuple, ::UnitRange) separately from getindex(::Tuple, ::AbstractVector),
