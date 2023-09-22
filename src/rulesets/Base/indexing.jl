@@ -1,14 +1,6 @@
-#####
-##### getindex(::Tuple)
-#####
-
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
-    return x[i], ẋ[i]
-end
-
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
-    y = x[i]
-    return y, Tangent{typeof(y)}(ẋ[i]...)
+# Int rather than Int64/Integer is intentional
+function frule((_, ẋ), ::typeof(getfield), x::Tuple, i::Int)
+    return x.i, ẋ.i
 end
 
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
@@ -77,19 +69,51 @@ end
 """
     ∇getindex(x, dy, inds...)
 
-For the `rrule` of `y = x[inds...]`, this function is roughly 
+For the `rrule` of `y = x[inds...]`, this function is roughly
 `setindex(zero(x), dy, inds...)`, returning the array `dx`.
 Differentiable. Includes `ProjectTo(x)(dx)`.
 """
-function ∇getindex(x::AbstractArray, dy, inds...)
+function ∇getindex(x::AbstractArray{T,N}, dy, inds...) where {T,N}
     # `to_indices` removes any logical indexing, colons, CartesianIndex etc,
     # leaving just Int / AbstractVector of Int
     plain_inds = Base.to_indices(x, inds)
-    dx = _setindex_zero(x, dy, plain_inds...)
-    ∇getindex!(dx, dy, plain_inds...)
+    dx = if plain_inds isa NTuple{N, Int} && T<:Number
+        # scalar indexing
+        OneElement(dy, plain_inds, axes(x))
+    else  # some from slicing (potentially noncontigous)
+        dx = _setindex_zero(x, dy, plain_inds...)
+        ∇getindex!(dx, dy, plain_inds...)
+    end
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end
 ∇getindex(x::AbstractArray, z::AbstractZero, inds...) = z
+
+"""
+    OneElement(val, ind, axes) <: AbstractArray
+
+Extremely simple `struct` used for the gradient of scalar `getindex`.
+"""
+struct OneElement{T,N,I,A} <: AbstractArray{T,N}
+  val::T
+  ind::I
+  axes::A
+  OneElement(val::T, ind::I, axes::A) where {T<:Number, I<:NTuple{N,Int}, A<:NTuple{N,AbstractUnitRange}} where {N} = new{T,N,I,A}(val, ind, axes)
+end
+Base.size(A::OneElement) = map(length, A.axes)
+Base.axes(A::OneElement) = A.axes
+Base.getindex(A::OneElement{T,N}, i::Vararg{Int,N}) where {T,N} = ifelse(i==A.ind, A.val, zero(T))
+
+function ChainRulesCore.add!!(xs::AbstractArray{<:Any,N}, oe::OneElement{<:Any,N}) where {N}
+    if !ChainRulesCore.is_inplaceable_destination(xs)
+        xs = collect(xs)
+    end
+    xs[oe.ind...] += oe.val
+    return xs
+end
+
+Base.:(+)(xs::AbstractArray, oe::OneElement) = add!!(copy(xs), oe)
+Base.:(+)(oe::OneElement, xs::AbstractArray) = +(xs, oe)
+Base.:(+)(oe1::OneElement, oe2::OneElement) = +(collect(oe1), oe2)
 
 """
     _setindex_zero(x, dy, inds...)
@@ -157,29 +181,6 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
     view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
     copyto!(dx, dx_cpu)
     return dx
-end
-
-#####
-##### first, tail
-#####
-
-function frule((_, ẋ), ::typeof(first), x::Tuple)
-    return first(x), first(ẋ)
-end
-
-function rrule(::typeof(first), x::T) where {T<:Tuple}
-    first_back(dy) = (NoTangent(), Tangent{T}(ntuple(j -> j == 1 ? dy : NoTangent(), _tuple_N(T))...))
-    return first(x), first_back
-end
-
-function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
-    y = Base.tail(x)
-    return y, Tangent{typeof(y)}(Base.tail(ẋ)...)
-end
-
-function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
-    tail_pullback(dy) = (NoTangent(), Tangent{T}(NoTangent(), dy...))
-    return Base.tail(x), tail_pullback
 end
 
 #####

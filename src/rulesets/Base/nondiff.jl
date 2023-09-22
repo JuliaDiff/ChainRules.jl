@@ -441,6 +441,8 @@ end
 
 @non_differentiable unescape_string(::AbstractString)
 @non_differentiable unescape_string(::IO, ::AbstractString)
+@non_differentiable unique(::AbstractArray{<:Union{Regex, AbstractChar, AbstractString}})
+@non_differentiable unique(::AbstractArray{Symbol})
 @non_differentiable unmark(::IO)
 @non_differentiable unsafe_string(::Cstring)
 @non_differentiable uppercase(::AbstractString)

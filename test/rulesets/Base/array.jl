@@ -358,14 +358,15 @@ end
     @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
     # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
+    # or by https://github.com/JuliaLang/julia/pull/48404
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
-    test_rrule(findmin, rand(5,3))
-    test_rrule(findmax, rand(5,3))
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+    test_rrule(findmin, rand(5,3); check_inferred=false)
+    test_rrule(findmax, rand(5,3); check_inferred=false)
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
 
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
@@ -385,7 +386,7 @@ end
 
     # Reverse
     test_rrule(imum, rand(10))
-    test_rrule(imum, rand(3,4))
+    test_rrule(imum, rand(3,4); check_inferred=false)
     @gpu test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
 
