@@ -137,3 +137,33 @@ function rrule(::typeof(det), x::SparseMatrixCSC)
     end
     return Ω, det_pullback
 end
+
+
+function rrule(::typeof(spdiagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(m, n, kv...), spdiagm_pullback
+end
+
+function rrule(::typeof(spdiagm), kv::Pair{<:Integer,<:AbstractVector}...)
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(kv...), spdiagm_pullback
+end
+
+function rrule(::typeof(spdiagm), v::AbstractVector)
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), diag(unthunk(ȳ)))
+    end
+    return spdiagm(v), spdiagm_pullback
+end
+
+
+function _diagm_back(p, ȳ)
+    k, v = p
+    d = diag(unthunk(ȳ), k)[1:length(v)] # handle if diagonal was smaller than matrix
+    return Tangent{typeof(p)}(second = d)
+end
