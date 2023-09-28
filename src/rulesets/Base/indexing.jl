@@ -25,6 +25,7 @@ function rrule(::typeof(getindex), x::T, i::Integer) where {T<:NTuple{<:Any,<:Nu
         dx = ntuple(j -> j == i ? dy : zero(dy), _tuple_N(T))
         return (NoTangent(), Tangent{T}(dx...), NoTangent())
     end
+    return x[i], getindex_back_2
 end
 
 # Note Zygote has getindex(::Tuple, ::UnitRange) separately from getindex(::Tuple, ::AbstractVector),
