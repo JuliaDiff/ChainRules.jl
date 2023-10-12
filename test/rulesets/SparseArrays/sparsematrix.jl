@@ -23,9 +23,9 @@ end
     @testset "without size" begin
         M, N = 7, 9
         s = (8, 8)
-        a, ā = randn(M), randn(M)
-        b, b̄ = randn(M), randn(M)
-        c, c̄ = randn(M - 1), randn(M - 1)
+        a = randn(M)
+        b = randn(M)
+        c = randn(M - 1)
         ȳ = randn(s)
         ps = (0 => a, 1 => b, 0 => c)
         y, back = rrule(spdiagm, ps...)
@@ -42,9 +42,9 @@ end
     end
     @testset "with size" begin
         M, N = 7, 9
-        a, ā = randn(M), randn(M)
-        b, b̄ = randn(M), randn(M)
-        c, c̄ = randn(M - 1), randn(M - 1)
+        a = randn(M)
+        b = randn(M)
+        c = randn(M - 1)
         ȳ = randn(M, N)
         ps = (0 => a, 1 => b, 0 => c)
         y, back = rrule(spdiagm, M, N, ps...)
