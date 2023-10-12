@@ -21,7 +21,7 @@ jobs:
           - x86
           - x64
     steps:
-      - uses: actions/checkout@v4.0.0
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}

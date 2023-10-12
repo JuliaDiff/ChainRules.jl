@@ -1,3 +1,19 @@
+struct FooTwoField
+    x::Float64
+    y::Float64
+end
+ 
+
+@testset "getfield" begin
+   test_frule(getfield, FooTwoField(1.5, 2.5), :x, check_inferred=false)
+    
+    test_frule(getfield, (; a=1.5, b=2.5), :a, check_inferred=false)
+    test_frule(getfield, (; a=1.5, b=2.5), 2)
+
+    test_frule(getfield, (1.5, 2.5), 2)
+    test_frule(getfield, (1.5, 2.5), 2, true)
+end
+
 @testset "getindex" begin
     @testset "getindex(::Tuple, ...)" begin
         x = (1.2, 3.4, 5.6)

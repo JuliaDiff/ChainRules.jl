@@ -1,6 +1,10 @@
 # Int rather than Int64/Integer is intentional
-function frule((_, ẋ), ::typeof(getfield), x::Tuple, i::Int)
-    return x.i, ẋ.i
+function ChainRulesCore.frule((_, Δ, _), ::typeof(getfield), strct, sym::Union{Int,Symbol})
+    return (getfield(strct, sym), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
+end
+
+function ChainRulesCore.frule((_, Δ, _, _), ::typeof(getfield), strct, sym::Union{Int,Symbol}, inbounds)
+    return (getfield(strct, sym, inbounds), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
 end
 
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
