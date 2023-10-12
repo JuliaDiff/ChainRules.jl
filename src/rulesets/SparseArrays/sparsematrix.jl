@@ -160,10 +160,3 @@ function rrule(::typeof(spdiagm), v::AbstractVector)
     end
     return spdiagm(v), spdiagm_pullback
 end
-
-
-function _diagm_back(p, ȳ)
-    k, v = p
-    d = diag(unthunk(ȳ), k)[eachindex(v)]  # handle if diagonal was smaller than matrix
-    return Tangent{typeof(p)}(second = d)
-end
