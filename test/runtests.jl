@@ -83,7 +83,7 @@ end
 
     println()
 
-    include("rulesets/SparseArrays/sparsematrix.jl")
+    include_test("rulesets/SparseArrays/sparsematrix.jl")
 
     println()
 
