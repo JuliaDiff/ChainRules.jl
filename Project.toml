@@ -31,6 +31,7 @@ JuliaInterpreter = "0.8,0.9"
 RealDot = "0.1"
 SparseInverseSubset = "0.1"
 StaticArrays = "1.2"
+Statistics = "1"
 StructArrays = "0.6.11"
 julia = "1.6"
 
