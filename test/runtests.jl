@@ -53,7 +53,7 @@ end
     test_method_tables()  # Check the global method tables are consistent
 
     # Each file puts all tests inside one or more @testset blocks
-    include_test("rulesets/CoreLogging.jl")
+    include_test("rulesets/Base/CoreLogging.jl")
     include_test("rulesets/Base/base.jl")
     include_test("rulesets/Base/fastmath_able.jl")
     include_test("rulesets/Base/evalpoly.jl")
