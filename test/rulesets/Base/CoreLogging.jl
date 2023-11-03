@@ -3,9 +3,9 @@
     @testset "with_logger" begin
         test_rrule(
             Base.CoreLogging.with_logger,
-            ()->2.0 * 3.0,
+            () -> 2.0 * 3.0,
             Base.CoreLogging.NullLogger();
-            check_inferred=false
+            check_inferred=false,
         )
     end
 end

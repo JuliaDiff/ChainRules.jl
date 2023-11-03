@@ -4,7 +4,7 @@ function rrule(
     rc::RuleConfig{>:ChainRulesCore.HasReverseMode},
     ::typeof(Base.CoreLogging.with_logger),
     f::Function,
-    logger::Base.CoreLogging.AbstractLogger
+    logger::Base.CoreLogging.AbstractLogger,
 )
     y, f_pb = Base.CoreLogging.with_logger(logger) do
         rrule_via_ad(rc, f)
