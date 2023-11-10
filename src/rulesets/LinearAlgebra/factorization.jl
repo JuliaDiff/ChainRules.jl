@@ -262,16 +262,16 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
     Ut = U'
     FUᵀŪ = _mulsubtrans!!(Ut*Ū, F)  # F .* (UᵀŪ - ŪᵀU)
     FVᵀV̄ = _mulsubtrans!!(Vt*V̄, F)  # F .* (VᵀV̄ - V̄ᵀV)
-    ImUUᵀ = _eyesubx!(U*Ut)  # I - UUᵀ
-    ImVVᵀ = _eyesubx!(V*Vt)  # I - VVᵀ
 
     S = Diagonal(s)
     S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
 
     # TODO: consider using MuladdMacro here
-    Ā = add!!(U * FUᵀŪ * S, ImUUᵀ * (Ū / S)) * Vt
+    Ūs = Ū / S
+    V̄ts = S \ V̄'
+    Ā = add!!(U * FUᵀŪ * S, Ūs - U * (Ut * Ūs)) * Vt
     Ā = add!!(Ā, U * S̄ * Vt)
-    Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
+    Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, V̄ts - (V̄ts * V) * Vt))
 
     return Ā
 end

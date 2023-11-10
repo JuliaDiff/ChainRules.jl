@@ -19,15 +19,6 @@ _mulsubtrans!!(X::AbstractZero, F::AbstractZero) = X
 _mulsubtrans!!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
 _mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
 
-# I - X, overwrites X
-function _eyesubx!(X::AbstractMatrix)
-    n, m = size(X)
-    @inbounds for j = 1:m, i = 1:n
-        X[i,j] = (i == j) - X[i,j]
-    end
-    return X
-end
-
 _extract_imag(x) = complex(0, imag(x))
 
 """
