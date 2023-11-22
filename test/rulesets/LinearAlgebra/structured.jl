@@ -161,4 +161,9 @@
             end
         end
     end
+
+    @testset "Tridiagonal" begin
+        res, pb = rrule(Tridiagonal, [1, 4], [2, 3, 4], [5, 3])
+        @test pb(10*res) == (NoTangent(), [10, 40], [20, 30, 40], [50, 30])
+    end
 end
