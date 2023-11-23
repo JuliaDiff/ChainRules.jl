@@ -276,12 +276,7 @@ end
 function rrule(::Type{Tridiagonal}, dl, d, du)
     y = Tridiagonal(dl, d, du)
     @views function ∇Tridiagonal(∂y)
-        return (
-            NoTangent(),
-            diag(∂y, -1),
-            diag(∂y),
-            diag(∂y, 1),
-        )
+        return (NoTangent(), diag(∂y, -1), diag(∂y), diag(∂y, 1))
     end
     return y, ∇Tridiagonal
 end
