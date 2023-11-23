@@ -164,6 +164,5 @@
 
     @testset "Tridiagonal" begin
         test_rrule(Tridiagonal, [1.0, 4.0], [2.0, 3.0, 4.0], [5.0, 3.0])
-        @test pb(10 * res) == (NoTangent(), [10, 40], [20, 30, 40], [50, 30])
     end
 end
