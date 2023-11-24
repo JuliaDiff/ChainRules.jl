@@ -92,7 +92,13 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
 
         # depending on Julia version may get ReinterpretArray or may get JLArray
         # Either is acceptable
-        @test unzip(jl([(missing,2), (missing,4), (missing,6)]))[2] isa Union{Base.ReinterpretArray, JLArray}
-        @test unzip(jl([(1,), (3,), (5,)]))[1] isa Union{Base.ReinterpretArray, JLArray}
+        @test isa(
+            unzip(jl([(missing,2), (missing,4), (missing,6)]))[2],
+            Union{Base.ReinterpretArray, JLArray}
+        )
+        @test isa(
+            unzip(jl([(1,), (3,), (5,)]))[1],
+            Union{Base.ReinterpretArray, JLArray}
+        )
     end
 end
