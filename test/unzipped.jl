@@ -90,7 +90,7 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
         @test unzip(jl([(missing,2), (missing,4), (missing,6)]))[2] == jl([2, 4, 6])
         @test unzip(jl([(1,), (3,), (5,)]))[1] == jl([1, 3, 5])
 
-        # depending on Julia version may get ReinterpretArray or may get JLArray
+        # depending on Julia/package versions, may get ReinterpretArray or JLArray
         # Either is acceptable
         @test isa(
             unzip(jl([(missing, 2), (missing, 4), (missing, 6)]))[2],
