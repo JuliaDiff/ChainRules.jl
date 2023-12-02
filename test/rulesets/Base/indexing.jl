@@ -177,6 +177,26 @@ end
         @test Array(y3) == Array(x_23_gpu)[1, [1,1,2]]
         @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
     end
+
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/697
+    @testset "pulling back mixes AbstractZero and co" begin
+        _, back = rrule(getindex, [1], 1)
+        _, gs = back(@not_implemented("test"))
+        @test unthunk(gs[2]) isa NotImplemented
+
+        _, back2 = rrule(getindex, [1], 1)
+        gs2 = back2([NoTangent()])
+        @test unthunk(gs2[2]) isa NoTangent
+
+        # Above are not realistic since they should be solved by the AD not calling with that
+        # but more realistic is ended up with a tangent that has a mixture of things
+        _, back3 = rrule(getindex, [10, 0, -1], :)
+        gs3 = back3([2.0, NoTangent(), (@not_implemented "test2")])
+        num, notan, not_imp = unthunk(gs3[2]) 
+        @test  num isa Real
+        @test iszero(notan)  # We don't care if this gets converted to a 0.0
+        @test not_imp isa NotImplemented
+    end
 end
 
 # first & tail handled by getfield rules
