@@ -216,7 +216,7 @@ end
 #####
 
 function _svd_pullback(Ȳ::Tangent, F)
-    ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
+    ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt)
     return (NoTangent(), ∂X)
 end
 _svd_pullback(Ȳ::AbstractThunk, F) = _svd_pullback(unthunk(Ȳ), F)
@@ -244,34 +244,35 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
 end
 
 # When not `ZeroTangent`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
-function svd_rev(USV::SVD, Ū, s̄, V̄)
+function svd_rev(USV::SVD, Ū, s̄, V̄t)
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U
     s = USV.S
-    V = USV.V
     Vt = USV.Vt
 
     k = length(s)
     T = eltype(s)
     F = T[i == j ? 1 : inv(@inbounds s[j]^2 - s[i]^2) for i = 1:k, j = 1:k]
 
-    # We do a lot of matrix operations here, so we'll try to be memory-friendly and do
-    # as many of the computations in-place as possible. Benchmarking shows that the in-
-    # place functions here are significantly faster than their out-of-place, naively
-    # implemented counterparts, and allocate no additional memory.
-    Ut = U'
-    FUᵀŪ = _mulsubtrans!!(Ut*Ū, F)  # F .* (UᵀŪ - ŪᵀU)
-    FVᵀV̄ = _mulsubtrans!!(Vt*V̄, F)  # F .* (VᵀV̄ - V̄ᵀV)
+    UtŪ = U'*Ū
+    V̄tV = V̄t*Vt'
 
+    FUᵀŪS = F .* (UtŪ .- UtŪ') .* s'
+    SFVᵀV̄ = F .* (V̄tV' .- V̄tV) .* s
+            
     S = Diagonal(s)
     S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
+    
+    Ā = U * (FUᵀŪS + S̄ + SFVᵀV̄) * Vt
 
     # TODO: consider using MuladdMacro here
-    Ūs = Ū / S
-    V̄ts = S \ V̄'
-    Ā = add!!(U * FUᵀŪ * S, Ūs - U * (Ut * Ūs)) * Vt
-    Ā = add!!(Ā, U * S̄ * Vt)
-    Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, V̄ts - (V̄ts * V) * Vt))
+    if size(U,1) > size(U,2)
+        Ā = add!!(Ā, ((Ū .- U * UtŪ) / S) * Vt)
+    end
+    
+    if size(Vt,2) > size(Vt,1)
+        Ā = add!!(Ā, U * (S \ (V̄t .- V̄tV * Vt)))
+    end
 
     return Ā
 end
