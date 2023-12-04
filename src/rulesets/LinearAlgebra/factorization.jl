@@ -263,15 +263,12 @@ function svd_rev(USV::SVD, Ū, s̄, V̄t)
     S = Diagonal(s)
     S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
     
-    Ā = U * (FUᵀŪS + S̄ + SFVᵀV̄) * Vt
-
-    # TODO: consider using MuladdMacro here
-    if size(U,1) > size(U,2)
-        Ā = add!!(Ā, ((Ū .- U * UtŪ) / S) * Vt)
-    end
-    
-    if size(Vt,2) > size(Vt,1)
-        Ā = add!!(Ā, U * (S \ (V̄t .- V̄tV * Vt)))
+    if size(Vt,1) == size(Vt,2) 
+        # V is square, VVᵀ = I and therefore V̄ᵀ - V̄ᵀVVᵀ = 0
+        Ā = (U * (FUᵀŪS + S̄ + SFVᵀV̄) + ((Ū .- U * UtŪ) / S)) * Vt
+    else 
+        # If V is not square then U is, so UUᵀ == I and Ū - UUᵀŪ = 0
+        Ā = U * ((FUᵀŪS + S̄ + SFVᵀV̄) * Vt + (S \ (V̄t .- V̄tV * Vt)))
     end
 
     return Ā
