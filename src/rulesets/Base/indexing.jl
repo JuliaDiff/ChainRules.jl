@@ -144,7 +144,7 @@ end
 ChainRules.@non_differentiable _setindex_zero(x::AbstractArray, dy::Any, inds::Any...)
 
 function ∇getindex!(dx::AbstractArray, dy, inds::Integer...)
-    view(dx, inds...) .+= Ref(dy)
+    @views dx[inds...] += dy
     return dx
 end
 function ∇getindex!(dx::AbstractArray, dy, inds...)

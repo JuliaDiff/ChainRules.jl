@@ -177,6 +177,14 @@ end
         @test Array(y3) == Array(x_23_gpu)[1, [1,1,2]]
         @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
     end
+
+    @testset "getindex(::Array{<:AbstractGPUArray})" begin
+        x_gpu = jl(rand(1))
+        y, back = rrule(getindex, [x_gpu], 1)
+        @test y === x_gpu
+        dxs_gpu = unthunk(back(jl([1.0]))[2])
+        @test dxs_gpu == [jl([1.0])]
+    end
 end
 
 # first & tail handled by getfield rules
