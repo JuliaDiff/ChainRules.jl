@@ -90,4 +90,7 @@ end
 
     include_test("rulesets/Random/random.jl")
     println()
+
+    include_test("rulesets/StaticArrays/staticarrays.jl")
+    println()
 end
