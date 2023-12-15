@@ -316,7 +316,6 @@
                     randn(real(T), n)
                 end
             else
-                λ = randn(real(T), n)
                 λ = if f === atanh
                     2 .* rand(real(T), n) .- 1
                 else
