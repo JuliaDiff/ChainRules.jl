@@ -35,7 +35,7 @@ function unzip_broadcast(f::F, args...) where {F}
         # This is a crude way to allow GPU arrays, not currently tested, TODO.
         # See also https://github.com/JuliaArrays/StructArrays.jl/issues/150
         return unzip(broadcast(f, args...))
-    elseif bcs isa Broadcast.AbstractArrayStyle
+    elseif bcs isa Broadcast.Broadcast.ArrayStyle{<:Array} # components of a structarray is array, so it has to broadcast to an array
         return StructArrays.components(StructArray(bc))
     else
         return unzip(broadcast(f, args...))  # e.g. tuples
@@ -103,7 +103,7 @@ function unzip(xs::AbstractArray)
 end
 
 @generated function unzip(xs, ::Val{N}) where {N}
-    each = [:(map($(Get(i)), xs)) for i in 1:N]
+    each = [:(broadcast($(Get(i)), xs)) for i in 1:N]
     Expr(:tuple, each...)
 end
 
@@ -114,7 +114,7 @@ unzip(xs::AbstractArray{Tuple{T}}) where {T} = (reinterpret(T, xs),)  # best cas
         # good case, no copy of data, some trivial arrays
         [Base.issingletontype(T) ? :(similar(xs, $T)) : :(reinterpret($T, xs)) for T in Ts.parameters]
     else
-        [:(map($(Get(i)), xs)) for i in 1:length(fieldnames(Ts))]
+        [:(broadcast($(Get(i)), xs)) for i in 1:length(fieldnames(Ts))]
     end
     Expr(:tuple, each...)
 end
