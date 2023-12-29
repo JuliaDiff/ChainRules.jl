@@ -18,6 +18,15 @@
             end
         end
     end
+
+    @testset "setfield!" begin
+        mutable struct MDemo
+            x::Float64
+        end
+
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), :x, 5.0)
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), 1, 5.0)
+    end
     
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))

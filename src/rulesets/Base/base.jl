@@ -26,6 +26,14 @@ function rrule(::typeof(one), x)
     return (one(x), one_pullback)
 end
 
+
+function ChainRulesCore.frule((_, ȯbj, _, ẋ), ::typeof(setfield!), obj, field, x)
+    ȯbj::MutableTangent
+    y = setfield!(obj, field, x)
+    ẏ = setproperty!(ȯbj, field, ẋ)
+    return y, ẏ
+end
+
 # `adjoint`
 
 frule((_, Δz), ::typeof(adjoint), z::Number) = (z', Δz')
