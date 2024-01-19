@@ -333,7 +333,6 @@
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
-@non_differentiable one(::Any)
 @non_differentiable ones(::Any...)
 @non_differentiable only(::Char)
 @non_differentiable open(::Any)
@@ -457,7 +456,6 @@ end
 @non_differentiable xor(::Any...)
 @non_differentiable typejoin(::Any...)
 
-@non_differentiable zero(::Any)
 @non_differentiable zeros(::Any...)
 
 #####
