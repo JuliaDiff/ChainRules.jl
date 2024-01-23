@@ -1,6 +1,5 @@
 # Structured matrices
 using LinearAlgebra: AbstractTriangular
-using SparseInverseSubset
 
 # Matrix wrapper types that we know are square and are thus potentially invertible. For
 # these we can use simpler definitions for `/` and `\`.
