@@ -20,6 +20,10 @@ jobs:
         arch:
           - x86
           - x64
+        exclude:
+          # Testing 32-bit has been broken on 1.6 x86 for ages but noone cares
+          - version: "1.6"
+            arch: x86
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
