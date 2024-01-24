@@ -8,7 +8,7 @@
 
 function frule((_, Δ1), ::typeof(zero), x)
     var"∂f/∂x" = ZeroTangent()
-    (zero(x), Δ1 * var"∂f/∂x")
+    return (zero(x), Δ1 * var"∂f/∂x")
 end
 
 function rrule(::typeof(zero), x)
@@ -16,14 +16,14 @@ function rrule(::typeof(zero), x)
     proj_x = ProjectTo(x)
     var"∂f/∂x" = ZeroTangent()
     pullback(Δ1) = (NoTangent(), proj_x(conj(var"∂f/∂x") * Δ1))
-    (Ω, pullback)
+    return (Ω, pullback)
 end
 
 # `one`
 
 function frule((_, Δ1), ::typeof(one), x)
     var"∂f/∂x" = ZeroTangent()
-    (one(x), Δ1 * var"∂f/∂x")
+    return (one(x), Δ1 * var"∂f/∂x")
 end
 
 function rrule(::typeof(one), x)
@@ -31,7 +31,7 @@ function rrule(::typeof(one), x)
     proj_x = ProjectTo(x)
     var"∂f/∂x" = ZeroTangent()
     pullback(Δ1) = (NoTangent(), proj_x(conj(var"∂f/∂x") * Δ1))
-    (Ω, pullback)
+    return (Ω, pullback)
 end
 
 # `adjoint`
