@@ -1,4 +1,14 @@
 @testset "base.jl" begin
+    @testset "zero/one" begin
+        for f in [zero, one]
+            for x in [1.0, 1.0im, [10.0+im 11.0-im; 12.0+2im 13.0-3im]]
+                test_frule(f, x)
+                test_rrule(f, x)
+            end
+        end
+        test_frule(zero, [1.0, 2.0, 3.0])
+        test_rrule(zero, [1.0, 2.0, 3.0])
+    end
     @testset "copysign" begin
         # don't go too close to zero as the numerics may jump over it yielding wrong results
         @testset "at $y" for y in (-1.1, 0.1, 100.0)  
