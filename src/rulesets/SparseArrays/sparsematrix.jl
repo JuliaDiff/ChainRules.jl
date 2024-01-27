@@ -51,7 +51,8 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
 end
 
 if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't have CHOLMOD from SuiteSparse.jl
-        
+    using SparseInverseSubset
+    
     if VERSION < v"1.7"
         #=
         The method below for `logabsdet(F::UmfpackLU)` is required to calculate the (log) 
@@ -82,8 +83,6 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
             end
             return ifelse(isodd(result), -1, 1)
         end
-
-        using SparseInverseSubset
     
         function LinearAlgebra.logabsdet(F::UmfpackLU{T, TI}) where {T<:Union{Float64,ComplexF64},TI<:Union{Int32, Int64}} 
             n = checksquare(F)
