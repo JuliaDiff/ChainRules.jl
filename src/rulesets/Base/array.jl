@@ -88,7 +88,6 @@ _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
     if ẏ isa AbstractZero
         # it's allowed to have an imutable zero tangent for ẏ as long as ẋ is zero
-        # TODO should this be handled here or in the AD?
         @assert iszero(ẋ)
     else
         copyto!(ẏ, ẋ)
