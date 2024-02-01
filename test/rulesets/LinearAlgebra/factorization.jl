@@ -15,6 +15,30 @@ function FiniteDifferences.to_vec(C::Cholesky)
     return C_vec, cholesky_from_vec
 end
 
+function FiniteDifferences.to_vec(x::S) where {S <: LinearAlgebra.QRCompactWY}
+    m, n = size(x)
+    # Let A ∈ Rᵐˣⁿ and Q,R = qr(A). For m > n qr returns Q ∈ Rᵐˣᵐ, where the last (m-n) columns are silent.
+    # When transforming into a vector we drop these silent columns
+    #Q = m > n ? x.Q : @view x.Q[axes(x.Q, 1), axes(x.R, 2)]
+    Q = Matrix(x.Q)
+    # Transform both matrices individually into a vector. Store the inverse transformation
+    q_vec, q_back = to_vec(Q)
+    r_vec, r_back = to_vec(x.R)
+    function QRCompact_from_vec(v)
+        # Re-use the inverse transformations
+        Q_new = q_back(v.Q)
+        R_new = r_back(v.R)
+        QR = S(Q_new * R_new)
+        return S(QR.factors, QR.T)
+    end
+    # The order by which q_vec and r_vec are serialized needs to correspond to the
+    # order of the fields :factors and :T returned by fieldnames(typeof(qr(A))),
+    # as called in FiniteDifferences.rand_tangent, in order to pass the calls to
+    # test_rrule
+    return [q_vec; r_vec], QRCompact_from_vec
+end
+
+
 function FiniteDifferences.to_vec(x::Val)
     Val_from_vec(v) = x
     return Bool[], Val_from_vec
@@ -562,6 +586,20 @@ end
                 # completely type-inferable
                 test_rrule(/, B, C; check_inferred=false)
             end
+        end
+    end
+
+    # Todo:
+    # * qr pullback does not support wide matrices yet so test only square and tall matrices
+    # * QR splits matrices larger than 36x36 up in blocks. Ideally we would like to test matrices
+    #   larger than 36x36, but since we hijack the fields :factors and :T for the derivatives, this
+    #   requires overriding how ChainRulesTestUtils.rand_tangent generates the tangents.
+    #
+    @testset "qr decomposition" begin
+        for size ∈ [(4, 4), (7, 4), (19, 5), (44, 17)]
+            m,n = size
+            X = randn(n,m)
+            test_rrule(qr, X, check_inferred=false, fdm=central_fdm(5,1), rtol=1e-5, atol=1e-5)
         end
     end
 end

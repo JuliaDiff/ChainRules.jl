@@ -277,6 +277,101 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
 end
 
 #####
+##### `qr`
+#####
+
+
+function ChainRules.rrule(::typeof(getproperty), F::LinearAlgebra.QRCompactWY, d::Symbol)
+    function getproperty_qr_pullback(Ȳ)
+        # The QR factorization is calculated from `factors` and T, matrices stored in the QRCompactWYQ format, see
+        # R. Schreiber and C. van Loan, Sci. Stat. Comput. 10, 53-57 (1989).
+        # Instead of backpropagating Q̄ and R̄ through (factors)bar and T̄, we re-use factors to carry Q̄ and T to carry R̄
+        # in the Tangent object.
+        ∂T = d === :R ? Ȳ : nothing
+
+        ∂F = Tangent{LinearAlgebra.QRCompactWY}(; factors=∂factors, T=∂T)
+        return (NoTangent(), ∂F)
+    end
+
+    return getproperty(F, d), getproperty_qr_pullback
+end
+
+
+
+function ChainRules.rrule(::typeof(qr), A::AbstractMatrix{T}) where {T}
+    QR = qr(A)
+    m, n = size(A)
+    function qr_pullback(Ȳ::Tangent)
+        # For square (m=n) or tall and skinny (m >= n), use the rule derived by 
+        # Seeger et al. (2019) https://arxiv.org/pdf/1710.08717.pdf
+        #   
+        # Ā = [Q̄ + Q copyltu(M)] R⁻ᵀ
+        #   
+        # where copyltU(C) is the symmetric matrix generated from C by taking the lower triangle of the input and
+        # copying it to its upper triangle : copyltu(C)ᵢⱼ = C_{max(i,j), min(i,j)}
+        #   
+        # This code is re-used in the wide case and therefore in a separate function.
+
+        function qr_pullback_square_deep(Q̄, R̄, A, Q, R)
+            M = R*R̄' - Q̄'*Q
+            # M <- copyltu(M)
+            M = tril(M) + transpose(tril(M,-1))
+            Ā = (Q̄ + Q * M) / R'
+        end
+
+        # For the wide (m < n) case, we implement the rule derived by
+        # Liao et al. (2019) https://arxiv.org/pdf/1903.09650.pdf
+        #   
+        # Ā = ([Q̄ + V̄Yᵀ] + Q copyltu(M)]U⁻ᵀ, Q V̄)
+        # where A=(X,Y) is the column-wise concatenation of the matrices X (n*n) and Y(n, m-n).
+        #  R = (U,V). Both X and U are full rank square matrices.
+        #   
+        # See also the discussion in https://github.com/JuliaDiff/ChainRules.jl/pull/306
+        # And https://github.com/pytorch/pytorch/blob/b162d95e461a5ea22f6840bf492a5dbb2ebbd151/torch/csrc/autograd/FunctionsManual.cpp 
+        Q̄ = Ȳ.factors
+        R̄ = Ȳ.T
+        Q = QR.Q
+        R = QR.R
+        if m ≥ n
+            # qr returns the full QR factorization, including silent columns. We need to crop them 
+            Q̄ = Q̄ isa ChainRules.AbstractZero ? Q̄ : Q̄[:, axes(R, 2)]
+            Q = Matrix(Q)
+            Ā = qr_pullback_square_deep(Q̄, R̄, A, Q, R)
+        else    # This is the case m < n, i.e. a short and wide matrix A
+            @warn "The qr-pullback for matrices where m<n is not covered by unit tests"
+            # partition A = [X | Y]
+            # X = A[1:m, 1:m]
+            Y = @view A[1:m, m + 1:end]
+
+            # partition R = [U | V], and we don't need V
+            U = R[1:m, 1:m]
+            if R̄ isa ChainRules.AbstractZero
+                V̄ = zeros(size(Y))
+                Q̄_prime = zeros(size(Q))
+                Ū = R̄
+            else
+                # partition R̄ = [Ū | V̄]
+                Ū = @view R̄[1:m, 1:m]
+                V̄ = @view R̄[1:m, m + 1:end]
+                Q̄_prime = Y * V̄'
+            end
+
+            Q̄_prime = Q̄ isa ChainRules.AbstractZero ? Q̄_prime : Q̄_prime + Q̄
+
+            X̄ = qr_pullback_square_deep(Q̄_prime, Ū, A, Q, U)
+            Ȳ = Q * V̄
+            # partition Ā = [X̄ | Ȳ]
+            Ā = [X̄ Ȳ]
+        end
+        return (NoTangent(), Ā)
+    end
+    return QR, qr_pullback
+end
+
+
+
+
+#####
 ##### `eigen`
 #####
 
