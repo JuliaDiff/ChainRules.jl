@@ -86,7 +86,13 @@ _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 #####
 
 function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
-    return copyto!(y, x), copyto!(ẏ, ẋ)
+    if ẏ isa AbstractZero
+        # it's allowed to have an imutable zero tangent for ẏ as long as ẋ is zero
+        @assert iszero(ẋ)
+    else
+        copyto!(ẏ, ẋ)
+    end
+    return copyto!(y, x), ẏ
 end
 
 function frule((_, ẏ, _, ẋ), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
