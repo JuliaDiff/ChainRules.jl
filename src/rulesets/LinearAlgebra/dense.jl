@@ -399,7 +399,7 @@ end
 ##### `kron`
 #####
 
-@static if VERSION ≥ v"1.9.0"
+@static if VERSION ≥ v"1.9.0-DEV.1267"
     function frule((_, Δx, Δy), ::typeof(kron), x::AbstractVecOrMat{<:Number}, y::AbstractVecOrMat{<:Number})
         return kron(x, y), kron(Δx, y) + kron(x, Δy)
     end
