@@ -454,3 +454,4 @@ end
 
     _dot_collect(A::AbstractMatrix, B::SubArray) = dot(A, B)
     _dot_collect(A::Diagonal, B::SubArray) = dot(A, collect(B))
+end
