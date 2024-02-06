@@ -405,17 +405,19 @@ end
 
 function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
     function kron_pullback(z̄)
-        dz = reshape(z̄, length(y), length(x))
-        return NoTangent(), conj.(dz' * y), dz * conj.(x)
+        dz = reshape(unthunk(z̄), length(y), length(x))
+        x̄ = @thunk conj.(dz' * y)
+        ȳ = @thunk dz * conj.(x)
+        return NoTangent(), x̄, ȳ
     end
     return kron(x, y), kron_pullback
 end
 
 function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
     function kron_pullback(z̄)
-        dz = reshape(z̄, length(y), size(x)...)
-        x̄ = Ref(y') .* eachslice(dz; dims = (2, 3))
-        ȳ = conj.(dot.(eachslice(dz; dims = 1), Ref(x)))
+        dz = reshape(unthunk(z̄), length(y), size(x)...)
+        x̄ = @thunk Ref(y') .* eachslice(dz; dims = (2, 3))
+        ȳ = @thunk conj.(dot.(eachslice(dz; dims = 1), Ref(x)))
         return NoTangent(), x̄, ȳ
     end
     return kron(x, y), kron_pullback
@@ -423,9 +425,9 @@ end
 
 function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractMatrix{<:Number})
     function kron_pullback(z̄)
-        dz = reshape(z̄, size(y, 1), length(x), size(y, 2))
-        x̄ = conj.(dot.(eachslice(dz; dims = 2), Ref(y)))
-        ȳ = Ref(x') .* eachslice(dz; dims = (1, 3))
+        dz = reshape(unthunk(z̄), size(y, 1), length(x), size(y, 2))
+        x̄ = @thunk conj.(dot.(eachslice(dz; dims = 2), Ref(y)))
+        ȳ = @thunk Ref(x') .* eachslice(dz; dims = (1, 3))
         return NoTangent(), x̄, ȳ
     end
     return kron(x, y), kron_pullback
@@ -433,9 +435,9 @@ end
 
 function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractMatrix{<:Number})
     function kron_pullback(z̄)
-        dz = reshape(z̄, size(y, 1), size(x, 1), size(y, 2), size(x, 2))
-        x̄ = conj.(dot.(eachslice(dz, dims = (2, 4)), Ref(y)))
-        ȳ = dot.(eachslice(conj.(dz); dims = (1, 3)), Ref(conj.(x)))
+        dz = reshape(unthunk(z̄), size(y, 1), size(x, 1), size(y, 2), size(x, 2))
+        x̄ = @thunk conj.(dot.(eachslice(dz, dims = (2, 4)), Ref(y)))
+        ȳ = @thunk dot.(eachslice(conj.(dz); dims = (1, 3)), Ref(conj.(x)))
         return NoTangent(), x̄, ȳ
     end
     return kron(x, y), kron_pullback
