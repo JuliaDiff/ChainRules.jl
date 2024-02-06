@@ -445,10 +445,12 @@ end
         project_y = ProjectTo(y)
         function kron_pullback(z̄)
             dz = reshape(unthunk(z̄), size(y, 1), size(x, 1), size(y, 2), size(x, 2))
-            x̄ = @thunk(project_x(dot.(Ref(y), eachslice(dz; dims = (2, 4)))))
-            ȳ = @thunk(project_y(dot.(Ref(x), eachslice(dz; dims = (1, 3)))))
+            x̄ = @thunk(project_x(_dot_collect.(Ref(y), eachslice(dz; dims = (2, 4)))))
+            ȳ = @thunk(project_y(_dot_collect.(Ref(x), eachslice(dz; dims = (1, 3)))))
             return NoTangent(), x̄, ȳ
         end
         return kron(x, y), kron_pullback
     end
-end
+
+    _dot_collect(A::AbstractMatrix, B::SubArray) = dot(A, B)
+    _dot_collect(A::Diagonal, B::SubArray) = dot(A, collect(B))
