@@ -399,7 +399,7 @@ end
 ##### `kron`
 #####
 
-function frule((_, Δx, Δy), ::typeof(kron), x, y)
+function frule((_, Δx, Δy), ::typeof(kron), x::AbstractVecOrMat{<:Number}, y::AbstractVecOrMat{<:Number})
     return kron(x, y), kron(Δx, y) + kron(x, Δy)
 end
 
