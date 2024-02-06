@@ -403,74 +403,40 @@ function frule((_, Δx, Δy), ::typeof(kron), x::AbstractVecOrMat{<:Number}, y::
     return kron(x, y), kron(Δx, y) + kron(x, Δy)
 end
 
-function rrule(::typeof(kron), x::AbstractVector, y::AbstractVector)
+function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
     function kron_pullback(z̄)
-        x̄ = zero(x)
-        ȳ = zero(y)
-        m = firstindex(z̄)
-        @inbounds for i in eachindex(x)
-            xi = x[i]
-            for k in eachindex(y)
-                x̄[i] += y[k]' * z̄[m]
-                ȳ[k] += xi' * z̄[m]
-                m += 1
-            end
-        end
-        NoTangent(), x̄, ȳ
+        dz = reshape(z̄, length(y), length(x))
+        return NoTangent(), conj.(dz' * y), dz * conj.(x)
     end
-    kron(x, y), kron_pullback
+    return kron(x, y), kron_pullback
 end
 
-function rrule(::typeof(kron), x::AbstractMatrix, y::AbstractVector)
+function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
     function kron_pullback(z̄)
-        x̄ = zero(x)
-        ȳ = zero(y)
-        m = firstindex(z̄)
-        @inbounds for j in axes(x,2), i in axes(x,1)
-            xij = x[i,j]
-            for k in eachindex(y)
-                x̄[i, j] += y[k]' * z̄[m]
-                ȳ[k] += xij' * z̄[m]
-                m += 1
-            end
-        end
-        NoTangent(), x̄, ȳ
+        dz = reshape(z̄, length(y), size(x)...)
+        x̄ = Ref(y') .* eachslice(dz; dims = (2, 3))
+        ȳ = conj.(dot.(eachslice(dz; dims = 1), Ref(x)))
+        return NoTangent(), x̄, ȳ
     end
-    kron(x, y), kron_pullback
+    return kron(x, y), kron_pullback
 end
 
-function rrule(::typeof(kron), x::AbstractVector, y::AbstractMatrix)
+function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractMatrix{<:Number})
     function kron_pullback(z̄)
-        x̄ = zero(x)
-        ȳ = zero(y)
-        m = firstindex(z̄)
-        @inbounds for l in axes(y,2), i in eachindex(x)
-            xi = x[i]
-            for k in axes(y,1)
-                x̄[i] += y[k, l]' * z̄[m]
-                ȳ[k, l] += xi' * z̄[m]
-                m += 1
-            end
-        end
-        NoTangent(), x̄, ȳ
+        dz = reshape(z̄, size(y, 1), length(x), size(y, 2))
+        x̄ = conj.(dot.(eachslice(dz; dims = 2), Ref(y)))
+        ȳ = Ref(x') .* eachslice(dz; dims = (1, 3))
+        return NoTangent(), x̄, ȳ
     end
-    kron(x, y), kron_pullback
+    return kron(x, y), kron_pullback
 end
 
-function rrule(::typeof(kron), x::AbstractMatrix, y::AbstractMatrix)
+function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractMatrix{<:Number})
     function kron_pullback(z̄)
-        x̄ = zero(x)
-        ȳ = zero(y)
-        m = firstindex(z̄)
-        @inbounds for l in axes(y,2), j in axes(x,2), i in axes(x,1)
-            xij = x[i, j]
-            for k in axes(y,1)
-                x̄[i, j] += y[k, l]' * z̄[m]
-                ȳ[k, l] += xij' * z̄[m]
-                m += 1
-            end
-        end
-        NoTangent(), x̄, ȳ
+        dz = reshape(z̄, size(y, 1), size(x, 1), size(y, 2), size(x, 2))
+        x̄ = conj.(dot.(eachslice(dz, dims = (2, 4)), Ref(y)))
+        ȳ = dot.(eachslice(conj.(dz); dims = (1, 3)), Ref(conj.(x)))
+        return NoTangent(), x̄, ȳ
     end
-    kron(x, y), kron_pullback
+    return kron(x, y), kron_pullback
 end
