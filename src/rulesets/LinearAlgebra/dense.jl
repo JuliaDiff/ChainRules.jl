@@ -405,10 +405,12 @@ end
     end
 
     function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
+        project_x = ProjectTo(x)
+        project_y = ProjectTo(y)
         function kron_pullback(z̄)
             dz = reshape(unthunk(z̄), length(y), length(x))
-            x̄ = @thunk conj.(dz' * y)
-            ȳ = @thunk dz * conj.(x)
+            x̄ = @thunk(project_x(conj.(dz' * y)))
+            ȳ = @thunk(project_y(dz * conj.(x)))
             return NoTangent(), x̄, ȳ
         end
         return kron(x, y), kron_pullback
