@@ -162,16 +162,16 @@
     @testset "kron" begin
         @testset "AbstractVecOrMat{$T}" for T in (Float64, ComplexF64)
             @testset "frule" begin
-                test_frule(kron, randn(T, 3), randn(T, 3))
-                test_frule(kron, randn(T, 3, 2), randn(T, 3))
-                test_frule(kron, randn(T, 3), randn(T, 3, 4))
-                test_frule(kron, randn(T, 3, 4), randn(T, 2, 2))
+                test_frule(kron, randn(T, 2), randn(T, 3))
+                test_frule(kron, randn(T, 2, 3), randn(T, 5))
+                test_frule(kron, randn(T, 2), randn(T, 3, 5))
+                test_frule(kron, randn(T, 2, 3), randn(T, 5, 7))
             end
             @testset "rrule" begin
-                test_rrule(kron, randn(T, 3), randn(T, 3))
-                test_rrule(kron, randn(T, 3, 2), randn(T, 3))
-                test_rrule(kron, randn(T, 3), randn(T, 3, 4))
-                test_rrule(kron, randn(T, 3, 4), randn(T, 2, 2))
+                test_rrule(kron, randn(T, 2), randn(T, 3))
+                test_rrule(kron, randn(T, 2, 3), randn(T, 5))
+                test_rrule(kron, randn(T, 2), randn(T, 3, 5))
+                test_rrule(kron, randn(T, 2, 3), randn(T, 5, 7))
             end
         end
     end
