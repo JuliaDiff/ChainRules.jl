@@ -130,7 +130,7 @@ It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't
 allow `eltype(dy)`, nor does it work for many structured matrices.
 """
 _setindex_zero(x::AbstractArray{<:Number}, dy, inds::Integer...) = fill!(similar(x, typeof(dy), axes(x)), false)
-_setindex_zero(x::AbstractArray{<:Number}, dy, inds...) = fill!(similar(x, eltype(dy), axes(x)), false)
+_setindex_zero(x::AbstractArray{<:Number}, dy, inds...) = fill!(similar(x, eltype(dy)), false)
 function _setindex_zero(x::AbstractArray, dy, inds::Integer...)
     # This allows for types which don't define zero (like Vector) and types whose zero special (like Tangent),
     # but always makes an abstract type. TODO: make it infer concrete type for e.g. vectors of SVectors
