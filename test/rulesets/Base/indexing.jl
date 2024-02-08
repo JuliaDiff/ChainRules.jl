@@ -128,6 +128,13 @@ end
         @test dx23[3] == dxfix[3]
     end
 
+    @testset "getindex(::AxisArray{<:Number})" begin
+        X = randn((2, 3))
+        A = AxisArray(X; row=[:a, :b], col=[:x, :y, :z])
+        dA, back = rrule(getindex, A, [:a], [:x, :z])
+        unthunk(back(ones(1, 2))[2]) == [1.0 0.0 1.0; 0.0 0.0 0.0]
+    end
+
     @testset "second derivatives: ∇getindex" begin
         @eval using ChainRules: ∇getindex
         # Forward, scalar result
