@@ -3,6 +3,7 @@ using Test, ChainRulesCore, ChainRulesTestUtils
 @nospecialize
 
 using Adapt
+using AxisArrays
 using Base.Broadcast: broadcastable
 using ChainRules
 using ChainRules: stack

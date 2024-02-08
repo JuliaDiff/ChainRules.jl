@@ -1,6 +1,7 @@
 module ChainRules
 
 using Adapt: adapt
+using AxisArrays: AxisArray, AxisArrays
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
 using Compat
