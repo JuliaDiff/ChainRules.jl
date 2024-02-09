@@ -325,52 +325,37 @@ end
 ##### `cumprod`
 #####
 
-function rrule(::typeof(cumprod), x::AbstractVector{<:Real}; dims::Integer=1)
-    y = cumprod(x; dims=dims)  # does nothing unless dims == 1
-    project_x = ProjectTo(x)
-    function cumprod_pullback_1(dy_raw)
-        dy = unthunk(dy_raw)
-        dx_thunk = InplaceableThunk(
-            dx -> if dims == 1
-                ∇cumprod!(dx, x, dy, y)
-            else
-                dx .+= dy
-            end
-            ,
-            @thunk project_x(if dims == 1
-                ∇cumprod(x, dy, y)
-            else
-                dy
-            end)
-            )
-        return (NoTangent(), dx_thunk)
-    end
-    return y, cumprod_pullback_1
-end
-
 function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims::Integer)
     y = cumprod(x; dims=dims)
     project_x = ProjectTo(x)
-    function cumprod_pullback_2(dy_raw)
+    function cumprod_pullback(dy_raw)
         dy = unthunk(dy_raw)
         dx_thunk = InplaceableThunk(
             dx -> if dims <= ndims(x)
-                vald = Val(Int(dims))
-                ∇cumprod_dim!(dx, vald, x, dy, y)
+                if ndims(x) == 1
+                    ∇cumprod!(dx, x, dy, y)
+                else
+                    vald = Val(Int(dims))
+                    ∇cumprod_dim!(dx, vald, x, dy, y)
+                end
             else
                 dx .+= dy
             end
             ,
             @thunk project_x(if dims <= ndims(x)
-                vald = Val(Int(dims))
-                ∇cumprod_dim(vald, x, dy, y)
+                if ndims(x) == 1
+                    ∇cumprod(x, dy, y)
+                else        
+                    vald = Val(Int(dims))
+                    ∇cumprod_dim(vald, x, dy, y)
+                end
             else
                 dy
             end)
             )
         return (NoTangent(), dx_thunk)
     end
-    return y, cumprod_pullback_2
+    return y, cumprod_pullback
 end
 
 function ∇cumprod_dim(vald::Val{dim}, x::AbstractArray, dy=fill!(zero(x),1), y=cumprod(x; dims=dim)) where {dim}
