@@ -438,11 +438,11 @@ end
 ##### Subtraction
 #####
 
-frule((_, Δx, Δy), ::typeof(-), x::AbstractArray, y::AbstractArray) = x-y, Δx-Δy
+frule((_, Δx, Δy), ::typeof(-), x::AbstractArray, y::AbstractArray) = x - y, Δx - Δy
 
 function rrule(::typeof(-), x::AbstractArray, y::AbstractArray)
     subtract_pullback(dy) = (NoTangent(), dy, -dy)
-    return x-y, subtract_pullback
+    return x - y, subtract_pullback
 end
 
 #####
