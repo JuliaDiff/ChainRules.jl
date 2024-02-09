@@ -34,6 +34,7 @@
 @non_differentiable circshift!(::AbstractArray{Bool}, ::Any)
 @non_differentiable conj(::AbstractArray{Bool})
 @non_differentiable conj!(::AbstractArray{Bool})
+@non_differentiable cumprod(::AbstractVector{Bool})
 @non_differentiable cumprod(::AbstractArray{Bool})
 @non_differentiable cumprod!(::Any, ::AbstractArray{Bool})
 @non_differentiable cumsum(::AbstractArray{Bool})
