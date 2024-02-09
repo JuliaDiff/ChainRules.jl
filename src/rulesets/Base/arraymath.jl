@@ -445,7 +445,7 @@ function rrule(::typeof(-), x::AbstractArray, y::AbstractArray)
     yproj = ProjectTo(y)
     function subtract_pullback(dy_raw)
         dy = unthunk(dy_raw)  # projs will otherwise unthunk twice
-        (NoTangent(), xproj(dy), yproj(-dy))
+        return (NoTangent(), xproj(dy), yproj(-dy))
     end
     return x - y, subtract_pullback
 end
