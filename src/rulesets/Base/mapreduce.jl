@@ -325,7 +325,13 @@ end
 ##### `cumprod`
 #####
 
-function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims::Integer=1)
+function rrule(::typeof(cumprod), x::AbstractArray{<:Real}; dims::Integer=nothing)
+    if isnothing(dims) && ndims(x)==1
+        dims=1
+    else
+        throw(UndefKeywordError(:dims)
+    end
+
     y = cumprod(x; dims=dims)
     project_x = ProjectTo(x)
     function cumprod_pullback(dy_raw)
