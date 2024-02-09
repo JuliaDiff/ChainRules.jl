@@ -223,6 +223,7 @@
         @gpu test_frule(-, randn(2), randn(2))
         # rev
         @gpu test_rrule(-, randn(4, 4), randn(4, 4))
+        @gpu test_rrule(-, randn(4), randn(ComplexF64, 4))
         @gpu test_rrule(-, randn(3), randn(3, 1))
     end
 end
