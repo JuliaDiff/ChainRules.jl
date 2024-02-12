@@ -434,6 +434,21 @@ function rrule(::typeof(-), x::AbstractArray)
     return -x, negation_pullback
 end
 
+#####
+##### Subtraction
+#####
+
+frule((_, Δx, Δy), ::typeof(-), x::AbstractArray, y::AbstractArray) = x - y, Δx - Δy
+
+function rrule(::typeof(-), x::AbstractArray, y::AbstractArray)
+    xproj = ProjectTo(x)
+    yproj = ProjectTo(y)
+    function subtract_pullback(dy_raw)
+        dy = unthunk(dy_raw)  # projs will otherwise unthunk twice
+        return (NoTangent(), xproj(dy), yproj(-dy))
+    end
+    return x - y, subtract_pullback
+end
 
 #####
 ##### Addition (Multiarg `+`)
