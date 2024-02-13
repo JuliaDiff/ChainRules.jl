@@ -31,7 +31,7 @@ end
 
 @non_differentiable Base.vect()
 
-function frule((_, ẋs...), ::typeof(Base.vect), xs::Number...)
+function frule((_, ẋs...), ::typeof(Base.vect), xs...)
     return Base.vect(xs...), Base.vect(_instantiate_zeros(ẋs, xs)...)
 end
 
