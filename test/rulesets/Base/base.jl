@@ -166,10 +166,9 @@ end
         test_scalar(one, x)
         test_scalar(zero, x)
     end
-
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        test_frule(muladd, 10randn(), randn(), randn())
-        test_rrule(muladd, 10randn(), randn(), randn())
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
     end
 
     @testset "muladd ZeroTangent" begin
