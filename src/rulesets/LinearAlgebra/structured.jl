@@ -267,3 +267,15 @@ function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
     end
     return y, logdet_pullback
 end
+
+#####
+##### Tridiagonal
+#####
+
+function rrule(::Type{Tridiagonal}, dl, d, du)
+    y = Tridiagonal(dl, d, du)
+    @views function ∇Tridiagonal(∂y)
+        return (NoTangent(), diag(∂y, -1), diag(∂y), diag(∂y, 1))
+    end
+    return y, ∇Tridiagonal
+end
