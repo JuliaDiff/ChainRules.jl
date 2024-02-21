@@ -216,7 +216,7 @@ end
 #####
 
 function _svd_pullback(Ȳ::Tangent, F)
-    ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt')
+    ∂X = svd_rev(F, Ȳ.U, Ȳ.S, Ȳ.Vt)
     return (NoTangent(), ∂X)
 end
 _svd_pullback(Ȳ::AbstractThunk, F) = _svd_pullback(unthunk(Ȳ), F)
@@ -243,36 +243,33 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: SVD
     return getproperty(F, x), getproperty_svd_pullback
 end
 
-# When not `ZeroTangent`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄::AbstractMatrix`
-function svd_rev(USV::SVD, Ū, s̄, V̄)
+# When not `ZeroTangent`s expect `Ū::AbstractMatrix, s̄::AbstractVector, V̄t::AbstractMatrix`
+function svd_rev(USV::SVD, Ū, s̄, V̄t)
     # Note: assuming a thin factorization, i.e. svd(A, full=false), which is the default
     U = USV.U
     s = USV.S
-    V = USV.V
     Vt = USV.Vt
 
     k = length(s)
     T = eltype(s)
-    F = T[i == j ? 1 : inv(@inbounds s[j]^2 - s[i]^2) for i = 1:k, j = 1:k]
+    UtŪ = U' * Ū
+    V̄tV = V̄t * Vt'
+    M = @inbounds T[
+        if i == j
+            s̄[i]
+        else
+            (s[j] * (UtŪ[i, j] - UtŪ[j, i]) + s[i] * (V̄tV[j, i] - V̄tV[i, j])) /
+            (s[j]^2 - s[i]^2)
+        end for i in 1:k, j in 1:k
+    ]
 
-    # We do a lot of matrix operations here, so we'll try to be memory-friendly and do
-    # as many of the computations in-place as possible. Benchmarking shows that the in-
-    # place functions here are significantly faster than their out-of-place, naively
-    # implemented counterparts, and allocate no additional memory.
-    Ut = U'
-    FUᵀŪ = _mulsubtrans!!(Ut*Ū, F)  # F .* (UᵀŪ - ŪᵀU)
-    FVᵀV̄ = _mulsubtrans!!(Vt*V̄, F)  # F .* (VᵀV̄ - V̄ᵀV)
-    ImUUᵀ = _eyesubx!(U*Ut)  # I - UUᵀ
-    ImVVᵀ = _eyesubx!(V*Vt)  # I - VVᵀ
-
-    S = Diagonal(s)
-    S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(s̄)
-
-    # TODO: consider using MuladdMacro here
-    Ā = add!!(U * FUᵀŪ * S, ImUUᵀ * (Ū / S)) * Vt
-    Ā = add!!(Ā, U * S̄ * Vt)
-    Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
-
+    if size(Vt, 1) == size(Vt, 2)
+        # V is square, VVᵀ = I and therefore V̄ᵀ - V̄ᵀVVᵀ = 0
+        Ā = (U * M .+ ((Ū .- U * UtŪ) ./ s')) * Vt
+    else
+        # If V is not square then U is, so UUᵀ == I and Ū - UUᵀŪ = 0
+        Ā = U * (M * Vt .+ ((V̄t .- V̄tV * Vt) ./ s))
+    end
     return Ā
 end
 

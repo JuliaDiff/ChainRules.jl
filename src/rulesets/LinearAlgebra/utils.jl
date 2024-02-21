@@ -1,33 +1,6 @@
 # Some utility functions for optimizing linear algebra operations that aren't specific
 # to any particular rule definition
 
-# F .* (X - X'), overwrites X if possible
-function _mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractMatrix{<:Real})
-    T = promote_type(eltype(X), eltype(F))
-    Y = (T <: eltype(X)) ? X : similar(X, T)
-    k = size(X, 1)
-    @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
-        if i == j
-            Y[i,i] = zero(T)
-        else
-            Y[i,j], Y[j,i] = F[i,j] * (X[i,j] - X[j,i]), F[j,i] * (X[j,i] - X[i,j])
-        end
-    end
-    return Y
-end
-_mulsubtrans!!(X::AbstractZero, F::AbstractZero) = X
-_mulsubtrans!!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
-_mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
-
-# I - X, overwrites X
-function _eyesubx!(X::AbstractMatrix)
-    n, m = size(X)
-    @inbounds for j = 1:m, i = 1:n
-        X[i,j] = (i == j) - X[i,j]
-    end
-    return X
-end
-
 _extract_imag(x) = complex(0, imag(x))
 
 """
