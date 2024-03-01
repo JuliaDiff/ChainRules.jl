@@ -301,8 +301,10 @@ const FASTABLE_AST = quote
         # So these should not hit
         @test rrule(+, sh1, f1) == nothing
         @test rrule(-, sh1, f1) == nothing
-        @test frule((NoTangent(), Tangent{StoreHalfed}(val=2.0), 20.0),+,  sh1, f1) == nothing
-        @test frule((NoTangent(), Tangent{StoreHalfed}(val=2.0), 20.0),-,  sh1, f1) == nothing
+        @test frule((NoTangent(), Tangent{StoreHalfed}(; val=2.0), 20.0), +, sh1, f1) ==
+            nothing
+        @test frule((NoTangent(), Tangent{StoreHalfed}(; val=2.0), 20.0), -, sh1, f1) ==
+            nothing
     end
 end
 
