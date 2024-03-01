@@ -178,15 +178,18 @@ let
         end
 
         #Or Tangent type is same as primal type so op must be defined on it too
-        function frule((_, ẋ, ẏ)::Tuple{<:Any, A, B}, ::typeof(+), x::A, y::B) where {A<:Number, B<:Number}
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,A,B}, ::typeof(+), x::A, y::B
+        ) where {A<:Number,B<:Number}
             return +(x, y), +(ẋ, ẏ)
         end
 
         # Both cases (break ambiguity)
-        function frule((_, ẋ, ẏ)::Tuple{<:Any, T, T}, ::typeof(+), x::T, y::T) where {T<:Number}
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,T,T}, ::typeof(+), x::T, y::T
+        ) where {T<:Number}
             return +(x, y), +(ẋ, ẏ)
         end
-        
 
         ###
         ### - 
@@ -196,18 +199,23 @@ let
             minus_pullback(z̄) = NoTangent(), z̄, -(z̄)
             return x - y, minus_pullback
         end
-        frule((_, ẋ, ẏ), ::typeof(-), x::T, y::T) where {T<:Number} = -(x, y), -(ẋ, ẏ)
+        function frule((_, ẋ, ẏ), ::typeof(-), x::T, y::T) where {T<:Number}
+            return -(x, y), -(ẋ, ẏ)
+        end
 
         #Or Tangent type is same as primal type so op must be defined on it too
-        function frule((_, ẋ, ẏ)::Tuple{<:Any, A, B}, ::typeof(-), x::A, y::B) where {A<:Number, B<:Number}
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,A,B}, ::typeof(-), x::A, y::B
+        ) where {A<:Number,B<:Number}
             return -(x, y), -(ẋ, ẏ)
         end
 
         # Both cases (break ambiguity)
-        function frule((_, ẋ, ẏ)::Tuple{<:Any, T, T}, ::typeof(-), x::T, y::T) where {T<:Number}
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,T,T}, ::typeof(-), x::T, y::T
+        ) where {T<:Number}
             return -(x, y), -(ẋ, ẏ)
         end
-                
 
         @scalar_rule x / y (one(x) / y, -(Ω / y))
 

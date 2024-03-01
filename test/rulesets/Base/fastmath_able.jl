@@ -144,17 +144,17 @@ const FASTABLE_AST = quote
             @assert T == typeof(f(x, y))
             Δz = randn(typeof(f(x, y)))
 
-            @test frule((NoTangent(), Δx, Δy), f, x, y) isa Tuple{T, T}
+            @test frule((NoTangent(), Δx, Δy), f, x, y) isa Tuple{T,T}
             _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
             @test (∂x, ∂y) isa Tuple{T, T}
 
             if f ∉ (hypot, +, -)
                 # Issue #233
-                @test frule((NoTangent(), Δx, Δy), f, x, 2) isa Tuple{T, T}
+                @test frule((NoTangent(), Δx, Δy), f, x, 2) isa Tuple{T,T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
                 @test (∂x, ∂y) isa Tuple{T, Float64}
 
-                @test frule((NoTangent(), Δx, Δy), f, 2, y) isa Tuple{T, T}
+                @test frule((NoTangent(), Δx, Δy), f, 2, y) isa Tuple{T,T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
                 @test (∂x, ∂y) isa Tuple{Float64, T}
             end
@@ -285,14 +285,13 @@ const FASTABLE_AST = quote
     end
 
     @testset "+,- on weird types" begin
-        
         struct StoreHalfed <: Number
             val::Float64
-            StoreHalfed(x) = new(x/2)
+            StoreHalfed(x) = new(x / 2)
         end
-        Base.:-(x::StoreHalfed, y::Number) = 2*x.val - y
-        Base.:+(x::StoreHalfed, y::Number) = 2*x.val + y
-        
+        Base.:-(x::StoreHalfed, y::Number) = 2 * x.val - y
+        Base.:+(x::StoreHalfed, y::Number) = 2 * x.val + y
+
         sh1 = StoreHalfed(4.0)
         sh2 = StoreHalfed(8.0)
         f1 = 40.0
