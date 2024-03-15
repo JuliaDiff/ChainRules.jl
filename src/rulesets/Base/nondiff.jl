@@ -34,6 +34,7 @@
 @non_differentiable circshift!(::AbstractArray{Bool}, ::Any)
 @non_differentiable conj(::AbstractArray{Bool})
 @non_differentiable conj!(::AbstractArray{Bool})
+@non_differentiable cumprod(::AbstractVector{Bool})
 @non_differentiable cumprod(::AbstractArray{Bool})
 @non_differentiable cumprod!(::Any, ::AbstractArray{Bool})
 @non_differentiable cumsum(::AbstractArray{Bool})
@@ -333,7 +334,6 @@
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
-@non_differentiable one(::Any)
 @non_differentiable ones(::Any...)
 @non_differentiable only(::Char)
 @non_differentiable open(::Any)
@@ -441,6 +441,8 @@ end
 
 @non_differentiable unescape_string(::AbstractString)
 @non_differentiable unescape_string(::IO, ::AbstractString)
+@non_differentiable unique(::AbstractArray{<:Union{Regex, AbstractChar, AbstractString}})
+@non_differentiable unique(::AbstractArray{Symbol})
 @non_differentiable unmark(::IO)
 @non_differentiable unsafe_string(::Cstring)
 @non_differentiable uppercase(::AbstractString)
@@ -455,7 +457,6 @@ end
 @non_differentiable xor(::Any...)
 @non_differentiable typejoin(::Any...)
 
-@non_differentiable zero(::Any)
 @non_differentiable zeros(::Any...)
 
 #####
@@ -481,10 +482,6 @@ end
 @non_differentiable Broadcast.result_style(::Any)
 @non_differentiable Broadcast.result_style(::Any, ::Any)
 
-@non_differentiable Base.CoreLogging.current_logger_for_env(::Any...)
-@non_differentiable Base.CoreLogging._invoked_shouldlog(::Any...)
-@non_differentiable Base.CoreLogging.Base.fixup_stdlib_path(::Any)
-@non_differentiable Base.CoreLogging.handle_message(::Any...)
 
 @non_differentiable Libc.free(::Any)
 @non_differentiable Libc.getpid()

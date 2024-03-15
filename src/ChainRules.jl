@@ -44,6 +44,7 @@ include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
 include("rulesets/Base/broadcast.jl")
 include("rulesets/Base/iterators.jl")
+include("rulesets/Base/CoreLogging.jl")
 
 include("rulesets/Distributed/nondiff.jl")
 

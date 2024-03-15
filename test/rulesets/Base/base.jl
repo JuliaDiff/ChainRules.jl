@@ -1,4 +1,18 @@
+mutable struct MDemo
+    x::Float64
+end
+
 @testset "base.jl" begin
+    @testset "zero/one" begin
+        for f in [zero, one]
+            for x in [1.0, 1.0im, [10.0+im 11.0-im; 12.0+2im 13.0-3im]]
+                test_frule(f, x)
+                test_rrule(f, x)
+            end
+        end
+        test_frule(zero, [1.0, 2.0, 3.0])
+        test_rrule(zero, [1.0, 2.0, 3.0])
+    end
     @testset "copysign" begin
         # don't go too close to zero as the numerics may jump over it yielding wrong results
         @testset "at $y" for y in (-1.1, 0.1, 100.0)  
@@ -7,6 +21,11 @@
                 test_rrule(copysign, y, x)
             end
         end
+    end
+
+    @testset "setfield!" begin
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), :x, 5.0)
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), 1, 5.0)
     end
     
     @testset "Trig" begin
@@ -147,10 +166,19 @@
         test_scalar(one, x)
         test_scalar(zero, x)
     end
-
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        test_frule(muladd, 10randn(), randn(), randn())
-        test_rrule(muladd, 10randn(), randn(), randn())
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
+    end
+
+    @testset "muladd ZeroTangent" begin
+        test_frule(muladd, 2.0, 3.0, ZeroTangent())
+        test_frule(muladd, 2.0, ZeroTangent(), 4.0)
+        test_frule(muladd, ZeroTangent(), 3.0, 4.0)
+
+        test_rrule(muladd, 2.0, 3.0, ZeroTangent())
+        test_rrule(muladd, 2.0, ZeroTangent(), 4.0)
+        test_rrule(muladd, ZeroTangent(), 3.0, 4.0)
     end
 
     @testset "fma" begin

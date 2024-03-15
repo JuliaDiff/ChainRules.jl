@@ -1,14 +1,25 @@
+struct FooTwoField
+    x::Float64
+    y::Float64
+end
+ 
+
+@testset "getfield" begin
+   test_frule(getfield, FooTwoField(1.5, 2.5), :x, check_inferred=false)
+    
+    test_frule(getfield, (; a=1.5, b=2.5), :a, check_inferred=false)
+    test_frule(getfield, (; a=1.5, b=2.5), 2)
+
+    test_frule(getfield, (1.5, 2.5), 2)
+    test_frule(getfield, (1.5, 2.5), 2, true)
+end
+
 @testset "getindex" begin
     @testset "getindex(::Tuple, ...)" begin
         x = (1.2, 3.4, 5.6)
         x2 = (rand(2), (a=1.0, b=x))
         
-        # Forward
-        test_frule(getindex, x, 2)
-        test_frule(getindex, x2, 1)
-        test_frule(getindex, x, 1:2)
-        test_frule(getindex, x2, :)
-        
+        # don't test Forward because this will be handled by lowering to getfield
         # Reverse
         test_rrule(getindex, x, 2)
         @test_skip test_rrule(getindex, x2, 1, check_inferred=false)  # method ambiguity, maybe fixed by https://github.com/JuliaDiff/ChainRulesTestUtils.jl/pull/253
@@ -34,10 +45,10 @@
 
         @testset "single element" begin
             test_rrule(getindex, x, 2)
-            test_rrule(getindex, x, 2, 1)
-            test_rrule(getindex, x, 2, 2)
+            test_rrule(getindex, x, 2, 1; check_inferred=false)
+            test_rrule(getindex, x, 2, 2; check_inferred=false)
 
-            test_rrule(getindex, x, CartesianIndex(2, 3))
+            test_rrule(getindex, x, CartesianIndex(2, 3); check_inferred=false)
         end
 
         @testset "slice/index positions" begin
@@ -87,7 +98,7 @@
         dgrad = rrule(getindex, Diagonal(rand(3)), 2, :)[2]([1,2,3])[2]
         @test unthunk(dgrad) ≈ Diagonal([0, 2, 0])
         
-        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2)
+        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2; check_inferred=false)  # Infers to Any
         sgrad = rrule(getindex, Symmetric(rand(3, 3)), 2, 3)[2](1.0)[2]
         @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]
     end
@@ -166,24 +177,17 @@
         @test Array(y3) == Array(x_23_gpu)[1, [1,1,2]]
         @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
     end
+
+    @testset "getindex(::Array{<:AbstractGPUArray})" begin
+        x_gpu = jl(rand(1))
+        y, back = rrule(getindex, [x_gpu], 1)
+        @test y === x_gpu
+        dxs_gpu = unthunk(back(jl([1.0]))[2])
+        @test dxs_gpu == [jl([1.0])]
+    end
 end
 
-@testset "first & tail" begin
-    x = (1.2, 3.4, 5.6)
-    x2 = (rand(2), (a=1.0, b=x))
-
-    test_frule(first, x)
-    test_frule(first, x2)
-
-    test_rrule(first, x)
-    # test_rrule(first, x2) # MethodError: (::ChainRulesTestUtils.var"#test_approx##kw")(::NamedTuple{(:rtol, :atol), Tuple{Float64, Float64}}, ::typeof(test_approx), ::NoTangent, ::Tangent{NamedTuple{(:a, :b), Tuple{Float64, Tuple{Float64, Float64, Float64}}}, NamedTuple{(:a, :b), Tuple{Float64, Tangent{Tuple{Float64, Float64, Float64}, Tuple{Float64, Float64, Float64}}}}}, ::String) is ambiguous
-
-    test_frule(Base.tail, x, check_inferred=false) # return type Tuple{Tuple{Float64, Float64}, Tangent{Tuple{Float64, Float64}, Tuple{Float64, Float64}}} does not match inferred return type Tuple{Tuple{Float64, Float64}, Tangent{Tuple{Float64, Float64}}}
-    test_frule(Base.tail, x2, check_inferred=false)
-
-    test_rrule(Base.tail, x)
-    test_rrule(Base.tail, x2)
-end
+# first & tail handled by getfield rules
 
 @testset "view" begin
     test_frule(view, rand(3, 4), :, 1)

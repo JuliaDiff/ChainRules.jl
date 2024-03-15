@@ -35,9 +35,16 @@ end
 @testset "vect" begin
     test_rrule(Base.vect)
     @testset "homogeneous type" begin
-        test_rrule(Base.vect, (5.0, ), (4.0, ))
+        test_rrule(Base.vect, (5.0,), (4.0,))
+        test_frule(Base.vect, (5.0,), (4.0,))
         test_rrule(Base.vect, 5.0, 4.0, 3.0)
+        test_frule(Base.vect, 5.0, 4.0, 3.0)
         test_rrule(Base.vect, randn(2, 2), randn(3, 3))
+        test_frule(Base.vect, randn(2, 2), randn(3, 3))
+
+        # Nonnumber types
+        test_frule(Base.vect, (1.0, 2.0), (1.0, 2.0))
+        test_rrule(Base.vect, (1.0, 2.0), (1.0, 2.0))
     end
     @testset "inhomogeneous type" begin
         # fwd
@@ -52,7 +59,7 @@ end
     end
     @testset "_instantiate_zeros" begin
         # This is an internal function also used for `cat` etc.
-        @eval using ChainRules: _instantiate_zeros
+        _instantiate_zeros = ChainRules._instantiate_zeros
         # Check these hit the fast path, unrealistic input so that map would fail:
         @test _instantiate_zeros((true, 2 , 3.0), ()) == (1, 2, 3)
         @test _instantiate_zeros((1:2, [3, 4]), ()) == (1:2, 3:4)
@@ -358,14 +365,15 @@ end
     @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
     # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
+    # or by https://github.com/JuliaLang/julia/pull/48404
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
-    test_rrule(findmin, rand(5,3))
-    test_rrule(findmax, rand(5,3))
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+    test_rrule(findmin, rand(5,3); check_inferred=false)
+    test_rrule(findmax, rand(5,3); check_inferred=false)
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
 
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
@@ -385,7 +393,7 @@ end
 
     # Reverse
     test_rrule(imum, rand(10))
-    test_rrule(imum, rand(3,4))
+    test_rrule(imum, rand(3,4); check_inferred=false)
     @gpu test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
 

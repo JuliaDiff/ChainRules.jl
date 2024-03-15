@@ -31,7 +31,7 @@ end
 
 @non_differentiable Base.vect()
 
-function frule((_, ẋs...), ::typeof(Base.vect), xs::Number...)
+function frule((_, ẋs...), ::typeof(Base.vect), xs...)
     return Base.vect(xs...), Base.vect(_instantiate_zeros(ẋs, xs)...)
 end
 
@@ -71,9 +71,7 @@ materialises each zero `ẋ` to be `zero(x)`.
 """
 _instantiate_zeros(ẋs, xs) = map(_i_zero, ẋs, xs)
 _i_zero(ẋ, x) = ẋ
-_i_zero(ẋ::AbstractZero, x) = zero(x)
-# Possibly this won't work for partly non-diff arrays, something like `gradient(x -> ["abc", x][end], 1)`
-# may give a MethodError for `zero` but won't be wrong.
+_i_zero(ẋ::AbstractZero, x) = zero_tangent(x)
 
 # Fast paths. Should it also collapse all-Zero cases?
 _instantiate_zeros(ẋs::Tuple{Vararg{Number}}, xs) = ẋs
@@ -86,7 +84,13 @@ _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 #####
 
 function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
-    return copyto!(y, x), copyto!(ẏ, ẋ)
+    if ẏ isa AbstractZero
+        # it's allowed to have an imutable zero tangent for ẏ as long as ẋ is zero
+        @assert iszero(ẋ)
+    else
+        copyto!(ẏ, ẋ)
+    end
+    return copyto!(y, x), ẏ
 end
 
 function frule((_, ẏ, _, ẋ), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
