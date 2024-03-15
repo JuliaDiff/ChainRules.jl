@@ -120,8 +120,7 @@ function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
 end
 
 # Path 4: The most generic, save all the pullbacks. Can be 1000x slower.
-# Since broadcast makes no guarantee about order of calls, and un-fusing
-# can change the number of calls, don't bother to try to reverse the iteration.
+# While broadcast makes no guarantee about order of calls, it's cheap to reverse the iteration.
 
 function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting generic", f, N)
@@ -129,7 +128,7 @@ function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
         rrule_via_ad(cfg, f, a...)
     end
     function back_generic(dys)
-        deltas = unzip_broadcast(backs, dys) do back, dy  # (could be map, sizes match)
+        deltas = unzip_map_reversed(backs, unthunk(dys)) do back, dy
             map(unthunk, back(dy))
         end
         dargs = map(unbroadcast, args, Base.tail(deltas))
