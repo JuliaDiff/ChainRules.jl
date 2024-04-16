@@ -277,6 +277,22 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
 end
 
 #####
+##### `svdvals`
+#####
+
+function rrule(::typeof(svdvals), A::AbstractMatrix{<:Number})
+    F = svd(A)
+    U = F.U
+    Vt = F.Vt
+    project_A = ProjectTo(A)
+    function svdvals_pullback(s̄)
+        S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(unthunk(s̄))
+        return (NoTangent(), project_A(U * S̄ * Vt))
+    end
+    return F.S, svdvals_pullback
+end
+
+#####
 ##### `eigen`
 #####
 

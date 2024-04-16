@@ -275,28 +275,6 @@
             @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
             @test @maybe_inferred(back(CT())) == (NoTangent(), ZeroTangent())
         end
-
-        @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
-            T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
-            uplo in (:L, :U)
-
-            A, ΔS = randn(T, n, n), randn(n)
-            symA = SymHerm(A, uplo)
-
-            S = svdvals(symA)
-            S_ad, back = @maybe_inferred rrule(svdvals, symA)
-            @test S_ad ≈ S # inexact because rrule uses svd not svdvals
-            ∂self, ∂symA = @maybe_inferred back(ΔS)
-            @test ∂self === NoTangent()
-            @test ∂symA isa typeof(symA)
-            @test ∂symA.uplo == symA.uplo
-
-            # pull the cotangent back to A to test against finite differences
-            ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
-            @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
-
-            @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
-        end
     end
 
     @testset "Symmetric/Hermitian matrix functions" begin

@@ -102,61 +102,102 @@ end
             end
         end
     end
-    @testset "svd" begin
-        for n in [4, 6, 10], m in [3, 5, 9]
-            @testset "($n x $m) svd" begin
-                X = randn(n, m)
-                test_rrule(svd, X; atol=1e-6, rtol=1e-6)
+
+    @testset "singular value decomposition" begin
+        @testset "svd" begin
+            for n in [4, 6, 10], m in [3, 5, 9]
+                @testset "($n x $m) svd" begin
+                    X = randn(n, m)
+                    test_rrule(svd, X; atol=1e-6, rtol=1e-6)
+                end
+            end
+
+            for n in [4, 6, 10], m in [3, 5, 10]
+                @testset "($n x $m) getproperty" begin
+                    X = randn(n, m)
+                    F = svd(X)
+                    rand_adj = adjoint(rand(reverse(size(F.V))...))
+
+                    test_rrule(getproperty, F, :U; check_inferred=false)
+                    test_rrule(getproperty, F, :S; check_inferred=false)
+                    test_rrule(getproperty, F, :Vt; check_inferred=false)
+                    test_rrule(
+                        getproperty, F, :V; check_inferred=false, output_tangent=rand_adj
+                    )
+                end
+            end
+
+            @testset "Thunked inputs" begin
+                X = randn(4, 3)
+                F, dX_pullback = rrule(svd, X)
+                for p in [:U, :S, :V, :Vt]
+                    Y, dF_pullback = rrule(getproperty, F, p)
+                    Ȳ = randn(size(Y)...)
+
+                    _, dF_unthunked, _ = dF_pullback(Ȳ)
+
+                    # helper to let us check how things are stored.
+                    p_access = p == :V ? :Vt : p
+                    backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p_access)
+                    @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
+
+                    dF_thunked = map(f -> Thunk(() -> f), dF_unthunked)
+                    @assert backing_field(dF_thunked, p) isa AbstractThunk
+
+                    dself_thunked, dX_thunked = dX_pullback(dF_thunked)
+                    dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
+                    @test dself_thunked == dself_unthunked
+                    @test dX_thunked == dX_unthunked
+                end
+            end
+
+            @testset "Helper functions" begin
+                X = randn(10, 10)
+                Y = randn(10, 10)
+                @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
+                @test ChainRules._eyesubx!(copy(X)) ≈ I - X
+
+                Z = randn(Float32, 10, 10)
+                result = ChainRules._mulsubtrans!!(copy(Z), Y)
+                @test result ≈ Y .* (Z - Z')
+                @test eltype(result) == Float64
             end
         end
 
-        for n in [4, 6, 10], m in [3, 5, 10]
-            @testset "($n x $m) getproperty" begin
-                X = randn(n, m)
-                F = svd(X)
-                rand_adj = adjoint(rand(reverse(size(F.V))...))
+        @testset "svdvals" begin
+            for n in [4, 6, 10]
+                for m in [3, 5, 9]
+                    @testset "($n x $m) svdvals" begin
+                        X = randn(n, m)
+                        test_rrule(svdvals, X; atol=1e-6, rtol=1e-6)
+                    end
+                end
 
-                test_rrule(getproperty, F, :U; check_inferred=false)
-                test_rrule(getproperty, F, :S; check_inferred=false)
-                test_rrule(getproperty, F, :Vt; check_inferred=false)
-                test_rrule(getproperty, F, :V; check_inferred=false, output_tangent=rand_adj)
+                @testset "rrule for svdvals(::$SymHerm{$T}) ($n x $n, uplo=$uplo)" for SymHerm in
+                                                                                       (
+                        Symmetric, Hermitian
+                    ),
+                    T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                    uplo in (:L, :U)
+
+                    A, ΔS = randn(T, n, n), randn(n)
+                    symA = SymHerm(A, uplo)
+
+                    S = svdvals(symA)
+                    S_ad, back = @inferred rrule(svdvals, symA)
+                    @test S_ad ≈ S # inexact because rrule uses svd not svdvals
+                    ∂self, ∂symA = @inferred back(ΔS)
+                    @test ∂self === NoTangent()
+                    @test ∂symA isa typeof(symA)
+                    @test ∂symA.uplo == symA.uplo
+
+                    # pull the cotangent back to A to test against finite differences
+                    ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
+                    @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
+
+                    @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                end
             end
-        end
-
-        @testset "Thunked inputs" begin
-            X = randn(4, 3)
-            F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V, :Vt]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(size(Y)...)
-
-                _, dF_unthunked, _ = dF_pullback(Ȳ)
-
-                # helper to let us check how things are stored.
-                p_access = p == :V ? :Vt : p
-                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p_access)
-                @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
-
-                dF_thunked = map(f->Thunk(()->f), dF_unthunked)
-                @assert backing_field(dF_thunked, p) isa AbstractThunk
-
-                dself_thunked, dX_thunked = dX_pullback(dF_thunked)
-                dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
-                @test dself_thunked == dself_unthunked
-                @test dX_thunked == dX_unthunked
-            end
-        end
-
-        @testset "Helper functions" begin
-            X = randn(10, 10)
-            Y = randn(10, 10)
-            @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
-            @test ChainRules._eyesubx!(copy(X)) ≈ I - X
-
-            Z = randn(Float32, 10, 10)
-            result = ChainRules._mulsubtrans!!(copy(Z), Y)
-            @test result ≈ Y .* (Z - Z')
-            @test eltype(result) == Float64
         end
     end
 

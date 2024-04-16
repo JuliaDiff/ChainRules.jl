@@ -278,28 +278,6 @@ function _svd_eigvals_sign!(c, U, V)
 end
 
 #####
-##### `svdvals`
-#####
-
-# NOTE: rrule defined because `svdvals` calls mutating `svdvals!` internally.
-# can be removed when mutation is supported by reverse-mode AD packages
-function rrule(::typeof(svdvals), A::LinearAlgebra.RealHermSymComplexHerm{<:BLAS.BlasReal,<:StridedMatrix})
-    λ, back = rrule(eigvals, A)
-    S = abs.(λ)
-    p = sortperm(S; rev=true)
-    permute!(S, p)
-    function svdvals_pullback(ΔS)
-        ∂λ = real.(ΔS)
-        invpermute!(∂λ, p)
-        ∂λ .*= sign.(λ)
-        _, ∂A = back(∂λ)
-        return NoTangent(), unthunk(∂A)
-    end
-    svdvals_pullback(ΔS::AbstractZero) = (NoTangent(), ΔS)
-    return S, svdvals_pullback
-end
-
-#####
 ##### matrix functions
 #####
 
