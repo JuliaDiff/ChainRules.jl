@@ -445,6 +445,7 @@ end
 @non_differentiable unique(::AbstractArray{Symbol})
 @non_differentiable unmark(::IO)
 @non_differentiable unsafe_string(::Cstring)
+@non_differentiable unsafe_trunc(::Any...)
 @non_differentiable uppercase(::AbstractString)
 @non_differentiable uppercase(::AbstractChar)
 @non_differentiable uppercasefirst(::AbstractString)
