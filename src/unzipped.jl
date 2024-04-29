@@ -66,8 +66,75 @@ end
 ##### map
 #####
 
-# `unzip_map` can use `StructArrays.components(StructArray(Iterators.map(f, args...)))`,
-# will be useful for the gradient of `map` etc.
+"""
+    unzip_map(f, args...)
+
+For a function `f` which returns a tuple, this is `== unzip(map(f, args...))`,
+but performed using `StructArrays` for efficiency.
+"""
+function unzip_map(f::F, args...) where {F}
+    T = Broadcast.combine_eltypes(f, args)
+    if isconcretetype(T)
+        T <: Tuple || throw(ArgumentError("""unzip_map(f, args) only works on functions returning a tuple,
+        but f = $(sprint(show, f)) returns type T = $T"""))
+    end
+    return StructArrays.components(StructArray(Iterators.map(f, args...)))
+end
+
+unzip_map(f::F, args::Tuple...) where {F} = unzip(map(f, args...))
+# unzip_map(f::F, args::NamedTuple...) where {F} = unzip(map(f, args...))
+
+unzip_map(f::F, args::AbstractGPUArray...) where {F} = unzip(map(f, args...))
+
+"""
+    unzip_map_reversed(f, args...)
+
+For a pure function `f` which returns a tuple, this is `== unzip(map(f, args...))`.
+But the order of evaluation is should be the reverse.
+Does NOT handle `zip`-like behaviour.
+"""
+function unzip_map_reversed(f::F, args...) where {F}
+    T = Broadcast.combine_eltypes(f, args)
+    if isconcretetype(T)
+        T <: Tuple || throw(ArgumentError("""unzip_map_reversed(f, args) only works on functions returning a tuple,
+        but f = $(sprint(show, f)) returns type T = $T"""))
+    end
+    len1 = length(first(args))
+    all(a -> length(a)==len1, args) || error("unzip_map_reversed does not handle zip-like behaviour.")
+    return map(reverse!!, unzip_map(f, map(_safereverse, args)...))
+end
+
+# This avoids MethodError: no method matching iterate(::Base.Iterators.Reverse{Tangent{Tuple{Float64, Float64}, Tuple{Float64, Float64}}}) on 1.6
+_safereverse(x) = VERSION > v"1.7" ? Iterators.reverse(x) : reverse(x)
+
+function unzip_map_reversed(f::F, args::Tuple...) where {F}
+    len1 = length(first(args))
+    all(a -> length(a)==len1, args) || error("unzip_map_reversed does not handle zip-like behaviour.")
+    return map(reverse, unzip(map(f, map(reverse, args)...)))
+end
+
+"""
+    reverse!!(x)
+
+Reverses `x` in-place if possible, according to `ChainRulesCore.is_inplaceable_destination`.
+Only safe if you are quite sure nothing else closes over `x`.
+"""
+function reverse!!(x::AbstractArray)
+    if ChainRulesCore.is_inplaceable_destination(x)
+        Base.reverse!(x)
+    else
+        Base.reverse(x)
+    end
+end
+reverse!!(x::AbstractArray{<:AbstractZero}) = x
+reverse!!(x) = reverse(x)
+
+frule((_, xdot), ::typeof(reverse!!), x) = reverse!!(x), reverse!!(xdot)
+
+function rrule(::typeof(reverse!!), x)
+    reverse!!_back(dy) = (NoTangent(), reverse(unthunk(dy)))
+    return reverse!!(x), reverse!!_back
+end
 
 
 #####
@@ -107,10 +174,16 @@ end
     Expr(:tuple, each...)
 end
 
-unzip(xs::AbstractArray{Tuple{T}}) where {T} = (reinterpret(T, xs),)  # best case, no copy
+function unzip(xs::AbstractArray{Tuple{T}}) where {T}
+    if isbitstype(T)
+        (reinterpret(T, xs),)  # best case, no copy
+    else
+        (map(only, xs),)
+    end
+end
 
 @generated function unzip(xs::AbstractArray{Ts}) where {Ts<:Tuple}
-    each = if count(!Base.issingletontype, Ts.parameters) < 2
+    each = if count(!Base.issingletontype, Ts.parameters) < 2 && all(isbitstype, Ts.parameters)
         # good case, no copy of data, some trivial arrays
         [Base.issingletontype(T) ? :(similar(xs, $T)) : :(reinterpret($T, xs)) for T in Ts.parameters]
     else

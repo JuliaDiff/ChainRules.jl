@@ -232,7 +232,7 @@ function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
 end
 
 #####
-##### `map`
+##### `map(f, ::Tuple...)`
 #####
 
 # Ideally reverse mode should always iterate in reverse order. For `map` and broadcasting
@@ -270,6 +270,31 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     end
     map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
     return y, map_pullback
+end
+
+#####
+##### `map(f, ::AbstractArray...)`
+#####
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray) where {F}
+    # Here map agrees with broadcast, and we have a meta-rule with 4 different paths, should be fast:
+    y, back = rrule_via_ad(cfg, broadcast, f, x)
+    return y, back
+end
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, x::AbstractArray, ys::AbstractArray...) where {F}
+    if all(==(size(x)), map(size, ys))
+        # Here too map agrees with broadcast, maybe the test could be more elegant?
+        y, back = rrule_via_ad(cfg, broadcast, f, x, ys...)
+        return y, back
+    end
+    @debug "rrule(map, f, arrays...)" f
+    z, backs = unzip_map((xy...) -> rrule_via_ad(cfg, f, xy...), x, ys...)
+    function map_pullback_2(dz)
+        df, dxy... = unzip_map_reversed(|>, unthunk(dz), backs)
+        return (NoTangent(), ProjectTo(f)(sum(df)), map(_unmap_pad, (x, ys...), dxy)...)
+    end
+    z, map_pullback_2
 end
 
 #####

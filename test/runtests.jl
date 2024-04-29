@@ -63,6 +63,7 @@ end
     include_test("rulesets/Base/mapreduce.jl")
     include_test("rulesets/Base/sort.jl")
     include_test("rulesets/Base/broadcast.jl")
+    include_test("rulesets/Base/iterators.jl")
 
     include_test("unzipped.jl")  # used primarily for broadcast
 

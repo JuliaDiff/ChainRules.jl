@@ -1,20 +1,21 @@
 
-using ChainRules: unzip_broadcast, unzip #, unzip_map
+using ChainRules: unzip_broadcast, unzip, unzip_map, unzip_map_reversed
 
 @testset "unzipped.jl" begin
-    @testset "basics: $(sprint(show, fun))" for fun in [unzip_broadcast, unzip∘map, unzip∘broadcast] # unzip_map, 
+    @testset "basics: $(sprint(show, fun))" for fun in [unzip_broadcast, unzip∘map, unzip∘broadcast, unzip_map] 
         @test_throws Exception fun(sqrt, 1:3)
 
-        @test fun(tuple, 1:3, 4:6) == ([1, 2, 3], [4, 5, 6])
-        @test fun(tuple, [1, 10, 100]) == ([1, 10, 100],)
-        @test fun(tuple, 1:3, fill(nothing, 3)) == (1:3, fill(nothing, 3))
-        @test fun(tuple, [1, 10, 100], fill(nothing, 3)) == ([1, 10, 100], fill(nothing, 3))
-        @test fun(tuple, fill(nothing, 3), fill(nothing, 3)) == (fill(nothing, 3), fill(nothing, 3))
+        @test @inferred(fun(tuple, 1:3, 4:6)) == ([1, 2, 3], [4, 5, 6])
+        @test @inferred(fun(tuple, [1, 10, 100])) == ([1, 10, 100],)
+        @test @inferred(fun(tuple, 1:3, fill(nothing, 3))) == (1:3, fill(nothing, 3))
+        @test @inferred(fun(tuple, [1, 10, 100], fill(nothing, 3))) == ([1, 10, 100], fill(nothing, 3))
+        @test @inferred(fun(tuple, fill(nothing, 3), fill(nothing, 3))) == (fill(nothing, 3), fill(nothing, 3))
 
         if contains(string(fun), "map")
-            @test fun(tuple, 1:3, 4:999) == ([1, 2, 3], [4, 5, 6])
+            @test @inferred(fun(tuple, 1:3, 4:999)) == ([1, 2, 3], [4, 5, 6])
         else
-            @test fun(tuple, [1,2,3], [4 5]) == ([1 1; 2 2; 3 3], [4 5; 4 5; 4 5])
+            @test @inferred(fun(tuple, [1,2,3], [4 5])) == ([1 1; 2 2; 3 3], [4 5; 4 5; 4 5])
+            @test @inferred(fun(tuple, [1,2,3], 6)) == ([1, 2, 3], [6, 6, 6])
         end
 
         if contains(string(fun), "map")
@@ -24,7 +25,34 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
             @test fun(tuple, (1,2,3), (7,)) == ((1, 2, 3), (7, 7, 7))
             @test fun(tuple, (1,2,3), 8) == ((1, 2, 3), (8, 8, 8))
         end
-        @test fun(tuple, (1,2,3), [4,5,6]) == ([1, 2, 3], [4, 5, 6])  # mix tuple & vector
+        @test @inferred(fun(tuple, (1,2,3), [4,5,6])) == ([1, 2, 3], [4, 5, 6])  # mix tuple & vector
+    end
+
+    @testset "zip behaviour: $unzip_map" for unzip_map in [unzip_map, unzip_map_reversed]
+        check(f, args...) = @inferred(unzip_map(f, args...)) == unzip(map(f, args...))
+        check_no_inferr(f, args...) = unzip_map(f, args...) == unzip(map(f, args...))
+
+        @test check(tuple, [1 2; 3 4], [5,6,7,8])  # makes a vector
+        @test check_no_inferr(tuple, [1,2,3], (5,6,7))
+        
+        unzip_map == unzip_map_reversed && continue  # does not handle unequal lengths.
+
+        @test check(tuple, [1 2; 3 4], [5,6,7])
+        @test check(tuple, [1 2; 3 4], [5,6,7,8,9,10])
+        
+        @test check_no_inferr(tuple, [1,2,3], (5,6,7,8))
+        @test check_no_inferr(tuple, [1,2,3,4], (5,6,7))
+        @test check_no_inferr(tuple, [1 2;3 4], (5,6,7))
+    end
+    
+    @testset "unzip_map_reversed" begin
+        cnt(x, y) = (x, y) .+ (CNT[] += 1)
+        CNT = Ref(0)
+        @test unzip_map_reversed(cnt, [10, 20], [30, 40]) == ([12, 21], [32, 41])
+        @test CNT[] == 2
+        
+        CNT = Ref(0)
+        @test unzip_map_reversed(cnt, (10, 20), (30, 40)) == ((12, 21), (32, 41))
     end
 
     @testset "rrules" begin
@@ -58,6 +86,10 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
         @test unzip([(1,), (3,), (5,)])[1] isa Base.ReinterpretArray
         
         @test unzip(((1,2), (3,4), (5,6))) == ((1, 3, 5), (2, 4, 6))
+  
+        # Bug: these cases cannot be done by reinterpret
+        @test unzip([([1,2],), ([3,4],)]) == ([[1, 2], [3, 4]],)
+        @test unzip([(nothing, [1,2]), (nothing, [3,4])]) == ([nothing, nothing], [[1, 2], [3, 4]])
 
         # test_rrule(unzip, [(1,2), (3,4), (5.0,6.0)], check_inferred=false)  # DimensionMismatch: second dimension of A, 6, does not match length of x, 2
 
