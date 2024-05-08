@@ -192,6 +192,8 @@
 @non_differentiable flush(::Any)
 @non_differentiable foreach(::Any, ::Tuple{})
 
+@non_differentiable hasmethod(args...)
+
 @non_differentiable gensym(::Symbol)
 @non_differentiable gensym(::String...)
 @non_differentiable getindex(::AbstractChar)
