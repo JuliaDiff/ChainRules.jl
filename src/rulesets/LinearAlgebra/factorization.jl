@@ -273,6 +273,11 @@ function svd_rev(USV::SVD, Ū, s̄, V̄t)
     return Ā
 end
 
+function svd_rev(USV::SVD, ::AbstractZero, s̄::AbstractVector, ::AbstractZero)
+    Ā = USV.U * Diagonal(s̄) * USV.Vt
+    return Ā 
+end
+
 #####
 ##### `eigen`
 #####
