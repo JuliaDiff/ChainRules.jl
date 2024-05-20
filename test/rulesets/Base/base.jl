@@ -257,4 +257,9 @@ end
             test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
         end
     end
+
+    @testset "merge NamedTuple" begin
+        test_rrule(merge, (;a=1.0), (;b=2.0), check_inferred=false)
+        test_rrule(merge, (;a=1.0), (;a=2.0), check_inferred=false)
+    end
 end

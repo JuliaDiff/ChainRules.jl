@@ -291,3 +291,25 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(task_local_storage
     end
     return y, task_local_storage_pullback
 end
+
+
+####
+#### merge
+####
+
+function rrule(::typeof(merge), nt1::NamedTuple{F1}, nt2::NamedTuple{F2}) where {F1, F2}
+    y = merge(nt1, nt2)
+    function merge_pullback(dy)
+        dnt1 = Tangent{typeof(nt1)}(;
+            (f1 => (f1 in F2 ? ZeroTangent() : getproperty(dy, f1)) for f1 in F1)...
+        )
+        dnt2 = Tangent{typeof(nt2)}(;
+            (f2 => getproperty(dy, f2) for f2 in F2)...
+        )
+        return (NoTangent(), dnt1, dnt2)
+    end
+    merge_pullback(dy::AbstractThunk) = merge_pullback(unthunk(dy))
+    merge_pullback(x::AbstractZero) = (NoTangent(), x, x)
+	
+    return y, merge_pullback
+end
