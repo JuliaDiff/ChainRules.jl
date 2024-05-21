@@ -259,7 +259,7 @@ end
     end
 
     @testset "merge NamedTuple" begin
-        test_rrule(merge, (; a=1.0), (; b=2.0); check_inferred=false)
-        test_rrule(merge, (; a=1.0), (; a=2.0); check_inferred=false)
+        test_rrule(merge, (;a=1.0), (;b=2.0))
+        test_rrule(merge, (;a=1.0), (;a=2.0))
     end
 end
