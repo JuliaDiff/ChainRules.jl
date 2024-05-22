@@ -296,11 +296,12 @@ end
 #### merge
 ####
 # need to work around inability to return closures from generated functions
-struct MergePullback{T1, T2}
-end
+struct MergePullback{T1,T2} end
 (this::MergePullback)(dy::AbstractThunk) = this(unthunk(dy))
 (::MergePullback)(x::AbstractZero) = (NoTangent(), x, x)
-@generated function(::MergePullback{T1,T2})(dy::Tangent) where {F1,T1<:NamedTuple{F1},F2,T2<:NamedTuple{F2}}
+@generated function (::MergePullback{T1,T2})(
+    dy::Tangent
+) where {F1,T1<:NamedTuple{F1},F2,T2<:NamedTuple{F2}}
     _getproperty_kwexpr(key) = :($key = getproperty(dy, $(Meta.quot(key))))
     quote
         dnt1 = Tangent{T1}(; $(map(_getproperty_kwexpr, setdiff(F1, F2))...))
@@ -309,7 +310,7 @@ end
     end
 end
 
-function rrule(::typeof(merge), nt1::T1, nt2::T2) where {T1<:NamedTuple, T2<:NamedTuple}
+function rrule(::typeof(merge), nt1::T1, nt2::T2) where {T1<:NamedTuple,T2<:NamedTuple}
     y = merge(nt1, nt2)
     return y, MergePullback{T1,T2}()
 end
