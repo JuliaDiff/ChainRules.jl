@@ -210,7 +210,13 @@ end # VERSION
 ##### `muladd`
 #####
 
-function frule((_, ΔA, ΔB, Δz), ::typeof(muladd), A, B, z)
+function frule(
+    (_, ΔA, ΔB, Δz),
+    ::typeof(muladd),
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
+    z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}}
+)
     Ω = muladd(A, B, z)
     return Ω, ΔA * B .+ A * ΔB .+ Δz
 end
@@ -345,7 +351,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
 
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
-        
+
         Ȳf = Ȳ
         @static if VERSION >= v"1.9"
             # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
@@ -354,7 +360,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             end
         end
         Yf = Y
-        @static if VERSION >= v"1.9" 
+        @static if VERSION >= v"1.9"
             # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
             if !isa(Y, AbstractArray)
                 Yf = [Y]
@@ -365,7 +371,7 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
             B̄ = A' \ Ȳf
             Ā = -B̄ * Y'
             t = (B - A * Y) * B̄'
-            @static if VERSION >= v"1.9" 
+            @static if VERSION >= v"1.9"
                 # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
                 if !isa(t, AbstractArray)
                     t = [t]
@@ -377,33 +383,6 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         end
         ∂B = @thunk project_B(A' \ Ȳf)
         return NoTangent(), ∂A, ∂B
-    end
-    return Y, backslash_pullback
-end
-
-@static if VERSION >= v"1.9" 
-    # Need to ensure things are not scalar since since https://github.com/JuliaLang/julia/pull/44358
-    _maybe_descalar(x) = x isa AbstractArray ? x : [x]
-else
-    _maybe_descalar(x) = x
-end
-
-function rrule(A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Y = A \ B
-
-
-    function backslash_pullback(ȳ)
-        Ȳ = unthunk(ȳ)
-
-        ∂A = @thunk begin
-            B̄ = A' \ _maybe_descalar(Ȳ)
-            Ā = -B̄ * Y'
-            Ā += _maybe_descalar((B - A * Y) * B̄') / A'
-            Ā += (A' \ _maybe_descalar(Y)) * (Ȳ' - B̄'A)
-            (Ā)
-        end
-        ∂B = @thunk (A' \ _maybe_descalar(Ȳ))
-        return ∂A, ∂B
     end
     return Y, backslash_pullback
 end
@@ -455,6 +434,21 @@ function rrule(::typeof(-), x::AbstractArray)
     return -x, negation_pullback
 end
 
+#####
+##### Subtraction
+#####
+
+frule((_, Δx, Δy), ::typeof(-), x::AbstractArray, y::AbstractArray) = x - y, Δx - Δy
+
+function rrule(::typeof(-), x::AbstractArray, y::AbstractArray)
+    xproj = ProjectTo(x)
+    yproj = ProjectTo(y)
+    function subtract_pullback(dy_raw)
+        dy = unthunk(dy_raw)  # projs will otherwise unthunk twice
+        return (NoTangent(), xproj(dy), yproj(-dy))
+    end
+    return x - y, subtract_pullback
+end
 
 #####
 ##### Addition (Multiarg `+`)

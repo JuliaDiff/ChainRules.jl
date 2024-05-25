@@ -2,10 +2,37 @@
 # that also have FastMath versions.
 
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
-
-@scalar_rule one(x) zero(x)
-@scalar_rule zero(x) zero(x)
 @scalar_rule transpose(x) true
+
+# `zero`
+
+function frule((_, _), ::typeof(zero), x)
+    return (zero(x), ZeroTangent())
+end
+
+function rrule(::typeof(zero), x)
+    zero_pullback(_) = (NoTangent(), ZeroTangent())
+    return (zero(x), zero_pullback)
+end
+
+# `one`
+
+function frule((_, _), ::typeof(one), x)
+    return (one(x), ZeroTangent())
+end
+
+function rrule(::typeof(one), x)
+    one_pullback(_) = (NoTangent(), ZeroTangent())
+    return (one(x), one_pullback)
+end
+
+
+function ChainRulesCore.frule((_, ȯbj, _, ẋ), ::typeof(setfield!), obj, field, x)
+    ȯbj::MutableTangent
+    y = setfield!(obj, field, x)
+    ẏ = setproperty!(ȯbj, field, ẋ)
+    return y, ẏ
+end
 
 # `adjoint`
 
@@ -94,6 +121,7 @@ end
 
 @scalar_rule fma(x, y, z) (y, x, true)
 @scalar_rule muladd(x, y, z) (y, x, true)
+@scalar_rule muladd(x::Union{Number, ZeroTangent}, y::Union{Number, ZeroTangent}, z::Union{Number, ZeroTangent}) (y, x, true)
 @scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),

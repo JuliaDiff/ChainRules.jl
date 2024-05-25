@@ -1,14 +1,10 @@
-#####
-##### getindex(::Tuple)
-#####
-
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i::Integer)
-    return x[i], ẋ[i]
+# Int rather than Int64/Integer is intentional
+function ChainRulesCore.frule((_, Δ, _), ::typeof(getfield), strct, sym::Union{Int,Symbol})
+    return (getfield(strct, sym), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
 end
 
-function frule((_, ẋ), ::typeof(getindex), x::Tuple, i)
-    y = x[i]
-    return y, Tangent{typeof(y)}(ẋ[i]...)
+function ChainRulesCore.frule((_, Δ, _, _), ::typeof(getfield), strct, sym::Union{Int,Symbol}, inbounds)
+    return (getfield(strct, sym, inbounds), isa(Δ, NoTangent) ? NoTangent() : getproperty(Δ, sym))
 end
 
 "for a given tuple type, returns a Val{N} where N is the length of the tuple"
@@ -77,7 +73,7 @@ end
 """
     ∇getindex(x, dy, inds...)
 
-For the `rrule` of `y = x[inds...]`, this function is roughly 
+For the `rrule` of `y = x[inds...]`, this function is roughly
 `setindex(zero(x), dy, inds...)`, returning the array `dx`.
 Differentiable. Includes `ProjectTo(x)(dx)`.
 """
@@ -148,7 +144,7 @@ end
 ChainRules.@non_differentiable _setindex_zero(x::AbstractArray, dy::Any, inds::Any...)
 
 function ∇getindex!(dx::AbstractArray, dy, inds::Integer...)
-    view(dx, inds...) .+= Ref(dy)
+    @views dx[inds...] += dy
     return dx
 end
 function ∇getindex!(dx::AbstractArray, dy, inds...)
@@ -189,29 +185,6 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
     view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
     copyto!(dx, dx_cpu)
     return dx
-end
-
-#####
-##### first, tail
-#####
-
-function frule((_, ẋ), ::typeof(first), x::Tuple)
-    return first(x), first(ẋ)
-end
-
-function rrule(::typeof(first), x::T) where {T<:Tuple}
-    first_back(dy) = (NoTangent(), Tangent{T}(ntuple(j -> j == 1 ? dy : NoTangent(), _tuple_N(T))...))
-    return first(x), first_back
-end
-
-function frule((_, ẋ), ::typeof(Base.tail), x::Tuple)
-    y = Base.tail(x)
-    return y, Tangent{typeof(y)}(Base.tail(ẋ)...)
-end
-
-function rrule(::typeof(Base.tail), x::T) where {T<:Tuple}
-    tail_pullback(dy) = (NoTangent(), Tangent{T}(NoTangent(), dy...))
-    return Base.tail(x), tail_pullback
 end
 
 #####

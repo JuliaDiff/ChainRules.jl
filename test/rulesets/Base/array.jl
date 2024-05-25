@@ -35,9 +35,16 @@ end
 @testset "vect" begin
     test_rrule(Base.vect)
     @testset "homogeneous type" begin
-        test_rrule(Base.vect, (5.0, ), (4.0, ))
+        test_rrule(Base.vect, (5.0,), (4.0,))
+        test_frule(Base.vect, (5.0,), (4.0,))
         test_rrule(Base.vect, 5.0, 4.0, 3.0)
+        test_frule(Base.vect, 5.0, 4.0, 3.0)
         test_rrule(Base.vect, randn(2, 2), randn(3, 3))
+        test_frule(Base.vect, randn(2, 2), randn(3, 3))
+
+        # Nonnumber types
+        test_frule(Base.vect, (1.0, 2.0), (1.0, 2.0))
+        test_rrule(Base.vect, (1.0, 2.0), (1.0, 2.0))
     end
     @testset "inhomogeneous type" begin
         # fwd
@@ -52,7 +59,7 @@ end
     end
     @testset "_instantiate_zeros" begin
         # This is an internal function also used for `cat` etc.
-        @eval using ChainRules: _instantiate_zeros
+        _instantiate_zeros = ChainRules._instantiate_zeros
         # Check these hit the fast path, unrealistic input so that map would fail:
         @test _instantiate_zeros((true, 2 , 3.0), ()) == (1, 2, 3)
         @test _instantiate_zeros((1:2, [3, 4]), ()) == (1:2, 3:4)

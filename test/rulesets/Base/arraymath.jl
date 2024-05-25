@@ -85,30 +85,33 @@
 
     @testset "muladd: $T" for T in (Float64, ComplexF64)
         @testset "add $(typeof(z))" for z in [rand(), rand(T, 3), rand(T, 3, 3), false]
-            @testset "forward mode" begin
-                @gpu test_frule(muladd, rand(T, 3, 5), rand(T, 5, 3), z)
-            end
             @testset "matrix * matrix" begin
                 A = rand(T, 3, 3)
                 B = rand(T, 3, 3)
                 @gpu test_rrule(muladd, A, B, z)
                 @gpu test_rrule(muladd, A', B, z)
                 @gpu test_rrule(muladd, A , B', z)
+                @gpu test_frule(muladd, A, B, z)
+                @gpu test_frule(muladd, A', B, z)
+                @gpu test_frule(muladd, A , B', z)
 
                 C = rand(T, 3, 5)
                 D = rand(T, 5, 3)
                 @gpu test_rrule(muladd, C, D, z)
+                @gpu test_frule(muladd, C, D, z)
             end
             if ndims(z) <= 1
                 @testset "matrix * vector" begin
                     A, B = rand(T, 3, 3), rand(T, 3)
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A, B ⊢ rand(T, 3,1), z)
+                    test_frule(muladd, A, B, z)
                 end
                 @testset "adjoint * matrix" begin
                     At, B = rand(T, 3)', rand(T, 3, 3)
                     test_rrule(muladd, At, B, z')
                     test_rrule(muladd, At ⊢ rand(T,1,3), B, z')
+                    test_frule(muladd, At, B, z')
                 end
             end
             if ndims(z) == 0
@@ -116,6 +119,7 @@
                     A, B = rand(T, 3)', rand(T, 3)
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A ⊢ rand(T,1,3), B, z')
+                    test_frule(muladd, A, B, z)
                 end
             end
             if ndims(z) == 2 # other dims lead to e.g. muladd(ones(4), ones(1,4), 1)
@@ -123,6 +127,7 @@
                     A, B = rand(T, 3), rand(T, 3)'
                     test_rrule(muladd, A, B, z)
                     test_rrule(muladd, A, B ⊢ rand(T,1,3), z)
+                    test_frule(muladd, A, B, z)
                 end
             end
         end
@@ -211,5 +216,14 @@
         # rev
         @gpu test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
         @gpu test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
+    end
+
+    @testset "subtraction" begin
+        # fwd
+        @gpu test_frule(-, randn(2), randn(2))
+        # rev
+        @gpu test_rrule(-, randn(4, 4), randn(4, 4))
+        @gpu test_rrule(-, randn(4), randn(ComplexF64, 4))
+        @gpu test_rrule(-, randn(3), randn(3, 1))
     end
 end
