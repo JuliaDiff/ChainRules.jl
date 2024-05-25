@@ -35,7 +35,8 @@ function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:N
     function dot_pullback(Ω̄)
         ΔΩ = unthunk(Ω̄)
         dx = @thunk project_x(conj(ΔΩ) .* Ay)
-        dA = @thunk project_A(ΔΩ .* x .* adjoint(y))
+        ay = adjoint(y)
+        dA = @thunk @~(ΔΩ .* x .* ay)
         dy = @thunk project_y(ΔΩ .* (adjoint(A) * x))
         return (NoTangent(), dx, dA, dy)
     end
