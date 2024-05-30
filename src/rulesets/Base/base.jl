@@ -4,10 +4,7 @@
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
 @scalar_rule transpose(x) true
 
-# TODO: define using `Returns((NoTangent(), ZeroTangent()))` when support for Julia v1.6 is dropped
-function _pullback_for_constant(::Any)
-    return (NoTangent(), ZeroTangent())
-end
+const _pullback_for_constant = Returns((NoTangent(), ZeroTangent()))
 
 # `zero`
 
