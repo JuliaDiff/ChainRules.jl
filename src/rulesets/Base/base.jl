@@ -4,6 +4,11 @@
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
 @scalar_rule transpose(x) true
 
+# TODO: define using `Returns((NoTangent(), ZeroTangent()))` when support for Julia v1.6 is dropped
+function _pullback_for_constant(::Any)
+    (NoTangent(), ZeroTangent())
+end
+
 # `zero`
 
 function frule((_, _), ::typeof(zero), x)
@@ -11,8 +16,7 @@ function frule((_, _), ::typeof(zero), x)
 end
 
 function rrule(::typeof(zero), x)
-    zero_pullback(_) = (NoTangent(), ZeroTangent())
-    return (zero(x), zero_pullback)
+    return (zero(x), _pullback_for_constant)
 end
 
 # `one`
@@ -22,8 +26,7 @@ function frule((_, _), ::typeof(one), x)
 end
 
 function rrule(::typeof(one), x)
-    one_pullback(_) = (NoTangent(), ZeroTangent())
-    return (one(x), one_pullback)
+    return (one(x), _pullback_for_constant)
 end
 
 
