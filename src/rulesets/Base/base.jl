@@ -6,7 +6,7 @@
 
 # TODO: define using `Returns((NoTangent(), ZeroTangent()))` when support for Julia v1.6 is dropped
 function _pullback_for_constant(::Any)
-    (NoTangent(), ZeroTangent())
+    return (NoTangent(), ZeroTangent())
 end
 
 # `zero`
