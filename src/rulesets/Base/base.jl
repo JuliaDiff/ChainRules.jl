@@ -4,8 +4,6 @@
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
 @scalar_rule transpose(x) true
 
-const _pullback_for_constant = Returns((NoTangent(), ZeroTangent()))
-
 # `zero`
 
 function frule((_, _), ::typeof(zero), x)
@@ -13,7 +11,8 @@ function frule((_, _), ::typeof(zero), x)
 end
 
 function rrule(::typeof(zero), x)
-    return (zero(x), _pullback_for_constant)
+    zero_pullback = Returns((NoTangent(), ZeroTangent()))
+    return (zero(x), zero_pullback)
 end
 
 # `one`
@@ -23,7 +22,8 @@ function frule((_, _), ::typeof(one), x)
 end
 
 function rrule(::typeof(one), x)
-    return (one(x), _pullback_for_constant)
+    one_pullback = Returns((NoTangent(), ZeroTangent()))
+    return (one(x), one_pullback)
 end
 
 
