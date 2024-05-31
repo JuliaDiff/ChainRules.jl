@@ -4,6 +4,7 @@ end
 
 @testset "base.jl" begin
     @testset "zero/one" begin
+        @test last(rrule(zero, 0.1)) === last(rrule(one, 0.2f0))
         for f in [zero, one]
             for x in [1.0, 1.0im, [10.0+im 11.0-im; 12.0+2im 13.0-3im]]
                 test_frule(f, x)

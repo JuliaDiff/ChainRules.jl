@@ -11,7 +11,7 @@ function frule((_, _), ::typeof(zero), x)
 end
 
 function rrule(::typeof(zero), x)
-    zero_pullback(_) = (NoTangent(), ZeroTangent())
+    zero_pullback = Returns((NoTangent(), ZeroTangent()))
     return (zero(x), zero_pullback)
 end
 
@@ -22,7 +22,7 @@ function frule((_, _), ::typeof(one), x)
 end
 
 function rrule(::typeof(one), x)
-    one_pullback(_) = (NoTangent(), ZeroTangent())
+    one_pullback = Returns((NoTangent(), ZeroTangent()))
     return (one(x), one_pullback)
 end
 
