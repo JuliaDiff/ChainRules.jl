@@ -208,15 +208,17 @@ end
 #####
 
 function rrule(::Type{<:UpperTriangular}, A::AbstractMatrix)
+    project = ProjectTo(A)
     function UpperTriangular_pullback(ȳ)
-        return (NoTangent(), Matrix(ȳ))
+        return (NoTangent(), project(ȳ))
     end
     return UpperTriangular(A), UpperTriangular_pullback
 end
 
 function rrule(::Type{<:LowerTriangular}, A::AbstractMatrix)
+    project = ProjectTo(A)
     function LowerTriangular_pullback(ȳ)
-        return (NoTangent(), Matrix(ȳ))
+        return (NoTangent(), project(ȳ))
     end
     return LowerTriangular(A), LowerTriangular_pullback
 end
