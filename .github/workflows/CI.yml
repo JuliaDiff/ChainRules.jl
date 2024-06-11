@@ -20,6 +20,9 @@ jobs:
         arch:
           - x86
           - x64
+        exclude:
+          - version: "1.6"
+            arch: x86
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
