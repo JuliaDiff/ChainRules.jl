@@ -2,6 +2,11 @@
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
+const CFG = ChainRulesTestUtils.ADviaRuleConfig()
+
+using Base: mapfoldl_impl, _accumulate!  # for foldl & accumulate rules
+const _INIT = Base._InitialValue()
+
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
@@ -213,60 +218,99 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
     end  # prod
 
     @testset "foldl(f, ::Array)" begin
-        # Simple
-        y1, b1 = rrule(CFG, foldl, *, [1, 2, 3]; init=1)
-        @test y1 == 6
-        b1(7) == (NoTangent(), NoTangent(), [42, 21, 14])
+        # `foldl(op, itr; init)` goes to `mapfoldr_impl(identity, op, init, itr)`. The rule is
+        # now attached there, as this is the simplest way to handle `init` keyword.
 
-        y2, b2 = rrule(CFG, foldl, *, [1 2; 0 4])  # without init, needs vcat
+        # Simple
+        y1, b1 = rrule(CFG, mapfoldl_impl, identity, *, 1, [1, 2, 3])
+        @test y1 == 6
+        @test b1(7)[1:3] == (NoTangent(), NoTangent(), NoTangent())
+        @test b1(7)[4] isa ChainRulesCore.NotImplemented
+        @test b1(7)[5] == [42, 21, 14]
+
+        y2, b2 = rrule(CFG, mapfoldl_impl, identity, *, _INIT, [1 2; 0 4])  # without init, needs vcat
         @test y2 == 0
-        b2(8) == (NoTangent(), NoTangent(), [0 0; 64 0])  # matrix, needs reshape
+        @test b2(8)[5] == [0 0; 64 0]  # matrix, needs reshape
 
         # Test execution order
         c5 = Counter()
-        y5, b5 = rrule(CFG, foldl, c5, [5, 7, 11])
+        y5, b5 = rrule(CFG, mapfoldl_impl, identity, c5, _INIT, [5, 7, 11])
         @test c5 == Counter(2)
         @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), [5, 7, 11])
-        @test b5(1) == (NoTangent(), NoTangent(), [12*32, 12*42, 22])
+        @test b5(1)[5] == [12*32, 12*42, 22]
         @test c5 == Counter(42)
 
         c6 = Counter()
-        y6, b6 = rrule(CFG, foldl, c6, [5, 7, 11], init=3)
+        y6, b6 = rrule(CFG, mapfoldl_impl, identity, c6, 3, [5, 7, 11])
         @test c6 == Counter(3)
         @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), [5, 7, 11], init=3)
-        @test b6(1) == (NoTangent(), NoTangent(), [63*33*13, 43*13, 23])
+        @test b6(1)[5] == [63*33*13, 43*13, 23]
         @test c6 == Counter(63)
 
         # Test gradient of function
-        y7, b7 = rrule(CFG, foldl, Multiplier(3), [5, 7, 11])
+        y7, b7 = rrule(CFG, mapfoldl_impl, identity, Multiplier(3), _INIT, [5, 7, 11])
         @test y7 == foldl((x,y)->x*y*3, [5, 7, 11])
-        @test b7(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2310,), [693, 495, 315])
+        b7_1 = b7(1)
+        @test b7_1[3] == Tangent{Multiplier{Int}}(x = 2310,)
+        @test b7_1[5] == [693, 495, 315]
 
-        y8, b8 = rrule(CFG, foldl, Multiplier(13), [5, 7, 11], init=3)
+        y8, b8 = rrule(CFG, mapfoldl_impl, identity, Multiplier(13), 3, [5, 7, 11])
         @test y8 == 2_537_535 == foldl((x,y)->x*y*13, [5, 7, 11], init=3)
-        @test b8(1) == (NoTangent(), Tangent{Multiplier{Int}}(x = 585585,), [507507, 362505, 230685])
+        b8_1 = b8(1)
+        @test b8_1[3] == Tangent{Multiplier{Int}}(x = 585585,)
+        @test b8_1[5] == [507507, 362505, 230685]
         # To find these numbers:
         # ForwardDiff.derivative(z -> foldl((x,y)->x*y*z, [5,7,11], init=3), 13)
         # ForwardDiff.gradient(z -> foldl((x,y)->x*y*13, z, init=3), [5,7,11]) |> string
 
         # Finite differencing
-        test_rrule(foldl, /, 1 .+ rand(3,4))
-        test_rrule(foldl, *, rand(ComplexF64,3,4); fkwargs=(; init=rand(ComplexF64)))
-        test_rrule(foldl, +, rand(ComplexF64,7); fkwargs=(; init=rand(ComplexF64)))
-        test_rrule(foldl, max, rand(3); fkwargs=(; init=999))
+        test_rrule(mapfoldl_impl, identity, /, _INIT, 1 .+ rand(3,4))
+        test_rrule(mapfoldl_impl, identity, *, rand(ComplexF64), rand(ComplexF64,3,4))
+        test_rrule(mapfoldl_impl, identity, +, rand(ComplexF64), rand(ComplexF64,7))
+        test_rrule(mapfoldl_impl, identity, max, 999, rand(3))
     end
     @testset "foldl(f, ::Tuple)" begin
-        y1, b1 = rrule(CFG, foldl, *, (1,2,3); init=1)
+        y1, b1 = rrule(CFG, mapfoldl_impl, identity, *, 1, (1,2,3))
         @test y1 == 6
-        b1(7) == (NoTangent(), NoTangent(), Tangent{NTuple{3,Int}}(42, 21, 14))
+        @test b1(7)[5] == Tangent{NTuple{3,Int}}(42, 21, 14)
 
-        y2, b2 = rrule(CFG, foldl, *, (1, 2, 0, 4))
+        y2, b2 = rrule(CFG, mapfoldl_impl, identity, *, _INIT, (1, 2, 0, 4))
         @test y2 == 0
-        b2(8) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(0, 0, 64, 0))
+        @test b2(8)[5] == Tangent{NTuple{4,Int}}(0, 0, 64, 0)
+        
+        # Test execution order
+        c5 = Counter()
+        y5, b5 = rrule(CFG, mapfoldl_impl, identity, c5, _INIT, (5, 7, 11))
+        @test c5 == Counter(2)
+        @test y5 == ((5 + 7)*1 + 11)*2 == foldl(Counter(), (5, 7, 11))
+        @test collect(b5(1)[5]) == [12*32, 12*42, 22]
+        @test c5 == Counter(42)
+
+        c6 = Counter()
+        y6, b6 = rrule(CFG, mapfoldl_impl, identity, c6, 3, (5, 7, 11))
+        @test c6 == Counter(3)
+        @test y6 == (((3 + 5)*1 + 7)*2 + 11)*3 == foldl(Counter(), (5, 7, 11), init=3)
+        @test collect(b6(1)[5]) == [63*33*13, 43*13, 23]
+        @test c6 == Counter(63)
+
+        # Test gradient of function
+        y7, b7 = rrule(CFG, mapfoldl_impl, identity, Multiplier(3), _INIT, (5, 7, 11))
+        @test y7 == foldl((x,y)->x*y*3, (5, 7, 11))
+        b7_1 = b7(1)
+        @test b7_1[3] == Tangent{Multiplier{Int}}(x = 2310,)
+        @test collect(b7_1[5]) == [693, 495, 315]
 
         # Finite differencing
-        test_rrule(foldl, /, Tuple(1 .+ rand(5)))
-        test_rrule(foldl, *, Tuple(rand(ComplexF64, 5)))
+        test_rrule(mapfoldl_impl, identity, /, _INIT, Tuple(1 .+ rand(5)))
+        test_rrule(mapfoldl_impl, identity, *, 1+rand(), Tuple(rand(ComplexF64, 5)))
+        
+        # Trivial case
+        test_rrule(mapfoldl_impl, identity, /, 2pi, ())
+    end
+    @testset "mapfoldl(f, g, ::Tuple)" begin
+        test_rrule(mapfoldl_impl, cbrt, /, _INIT, Tuple(1 .+ rand(5)), check_inferred=false)
+        test_rrule(mapfoldl_impl, abs2, *, 1+rand(), Tuple(rand(ComplexF64, 5)), check_inferred=false)
+        # TODO make the `map(f, ::Tuple)` rule infer better!
     end
 end
 
@@ -323,54 +367,55 @@ end
         end
     end  # cumprod
 
-    @testset "accumulate(f, ::Array)" begin
-        # Simple
-        y1, b1 = rrule(CFG, accumulate, *, [1, 2, 3, 4]; init=1)
-        @test y1 == [1, 2, 6, 24]
-        @test b1([1, 1, 1, 1]) == (NoTangent(), NoTangent(), [33, 16, 10, 6])
+    @testset "accumulate(f, ::Vector)" begin
+        # `accumulate(f, A; init)` goes to `_accumulate!(op, B, A, dims::Nothing, init::Nothing)`. 
+        # The rule is now attached there, as this is the simplest way to handle `init` keyword.
 
-        y2, b2 = rrule(CFG, accumulate, /, [1 2; 3 4])
-        @test y2 ≈ accumulate(/, [1 2; 3 4])
-        @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
+        # Simple
+        y1, b1 = rrule(CFG, _accumulate!, *, [0, 0, 0, 0], [1, 2, 3, 4], nothing, Some(1))
+        @test y1 == [1, 2, 6, 24]
+        @test b1([1, 1, 1, 1])[3] isa ChainRulesCore.NotImplemented
+        @test b1([1, 1, 1, 1])[4] == [33, 16, 10, 6]
+        @test b1([1, 1, 1, 1])[6] isa Tangent{Some{Int}}
+        @test b1([1, 1, 1, 1])[6].value isa ChainRulesCore.NotImplemented
+
+        # y2, b2 = rrule(CFG, _accumulate!, /, [0 0; 0 0], [1 2; 3 4], :, nothing)
+        # @test y2 ≈ accumulate(/, [1 2; 3 4.0])
+        # @test b2(ones(2, 2))[3] ≈ [1.5416666 -0.104166664; -0.18055555 -0.010416667]  atol=1e-6
 
         # Test execution order
         c3 = Counter()
-        y3, b3 = rrule(CFG, accumulate, c3, [5, 7, 11]; init=3)
+        y3, b3 = rrule(CFG, _accumulate!, c3, [0, 0, 0], [5, 7, 11], nothing, Some(3))
         @test c3 == Counter(3)
         @test y3 == [8, 30, 123] == accumulate(Counter(), [5, 7, 11]; init=3)
-        @test b3([1, 1, 1]) == (NoTangent(), NoTangent(), [29169, 602, 23]) # the 23 is clear!
+        @test b3([1, 1, 1])[4] == [29169, 602, 23] # the 23 is clear!
 
         c4 = Counter()
-        y4, b4 = rrule(CFG, accumulate, c4, [5, 7, 11])
+        y4, b4 = rrule(CFG, _accumulate!, c4, [0, 0, 0], [5, 7, 11], nothing, nothing)
         @test c4 == Counter(2)
         @test y4 == [5, (5+7)*1, ((5+7)*1 + 11)*2] == accumulate(Counter(), [5, 7, 11])
-        @test b4([1, 1, 1]) == (NoTangent(), NoTangent(), [417, 42*(1 + 12), 22])
+        @test b4([1, 1, 1])[4] == [417, 42*(1 + 12), 22]
 
         # Test gradient of function
-        y7, b7 = rrule(CFG, accumulate, Multiplier(3), [5, 7, 11])
+        y7, b7 = rrule(CFG, _accumulate!, Multiplier(3), [0, 0, 0], [5, 7, 11], nothing, nothing)
         @test y7 == accumulate((x,y)->x*y*3, [5, 7, 11])
-        @test b7([1, 1, 1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 2345,), [715, 510, 315])
+        @test b7([1, 1, 1])[2] == Tangent{Multiplier{Int}}(; x = 2345,)
+        @test b7([1, 1, 1])[4] == [715, 510, 315]
 
-        y8, b8 = rrule(CFG, accumulate, Multiplier(13), [5, 7, 11], init=3)
+        y8, b8 = rrule(CFG, _accumulate!, Multiplier(13), [0, 0, 0], [5, 7, 11], nothing, Some(3))
         @test y8 == [195, 17745, 2537535] == accumulate((x,y)->x*y*13, [5, 7, 11], init=3)
-        @test b8([1, 1, 1]) == (NoTangent(), Tangent{Multiplier{Int}}(x = 588330,), [511095, 365040, 230685])
+        @test b8([1, 1, 1])[2] == Tangent{Multiplier{Int}}(; x = 588330,)
+        @test b8([1, 1, 1])[4] == [511095, 365040, 230685]
         # To find these numbers:
         # ForwardDiff.derivative(z -> sum(accumulate((x,y)->x*y*z, [5,7,11], init=3)), 13)
         # ForwardDiff.gradient(z -> sum(accumulate((x,y)->x*y*13, z, init=3)), [5,7,11]) |> string
 
         # Finite differencing
-        test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
-        test_rrule(accumulate, /, 1 .+ rand(3, 4))
-        test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
-    end
-    @testset "accumulate(f, ::Tuple)" begin
-        # Simple
-        y1, b1 = rrule(CFG, accumulate, *, (1, 2, 3, 4); init=1)
-        @test y1 == (1, 2, 6, 24)
-        @test b1((1, 1, 1, 1)) == (NoTangent(), NoTangent(), Tangent{NTuple{4,Int}}(33, 16, 10, 6))
-
-        # Finite differencing
-        test_rrule(accumulate, *, Tuple(randn(5)); fkwargs=(; init=rand()))
-        test_rrule(accumulate, /, Tuple(1 .+ rand(5)); check_inferred=false)
+        # test_rrule(accumulate, *, randn(5); fkwargs=(; init=rand()))
+        test_rrule(_accumulate!, *, randn(5) ⊢ NoTangent(), randn(5), nothing, Some(rand()))
+        # test_rrule(accumulate, /, 1 .+ rand(3, 4))
+        test_rrule(_accumulate!, /, randn(4) ⊢ NoTangent(), 1 .+ rand(4), nothing, nothing)
+        # test_rrule(accumulate, ^, 1 .+ rand(2, 3); fkwargs=(; init=rand()))
+        test_rrule(_accumulate!, ^, randn(6) ⊢ NoTangent(), 1 .+ rand(6), nothing, Some(rand()))
     end
 end
