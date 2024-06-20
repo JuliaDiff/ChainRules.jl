@@ -180,7 +180,12 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds::Union{Integer, AbstractUni
     view(dx, inds...) .+= dy
     return dx
 end
+
 function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
+    # TODO we want this
+    # @atomic dx[inds...] .+= dy
+    # return dx
+
     dx_cpu = adapt(Array, dx)
     view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
     copyto!(dx, dx_cpu)
