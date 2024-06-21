@@ -32,8 +32,8 @@ end
 @generated function _scatter!(i, op, dest, src, idims, Is::Vararg{Any, N}) where N
     quote
         is = @inbounds CartesianIndices(idims)[i]
-        Base.Cartesian.@nexprs $N j -> I_j = @inbounds((Is[j])[is[j]])
         dv = src[i]
+        Base.Cartesian.@nexprs $N j -> I_j = @inbounds((Is[j])[is[j]])
         Base.Cartesian.@ncall $N _accum! op dest dv j -> I_j
     end
 end
