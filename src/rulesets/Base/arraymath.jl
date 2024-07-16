@@ -458,10 +458,10 @@ frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
 
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
-    arr_axs = map(axes, arrs)
+    projs = map(ProjectTo, arrs)
     function add_pullback(dy_raw)
-        dy = unthunk(dy_raw)  # reshape will otherwise unthunk N times
-        return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
+        dy = unthunk(dy_raw)  # projs will otherwise unthunk N times
+        return (NoTangent(), map(proj -> proj(dy), projs)...)
     end
     return y, add_pullback
 end
