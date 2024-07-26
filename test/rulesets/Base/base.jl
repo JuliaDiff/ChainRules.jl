@@ -200,7 +200,7 @@ end
         test_frule(clamp, 4., 2., 3.)
         test_rrule(clamp, 4., 2., 3.)
 
-        # max < min
+        # high < low
         test_frule(clamp, 3., 4., 2.)
         test_rrule(clamp, 3., 4., 2.)
     end
