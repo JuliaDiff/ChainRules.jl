@@ -87,6 +87,7 @@
 
 @non_differentiable Array(::AbstractArray{Bool})
 @non_differentiable BitArray(::Any...)
+@non_differentiable BitVector(::Any...)
 @non_differentiable IndexStyle(::AbstractArray{Bool})
 
 #####
