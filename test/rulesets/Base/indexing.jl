@@ -226,10 +226,10 @@ end
     if VERSION >= v"1.7"
         # On 1.6, ComposedFunction doesn't take keywords. Only affects this testing strategy, not real use.
         test_rrule(
-            collect ∘ eachslice, rand(3, 4, 5); check_inferred=false, fkwargs = (; dims = 3)
+            collect ∘ eachslice, rand(3, 4, 5); check_inferred=false, fkwargs=(; dims=3)
         )
         test_rrule(
-            collect ∘ eachslice, rand(3, 4, 5); check_inferred=false, fkwargs = (; dims = (2,))
+            collect ∘ eachslice, rand(3, 4, 5); check_inferred=false, fkwargs=(; dims=(2,))
         )
 
         test_rrule(
