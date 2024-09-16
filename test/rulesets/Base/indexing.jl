@@ -242,7 +242,9 @@ end
     @test back([1:3, ZeroTangent(), 7:9, NoTangent()])[2] isa Matrix{Float64}
     @test back([ZeroTangent(), ZeroTangent(), NoTangent(), NoTangent()]) == (NoTangent(), [0 0 0 0; 0 0 0 0; 0 0 0 0])
 
-    _, back = ChainRules.rrule(eachslice, FooTwoField.(rand(2, 3, 2), rand(2, 3, 2)); dims = 3)
+    _, back = ChainRules.rrule(
+        eachslice, FooTwoField.(rand(2, 3, 2), rand(2, 3, 2)); dims = 3
+    )
     @test back([fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3), fill(ZeroTangent(), 2, 3)]) == (
         NoTangent(), [fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3);;; fill(ZeroTangent(), 2, 3)]
     )
