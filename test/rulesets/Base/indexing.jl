@@ -231,8 +231,8 @@ end
         test_rrule(
             collect∘eachslice,
             FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
-            check_inferred = false,
-            fkwargs = (; dims = 3)
+            check_inferred=false,
+            fkwargs=(; dims=3)
         )
     end
 
