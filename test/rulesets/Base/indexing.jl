@@ -228,7 +228,12 @@ end
         test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3))
         test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)))
 
-        test_rrule(collect∘eachslice, FooTwoField.(rand(3, 4, 5), rand(3, 4, 5)); check_inferred = false, fkwargs = (; dims = 3))
+        test_rrule(
+            collect∘eachslice,
+            FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
+            check_inferred = false,
+            fkwargs = (; dims = 3)
+        )
     end
 
     # Make sure pulling back an array that mixes some AbstractZeros in works right
