@@ -225,12 +225,8 @@ end
 
     if VERSION >= v"1.7"
         # On 1.6, ComposedFunction doesn't take keywords. Only affects this testing strategy, not real use.
-        test_rrule(
-            collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=3)
-        )
-        test_rrule(
-            collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=(2,))
-        )
+        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=3))
+        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=(2,)))
 
         test_rrule(
             collect ∘ eachslice,
@@ -250,7 +246,8 @@ end
         eachslice, FooTwoField.(rand(2, 3, 2), rand(2, 3, 2)); dims=3
     )
     @test back([fill(Tangent{Any}(; x=0.0, y=1.0), 2, 3), fill(ZeroTangent(), 2, 3)]) == (
-        NoTangent(), cat(fill(Tangent{Any}(; x=0.0, y=1.0), 2, 3), fill(ZeroTangent(), 2, 3), dims = 3)
+        NoTangent(),
+        cat(fill(Tangent{Any}(; x=0.0, y=1.0), 2, 3), fill(ZeroTangent(), 2, 3); dims=3)
     )
 
     # Second derivative rule
