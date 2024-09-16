@@ -229,10 +229,10 @@ end
         test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)))
 
         test_rrule(
-            collect∘eachslice,
+            collect ∘ eachslice,
             FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
             check_inferred=false,
-            fkwargs=(; dims=3)
+            fkwargs=(; dims=3),
         )
     end
 
@@ -243,8 +243,9 @@ end
     @test back([ZeroTangent(), ZeroTangent(), NoTangent(), NoTangent()]) == (NoTangent(), [0 0 0 0; 0 0 0 0; 0 0 0 0])
 
     _, back = ChainRules.rrule(eachslice, FooTwoField.(rand(2, 3, 2), rand(2, 3, 2)); dims = 3)
-    @test back([fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3), fill(ZeroTangent(), 2, 3)]) ==
-        (NoTangent(), [fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3);;; fill(ZeroTangent(), 2, 3)])
+    @test back([fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3), fill(ZeroTangent(), 2, 3)]) == (
+        NoTangent(), [fill(Tangent{Any}(; x = 0.0, y = 1.0), 2, 3);;; fill(ZeroTangent(), 2, 3)]
+    )
 
     # Second derivative rule
     test_rrule(ChainRules.∇eachslice, [rand(4) for _ in 1:3], rand(3, 4), Val(1))
