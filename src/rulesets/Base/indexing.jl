@@ -267,7 +267,7 @@ function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
     if i1 === nothing  # all slices are Zero!
         return _zero_fill!(similar(x, float(eltype(x)), axes(x)))
     end
-    T = promote_type(eltype(dys[i1]), eltype(x))
+    T = promote_type(eltype.(dys)...)
     # The whole point of this gradient is that we can allocate one `dx` array:
     dx = similar(x, T, axes(x))
     for i in axes(x, dim)
@@ -282,8 +282,7 @@ function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
 end
 ∇eachslice(dys::AbstractZero, x::AbstractArray, vd::Val{dim}) where {dim} = dys
 
-_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
-_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+_zero_fill!(dx::AbstractArray) = fill!(dx, zero(eltype(dx)))
 
 function rrule(::typeof(∇eachslice), dys, x, vd::Val)
     function ∇∇eachslice(dz_raw)
