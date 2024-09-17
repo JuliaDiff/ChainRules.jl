@@ -217,10 +217,11 @@ end
     #   DimensionMismatch("second dimension of A, 6, does not match length of x, 5")
     # Probably similar to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/234 (about Broadcasted not Generator)
 
-    test_rrule(collect ∘ eachrow, rand(5))
-    test_rrule(collect ∘ eachrow, rand(3, 4))
+    # Inference on 1.6 sometimes fails, so don't enforce there.
+    test_rrule(collect ∘ eachrow, rand(5); check_inferred=(VERSION >= v"1.7"))
+    test_rrule(collect ∘ eachrow, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
 
-    test_rrule(collect ∘ eachcol, rand(3, 4))
+    test_rrule(collect ∘ eachcol, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
     @test_skip test_rrule(collect ∘ eachcol, Diagonal(rand(5)))  # works locally!
 
     if VERSION >= v"1.7"
@@ -253,5 +254,5 @@ end
     # Second derivative rule
     test_rrule(ChainRules.∇eachslice, [rand(4) for _ in 1:3], rand(3, 4), Val(1))
     test_rrule(ChainRules.∇eachslice, [rand(3) for _ in 1:4], rand(3, 4), Val(2))
-    test_rrule(ChainRules.∇eachslice, [rand(2, 3) for _ in 1:4], rand(2, 3, 4), Val(3), check_inferred=false)
+    test_rrule(ChainRules.∇eachslice, [rand(2, 3) for _ in 1:4], rand(2, 3, 4), Val(3); check_inferred=(VERSION >= v"1.7"))
 end
