@@ -284,11 +284,6 @@ end
 
 _zero_fill!(dx::AbstractArray) = fill!(dx, zero(eltype(dx)))
 
-# Belong in ChainRulesCore
-Base.promote_rule(T::Type{<:Number}, S::Type{<:AbstractZero}) = T
-Base.promote_rule(T::Type{<:AbstractZero}, S::Type{<:Number}) = S
-Base.eltype(::Type{NoTangent}) = NoTangent
-
 function rrule(::typeof(∇eachslice), dys, x, vd::Val)
     function ∇∇eachslice(dz_raw)
         dz = unthunk(dz_raw)
