@@ -217,16 +217,24 @@ end
     #   DimensionMismatch("second dimension of A, 6, does not match length of x, 5")
     # Probably similar to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/234 (about Broadcasted not Generator)
 
-    test_rrule(collect∘eachrow, rand(5))
-    test_rrule(collect∘eachrow, rand(3, 4))
+    # Inference on 1.6 sometimes fails, so don't enforce there.
+    test_rrule(collect ∘ eachrow, rand(5); check_inferred=(VERSION >= v"1.7"))
+    test_rrule(collect ∘ eachrow, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
 
-    test_rrule(collect∘eachcol, rand(3, 4))
-    @test_skip test_rrule(collect∘eachcol, Diagonal(rand(5)))  # works locally!
+    test_rrule(collect ∘ eachcol, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
+    @test_skip test_rrule(collect ∘ eachcol, Diagonal(rand(5)))  # works locally!
 
     if VERSION >= v"1.7"
         # On 1.6, ComposedFunction doesn't take keywords. Only affects this testing strategy, not real use.
-        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = 3))
-        test_rrule(collect∘eachslice, rand(3, 4, 5); fkwargs = (; dims = (2,)))
+        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=3))
+        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=(2,)))
+
+        test_rrule(
+            collect ∘ eachslice,
+            FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
+            check_inferred=false,
+            fkwargs=(; dims=3),
+        )
     end
 
     # Make sure pulling back an array that mixes some AbstractZeros in works right
@@ -235,8 +243,22 @@ end
     @test back([1:3, ZeroTangent(), 7:9, NoTangent()])[2] isa Matrix{Float64}
     @test back([ZeroTangent(), ZeroTangent(), NoTangent(), NoTangent()]) == (NoTangent(), [0 0 0 0; 0 0 0 0; 0 0 0 0])
 
+    _, back = ChainRules.rrule(
+        eachslice, FooTwoField.(rand(2, 3, 2), rand(2, 3, 2)); dims=3
+    )
+    @test back([fill(Tangent{Any}(; x=0.0, y=1.0), 2, 3), fill(ZeroTangent(), 2, 3)]) == (
+        NoTangent(),
+        cat(fill(Tangent{Any}(; x=0.0, y=1.0), 2, 3), fill(ZeroTangent(), 2, 3); dims=3),
+    )
+
     # Second derivative rule
     test_rrule(ChainRules.∇eachslice, [rand(4) for _ in 1:3], rand(3, 4), Val(1))
     test_rrule(ChainRules.∇eachslice, [rand(3) for _ in 1:4], rand(3, 4), Val(2))
-    test_rrule(ChainRules.∇eachslice, [rand(2, 3) for _ in 1:4], rand(2, 3, 4), Val(3), check_inferred=false)
+    test_rrule(
+        ChainRules.∇eachslice,
+        [rand(2, 3) for _ in 1:4],
+        rand(2, 3, 4),
+        Val(3);
+        check_inferred=(VERSION >= v"1.7"),
+    )
 end

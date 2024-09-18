@@ -1,6 +1,6 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.70.0"
+version = "1.71.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -20,7 +20,7 @@ SuiteSparse = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
 [compat]
 Adapt = "3.4.0, 4"
-ChainRulesCore = "1.20"
+ChainRulesCore = "1.25"
 ChainRulesTestUtils = "1.5"
 Compat = "3.46, 4.2"
 Distributed = "1"
