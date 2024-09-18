@@ -254,5 +254,11 @@ end
     # Second derivative rule
     test_rrule(ChainRules.∇eachslice, [rand(4) for _ in 1:3], rand(3, 4), Val(1))
     test_rrule(ChainRules.∇eachslice, [rand(3) for _ in 1:4], rand(3, 4), Val(2))
-    test_rrule(ChainRules.∇eachslice, [rand(2, 3) for _ in 1:4], rand(2, 3, 4), Val(3); check_inferred=(VERSION >= v"1.7"))
+    test_rrule(
+        ChainRules.∇eachslice,
+        [rand(2, 3) for _ in 1:4],
+        rand(2, 3, 4),
+        Val(3);
+        check_inferred=(VERSION >= v"1.7"),
+    )
 end
