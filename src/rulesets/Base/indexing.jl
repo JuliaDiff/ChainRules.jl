@@ -168,9 +168,9 @@ function rrule(::typeof(∇getindex), x, dy, inds...)
     return z, ∇getindex_pullback
 end
 
-# Indexing with repeated indices on a GPU will lead ∇getindex to have race conditions & wrong answers.
-# To avoid this, copy everything back to the CPU.
-# But don't do that for indices which are known to be unique, e.g. `A[1, 2:3, :]` the colon gives Base.Slice:
+# NOTE:
+# Generic `∇getindex!(dx::AbstractGPUArray, dy, inds...)`
+# is implemented in `ext/` with a custom kernel.
 
 function ∇getindex!(dx::AbstractGPUArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
@@ -178,12 +178,6 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds::Integer...)
 end
 function ∇getindex!(dx::AbstractGPUArray, dy, inds::Union{Integer, AbstractUnitRange, Base.Slice}...)
     view(dx, inds...) .+= dy
-    return dx
-end
-function ∇getindex!(dx::AbstractGPUArray, dy, inds...)
-    dx_cpu = adapt(Array, dx)
-    view(dx_cpu, adapt(Array, inds)...) .+= adapt(Array, dy)
-    copyto!(dx, dx_cpu)
     return dx
 end
 
