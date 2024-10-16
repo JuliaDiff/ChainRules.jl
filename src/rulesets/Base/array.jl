@@ -220,6 +220,11 @@ end
 # All the [hv]cat functions treat anything that's not an array as a scalar. 
 _catsize(x) = ()
 _catsize(x::AbstractArray) = size(x)
+_catsize(::LinearAlgebra.UniformScaling) = error(
+    """ChainRules does not at present support *cat functions with LinearAlgebra.I
+    as it does not know how to calculate the size occupied in e.g. `[1:4 I 5:8]`.
+    Writing instead `[1:4 I(4) 5:8]` should work.
+    Issue tracking this is here: https://github.com/JuliaDiff/ChainRules.jl/issues/810""")
 
 function rrule(::typeof(hcat), Xs...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
