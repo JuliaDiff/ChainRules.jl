@@ -105,7 +105,7 @@ function rrule(::typeof(norm), x::Number, p::Real)
     function norm_pullback(ȳ)
         Δy = unthunk(ȳ)
         ∂x = if iszero(Δy) || iszero(p)
-        zero(x) * zero(real(Δy))
+            zero(x) * zero(real(Δy))
         else
             signx = x isa Real ? sign(x) : x * pinv(y)
             signx * real(Δy)
