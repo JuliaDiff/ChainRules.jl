@@ -48,7 +48,7 @@ end
 # Path 2: This is roughly what `derivatives_given_output` is designed for, should be fast.
 
 function may_bc_derivatives(::Type{T}, f::F, args::Vararg{Any,N}) where {T,F,N}
-    TΔ = Core.Compiler._return_type(derivatives_given_output, Tuple{T, F, map(_eltype, args)...})
+    TΔ = Base._return_type(derivatives_given_output, Tuple{T, F, map(_eltype, args)...})
     return isconcretetype(TΔ)
 end
 
@@ -98,7 +98,7 @@ function may_bc_forwards(cfg::C, f::F, arg) where {C,F}
     TA = _eltype(arg)
     TA <: Real || return false
     cfg isa RuleConfig{>:HasForwardsMode} && return true  # allows frule_via_ad
-    TF = Core.Compiler._return_type(frule, Tuple{C, Tuple{NoTangent, TA}, F, TA})
+    TF = Base._return_type(frule, Tuple{C, Tuple{NoTangent, TA}, F, TA})
     return isconcretetype(TF) && TF <: Tuple
 end
 
