@@ -174,7 +174,7 @@ const FASTABLE_AST = quote
         end
 
         # Tests for power functions, at values near to zero.
-        POWERGRADS = [ # (x,p) => (dx,dp)
+        POWERGRADS = Any[ # (x,p) => (dx,dp)
         # Some regular points, as sanity checks:
           (1.0, 2)   => (2.0, 0.0),
           (2.0, 2)   => (4.0, 2.772588722239781),
