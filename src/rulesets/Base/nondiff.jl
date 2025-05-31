@@ -159,6 +159,7 @@
 @non_differentiable evalfile(::AbstractString)
 @non_differentiable evalfile(::AbstractString, ::Array{String,1})
 @non_differentiable expanduser(::AbstractString)
+@non_differentiable exponent(::Any)
 
 @non_differentiable fd(::Base.Filesystem.File)
 @non_differentiable fd(::IOStream)
