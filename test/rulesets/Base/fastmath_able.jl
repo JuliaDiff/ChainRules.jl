@@ -90,6 +90,19 @@ const FASTABLE_AST = quote
         end
     end
 
+    # https://github.com/JuliaDiff/ChainRules.jl/issues/576
+    @testset "sqrt(0)" begin
+        @testset for T in (Float64, ComplexF64)
+            z = zero(T)
+            @test frule((NoTangent(), z), sqrt, z)[2] === z
+            @test frule((NoTangent(), ZeroTangent()), sqrt, z)[2] === ZeroTangent()
+            @test !isfinite(frule((NoTangent(), one(z)), sqrt, z)[2])
+            @test rrule(sqrt, z)[2](z)[2] === z
+            @test rrule(sqrt, z)[2](ZeroTangent())[2] === ZeroTangent()
+            @test !isfinite(rrule(sqrt, z)[2](one(z))[2])
+        end
+    end
+
     @testset "Unary complex functions" begin
         for f ∈ (abs, abs2, conj), z ∈ (-4.1-0.02im, 6.4, 3 + im)
             @testset "Unary complex functions f = $f, z = $z" begin
