@@ -10,6 +10,8 @@
 @non_differentiable Core.apply_type(::Any, ::Any...)
 @non_differentiable Core.typeof(::Any)
 
+@non_differentiable Core.trunc_int(::Any, ::Any)
+
 if isdefined(Core, :_typevar)
     @non_differentiable Core._typevar(::Any...)
 end
