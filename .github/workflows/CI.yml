@@ -15,6 +15,7 @@ jobs:
         version:
           - "1.6"  # LTS
           - "1"    # Latest Release
+          - "pre"  # Latest Pre-release
         os:
           - ubuntu-latest
         arch:
