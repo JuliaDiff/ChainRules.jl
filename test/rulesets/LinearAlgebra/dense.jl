@@ -159,4 +159,26 @@
             test_rrule(lyap, A, C)
         end
     end
+    VERSION ≥ v"1.9.0" && @testset "kron" begin
+        @testset "AbstractVecOrMat{$T1}, AbstractVecOrMat{$T2}" for T1 in (Float64, ComplexF64), T2 in (Float64, ComplexF64)
+            @testset "frule" begin
+                test_frule(kron, randn(T1, 2), randn(T2, 3))
+                test_frule(kron, randn(T1, 2, 3), randn(T2, 5))
+                test_frule(kron, randn(T1, 2), randn(T2, 3, 5))
+                test_frule(kron, randn(T1, 2, 3), randn(T2, 5, 7))
+            end
+            @testset "rrule" begin
+                test_rrule(kron, randn(T1, 2), randn(T2, 3))
+
+                test_rrule(kron, Diagonal(randn(T1, 2)), randn(T2, 3))
+                test_rrule(kron, randn(T1, 2, 3), randn(T2, 5))
+
+                test_rrule(kron, randn(T1, 2), randn(T2, 3, 5))
+                test_rrule(kron, randn(T1, 2), Diagonal(randn(T2, 3)))
+
+                test_rrule(kron, randn(T1, 2, 3), randn(T2, 5, 7))
+                test_rrule(kron, Diagonal(randn(T1, 2)), Diagonal(randn(T2, 3)))
+            end
+        end
+    end
 end
