@@ -263,4 +263,15 @@ end
         test_rrule(merge, (; a=1.0), (; b=2.0))
         test_rrule(merge, (; a=1.0), (; a=2.0))
     end
+
+    @testset "hypot(x, y, z, xs...)" begin
+        test_frule(hypot, 1.0, 2.0, 3.0)
+        test_rrule(hypot, 1.0, 2.0, 3.0)
+        test_frule(hypot, 1.0, 2.0, 3.0, 4.0)
+        test_rrule(hypot, 1.0, 2.0, 3.0, 4.0)
+        test_frule(hypot, 1.0+5.0im, 2.0+6.0im, 3.0+7.0im)
+        test_rrule(hypot, 1.0+5.0im, 2.0+6.0im, 3.0+7.0im)
+        test_frule(hypot, 1.0+5.0im, 2.0+6.0im, 3.0+7.0im, 4.0+8.0im)
+        test_rrule(hypot, 1.0+5.0im, 2.0+6.0im, 3.0+7.0im, 4.0+8.0im)
+    end
 end

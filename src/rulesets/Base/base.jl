@@ -119,6 +119,40 @@ function rrule(::typeof(hypot), z::Complex)
     return (Ω, hypot_pullback)
 end
 
+# Note that `hypot` with two arguments has rules in `fastmath_able.jl`
+
+function frule(
+    (_, Δx, Δy, Δz, Δxs...),
+    ::typeof(hypot),
+    x::T,
+    y::T,
+    z::T,
+    xs::Vararg{T, N}
+) where {T<:Union{Real,Complex}, N}
+    Ω = hypot(x, y, z, xs...)
+    n = ifelse(iszero(Ω), one(Ω), Ω)
+    ∂Ωxyz = realdot(x, Δx) + realdot(y, Δy) + realdot(z, Δz)
+    ∂Ωxs = sum(realdot(xi, Δxi) for (xi, Δxi) in zip(xs, Δxs); init=zero(∂Ωxyz))
+    ∂Ω = (∂Ωxyz + ∂Ωxs) / n
+    return Ω, ∂Ω
+end
+
+function rrule(
+    ::typeof(hypot),
+    x::T,
+    y::T,
+    z::T,
+    xs::Vararg{T, N}
+) where {T<:Union{Real,Complex}, N}
+    Ω = hypot(x, y, z, xs...)
+    function hypot_pullback(ΔΩ)
+        c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
+        return (NoTangent(), c * x, c * y, c * z, (c * xi for xi in xs)...)
+    end
+    return (Ω, hypot_pullback)
+end
+
+
 @scalar_rule fma(x, y, z) (y, x, true)
 @scalar_rule muladd(x, y, z) (y, x, true)
 @scalar_rule muladd(x::Union{Number, ZeroTangent}, y::Union{Number, ZeroTangent}, z::Union{Number, ZeroTangent}) (y, x, true)
