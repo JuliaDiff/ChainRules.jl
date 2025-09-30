@@ -218,7 +218,7 @@ end
         islow = x < low,
         ishigh = high < x,
     ),
-    (!(islow | ishigh), islow, ishigh),
+    (!(islow | ishigh), islow & (low < high), ishigh),
 )
 @scalar_rule x \ y (-(Ω / x), one(y) / x)
 
