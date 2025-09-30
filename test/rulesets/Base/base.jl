@@ -263,4 +263,14 @@ end
         test_rrule(merge, (; a=1.0), (; b=2.0))
         test_rrule(merge, (; a=1.0), (; a=2.0))
     end
+
+    @testset "hypot(x, y, z, xs...)" begin
+        for n in (3, 4)
+            for sig in Iterators.product(ntuple(_->(Float64, ComplexF64), n)...)
+                args = randn.(sig)
+                test_frule(hypot, args...)
+                test_rrule(hypot, args...)
+            end
+        end
+    end
 end
