@@ -249,7 +249,7 @@ function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tu
     y = map(first, hobbits)
     num_xs = Val(length(xs))
     paddings = map(x -> ntuple(Returns(NoTangent()), (length(x) - length_y)), xs)
-    @static if VERSION < v"1.10.0-alpha1"
+    @static if VERSION < v"1.10.0-DEV.1194"
         all(isempty, paddings) || @error """map(f, xs::Tuple...) does not allow mismatched lengths in Julia <1.10!
         But its `rrule` does."""
     end
