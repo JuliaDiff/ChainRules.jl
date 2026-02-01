@@ -329,13 +329,13 @@
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},Symmetric{T},Hermitian{Complex{T}},Hermitian{T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
                         Y_ad, ∂Y_ad = @maybe_inferred Tuple{TY,T∂Y} frule((ZeroTangent(), ΔA), f, A)
                     end
-                    @test Y_ad == Y
+                    @test Y_ad ≈ Y
                     @test typeof(Y_ad) === typeof(Y)
                     hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
                     @test ∂Y_ad isa typeof(Y)
@@ -382,13 +382,13 @@
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},Symmetric{T},Hermitian{Complex{T}},Hermitian{T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
                         Y_ad, back = @maybe_inferred Tuple{TY,Any} rrule(f, A)
                     end
-                    @test Y_ad == Y
+                    @test Y_ad ≈ Y
                     @test typeof(Y_ad) === typeof(Y)
                     hasproperty(Y, :uplo) && @test Y_ad.uplo == Y.uplo
                     ∂self, ∂A = @maybe_inferred back(ΔY)

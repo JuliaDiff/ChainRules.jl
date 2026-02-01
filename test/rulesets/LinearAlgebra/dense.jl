@@ -138,8 +138,14 @@
         test_rrule(logabsdet, -B)
     end
     @testset "tr" begin
-        @gpu test_frule(tr, randn(4, 4))
-        @gpu test_rrule(tr, randn(4, 4))
+        if VERSION >= v"1.12.0-DEV.0"
+            # tr uses scalar indexing in LinearAlgebra on Julia 1.12+, broken on GPU arrays
+            @gpu_broken test_frule(tr, randn(4, 4))
+            @gpu_broken test_rrule(tr, randn(4, 4))
+        else
+            @gpu test_frule(tr, randn(4, 4))
+            @gpu test_rrule(tr, randn(4, 4))
+        end
     end
     @testset "sylvester" begin
         @testset "T=$T, m=$m, n=$n" for T in (Float64, ComplexF64), m in (2, 3), n in (1, 3)

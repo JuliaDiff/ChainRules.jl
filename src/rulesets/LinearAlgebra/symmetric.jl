@@ -380,12 +380,18 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     fλ = first.(fλ_df_dλ)
     df_dλ = last.(unthunk.(fλ_df_dλ))
     fA = (U * Diagonal(fλ)) * U'
-    Y = if eltype(A) <: Real
+    Y = if eltype(A) <: Real && eltype(fλ) <: Complex
+        # Real input with complex output: always Symmetric (matches Julia's behavior)
         Symmetric(fA)
     elseif eltype(fλ) <: Complex
+        # Complex input with complex output: plain Matrix
         fA
-    else
+    elseif A isa Hermitian && (eltype(A) <: Complex || VERSION >= v"1.12.0-DEV.0")
+        # Complex Hermitian input with real output: always Hermitian (conjugate symmetry)
+        # Real Hermitian input with real output: Hermitian on Julia 1.12+, Symmetric before
         Hermitian(fA)
+    else
+        Symmetric(fA)
     end
     intermediates = (λ, U, fλ, df_dλ)
     return Y, intermediates
