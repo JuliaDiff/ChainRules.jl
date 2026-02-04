@@ -58,7 +58,9 @@ for S in [
     :UnitLowerTriangular,
 ]
     @eval withsomezeros_rewrap(::$S, x) = $S(x)
+    @eval maybe_withsomezeros_rewrap(::$S, x) = $S(x)
 end
+maybe_withsomezeros_rewrap(::AbstractArray, x) = x
 
 # Bidiagonal, Tridiagonal have more complicated storage.
 # AdjOrTransUpperOrUnitUpperTriangular would need adjoint(parent(parent()))
