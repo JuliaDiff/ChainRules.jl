@@ -164,19 +164,61 @@ let
             return (Ω, hypot_pullback)
         end
 
-        @scalar_rule x + y (true, true)
-        @scalar_rule x - y (true, -1)
-        @scalar_rule x / y (one(x) / y, -(Ω / y))
-        
-        ## many-arg +
-        function frule(Δs, ::typeof(+), x::Number, ys::Number...)
+        ###
+        ### +
+        ###
+        # Same type so must have same tangent type
+        function frule(Δs, ::typeof(+), x::T, ys::T...) where {T<:Number}
             +(x, ys...), +(Base.tail(Δs)...)
         end
         
-        function rrule(::typeof(+), x::Number, ys::Number...)
+        function rrule(::typeof(+), x::T, ys::T...) where {T<:Number}
             plus_back(dz) = (NoTangent(), dz, map(Returns(dz), ys)...)
             +(x, ys...), plus_back
-        end        
+        end
+
+        #Or Tangent type is same as primal type so op must be defined on it too
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,A,B}, ::typeof(+), x::A, y::B
+        ) where {A<:Number,B<:Number}
+            return +(x, y), +(ẋ, ẏ)
+        end
+
+        # Both cases (break ambiguity)
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,T,T}, ::typeof(+), x::T, y::T
+        ) where {T<:Number}
+            return +(x, y), +(ẋ, ẏ)
+        end
+
+        ###
+        ### - 
+        ###
+        # Same type so must have same tangent type
+        function rrule(::typeof(-), x::T, y::T) where {T<:Number}
+            minus_pullback(z̄) = NoTangent(), z̄, -(z̄)
+            return x - y, minus_pullback
+        end
+        function frule((_, ẋ, ẏ), ::typeof(-), x::T, y::T) where {T<:Number}
+            return -(x, y), -(ẋ, ẏ)
+        end
+
+        #Or Tangent type is same as primal type so op must be defined on it too
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,A,B}, ::typeof(-), x::A, y::B
+        ) where {A<:Number,B<:Number}
+            return -(x, y), -(ẋ, ẏ)
+        end
+
+        # Both cases (break ambiguity)
+        function frule(
+            (_, ẋ, ẏ)::Tuple{<:Any,T,T}, ::typeof(-), x::T, y::T
+        ) where {T<:Number}
+            return -(x, y), -(ẋ, ẏ)
+        end
+
+        @scalar_rule x / y (one(x) / y, -(Ω / y))
+
 
         ## power
         # literal_pow is in base.jl
