@@ -199,6 +199,10 @@ end
         # to right
         test_frule(clamp, 4., 2., 3.)
         test_rrule(clamp, 4., 2., 3.)
+
+        # high < low
+        test_frule(clamp, 3., 4., 2.)
+        test_rrule(clamp, 3., 4., 2.)
     end
 
     @testset "rounding" begin
