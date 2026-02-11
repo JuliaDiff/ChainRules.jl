@@ -28,7 +28,7 @@ end
 
 function rrule(cfg::RCR, ::typeof(broadcasted), ::BroadcastStyle, f::F, args::Vararg{Any,N}) where {F,N}
     T = Broadcast.combine_eltypes(f, args)
-    if T === Bool  # TODO use nondifftype here
+    if T === Bool || T === Union{}  # TODO use nondifftype here
         # 1: Trivial case: non-differentiable output, e.g. `x .> 0`
         @debug("split broadcasting trivial", f, T)
         bc_trivial_back(_) = (TRI_NO..., ntuple(Returns(ZeroTangent()), length(args))...)
