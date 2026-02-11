@@ -180,7 +180,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         @testset "broadcast over empty tuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/issues/830
             y, bk = rrule(CFG, copy∘broadcasted, BT1, isone, ())
             @test y == ()
-            @test all(d -> d isa AbstractZero, bk(()))
+            @test bk(Tangent{Tuple{}}()) == (NoTangent(), NoTangent(), NoTangent(), ZeroTangent())
 
             y2, bk2 = rrule(CFG, copy∘broadcasted, BT1, sin, ())
             @test y2 == ()
