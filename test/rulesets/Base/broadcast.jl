@@ -184,7 +184,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
             y2, bk2 = rrule(CFG, copy∘broadcasted, BT1, sin, ())
             @test y2 == ()
-            @test all(d -> d isa AbstractZero, bk2(()))
+            @test bk(Tangent{Tuple{}}()) == (NoTangent(), NoTangent(), NoTangent(), ZeroTangent())
         end
         @testset "unbroadcast with NTuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/pull/661
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
