@@ -631,3 +631,58 @@ function rrule(::typeof(/), B::AbstractMatrix{<:Union{Real,Complex}}, A::Cholesk
     end
     return Y, rdiv_AbstractMatrix_Cholesky_pullback
 end
+
+#####
+##### `eigen`
+#####
+
+# k is the number of iterations of the power iteration that is 'used' in the forward pass,
+# this determines how many iterations are differentiated.
+# I am also iffy about the implementation of rrule for eigen in general, the paper
+# ignores the adjoints of the eigenvalues and also relies on the primal input being
+# symmetric positive semidefinite
+function rrule(::typeof(eigen), X::AbstractMatrix{<:Real};k=1)
+    # The paper only computes the adjoint using the adjoint of the eigenvectors,
+    # not the eigenvalues, and uses svd in the forward pass
+    F = eigen(X)
+    function eigen_pullback(Ȳ::Composite{<:Eigen})
+        ∂X = @thunk(eigen_rev(F, Ȳ.values, Ȳ.vectors,k))
+        return (NO_FIELDS, ∂X)
+    end
+    return F, eigen_pullback
+end
+
+function rrule(::typeof(getproperty), F::T, x::Symbol) where T <: Eigen
+    function getproperty_eigen_pullback(Ȳ)
+        C = Composite{T}
+        ∂F = if x === :values
+            C(values=Ȳ,)
+        elseif x === :vectors
+            C(vectors=Ȳ,)
+        end
+        return NO_FIELDS, ∂F, DoesNotExist()
+    end
+    return getproperty(F, x), getproperty_eigen_pullback
+end
+
+function eigen_rev(ΛV::Eigen,Λ̄,V̄,k)
+
+    Λ = ΛV.values
+    V = ΛV.vectors
+    A = V*diagm(Λ)*V'
+
+    Ā = zeros(size(A))
+    tempĀ = zeros(size(A))
+    # eigen(A).values are in descending order, this current implementation
+    # assumes that the input matrix positive definite
+    for j = length(Λ):-1:1
+        tempĀ = (I-V[:,j]*V[:,j]') ./ norm(A*V[:,j])
+        for i = 1:k-1
+            tempĀ += A^i * (I-V[:,j]*V[:,j]') ./ (norm(A*V[:,j])^(i+1))
+        end
+        tempĀ *= V̄[:,j]*V[:,j]'
+        Ā += tempĀ
+        A = A - A*V[:,j]*V[:,j]'
+    end
+    return Ā
+end
