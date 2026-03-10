@@ -52,7 +52,23 @@ let
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
         @scalar_rule inv(x) -(Ω ^ 2)
-        @scalar_rule sqrt(x) inv(2Ω)  # gradient +Inf at x==0
+        # ensure that at sqrt(0), a zero (co)tangent produces a zero (co)tangent
+        function frule((_, Δx), ::typeof(sqrt), x::Number)
+            Ω = sqrt(x)
+            ∂Ω = Δx / 2Ω
+            return Ω, ifelse(iszero(Δx) & iszero(x), zero(∂Ω), ∂Ω)
+        end
+        function rrule(::typeof(sqrt), x::Number)
+            Ω = sqrt(x)
+            function sqrt_pullback(ΔΩ)
+                ∂x = ΔΩ / 2conj(Ω)
+                return (
+                    NoTangent(),
+                    ProjectTo(x)(ifelse(iszero(ΔΩ) & iszero(x), zero(∂x), ∂x))
+                )
+            end
+            return Ω, sqrt_pullback
+        end
         @scalar_rule exp(x) Ω
         @scalar_rule exp10(x) logten * Ω
         @scalar_rule exp2(x) logtwo * Ω
