@@ -394,3 +394,64 @@ function rrule(
     end
     return Ω, lyap_pullback
 end
+
+#####
+##### `kron`
+#####
+
+@static if VERSION ≥ v"1.9.0-DEV.1267"
+    function frule((_, Δx, Δy), ::typeof(kron), x::AbstractVecOrMat{<:Number}, y::AbstractVecOrMat{<:Number})
+        return kron(x, y), kron(Δx, y) + kron(x, Δy)
+    end
+
+    function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
+        project_x = ProjectTo(x)
+        project_y = ProjectTo(y)
+        function kron_pullback(z̄)
+            dz = reshape(unthunk(z̄), length(y), length(x))
+            x̄ = @thunk(project_x(conj.(dz' * y)))
+            ȳ = @thunk(project_y(dz * conj.(x)))
+            return NoTangent(), x̄, ȳ
+        end
+        return kron(x, y), kron_pullback
+    end
+
+    function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+        project_x = ProjectTo(x)
+        project_y = ProjectTo(y)
+        function kron_pullback(z̄)
+            dz = reshape(unthunk(z̄), length(y), size(x)...)
+            x̄ = @thunk(project_x(dot.(Ref(y), eachslice(dz; dims = (2, 3)))))
+            ȳ = @thunk(project_y(dot.(Ref(x), eachslice(dz; dims = 1))))
+            return NoTangent(), x̄, ȳ
+        end
+        return kron(x, y), kron_pullback
+    end
+
+    function rrule(::typeof(kron), x::AbstractVector{<:Number}, y::AbstractMatrix{<:Number})
+        project_x = ProjectTo(x)
+        project_y = ProjectTo(y)
+        function kron_pullback(z̄)
+            dz = reshape(unthunk(z̄), size(y, 1), length(x), size(y, 2))
+            x̄ = @thunk(project_x(dot.(Ref(y), eachslice(dz; dims = 2))))
+            ȳ = @thunk(project_y(dot.(Ref(x), eachslice(dz; dims = (1, 3)))))
+            return NoTangent(), x̄, ȳ
+        end
+        return kron(x, y), kron_pullback
+    end
+
+    function rrule(::typeof(kron), x::AbstractMatrix{<:Number}, y::AbstractMatrix{<:Number})
+        project_x = ProjectTo(x)
+        project_y = ProjectTo(y)
+        function kron_pullback(z̄)
+            dz = reshape(unthunk(z̄), size(y, 1), size(x, 1), size(y, 2), size(x, 2))
+            x̄ = @thunk(project_x(_dot_collect.(Ref(y), eachslice(dz; dims = (2, 4)))))
+            ȳ = @thunk(project_y(_dot_collect.(Ref(x), eachslice(dz; dims = (1, 3)))))
+            return NoTangent(), x̄, ȳ
+        end
+        return kron(x, y), kron_pullback
+    end
+
+    _dot_collect(A::AbstractMatrix, B::SubArray) = dot(A, B)
+    _dot_collect(A::Diagonal, B::SubArray) = dot(A, collect(B))
+end
