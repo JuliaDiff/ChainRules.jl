@@ -215,7 +215,9 @@
         @gpu test_frule(+, randn(2), randn(2), randn(2))
         # rev
         @gpu test_rrule(+, randn(4, 4), randn(4, 4), randn(4, 4))
-        @gpu test_rrule(+, randn(3), randn(3,1), randn(3,1,1))
+        @gpu test_rrule(+, randn(3), randn(3, 1), randn(3, 1, 1))
+        test_rrule(+, randn(3, 3), Diagonal(randn(3)), randn(3, 3, 1))
+        test_rrule(+, randn(3, 3), Diagonal(randn(3)), Symmetric(randn(3, 3)))
     end
 
     @testset "subtraction" begin
