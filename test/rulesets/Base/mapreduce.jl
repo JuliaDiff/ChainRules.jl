@@ -120,7 +120,11 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, sqrt, randn(5) .> 0) 
         test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
         # ... and Bool produced by function
+        # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/219
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
+
+        _, pb = rrule(CFG, sum, iszero, randn(5))
+        @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent(),)
 
         # Functions that return a Vector
         # see https://github.com/FluxML/Zygote.jl/issues/1074
