@@ -381,7 +381,19 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     df_dλ = last.(unthunk.(fλ_df_dλ))
     fA = (U * Diagonal(fλ)) * U'
     Y = if eltype(A) <: Real
-        Symmetric(fA)
+        if eltype(fλ) <: Complex
+            # a complex-valued function of a real Herm/Sym is always `Symmetric`
+            Symmetric(fA)
+        else
+            # Julia 1.12 made real-valued matrix functions of `Hermitian{<:Real}`
+            # return `Hermitian` (they previously returned `Symmetric`); match the
+            # type of the primal `f(A)`.
+            @static if VERSION >= v"1.12"
+                _symhermtype(A)(fA)
+            else
+                Symmetric(fA)
+            end
+        end
     elseif eltype(fλ) <: Complex
         fA
     else

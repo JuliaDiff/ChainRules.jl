@@ -328,8 +328,11 @@
                     if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
+                        # real-valued functions of `TA{<:Real}` return `TA` on Julia
+                        # 1.12+ (they previously always returned `Symmetric`)
+                        SR = @static VERSION >= v"1.12" ? TA{T} : Symmetric{T}
                         TY = T∂Y = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},SR}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
@@ -381,8 +384,11 @@
                     if is_inferable(f, A)
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
+                        # real-valued functions of `TA{<:Real}` return `TA` on Julia
+                        # 1.12+ (they previously always returned `Symmetric`)
+                        SR = @static VERSION >= v"1.12" ? TA{T} : Symmetric{T}
                         TY = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},SR}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
