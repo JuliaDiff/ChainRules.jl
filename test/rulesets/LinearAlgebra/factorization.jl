@@ -349,8 +349,13 @@ end
                         ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
                         :vectors in nzprops && rmul!(∂F_stable.vectors, C)
 
+                        # For the eigenvalues of a real matrix, the cotangent is the
+                        # general-matrix gradient (matching the unwrapped `eigen`); for
+                        # everything else it follows the symmetric-manifold convention
+                        # (FD through `Matrix(Hermitian(x))`). See #1369.
+                        wrap = (T <: Real && nzprops == [:values]) ? identity : x -> Matrix(Hermitian(x))
                         f_stable = function(x)
-                            F_ = _eigen_stable(Matrix(Hermitian(x)))
+                            F_ = _eigen_stable(wrap(x))
                             return (; (s => getproperty(F_, s) for s in nzprops)...)
                         end
 
@@ -414,7 +419,18 @@ end
                     ∂self, ∂A = @maybe_inferred back(Δλ)
                     @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
-                    @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    if T <: Real
+                        # `A` is a plain matrix that merely happens to be symmetric,
+                        # so the cotangent must be the general-matrix gradient (split
+                        # over both triangles), matching the unwrapped `eigvals`, not
+                        # the symmetric-manifold gradient projected to one triangle
+                        # (see #1369). FiniteDifferences cannot diff the unwrapped
+                        # complex `eigvals` (eigenvalues leave the reals), so the
+                        # complex case keeps the Hermitian-wrapped reference.
+                        @test ∂A ≈ j′vp(_fdm, eigvals, Δλ, A)[1]
+                    else
+                        @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    end
                     @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
                 end
             end
