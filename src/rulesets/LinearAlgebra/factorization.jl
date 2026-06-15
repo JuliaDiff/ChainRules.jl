@@ -335,8 +335,26 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
             hermA = Hermitian(A)
             ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
             ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
-            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
-            ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
+            if T <: Real && ΔV isa AbstractZero
+                # `A` is a plain matrix whose entries are all independent free
+                # variables; it merely happens to be symmetric, so the primal
+                # dispatched to the symmetric algorithm. `eigen_rev!` already returns
+                # a (Symmetric-wrapped) cotangent with the off-diagonal eigenvalue
+                # sensitivity split evenly across both triangles. Materialise that
+                # full matrix rather than projecting onto the stored triangle: the
+                # projection zeroes out the other triangle, disagreeing with
+                # ForwardDiff/finite differences and producing a gradient that is
+                # discontinuous as `A` crosses exact symmetry (see #1369).
+                #
+                # This is limited to the eigenvalues of a real matrix: the
+                # eigenvector phase convention differs between the symmetric and
+                # general algorithms, and the complex-Hermitian case is hard to pin
+                # down against finite differences, so those paths are left as-is.
+                ∂A = ∂hermA isa AbstractZero ? ∂hermA : Matrix(∂hermA)
+            else
+                ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
+                ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
+            end
         elseif ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
             ∂A = V' \ ∂K * V'
