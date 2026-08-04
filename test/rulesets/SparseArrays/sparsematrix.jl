@@ -77,6 +77,14 @@ end
     I, V = findnz(v)
     V̄ = rand!(similar(V))
     test_rrule(findnz, v ⊢ dv, output_tangent=(zeros(length(I)), V̄))
+
+    # cotangent components may be thunks
+    IA, JA, VA = findnz(A)
+    V̄A = rand!(similar(VA))
+    _, pb = rrule(findnz, A)
+    @test pb((ZeroTangent(), ZeroTangent(), @thunk(V̄A)))[2] == sparse(IA, JA, V̄A, 5, 5)
+    _, pb = rrule(findnz, v)
+    @test pb((ZeroTangent(), @thunk(V̄)))[2] == sparsevec(I, V̄, 5)
 end
 
 if Base.USE_GPL_LIBS # these rrules don't work without CHOLMOD from SuiteSparse.jl
