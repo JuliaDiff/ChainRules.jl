@@ -276,8 +276,15 @@ end
         @test_skip test_rrule(reverse, Tuple(rand(10)))  # Ambiguity in isapprox, https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
     end
     @testset "Array" begin
+        # JLArrays ≥ 0.4 implements `reverse` without scalar indexing
+        jl_has_reverse = parentmodule(reverse, Tuple{JLArray{Float32,1}}) !== Base
+
         # Forward
-        @gpu_broken test_frule(reverse, rand(5))
+        if jl_has_reverse
+            @gpu test_frule(reverse, rand(5))
+        else
+            @gpu_broken test_frule(reverse, rand(5))
+        end
         test_frule(reverse, rand(5), 2, 4)
         test_frule(reverse, rand(5), fkwargs=(dims=1,))
         test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
@@ -289,7 +296,11 @@ end
         test_frule(reverse!, rand(3,4), fkwargs=(dims=2,))
 
         # Reverse
-        @gpu_broken test_rrule(reverse, rand(5))
+        if jl_has_reverse
+            @gpu test_rrule(reverse, rand(5))
+        else
+            @gpu_broken test_rrule(reverse, rand(5))
+        end
         test_rrule(reverse, rand(5), 2, 4)
         test_rrule(reverse, rand(5), fkwargs=(dims=1,))
 
