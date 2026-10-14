@@ -381,7 +381,12 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     df_dλ = last.(unthunk.(fλ_df_dλ))
     fA = (U * Diagonal(fλ)) * U'
     Y = if eltype(A) <: Real
-        Symmetric(fA)
+        # match `f(A)`, which returns `Hermitian` since JuliaLang/julia#55951
+        @static if VERSION >= v"1.12.0-DEV.1322"
+            eltype(fλ) <: Complex ? Symmetric(fA) : _symhermtype(A)(fA)
+        else
+            Symmetric(fA)
+        end
     elseif eltype(fλ) <: Complex
         fA
     else
