@@ -1,3 +1,10 @@
+# `Adjoint(::Adjoint)` and `Transpose(::Transpose)` throw since JuliaLang/LinearAlgebra.jl#1739
+const DOUBLE_WRAP_ALLOWED = try
+    Adjoint(Adjoint([1.0])) isa Adjoint
+catch
+    false
+end
+
 @testset "Structured Matrices" begin
     @testset "/ and \\ on Square Matrixes" begin
         @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
@@ -122,14 +129,18 @@
             @test pb(ȳ_mat) == pb(ȳ_composite)
         end
 
-        @testset "$f(::Adjoint{$T, Vector{$T})" begin
-            a = randn(T, n)'
-            test_rrule(f, a; output_tangent=randn(T, n))
+        if f !== Adjoint || DOUBLE_WRAP_ALLOWED
+            @testset "$f(::Adjoint{$T, Vector{$T})" begin
+                a = randn(T, n)'
+                test_rrule(f, a; output_tangent=randn(T, n))
+            end
         end
 
-        @testset "$f(::Transpose{$T, Vector{$T})" begin
-            a = transpose(randn(T, n))
-            test_rrule(f, a; output_tangent=randn(T, n))
+        if f !== Transpose || DOUBLE_WRAP_ALLOWED
+            @testset "$f(::Transpose{$T, Vector{$T})" begin
+                a = transpose(randn(T, n))
+                test_rrule(f, a; output_tangent=randn(T, n))
+            end
         end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)

@@ -60,11 +60,11 @@ end
 
 function rrule(::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
-    inds = ntuple(d -> d == dims ? p : (:), ndims(x))
     function sortslices_pullback(dy)
+        inds = ntuple(d -> d == dims ? p : (:), ndims(x))
         return (NoTangent(), ∇getindex(x, unthunk(dy), inds...))
     end
-    return x[inds...], sortslices_pullback
+    return x[ntuple(d -> d == dims ? p : (:), ndims(x))...], sortslices_pullback
 end
 
 #####

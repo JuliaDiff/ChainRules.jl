@@ -1,3 +1,6 @@
+struct DummyWeights <: AbstractVector{Float64}  # DummyType that looks like StatsBase's Weights types
+end
+
 @testset "mean" begin
     @testset "mean(x)" begin
         @gpu test_rrule(mean, randn(9))
@@ -30,8 +33,6 @@
     end
 
     @testset "Regression Test against StatsBase-like Weighted Mean" begin
-        @eval struct DummyWeights <: AbstractVector{Float64}  # DummyType that looks like StatsBase's Weights types
-        end
         # This should return nothing as we have no rule for this. (we opted opt)
         @test nothing == rrule(ChainRulesTestUtils.TestConfig(), mean, [1.0, 2.0], DummyWeights())
     end
