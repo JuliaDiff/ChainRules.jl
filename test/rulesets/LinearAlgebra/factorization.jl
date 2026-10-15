@@ -44,6 +44,19 @@ function rand_eigen(T::Type, n::Int)
     return V * Diagonal(λ) / V
 end
 
+# m×n matrix whose LU factorization has an exactly zero last pivot: since |L[i, j]| < 1,
+# partial pivoting keeps the row order, and dyadic entries and power-of-two pivots make
+# the factorization exact
+function lu_singular_last_pivot(m, n)
+    q = min(m, n)
+    L = tril(rand(-3:3, m, q) / 4, -1)
+    L[diagind(L)] .= 1
+    U = triu(rand(-3:3, q, n))
+    U[diagind(U)] = rand((-4, -2, -1, 1, 2, 4), q)
+    U[q, q] = 0
+    return L * U
+end
+
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
         n = 10
@@ -55,14 +68,30 @@ end
 
                 test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
             end
+            @testset "zero last pivot: lu!(A, $pivot) for size(A)=($m, $n)" for
+                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_frule(lu!, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    ΔA = rand_tangent(A)
+                    _, ∂F = frule((ZeroTangent(), ΔA), lu!, A, pivot; check=false)
+                    @test all(isnan, ∂F.factors)
+                end
+            end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 ΔAsingular = rand_tangent(Asingular)
                 @test_throws SingularException frule(
                     (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), LU_ROW_MAXIMUM
                 )
-                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, LU_ROW_MAXIMUM; check=false)
-                @test true  # above line would have errored if this was not working right
+                _, ∂F = frule(
+                    (ZeroTangent(), ΔAsingular), lu!, Asingular, LU_ROW_MAXIMUM; check=false
+                )
+                @test all(isnan, ∂F.factors)  # not differentiable
             end
         end
         @testset "lu rrule" begin
@@ -73,14 +102,28 @@ end
 
                 test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
+            @testset "zero last pivot: lu(A, $pivot) for size(A)=($m, $n)" for
+                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_rrule(lu, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    F, back = rrule(lu, A, pivot; check=false)
+                    _, ∂A, _ = back(Tangent{typeof(F)}(; factors=rand_tangent(F.factors)))
+                    @test all(isnan, ∂A)
+                end
+            end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 F = lu(Asingular, LU_ROW_MAXIMUM; check=false)
-                ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
+                ΔF = Tangent{typeof(F)}(; factors=rand_tangent(F.factors))
                 @test_throws SingularException rrule(lu, Asingular, LU_ROW_MAXIMUM)
                 _, back = rrule(lu, Asingular, LU_ROW_MAXIMUM; check=false)
-                back(ΔF)
-                @test true  # above line would have errored if this was not working right
+                _, ∂A, _ = back(ΔF)
+                @test all(isnan, ∂A)  # not differentiable
             end
         end
         @testset "LU" begin
