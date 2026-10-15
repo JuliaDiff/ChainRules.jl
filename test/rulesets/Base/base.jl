@@ -226,8 +226,11 @@ end
 
     if isdefined(Threads, :_spawn_set_thrpool)
         @testset "Threads" begin
-            @test frule((NoTangent(), NoTangent(), NoTangent()), Threads._spawn_set_thrpool, Task(() -> nothing), :default) !== nothing
-            @test rrule(Threads._spawn_set_thrpool, Task(() -> nothing), :default) !== nothing
+            f = Threads._spawn_set_thrpool
+            _, ∂y = frule((NoTangent(), NoTangent(), NoTangent()), f, Task(() -> nothing), :default)
+            @test ∂y isa NoTangent
+            _, back = rrule(f, Task(() -> nothing), :default)
+            @test back(1.0) == (NoTangent(), NoTangent(), NoTangent())
         end
     end
 
