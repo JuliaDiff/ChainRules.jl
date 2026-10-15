@@ -24,13 +24,16 @@ using JuliaInterpreter
 
 union!(JuliaInterpreter.compiled_modules, Any[Base, Base.Broadcast, LinearAlgebra, Random, StaticArrays, Statistics])
 
+# JuliaInterpreter (0.12) does not support Julia 1.14 yet
+const INTERPRET_TESTSETS = VERSION < v"1.14.0-DEV"
+
 Random.seed!(1) # Set seed that all testsets should reset to.
 
 function include_test(path)
     if isempty(ARGS) || any(occursin(a, path) for a in ARGS)
         println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
         @time Base.include(@__MODULE__(), path) do ex
-            Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
+            INTERPRET_TESTSETS && Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
             return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
         end
     else
