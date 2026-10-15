@@ -68,8 +68,9 @@ end
 
                 test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
             end
-            @testset "zero last pivot: lu!(A, $pivot) for size(A)=($m, $n)" for
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+            @testset "zero last pivot: lu!(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    LU_ROW_MAXIMUM, LU_NO_PIVOT
+                ),
                 m in (7, 10, 13)
 
                 A = lu_singular_last_pivot(m, n)
@@ -102,8 +103,9 @@ end
 
                 test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
-            @testset "zero last pivot: lu(A, $pivot) for size(A)=($m, $n)" for
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+            @testset "zero last pivot: lu(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    LU_ROW_MAXIMUM, LU_NO_PIVOT
+                ),
                 m in (7, 10, 13)
 
                 A = lu_singular_last_pivot(m, n)
