@@ -33,7 +33,9 @@ function include_test(path)
     if isempty(ARGS) || any(occursin(a, path) for a in ARGS)
         println("Testing $path:")  # print so TravisCI doesn't timeout due to no output
         @time Base.include(@__MODULE__(), path) do ex
-            INTERPRET_TESTSETS && Meta.isexpr(ex, :macrocall) && ex.args[1] == Symbol("@testset") || return ex
+            INTERPRET_TESTSETS &&
+            Meta.isexpr(ex, :macrocall) &&
+            ex.args[1] == Symbol("@testset") || return ex
             return :(@interpret (() -> $ex)())  # interpret testsets using JuliaInterpreter
         end
     else
