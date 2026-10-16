@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Random, Test
+
 @testset "matrix functions" begin
     @testset "LinearAlgebra.exp!(A::Matrix) frule" begin
         n = 10

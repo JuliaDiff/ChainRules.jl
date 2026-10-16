@@ -1,13 +1,10 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "arraymath.jl" begin
     @testset "inv(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = generate_well_conditioned_matrix(T, 3)
-        if v"1.7" <= VERSION < v"1.9"
-          @gpu test_frule(inv, B)
-          @gpu test_rrule(inv, B)
-        else
-          @gpu_broken test_frule(inv, B)
-          @gpu_broken test_rrule(inv, B)
-        end
+        @gpu_broken test_frule(inv, B)
+        @gpu_broken test_rrule(inv, B)
     end
 
     @testset "*: $T" for T in (Float64, ComplexF64)
@@ -133,28 +130,29 @@
         end
     end
 
-    if VERSION > v"1.7.0-"
-        mat_mat_scalar = LinearAlgebra.mat_mat_scalar
-        mat_vec_scalar = LinearAlgebra.mat_vec_scalar
+    mat_mat_scalar = LinearAlgebra.mat_mat_scalar
+    mat_vec_scalar = LinearAlgebra.mat_vec_scalar
 
-        @testset "3-arg *, $T" for T in [Float64, ComplexF64]
+    @testset "3-arg *, $T" for T in [Float64, ComplexF64]
 
-            test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
-            test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
-            test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
+        test_rrule(mat_mat_scalar, rand(T, 4, 4), rand(T, 4, 4), rand(T))
+        test_rrule(mat_mat_scalar, rand(T, 4, 4), rand(T, 4, 4), 0.0)
+        test_rrule(mat_mat_scalar, rand(T, 4, 4)' ⊢ rand(T, 4, 4), rand(T, 4, 4), rand(T))
 
-            test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
-            test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
+        test_rrule(mat_vec_scalar, rand(T, 4, 4), rand(T, 4), rand(T))
+        test_rrule(mat_vec_scalar, rand(T, 4, 4), rand(T, 4), 0.0)
 
-            T == ComplexF64 && continue
-            # Test with γ of a wider type
-            A, B, b, γ = rand(3,3), rand(3,3), rand(3), rand()
-            dZ, dz = rand(3,3), rand(3)
-            unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
-            unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
-            unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈ unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
-        end
-    end # VERSION
+        T == ComplexF64 && continue
+        # Test with γ of a wider type
+        A, B, b, γ = rand(3, 3), rand(3, 3), rand(3), rand()
+        dZ, dz = rand(3, 3), rand(3)
+        @test unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈
+            unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
+        @test unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈
+            unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
+        @test unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈
+            unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
+    end
 
     @testset "$f" for f in (/, \)
         @testset "Matrix" begin

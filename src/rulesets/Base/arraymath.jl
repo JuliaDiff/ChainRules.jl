@@ -138,73 +138,67 @@ end
 ##### fused 3-argument *
 #####
 
-if VERSION > v"1.7.0-"
+using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
 
-    @eval using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
-
-    function rrule(
-        ::typeof(mat_mat_scalar),
-        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-        B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-        γ::CommutativeMulNumber
-    )
-        project_A = ProjectTo(A)
-        project_B = ProjectTo(B)
-        project_γ = ProjectTo(γ)
-        C = mat_mat_scalar(A, B, γ)
-        function mat_mat_scalar_back(Ȳraw)
-            Ȳ = unthunk(Ȳraw)
-            Athunk = InplaceableThunk(
-                dA -> mul!(dA, Ȳ, B', conj(γ), true),
-                @thunk(project_A(mat_mat_scalar(Ȳ, B', conj(γ)))),
-            )
-            Bthunk = InplaceableThunk(
-                dB -> mul!(dB, A', Ȳ, conj(γ), true),
-                @thunk(project_B(mat_mat_scalar(A', Ȳ, conj(γ)))),
-            )
-            γthunk = @thunk if iszero(γ)
-                # Could save A*B on the forward pass, but it's messy.
-                # This ought to be rare, should guarantee the same type:
-                project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ) / one(γ))
-            else
-                project_γ(dot(C, Ȳ) / conj(γ))
-            end
-            return (NoTangent(), Athunk, Bthunk, γthunk)
+function rrule(
+    ::typeof(mat_mat_scalar),
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber,
+)
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+    project_γ = ProjectTo(γ)
+    C = mat_mat_scalar(A, B, γ)
+    function mat_mat_scalar_back(Ȳraw)
+        Ȳ = unthunk(Ȳraw)
+        Athunk = InplaceableThunk(
+            dA -> mul!(dA, Ȳ, B', conj(γ), true),
+            @thunk(project_A(mat_mat_scalar(Ȳ, B', conj(γ)))),
+        )
+        Bthunk = InplaceableThunk(
+            dB -> mul!(dB, A', Ȳ, conj(γ), true),
+            @thunk(project_B(mat_mat_scalar(A', Ȳ, conj(γ)))),
+        )
+        γthunk = @thunk if iszero(γ)
+            # Could save A*B on the forward pass, but it's messy.
+            # This ought to be rare, should guarantee the same type:
+            project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ) / one(γ))
+        else
+            project_γ(dot(C, Ȳ) / conj(γ))
         end
-        return C, mat_mat_scalar_back
+        return (NoTangent(), Athunk, Bthunk, γthunk)
     end
+    return C, mat_mat_scalar_back
+end
 
-    function rrule(
-        ::typeof(mat_vec_scalar),
-        A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-        b::StridedVector{<:CommutativeMulNumber},
-        γ::CommutativeMulNumber
-    )
-        project_A = ProjectTo(A)
-        project_b = ProjectTo(b)
-        project_γ = ProjectTo(γ)
-        y = mat_vec_scalar(A, b, γ)
-        function mat_vec_scalar_back(dy_raw)
-            dy = unthunk(dy_raw)
-            Athunk = InplaceableThunk(
-                dA -> mul!(dA, dy, b', conj(γ), true),
-                @thunk(project_A(*(dy, b', conj(γ)))),
-            )
-            Bthunk = InplaceableThunk(
-                db -> mul!(db, A', dy, conj(γ), true),
-                @thunk(project_b(*(A', dy, conj(γ)))),
-            )
-            γthunk = @thunk if iszero(γ)
-                project_γ(dot(mat_vec_scalar(A, b, oneunit(γ)), dy))
-            else
-                project_γ(dot(y, dy) / conj(γ))
-            end
-            return (NoTangent(), Athunk, Bthunk, γthunk)
+function rrule(
+    ::typeof(mat_vec_scalar),
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    b::StridedVector{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber,
+)
+    project_A = ProjectTo(A)
+    project_b = ProjectTo(b)
+    project_γ = ProjectTo(γ)
+    y = mat_vec_scalar(A, b, γ)
+    function mat_vec_scalar_back(dy_raw)
+        dy = unthunk(dy_raw)
+        Athunk = InplaceableThunk(
+            dA -> mul!(dA, dy, b', conj(γ), true), @thunk(project_A(*(dy, b', conj(γ))))
+        )
+        Bthunk = InplaceableThunk(
+            db -> mul!(db, A', dy, conj(γ), true), @thunk(project_b(*(A', dy, conj(γ))))
+        )
+        γthunk = @thunk if iszero(γ)
+            project_γ(dot(mat_vec_scalar(A, b, oneunit(γ)), dy))
+        else
+            project_γ(dot(y, dy) / conj(γ))
         end
-        return y, mat_vec_scalar_back
+        return (NoTangent(), Athunk, Bthunk, γthunk)
     end
-
-end # VERSION
+    return y, mat_vec_scalar_back
+end
 
 #####
 ##### `muladd`
@@ -353,29 +347,23 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
         Ȳ = unthunk(ȳ)
 
         Ȳf = Ȳ
-        @static if VERSION >= v"1.9"
-            # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
-            if !isa(Ȳ, AbstractArray)
-                Ȳf = [Ȳ]
-            end
+        # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
+        if !isa(Ȳ, AbstractArray)
+            Ȳf = [Ȳ]
         end
         Yf = Y
-        @static if VERSION >= v"1.9"
-            # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
-            if !isa(Y, AbstractArray)
-                Yf = [Y]
-            end
+        # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
+        if !isa(Y, AbstractArray)
+            Yf = [Y]
         end
         #@info "vars" typeof(Ȳ) typeof(Y) typeof(Yf) typeof(A) typeof(B)
         ∂A = @thunk begin
             B̄ = A' \ Ȳf
             Ā = -B̄ * Y'
             t = (B - A * Y) * B̄'
-            @static if VERSION >= v"1.9"
-                # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
-                if !isa(t, AbstractArray)
-                    t = [t]
-                end
+            # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
+            if !isa(t, AbstractArray)
+                t = [t]
             end
             Ā = add!!(Ā, t / A')
             Ā = add!!(Ā, A' \ Yf * (Ȳ' - B̄'A))

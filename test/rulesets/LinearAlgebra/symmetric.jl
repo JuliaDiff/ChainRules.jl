@@ -1,3 +1,7 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
 @testset "Symmetric/Hermitian rules" begin
     @testset "$(SymHerm)(::AbstractMatrix{$T}, :$(uplo))" for
         SymHerm in (Symmetric, Hermitian),
@@ -8,10 +12,6 @@
             test_frule(SymHerm, rand(T, 3, 3), uplo)
         end
         @testset "rrule" begin
-            # on old versions of julia this combination doesn't infer but we don't care as
-            # it infers fine on modern versions.
-            check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
-
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
                 x = randn(T, 3, 3)
                 ΔΩ = MT(randn(T, 3, 3))
@@ -22,7 +22,7 @@
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -36,7 +36,7 @@
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
