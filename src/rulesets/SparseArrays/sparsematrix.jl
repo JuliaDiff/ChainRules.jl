@@ -69,7 +69,7 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
         end
         return Ω, logabsdet_pullback
     end
-    
+
     function rrule(::typeof(logdet), x::SparseMatrixCSC)
         Ω = logdet(x)
         function logdet_pullback(ΔΩ)

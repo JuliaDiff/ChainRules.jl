@@ -16,18 +16,21 @@ JLArrays.allowscalar(false)
 jl32(xs) = adapt(JLArray{Float32}, xs)  # this works much like `CUDA.cu`
 # This defines the behaviour of `adapt(JLArray{Float32}, xs)` on arrays.
 # This is piracy, but only while running these tests... could avoid by defining a struct.
-Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex}) = convert(JLArray{ComplexF32}, xs)
+function Adapt.adapt_storage(::Type{<:JLArray{Float32}}, xs::AbstractArray{<:Complex})
+    return convert(JLArray{ComplexF32}, xs)
+end
 Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::Float64) = Float32(x)
 Adapt.adapt_storage(::Type{<:JLArray{Float32}}, x::ComplexF64) = ComplexF32(x)
 Adapt.adapt(T::Type{<:JLArray{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
 
 f32(xs) = adapt(Array{Float32}, xs)
 # This maps things back to the CPU. Or, applied to CPU arrays, changes to Float32 to match GPU calculation.
-Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex}) = convert(Array{ComplexF32}, xs)
+function Adapt.adapt_storage(::Type{<:Array{Float32}}, xs::AbstractArray{<:Complex})
+    return convert(Array{ComplexF32}, xs)
+end
 Adapt.adapt_storage(::Type{<:Array{Float32}}, x::Float64) = Float32(x)
 Adapt.adapt_storage(::Type{<:Array{Float32}}, x::ComplexF64) = ComplexF32(x)
 Adapt.adapt(T::Type{<:Array{Float32}}, x::AbstractThunk) = adapt(T, unthunk(x))
-    
 
 """
     @gpu test_rrule(sum, rand(3))
@@ -45,14 +48,14 @@ Used directly on a rule, this compares a CPU to a GPU run, without
 checking correctness. Both runs will convert numbers to `Float32` first.
 """
 macro gpu(ex)
-    _gpu_macro(ex, false, __source__)
+    return _gpu_macro(ex, false, __source__)
 end
 macro gpu_broken(ex)
-    _gpu_macro(ex, true, __source__)
-end 
+    return _gpu_macro(ex, true, __source__)
+end
 function _gpu_macro(ex, broken::Bool, __source__)
     Meta.isexpr(ex, :call) && ex.args[1] in (:test_rrule, :test_frule, :rrule, :frule) ||
-      error("@gpu doesn't understand this input")
+        error("@gpu doesn't understand this input")
     # `@test` requires a Symbol, not a function (Julia ≥ 1.13.0-DEV.300)
     ex2 = if Meta.isexpr(ex.args[2], :parameters)
         :(_gpu_test($(ex.args[2]), $(ex.args[1]), $(ex.args[3:end]...)))
@@ -60,19 +63,19 @@ function _gpu_macro(ex, broken::Bool, __source__)
         :(_gpu_test($(ex.args[1]), $(ex.args[2:end]...)))
     end
     return if broken
-        Expr(:block, ex, Expr(:macrocall, Symbol("@test_broken"), __source__, ex2)) |> esc
+        esc(Expr(:block, ex, Expr(:macrocall, Symbol("@test_broken"), __source__, ex2)))
     else
-        Expr(:block, ex, Expr(:macrocall, Symbol("@test"), __source__, ex2)) |> esc
+        esc(Expr(:block, ex, Expr(:macrocall, Symbol("@test"), __source__, ex2)))
         # NB this @test should report a line number in your tests, not here.
     end
 end
 
-function _gpu_test(::typeof(test_rrule), xs...; fkwargs = (;), kw...)
-    _gpu_test(rrule, xs...; fkwargs...)
+function _gpu_test(::typeof(test_rrule), xs...; fkwargs=(;), kw...)
+    return _gpu_test(rrule, xs...; fkwargs...)
 end
 
-function _gpu_test(::typeof(test_frule), xs...; fkwargs = (;), kw...)
-    _gpu_test(frule, xs...; fkwargs...)
+function _gpu_test(::typeof(test_frule), xs...; fkwargs=(;), kw...)
+    return _gpu_test(frule, xs...; fkwargs...)
 end
 
 function _gpu_test(::typeof(rrule), xs...; kw...)
@@ -88,7 +91,7 @@ function _gpu_test(::typeof(rrule), xs...; kw...)
 
     agree = map(gpu_dxs, dxs) do a, b
         a isa AbstractZero && return b isa AbstractZero
-        isapprox(a, b)  # compare on CPU to avoid error from e.g. `isapprox(jl(x), jl(permutedims(x))')`
+        return isapprox(a, b)  # compare on CPU to avoid error from e.g. `isapprox(jl(x), jl(permutedims(x))')`
     end
     return all(agree)
     # NB this does not contain @test, it just returns true/false. Then it can be used with `@test_broken` without going mad.
@@ -99,15 +102,15 @@ function _gpu_test(::typeof(frule), xdots, f::Function, xs...; kw...)
     @test eltype(y[2]) ∉ (Float64, ComplexF64)
     gpu_y = frule(jl32(xdots), f, jl32(xs)...; kw...)
     ChainRulesTestUtils.test_approx(gpu_y, jl32(y))
-    true
+    return true
 end
 function _gpu_test(::typeof(frule), f::Function, xs...; kw...)
     xdots = (NoTangent(), xs...)  # a pretty crude way to generate xdots for you
-    _gpu_test(frule, xdots, f, xs...; kw...)
+    return _gpu_test(frule, xdots, f, xs...; kw...)
 end
 function _gpu_test(::typeof(frule), f::Function, g::Function, xs...; kw...)  # solves an ambiguity
     xdots = (NoTangent(), NoTangent(), xs...)
-    _gpu_test(frule, xdots, f, g, xs...; kw...)
+    return _gpu_test(frule, xdots, f, g, xs...; kw...)
 end
 
 const CFG = ChainRulesTestUtils.TestConfig()
@@ -137,15 +140,12 @@ end
 (m::Multiplier)(y, z) = (m.x * y) * z
 
 function ChainRulesCore.rrule(m::Multiplier, y)
-    Multiplier_pullback(dΩ) = (Tangent{typeof(m)}(; x = dΩ * y'), m.x' * dΩ)
+    Multiplier_pullback(dΩ) = (Tangent{typeof(m)}(; x=dΩ * y'), m.x' * dΩ)
     return m(y), Multiplier_pullback
 end
 function ChainRulesCore.rrule(m::Multiplier, y, z)
-    Multiplier_pullback_3(dΩ) = (
-        Tangent{typeof(m)}(; x = dΩ * (y * z)'),
-        m.x' * dΩ * z', 
-        (m.x * y)' * dΩ,
-    )
+    Multiplier_pullback_3(dΩ) =
+        (Tangent{typeof(m)}(; x=dΩ * (y * z)'), m.x' * dΩ * z', (m.x * y)' * dΩ)
     return m(y, z), Multiplier_pullback_3
 end
 
@@ -167,7 +167,8 @@ end
 (d::Divider)(y::Real) = (y / d.x)^2
 
 function ChainRulesCore.rrule(d::Divider, y::Real)
-    Divider_pullback(dΩ) = (Tangent{typeof(d)}(; x = -2 * dΩ * y^2 / d.x^3), 2 * dΩ * y / d.x^2)
+    Divider_pullback(dΩ) =
+        (Tangent{typeof(d)}(; x=-2 * dΩ * y^2 / d.x^3), 2 * dΩ * y / d.x^2)
     return d(y), Divider_pullback
 end
 
@@ -188,7 +189,7 @@ mutable struct Counter
     Counter(n=0) = new(n)
 end
 Base.:(==)(a::Counter, b::Counter) = (a.n == b.n)
-(c::Counter)(x) = x * (c.n += 1) 
+(c::Counter)(x) = x * (c.n += 1)
 (c::Counter)(x, y) = (x + y) * (c.n += 1)
 
 function ChainRulesCore.rrule(c::Counter, x)
@@ -202,7 +203,7 @@ function ChainRulesCore.rrule(c::Counter, x, y)
 end
 
 # NoRules - has no rules defined
-struct NoRules; end
+struct NoRules end
 
 "A function that outputs a vector from a scalar for testing"
 make_two_vec(x) = [x, x]

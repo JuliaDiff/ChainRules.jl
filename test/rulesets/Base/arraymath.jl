@@ -135,20 +135,23 @@ using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
 
     @testset "3-arg *, $T" for T in [Float64, ComplexF64]
 
-        test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), rand(T))
-        test_rrule(mat_mat_scalar, rand(T,4,4), rand(T,4,4), 0.0)
-        test_rrule(mat_mat_scalar, rand(T,4,4)' ⊢ rand(T,4,4), rand(T,4,4), rand(T))
+        test_rrule(mat_mat_scalar, rand(T, 4, 4), rand(T, 4, 4), rand(T))
+        test_rrule(mat_mat_scalar, rand(T, 4, 4), rand(T, 4, 4), 0.0)
+        test_rrule(mat_mat_scalar, rand(T, 4, 4)' ⊢ rand(T, 4, 4), rand(T, 4, 4), rand(T))
 
-        test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), rand(T))
-        test_rrule(mat_vec_scalar, rand(T,4,4), rand(T,4), 0.0)
+        test_rrule(mat_vec_scalar, rand(T, 4, 4), rand(T, 4), rand(T))
+        test_rrule(mat_vec_scalar, rand(T, 4, 4), rand(T, 4), 0.0)
 
         T == ComplexF64 && continue
         # Test with γ of a wider type
-        A, B, b, γ = rand(3,3), rand(3,3), rand(3), rand()
-        dZ, dz = rand(3,3), rand(3)
-        unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
-        unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈ unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
-        unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈ unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
+        A, B, b, γ = rand(3, 3), rand(3, 3), rand(3), rand()
+        dZ, dz = rand(3, 3), rand(3)
+        unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈
+        unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
+        unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈
+        unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
+        unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈
+        unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
     end
 
     @testset "$f" for f in (/, \)

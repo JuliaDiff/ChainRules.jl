@@ -1,4 +1,12 @@
-using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, JLArrays, LinearAlgebra, SparseArrays, StaticArrays, Test
+using ChainRules,
+    ChainRulesCore,
+    ChainRulesTestUtils,
+    FiniteDifferences,
+    JLArrays,
+    LinearAlgebra,
+    SparseArrays,
+    StaticArrays,
+    Test
 
 @testset "Array constructors" begin
     @testset "undef" begin
@@ -142,9 +150,9 @@ end
     @gpu test_rrule(repeat, rand(4, ), 2)
     @gpu test_rrule(repeat, rand(4, 5), 2)
     @gpu test_rrule(repeat, rand(4, 5), 2, 3)
-    test_rrule(repeat, rand(1,2,3), 2,3,4)
-    test_rrule(repeat, rand(0,2,3), 2,0,4)
-    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5)
+    test_rrule(repeat, rand(1, 2, 3), 2, 3, 4)
+    test_rrule(repeat, rand(0, 2, 3), 2, 0, 4)
+    test_rrule(repeat, rand(1, 1, 1, 1), 2, 3, 4, 5)
 
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
     test_rrule(repeat, rand(1,2,3), 2,3)
@@ -243,10 +251,10 @@ end
     # reverse
     @gpu test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
     @gpu test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
-    test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
-    test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
-    
-    test_rrule(cat, randn(3,2,4), randn(3,2,4); fkwargs=(dims=Val((1,2)),)) #678
+    test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1, 2],))
+    test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1, 2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
+
+    test_rrule(cat, randn(3, 2, 4), randn(3, 2, 4); fkwargs=(dims=Val((1, 2)),)) #678
 
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
     # inference on exotic array types

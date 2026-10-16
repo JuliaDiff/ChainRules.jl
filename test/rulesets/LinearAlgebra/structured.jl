@@ -1,4 +1,5 @@
-using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
 using ChainRulesTestUtils: _fdm
 
 # `Adjoint(::Adjoint)` and `Transpose(::Transpose)` throw since JuliaLang/LinearAlgebra.jl#1739

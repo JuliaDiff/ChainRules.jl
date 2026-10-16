@@ -42,7 +42,7 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             ((2,2), Matrix{<:Float64}),
         ]
         push!(non_differentiables, ((Xoshiro(123),), Float64))
-        push!(non_differentiables, ((Xoshiro(123),2,2), Matrix{<:Float64}))
+        push!(non_differentiables, ((Xoshiro(123), 2, 2), Matrix{<:Float64}))
 
         for (args, xType) in non_differentiables
             x, dΩ = frule((ZeroTangent(), randn(args...)), rand, args...)

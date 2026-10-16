@@ -15,7 +15,7 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # for derivations for wide and tall matrices, see
 # https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
 
-const CHOLESKY_NoPivot = Union{NoPivot, Val{false}}
+const CHOLESKY_NoPivot = Union{NoPivot,Val{false}}
 
 # For fixed pivots, the factors are differentiable iff all pivots are nonzero, except
 # possibly the last pivot of square or wide A. `F.info` is the index of the first zero
@@ -128,10 +128,10 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
     end
     return NoTangent(), ∂A, NoTangent()
 end
-_lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
-function rrule(
-    ::typeof(lu), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...
-)
+function _lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F)
+    return _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
+end
+function rrule(::typeof(lu), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...)
     m, n = size(A)
     F = lu(A, pivot; kwargs...)
     lu_pullback(ȳ) = _lu_pullback(ȳ, m, n, eltype(A), pivot, F)

@@ -144,7 +144,7 @@ function rrule(
     ::typeof(mat_mat_scalar),
     A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
     B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
-    γ::CommutativeMulNumber
+    γ::CommutativeMulNumber,
 )
     project_A = ProjectTo(A)
     project_B = ProjectTo(B)
@@ -176,7 +176,7 @@ function rrule(
     ::typeof(mat_vec_scalar),
     A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
     b::StridedVector{<:CommutativeMulNumber},
-    γ::CommutativeMulNumber
+    γ::CommutativeMulNumber,
 )
     project_A = ProjectTo(A)
     project_b = ProjectTo(b)
@@ -185,12 +185,10 @@ function rrule(
     function mat_vec_scalar_back(dy_raw)
         dy = unthunk(dy_raw)
         Athunk = InplaceableThunk(
-            dA -> mul!(dA, dy, b', conj(γ), true),
-            @thunk(project_A(*(dy, b', conj(γ)))),
+            dA -> mul!(dA, dy, b', conj(γ), true), @thunk(project_A(*(dy, b', conj(γ))))
         )
         Bthunk = InplaceableThunk(
-            db -> mul!(db, A', dy, conj(γ), true),
-            @thunk(project_b(*(A', dy, conj(γ)))),
+            db -> mul!(db, A', dy, conj(γ), true), @thunk(project_b(*(A', dy, conj(γ))))
         )
         γthunk = @thunk if iszero(γ)
             project_γ(dot(mat_vec_scalar(A, b, oneunit(γ)), dy))

@@ -1,4 +1,5 @@
-using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Random, Test
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Random, Test
 using ChainRulesTestUtils: _fdm
 
 # TODO: move this to FiniteDifferences
@@ -484,7 +485,9 @@ end
                 D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
                 C = cholesky(D)
                 test_rrule(
-                    cholesky, D, NoPivot();
+                    cholesky,
+                    D,
+                    NoPivot();
                     output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
                     fkwargs=(; check=false),
                 )
