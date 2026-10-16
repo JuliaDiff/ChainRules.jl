@@ -146,12 +146,12 @@ using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
         # Test with γ of a wider type
         A, B, b, γ = rand(3, 3), rand(3, 3), rand(3), rand()
         dZ, dz = rand(3, 3), rand(3)
-        unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈
-        unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
-        unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈
-        unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
-        unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈
-        unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
+        @test unthunk(rrule(mat_mat_scalar, A, B, γ + 0im)[2](dZ)[4]) ≈
+            unthunk(rrule(mat_mat_scalar, A, B, γ)[2](dZ)[4])
+        @test unthunk(rrule(mat_mat_scalar, A, B, 0 + 0im)[2](dZ)[4]) ≈
+            unthunk(rrule(mat_mat_scalar, A, B, 0)[2](dZ)[4])
+        @test unthunk(rrule(mat_vec_scalar, A, b, γ + 0im)[2](dz)[4]) ≈
+            unthunk(rrule(mat_vec_scalar, A, b, γ)[2](dz)[4])
     end
 
     @testset "$f" for f in (/, \)

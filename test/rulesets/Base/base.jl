@@ -222,8 +222,10 @@ end
     end
 
     @testset "Logging" begin
-        @test frule((NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f) !== nothing
-        @test rrule(Base.depwarn, "message", :f) !== nothing
+        @test (@test_deprecated "message" frule(
+            (NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f
+        )) !== nothing
+        @test (@test_deprecated "message" rrule(Base.depwarn, "message", :f)) !== nothing
     end
 
     if isdefined(Threads, :_spawn_set_thrpool)
