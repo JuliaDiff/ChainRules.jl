@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, Test
+
 # Add tests to the quote for functions with  FastMath variants.
 function jacobian_via_frule(f,z)
     du_dx, dv_dx = reim(frule((ZeroTangent(), 1),f,z)[2])
@@ -286,13 +288,10 @@ const FASTABLE_AST = quote
 end
 
 # Now we generate tests for fast and nonfast versions
-@eval @interpret (function()
-    @testset "fastmath_able Base functions" begin
-        $FASTABLE_AST
-    end
-    
-    
-    @testset "fastmath_able FastMath functions" begin
-        $(Base.FastMath.make_fastmath(FASTABLE_AST))
-    end
-end)()
+@eval @testset "fastmath_able Base functions" begin
+    $FASTABLE_AST
+end
+
+@eval @testset "fastmath_able FastMath functions" begin
+    $(Base.FastMath.make_fastmath(FASTABLE_AST))
+end

@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, Random, Test
+
 # Simple Distributions like object for testing purposes
 struct NormalDistribution
     μ

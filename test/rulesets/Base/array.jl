@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, JLArrays, LinearAlgebra, SparseArrays, StaticArrays, Test
+
 @testset "Array constructors" begin
     @testset "undef" begin
     # We can't use test_rrule here (as it's currently implemented) because the elements of

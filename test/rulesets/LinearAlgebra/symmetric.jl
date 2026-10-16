@@ -1,3 +1,6 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
 @testset "Symmetric/Hermitian rules" begin
     @testset "$(SymHerm)(::AbstractMatrix{$T}, :$(uplo))" for
         SymHerm in (Symmetric, Hermitian),

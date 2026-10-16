@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, StaticArrays, Test
+
 # for sum(xs, weights) (#522)
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end

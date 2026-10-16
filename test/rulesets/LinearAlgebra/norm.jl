@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "norm functions" begin
 
     # First test the un-exported functions which norm(A,p) calls

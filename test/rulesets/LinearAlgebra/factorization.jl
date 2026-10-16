@@ -1,3 +1,6 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Random, Test
+using ChainRulesTestUtils: _fdm
+
 # TODO: move this to FiniteDifferences
 function FiniteDifferences.to_vec(X::LU)
     x_vec, back = to_vec(Matrix(X.factors))

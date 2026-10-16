@@ -1,3 +1,6 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
 # `Adjoint(::Adjoint)` and `Transpose(::Transpose)` throw since JuliaLang/LinearAlgebra.jl#1739
 const DOUBLE_WRAP_ALLOWED = try
     Adjoint(Adjoint([1.0])) isa Adjoint

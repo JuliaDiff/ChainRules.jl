@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, GPUArraysCore, JLArrays, LinearAlgebra, Test
+
 struct FooTwoField
     x::Float64
     y::Float64

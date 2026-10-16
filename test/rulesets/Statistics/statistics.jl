@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Statistics, Test
+
 struct DummyWeights <: AbstractVector{Float64}  # DummyType that looks like StatsBase's Weights types
 end
 
