@@ -140,11 +140,10 @@ end
     @gpu test_rrule(repeat, rand(4, ), 2)
     @gpu test_rrule(repeat, rand(4, 5), 2)
     @gpu test_rrule(repeat, rand(4, 5), 2, 3)
-    test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
-    
-    # These need Julia 1.6
+    test_rrule(repeat, rand(1,2,3), 2,3,4)
+    test_rrule(repeat, rand(0,2,3), 2,0,4)
+    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5)
+
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
     test_rrule(repeat, rand(1,2,3), 2,3)
     test_rrule(repeat, rand(1,2,3), 2,3,4,2)
@@ -245,9 +244,7 @@ end
     test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
     test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
     
-    if VERSION ≥ v"1.8" # Val(tuple) dims support was added in v1.8
-        test_rrule(cat, randn(3,2,4), randn(3,2,4); fkwargs=(dims=Val((1,2)),)) #678
-    end
+    test_rrule(cat, randn(3,2,4), randn(3,2,4); fkwargs=(dims=Val((1,2)),)) #678
 
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
     # inference on exotic array types
@@ -456,18 +453,14 @@ end
     # multidimensional container
     ms = [rand(2,3) for _ in 1:4, _ in 1:5];
 
-    if VERSION > v"1.9-"  # this needs new eachslice, not yet in Compat
-        test_rrule(stack, ms, check_inferred=false)
-    end
+    test_rrule(stack, ms, check_inferred=false)
     test_rrule(stack, ms, fkwargs=(dims=1,), check_inferred=false)
     test_rrule(stack, ms, fkwargs=(dims=3,), check_inferred=false)
     
     # non-array inner objects
     ts = [Tuple(rand(3)) for _ in 1:4, _ in 1:2];
 
-    if VERSION > v"1.9-"  
-        test_rrule(stack, ts, check_inferred=false)
-    end
+    test_rrule(stack, ts, check_inferred=false)
     test_rrule(stack, ts, fkwargs=(dims=1,), check_inferred=false)
     test_rrule(stack, ts, fkwargs=(dims=2,), check_inferred=false)
 end

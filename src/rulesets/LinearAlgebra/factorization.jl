@@ -15,26 +15,23 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # for derivations for wide and tall matrices, see
 # https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
 
-const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
-const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
-
-const CHOLESKY_NoPivot = VERSION >= v"1.8.0-rc1" ? Union{NoPivot, Val{false}} : Val{false}
+const CHOLESKY_NoPivot = Union{NoPivot, Val{false}}
 
 # For fixed pivots, the factors are differentiable iff all pivots are nonzero, except
 # possibly the last pivot of square or wide A. `F.info` is the index of the first zero
 # pivot, negated for unpivoted factorizations since JuliaLang/julia#52957
 function _lu_isdifferentiable(F::LU, pivot)
     m, n = size(F.factors)
-    info = pivot isa LU_NoPivot && VERSION >= v"1.11.0-DEV.1535" ? -F.info : F.info
+    info = pivot isa NoPivot && VERSION >= v"1.11.0-DEV.1535" ? -F.info : F.info
     return iszero(info) || (m <= n && info == m)
 end
 
 function frule(
-    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
+    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...
 )
     ΔA = unthunk(Ȧ)
     F = lu!(A, pivot; kwargs...)
-    ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
+    ∂factors = pivot isa RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
     q = min(m, n)
     if !_lu_isdifferentiable(F, pivot)
@@ -126,14 +123,14 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
         ldiv!(L1', ∂A1)
         rdiv!(∂A, U')
     end
-    if pivot isa LU_RowMaximum
+    if pivot isa RowMaximum
         ∂A = ∂A[invperm(F.p), :]
     end
     return NoTangent(), ∂A, NoTangent()
 end
 _lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
 function rrule(
-    ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
+    ::typeof(lu), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...
 )
     m, n = size(A)
     F = lu(A, pivot; kwargs...)

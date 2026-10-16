@@ -217,25 +217,21 @@ end
     #   DimensionMismatch("second dimension of A, 6, does not match length of x, 5")
     # Probably similar to https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/234 (about Broadcasted not Generator)
 
-    # Inference on 1.6 sometimes fails, so don't enforce there.
-    test_rrule(collect ∘ eachrow, rand(5); check_inferred=(VERSION >= v"1.7"))
-    test_rrule(collect ∘ eachrow, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
+    test_rrule(collect ∘ eachrow, rand(5))
+    test_rrule(collect ∘ eachrow, rand(3, 4))
 
-    test_rrule(collect ∘ eachcol, rand(3, 4); check_inferred=(VERSION >= v"1.7"))
+    test_rrule(collect ∘ eachcol, rand(3, 4))
     @test_skip test_rrule(collect ∘ eachcol, Diagonal(rand(5)))  # works locally!
 
-    if VERSION >= v"1.7"
-        # On 1.6, ComposedFunction doesn't take keywords. Only affects this testing strategy, not real use.
-        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=3))
-        test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=(2,)))
+    test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=3))
+    test_rrule(collect ∘ eachslice, rand(3, 4, 5); fkwargs=(; dims=(2,)))
 
-        test_rrule(
-            collect ∘ eachslice,
-            FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
-            check_inferred=false,
-            fkwargs=(; dims=3),
-        )
-    end
+    test_rrule(
+        collect ∘ eachslice,
+        FooTwoField.(rand(3, 4, 5), rand(3, 4, 5));
+        check_inferred=false,
+        fkwargs=(; dims=3),
+    )
 
     # Make sure pulling back an array that mixes some AbstractZeros in works right
     _, back = rrule(eachcol, rand(3, 4))
@@ -258,8 +254,7 @@ end
         ChainRules.∇eachslice,
         [rand(2, 3) for _ in 1:4],
         rand(2, 3, 4),
-        Val(3);
-        check_inferred=(VERSION >= v"1.7"),
+        Val(3),
     )
 
     # eachslice: Make sure pulling back an array of thunks unthunks them and does not return all zeros.

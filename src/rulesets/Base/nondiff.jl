@@ -367,19 +367,7 @@
 @non_differentiable readuntil(::IO, ::AbstractChar)
 @non_differentiable readuntil(::IO, ::AbstractString)
 @non_differentiable realpath(::AbstractString)
-if isdefined(Base, :redirect_stdio)
-    @non_differentiable Base.redirect_stdio(::Any)
-else
-    @non_differentiable redirect_stderr(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdin(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdout(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-end
+@non_differentiable Base.redirect_stdio(::Any)
 @non_differentiable relpath(::AbstractString, ::AbstractString)
 @non_differentiable relpath(::String)
 @non_differentiable repr(::Any)
