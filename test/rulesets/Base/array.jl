@@ -276,8 +276,14 @@ end
         @test_skip test_rrule(reverse, Tuple(rand(10)))  # Ambiguity in isapprox, https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
     end
     @testset "Array" begin
-        # JLArrays ≥ 0.4 implements `reverse` without scalar indexing
-        jl_has_reverse = parentmodule(reverse, Tuple{JLArray{Float32,1}}) !== Base
+        # `reverse(::JLArray)` fails with JLArrays < 0.4 (scalar indexing) and with
+        # JLArrays 0.4.2 and GPUArrays 12.1.1, which calls AcceleratedKernels whose kernels
+        # are unavailable on JLArrays' backend (JuliaGPU/GPUArrays.jl#817)
+        jl_has_reverse = try
+            reverse(JLArray([1.0f0, 2.0f0])) isa JLArray
+        catch
+            false
+        end
 
         # Forward
         if jl_has_reverse
