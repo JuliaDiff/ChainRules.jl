@@ -110,8 +110,16 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
             # These two test vararg rrule * rule:
             @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3))
-            @gpu_broken test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)')
-            # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
+            if VERSION >= v"1.13"
+                @gpu test_rrule(
+                    copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)'
+                )
+            else
+                @gpu_broken test_rrule(
+                    copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)'
+                )
+                # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
+            end
 
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))

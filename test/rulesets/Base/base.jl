@@ -224,6 +224,18 @@ end
         @test rrule(Base.depwarn, "message", :f) !== nothing
     end
 
+    if isdefined(Threads, :_spawn_set_thrpool)
+        @testset "Threads" begin
+            f = Threads._spawn_set_thrpool
+            _, ∂y = frule(
+                (NoTangent(), NoTangent(), NoTangent()), f, Task(() -> nothing), :default
+            )
+            @test ∂y isa NoTangent
+            _, back = rrule(f, Task(() -> nothing), :default)
+            @test back(1.0) == (NoTangent(), NoTangent(), NoTangent())
+        end
+    end
+
     @testset "literal_pow: $x^$p" for x in [-1.5, 0.0, 3.5], p in [2, 3]
         x == 0 && p < 0 && continue
         test_frule(Base.literal_pow, ^, x, Val(p))

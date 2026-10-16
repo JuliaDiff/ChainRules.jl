@@ -134,7 +134,8 @@
     end
 
     if VERSION > v"1.7.0-"
-        @eval using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
+        mat_mat_scalar = LinearAlgebra.mat_mat_scalar
+        mat_vec_scalar = LinearAlgebra.mat_vec_scalar
 
         @testset "3-arg *, $T" for T in [Float64, ComplexF64]
 

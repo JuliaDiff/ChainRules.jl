@@ -314,6 +314,9 @@
             end
         end
 
+        # wrapper of real-valued `f(A)` for real `A` (`TA` since JuliaLang/julia#55951)
+        realfun_wrapper(TA) = VERSION >= v"1.12.0-DEV.1322" ? TA : Symmetric
+
         @testset "$(f)(::$TA{<:$T})" for f in
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
             TA in (Symmetric, Hermitian),
@@ -329,7 +332,7 @@
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
@@ -382,7 +385,7 @@
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end

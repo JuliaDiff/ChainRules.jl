@@ -513,3 +513,6 @@ end
 @non_differentiable Threads.nthreads()
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
+if isdefined(Threads, :_spawn_set_thrpool)
+    @non_differentiable Threads._spawn_set_thrpool(::Task, ::Symbol)
+end

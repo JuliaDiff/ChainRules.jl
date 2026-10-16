@@ -129,7 +129,7 @@ end
     end
 
     @testset "second derivatives: ∇getindex" begin
-        @eval using ChainRules: ∇getindex
+        ∇getindex = ChainRules.∇getindex
         # Forward, scalar result
         test_frule(∇getindex, rand(2, 3), rand(), 3)
         test_frule(∇getindex, rand(2, 3), rand()+im, 2, 1)

@@ -42,10 +42,11 @@ end
 function _gpu_macro(ex, broken::Bool, __source__)
     Meta.isexpr(ex, :call) && ex.args[1] in (:test_rrule, :test_frule, :rrule, :frule) ||
       error("@gpu doesn't understand this input")
+    # `@test` requires a Symbol, not a function (Julia ≥ 1.13.0-DEV.300)
     ex2 = if Meta.isexpr(ex.args[2], :parameters)
-        :($_gpu_test($(ex.args[2]), $(ex.args[1]), $(ex.args[3:end]...)))
+        :(_gpu_test($(ex.args[2]), $(ex.args[1]), $(ex.args[3:end]...)))
     else
-        :($_gpu_test($(ex.args[1]), $(ex.args[2:end]...)))
+        :(_gpu_test($(ex.args[1]), $(ex.args[2:end]...)))
     end
     return if broken
         Expr(:block, ex, Expr(:macrocall, Symbol("@test_broken"), __source__, ex2)) |> esc
