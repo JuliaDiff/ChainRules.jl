@@ -204,6 +204,10 @@ const FASTABLE_AST = quote
           (0.0, -1.5)  => (-Inf, NaN),
         ]
 
+        # Non-finite results of FastMath functions are undefined
+        fastmath = (^) !== Base.:^
+        isequal_or_undef(a, b) = (fastmath && !Base.isfinite(a)) || isequal(a, b)
+
         @testset "$x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
             if x isa Integer && p isa Integer && p < 0
                 @test_throws DomainError x^p
@@ -213,27 +217,27 @@ const FASTABLE_AST = quote
 
             # Forward
             y_fwd = frule((1,1,1), ^, x, p)[1]
-            @test isequal(y, y_fwd)
+            @test isequal_or_undef(y, y_fwd)
 
             ∂x_fwd = frule((0,1,0), ^, x, p)[2]
             ∂p_fwd = frule((0,0,1), ^, x, p)[2]
-            @test isequal(∂x, ∂x_fwd)
+            @test isequal_or_undef(∂x, ∂x_fwd)
             if x===0.0 && p===0.5
                 @test_broken isequal(∂p, ∂p_fwd)
             else
-                @test isequal(∂p, ∂p_fwd)
+                @test isequal_or_undef(∂p, ∂p_fwd)
             end
 
             ∂x_fwd = frule((0,1,ZeroTangent()), ^, x, p)[2] # easier, strong zero
-            @test isequal(∂x, ∂x_fwd)
+            @test isequal_or_undef(∂x, ∂x_fwd)
 
             # Reverse
             y_rev = rrule(^, x, p)[1]
-            @test isequal(y, y_rev)
+            @test isequal_or_undef(y, y_rev)
             
             ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
-            @test isequal(∂x, ∂x_rev)
-            @test isequal(∂p, ∂p_rev)
+            @test isequal_or_undef(∂x, ∂x_rev)
+            @test isequal_or_undef(∂p, ∂p_rev)
         end
     end
 
