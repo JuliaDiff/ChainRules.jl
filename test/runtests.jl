@@ -90,6 +90,7 @@ end
     println()
 
     include_test("rulesets/SparseArrays/sparsematrix.jl")
+    include_test("rulesets/SparseArrays/symmetric.jl")
 
     println()
 

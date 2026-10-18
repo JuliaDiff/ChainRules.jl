@@ -8,6 +8,7 @@ using Distributed
 using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
+using LinearAlgebra: AdjOrTrans
 using LinearAlgebra.BLAS
 using Random
 using RealDot: realdot
@@ -62,6 +63,7 @@ include("rulesets/LinearAlgebra/factorization.jl")
 include("rulesets/LinearAlgebra/uniformscaling.jl")
 
 include("rulesets/SparseArrays/sparsematrix.jl")
+include("rulesets/SparseArrays/symmetric.jl")
 
 include("rulesets/Random/random.jl")
 
