@@ -1,3 +1,7 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Random, Test
+using ChainRulesTestUtils: _fdm
+
 # TODO: move this to FiniteDifferences
 function FiniteDifferences.to_vec(X::LU)
     x_vec, back = to_vec(Matrix(X.factors))
@@ -14,16 +18,6 @@ function FiniteDifferences.to_vec(C::Cholesky)
     end
     return C_vec, cholesky_from_vec
 end
-
-function FiniteDifferences.to_vec(x::Val)
-    Val_from_vec(v) = x
-    return Bool[], Val_from_vec
-end
-
-const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
-const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
-
-const CHOLESKY_NO_PIVOT = VERSION >= v"1.8.0-rc1" ? NoPivot() : Val(false)
 
 # well-conditioned random n×n matrix with elements of type `T` for testing `eigen`
 function rand_eigen(T::Type, n::Int)
@@ -44,43 +38,88 @@ function rand_eigen(T::Type, n::Int)
     return V * Diagonal(λ) / V
 end
 
+# m×n matrix whose LU factorization has an exactly zero last pivot: since |L[i, j]| < 1,
+# partial pivoting keeps the row order, and dyadic entries and power-of-two pivots make
+# the factorization exact
+function lu_singular_last_pivot(m, n)
+    q = min(m, n)
+    L = tril(rand(-3:3, m, q) / 4, -1)
+    L[diagind(L)] .= 1
+    U = triu(rand(-3:3, q, n))
+    U[diagind(U)] = rand((-4, -2, -1, 1, 2, 4), q)
+    U[q, q] = 0
+    return L * U
+end
+
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
         n = 10
         @testset "lu! frule" begin
             @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                pivot in (RowMaximum(), NoPivot()),
                 m in (7, 10, 13)
 
                 test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
+            end
+            @testset "zero last pivot: lu!(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    RowMaximum(), NoPivot()
+                ),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_frule(lu!, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    ΔA = rand_tangent(A)
+                    _, ∂F = frule((ZeroTangent(), ΔA), lu!, A, pivot; check=false)
+                    @test all(isnan, ∂F.factors)
+                end
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 ΔAsingular = rand_tangent(Asingular)
                 @test_throws SingularException frule(
-                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), LU_ROW_MAXIMUM
+                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), RowMaximum()
                 )
-                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, LU_ROW_MAXIMUM; check=false)
-                @test true  # above line would have errored if this was not working right
+                _, ∂F = frule(
+                    (ZeroTangent(), ΔAsingular), lu!, Asingular, RowMaximum(); check=false
+                )
+                @test all(isnan, ∂F.factors)  # not differentiable
             end
         end
         @testset "lu rrule" begin
             @testset "lu(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                pivot in (RowMaximum(), NoPivot()),
                 m in (7, 10, 13)
 
                 test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
+            @testset "zero last pivot: lu(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    RowMaximum(), NoPivot()
+                ),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_rrule(lu, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    F, back = rrule(lu, A, pivot; check=false)
+                    _, ∂A, _ = back(Tangent{typeof(F)}(; factors=rand_tangent(F.factors)))
+                    @test all(isnan, ∂A)
+                end
+            end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
-                F = lu(Asingular, LU_ROW_MAXIMUM; check=false)
-                ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
-                @test_throws SingularException rrule(lu, Asingular, LU_ROW_MAXIMUM)
-                _, back = rrule(lu, Asingular, LU_ROW_MAXIMUM; check=false)
-                back(ΔF)
-                @test true  # above line would have errored if this was not working right
+                F = lu(Asingular, RowMaximum(); check=false)
+                ΔF = Tangent{typeof(F)}(; factors=rand_tangent(F.factors))
+                @test_throws SingularException rrule(lu, Asingular, RowMaximum())
+                _, back = rrule(lu, Asingular, RowMaximum(); check=false)
+                _, ∂A, _ = back(ΔF)
+                @test all(isnan, ∂A)  # not differentiable
             end
         end
         @testset "LU" begin
@@ -96,8 +135,8 @@ end
             end
             @testset "matrix inverse using LU" begin
                 @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
-                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), LU_ROW_MAXIMUM))
-                    test_rrule(inv, lu(randn(T, n, n), LU_ROW_MAXIMUM))
+                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), RowMaximum()))
+                    test_rrule(inv, lu(randn(T, n, n), RowMaximum()))
                 end
             end
         end
@@ -437,7 +476,7 @@ end
 
         @testset "Diagonal" begin
             @testset "Diagonal{<:Real}" begin
-                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), CHOLESKY_NO_PIVOT)
+                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), NoPivot())
             end
             @testset "Diagonal{<:Complex}" begin
                 # finite differences in general will produce matrices with non-real
@@ -446,18 +485,20 @@ end
                 D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
                 C = cholesky(D)
                 test_rrule(
-                    cholesky, D, CHOLESKY_NO_PIVOT;
+                    cholesky,
+                    D,
+                    NoPivot();
                     output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
                     fkwargs=(; check=false),
                 )
             end
             @testset "check has correct default and passed to primal" begin
-                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), CHOLESKY_NO_PIVOT)
-                rrule(cholesky, Diagonal(-rand(5)), CHOLESKY_NO_PIVOT; check=false)
+                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), NoPivot())
+                rrule(cholesky, Diagonal(-rand(5)), NoPivot(); check=false)
             end
             @testset "failed factorization" begin
                 A = Diagonal(vcat(rand(4), -rand(4), rand(4)))
-                test_rrule(cholesky, A, CHOLESKY_NO_PIVOT; fkwargs=(; check=false))
+                test_rrule(cholesky, A, NoPivot(); fkwargs=(; check=false))
             end
         end
 
@@ -465,7 +506,7 @@ end
             @testset "Matrix{$T}" for T in (Float64, ComplexF64)
                 X = generate_well_conditioned_matrix(T, 10)
                 V = generate_well_conditioned_matrix(T, 10)
-                F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
+                F, dX_pullback = rrule(cholesky, X, NoPivot())
                 @testset "uplo=$p, cotangent eltype=$T" for p in [:U, :L], S in unique([T, complex(T)])
                     Y, dF_pullback = rrule(getproperty, F, p)
                     Ȳ = randn(S, size(Y))
@@ -490,8 +531,8 @@ end
             @testset "check has correct default and passed to primal" begin
                 # this will almost certainly be a non-PD matrix
                 X = Matrix(Symmetric(randn(10, 10)))
-                @test_throws Exception rrule(cholesky, X, CHOLESKY_NO_PIVOT)
-                rrule(cholesky, X, CHOLESKY_NO_PIVOT; check=false)  # just check it doesn't throw
+                @test_throws Exception rrule(cholesky, X, NoPivot())
+                rrule(cholesky, X, NoPivot(); check=false)  # just check it doesn't throw
             end
         end
 
@@ -499,13 +540,13 @@ end
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
             X = generate_well_conditioned_matrix(10)
-            F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
+            F, dX_pullback = rrule(cholesky, X, NoPivot())
             ΔU = randn(size(X))
             ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
             @testset for uplo in (:L, :U)
                 X_symmetric, sym_back = rrule(Symmetric, X, uplo)
-                C, chol_back_sym = rrule(cholesky, X_symmetric, CHOLESKY_NO_PIVOT)
+                C, chol_back_sym = rrule(cholesky, X_symmetric, NoPivot())
 
                 ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
                 ΔX_symmetric = chol_back_sym(ΔC)[2]
@@ -522,13 +563,13 @@ end
         @testset "Hermitian" begin
             @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
                 X = generate_well_conditioned_matrix(T, 10)
-                F, dX_pullback = rrule(cholesky, X, CHOLESKY_NO_PIVOT)
+                F, dX_pullback = rrule(cholesky, X, NoPivot())
                 ΔU = randn(T, size(X))
                 ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
                 @testset for uplo in (:L, :U)
                     X_hermitian, herm_back = rrule(Hermitian, X, uplo)
-                    C, chol_back_herm = rrule(cholesky, X_hermitian, CHOLESKY_NO_PIVOT)
+                    C, chol_back_herm = rrule(cholesky, X_hermitian, NoPivot())
 
                     ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
                     ΔX_hermitian = chol_back_herm(ΔC)[2]
@@ -542,8 +583,8 @@ end
             @testset "check has correct default and passed to primal" begin
                 # this will almost certainly be a non-PD matrix
                 X = Hermitian(randn(10, 10))
-                @test_throws Exception rrule(cholesky, X, CHOLESKY_NO_PIVOT)
-                rrule(cholesky, X, CHOLESKY_NO_PIVOT; check=false)
+                @test_throws Exception rrule(cholesky, X, NoPivot())
+                rrule(cholesky, X, NoPivot(); check=false)
             end
         end
 

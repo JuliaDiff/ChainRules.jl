@@ -1,10 +1,8 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, Random, Test
 using Base.Broadcast: broadcasted
 
-if VERSION < v"1.7"
-    Base.ndims(::Type{<:AbstractArray{<:Any,N}}) where {N} = N
-end
 BS0 = Broadcast.BroadcastStyle(Float64)
-BS1 = Broadcast.BroadcastStyle(Vector)  # without ndims method, error on 1.6
+BS1 = Broadcast.BroadcastStyle(Vector)
 BS2 = Broadcast.BroadcastStyle(Matrix)
 
 BT1 = Broadcast.BroadcastStyle(Tuple)
@@ -32,7 +30,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         test_rrule(copy∘broadcasted, BS2, atan, rand(3), rand(4)')
         test_rrule(copy∘broadcasted, BS1, atan, rand(3), rand())
         test_rrule(copy∘broadcasted, BT1, atan, rand(3), Tuple(rand(1)))
-        test_rrule(copy∘broadcasted, BT1, atan, Tuple(rand(3)), Tuple(rand(3)), check_inferred = VERSION > v"1.7")
+        test_rrule(copy∘broadcasted, BT1, atan, Tuple(rand(3)), Tuple(rand(3)))
 
         # test_rrule(copy∘broadcasted, *, BS1, rand(3), Ref(rand()))  # don't know what I was testing
     end
@@ -110,8 +108,16 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
 
             # These two test vararg rrule * rule:
             @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3), rand(3), rand(3), rand(3))
-            @gpu_broken test_rrule(copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)')
-            # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
+            if VERSION >= v"1.13"
+                @gpu test_rrule(
+                    copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)'
+                )
+            else
+                @gpu_broken test_rrule(
+                    copy∘broadcasted, *, rand(), rand(), rand(3), rand(3) .+ im, rand(4)'
+                )
+                # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
+            end
 
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
             @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))

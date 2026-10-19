@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "dense LinearAlgebra" begin
     @testset "dot" begin
         @testset "Vector{$T}" for T in (Float64, ComplexF64)

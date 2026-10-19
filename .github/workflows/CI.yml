@@ -1,9 +1,20 @@
 name: CI
 on:
   push:
-    branches: [master]
+    branches: [main]
     tags: [v*]
   pull_request:
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   test:
@@ -13,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "1.6"  # LTS
+          - "lts"  # LTS
           - "1"    # Latest Release
         os:
           - ubuntu-latest
@@ -21,7 +32,7 @@ jobs:
           - x86
           - x64
         exclude:
-          - version: "1.6"
+          - version: "lts"
             arch: x86
     steps:
       - uses: actions/checkout@v6
@@ -32,23 +43,9 @@ jobs:
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-#      - uses: julia-actions/julia-processcoverage@v1
-#      - uses: codecov/codecov-action@v1
-#        with:
-#          file: lcov.info
-#      - uses: coverallsapp/github-action@master
-#        with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          flag-name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
-#          parallel: true
-#          path-to-lcov: lcov.info
-#
-#  finish:
-#    name: Coveralls Finished
-#    needs: test
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: coverallsapp/github-action@master
-#        with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          parallel-finished: true
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v7
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true

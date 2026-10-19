@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesTestUtils, Test
+
 # For the CoreLogging submodule of Base. (not to be confused with the Logging stdlib)
 @testset "CoreLogging.jl" begin
     @testset "with_logger" begin

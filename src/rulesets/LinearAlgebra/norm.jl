@@ -257,11 +257,21 @@ end
 ##### `normalize`
 #####
 
+# `normalize!(y, p)` with precomputed `nrm == norm(y, p)`
+function _normalize!(y, nrm, p::Real=2)
+    if !issubnormal(nrm)
+        rmul!(y, inv(nrm))
+    else
+        normalize!(rmul!(y, inv(floatmin(nrm))), p)
+    end
+    return y
+end
+
 function rrule(::typeof(normalize), x::AbstractArray{<:Number}, p::Real)
     nrm, inner_pullback = rrule(norm, x, p)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
-    LinearAlgebra.__normalize!(y, nrm)
+    _normalize!(y, nrm, p)
     function normalize_pullback(Δy)
         invnrm = pinv(nrm)
         ∂nrm = -dot(y, Δy) * invnrm
@@ -277,7 +287,7 @@ function rrule(::typeof(normalize), x::AbstractArray{<:Number})
     nrm = LinearAlgebra.norm2(x)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
-    LinearAlgebra.__normalize!(y, nrm)
+    _normalize!(y, nrm)
     function normalize_pullback(ȳ)
         Δy = unthunk(ȳ)
         ∂x = (Δy .- realdot(y, Δy) .* y) .* pinv(nrm)

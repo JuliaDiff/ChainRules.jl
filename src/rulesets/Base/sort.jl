@@ -54,18 +54,21 @@ end
 
 function frule((_, ẋ), ::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
-    inds = ntuple(d -> d == dims ? p : (:), ndims(x))
+    inds = _sortslices_inds(x, dims, p)
     return x[inds...], ẋ[inds...]
 end
 
 function rrule(::typeof(sortslices), x::AbstractArray; dims::Integer, kw...)
     p = sortperm(collect(eachslice(x; dims=dims)); kw...)
-    inds = ntuple(d -> d == dims ? p : (:), ndims(x))
+    # the pullback does not capture the indices, whose type depends on the value of `dims`
     function sortslices_pullback(dy)
-        return (NoTangent(), ∇getindex(x, unthunk(dy), inds...))
+        return (NoTangent(), ∇getindex(x, unthunk(dy), _sortslices_inds(x, dims, p)...))
     end
-    return x[inds...], sortslices_pullback
+    return x[_sortslices_inds(x, dims, p)...], sortslices_pullback
 end
+
+# indices of `x` that select the slices along `dims` in the order `p`
+_sortslices_inds(x, dims, p) = ntuple(d -> d == dims ? p : (:), ndims(x))
 
 #####
 ##### `unique`

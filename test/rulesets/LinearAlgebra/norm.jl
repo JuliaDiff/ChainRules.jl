@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "norm functions" begin
 
     # First test the un-exported functions which norm(A,p) calls
@@ -199,6 +201,10 @@ end
 
         @gpu_broken test_rrule(normalize, rand(T, 3, 4))
         test_rrule(normalize, adjoint(rand(T, 5)))
+
+        # subnormal norm
+        xsub = fill(T(1e-310), 3)
+        @test rrule(normalize, xsub)[1] ≈ normalize(xsub)
     end
     @testset "x::Array{$T}, p=$p" for T in (Float64, ComplexF64), p in (1.0, 2.0, -Inf, Inf, 2.5)
     # skip p=0, since FD is unstable
@@ -208,5 +214,9 @@ end
 
         @gpu_broken test_rrule(normalize, rand(T, 3, 4), p)
         test_rrule(normalize, adjoint(rand(T, 5)), p)
+
+        # subnormal norm
+        xsub = fill(T(1e-310), 3)
+        @test rrule(normalize, xsub, p)[1] ≈ normalize(xsub, p)
     end
 end

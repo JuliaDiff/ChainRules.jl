@@ -379,9 +379,14 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     end
     fλ = first.(fλ_df_dλ)
     df_dλ = last.(unthunk.(fλ_df_dλ))
-    fA = (U * Diagonal(fλ)) * U'
+    fA = _matfun_primal(f, λ, U, fλ)
     Y = if eltype(A) <: Real
-        Symmetric(fA)
+        # match `f(A)`, which returns `Hermitian` since JuliaLang/julia#55951
+        @static if VERSION >= v"1.12.0-DEV.1322"
+            eltype(fλ) <: Complex ? Symmetric(fA) : _symhermtype(A)(fA)
+        else
+            Symmetric(fA)
+        end
     elseif eltype(fλ) <: Complex
         fA
     else
@@ -389,6 +394,23 @@ function _matfun(f, A::LinearAlgebra.RealHermSymComplexHerm)
     end
     intermediates = (λ, U, fλ, df_dλ)
     return Y, intermediates
+end
+
+# compute `f(A)` from its eigendecomposition exactly as `f(::RealHermSymComplexHerm)` does
+_matfun_primal(f, λ, U, fλ) = (U * Diagonal(fλ)) * U'
+# `exp` and positive semi-definite `sqrt` use `(U * √D) * (U * √D)'`
+# since JuliaLang/LinearAlgebra.jl#1359
+@static if VERSION >= v"1.13.0-DEV.887"
+    _matfun_primal(::typeof(exp), λ, U, fλ) = _psd_spectral_product(exp.(λ ./ 2), U)
+    function _matfun_primal(::typeof(sqrt), λ, U, fλ)
+        eltype(fλ) <: Real || return (U * Diagonal(fλ)) * U'
+        return _psd_spectral_product(fourthroot.(λ), U)
+    end
+    # local copy of `LinearAlgebra._psd_spectral_product` (internal)
+    function _psd_spectral_product(v, U)
+        Uv = U * Diagonal(v)
+        return Uv * Uv'
+    end
 end
 
 # Computes ∂Y = U * (P .* (U' * ΔA * U)) * U' with fewer allocations

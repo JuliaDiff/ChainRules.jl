@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "UniformScaling rules" begin
 
     @testset "constructor" begin

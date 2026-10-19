@@ -53,57 +53,6 @@ end
 if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't have CHOLMOD from SuiteSparse.jl
     using SparseInverseSubset
     
-    if VERSION < v"1.7"
-        #=
-        The method below for `logabsdet(F::UmfpackLU)` is required to calculate the (log) 
-        determinants of sparse matrices, but was not defined prior to Julia v1.7. In order
-        for the rrules for the determinants of sparse matrices below to work, they need to be
-        able to compute the primals as well, so this import from the future is included. For
-        more recent versions of Julia, this definition lives in:
-        julia/stdlib/SuiteSparse/src/umfpack.jl
-        =#
-        using SuiteSparse.UMFPACK: UmfpackLU
-    
-        # compute the sign/parity of a permutation
-        function _signperm(p)
-            n = length(p)
-            result = 0
-            todo = trues(n)
-            while any(todo)
-                k = findfirst(todo)
-                todo[k] = false
-                result += 1 # increment element count
-                j = p[k]
-                while j != k
-                    result += 1 # increment element count
-                    todo[j] = false
-                    j = p[j]
-                end
-                result += 1 # increment cycle count
-            end
-            return ifelse(isodd(result), -1, 1)
-        end
-    
-        function LinearAlgebra.logabsdet(F::UmfpackLU{T, TI}) where {T<:Union{Float64,ComplexF64},TI<:Union{Int32, Int64}} 
-            n = checksquare(F)
-            issuccess(F) || return log(zero(real(T))), zero(T)
-            U = F.U
-            Rs = F.Rs
-            p = F.p
-            q = F.q
-            s = _signperm(p)*_signperm(q)*one(real(T))
-            P = one(T)
-            abs_det = zero(real(T))
-            @inbounds for i in 1:n
-                dg_ii = U[i, i] / Rs[i]
-                P *= sign(dg_ii)
-                abs_det += log(abs(dg_ii))
-            end
-            return abs_det, s * P
-        end
-    end
-    
-    
     function rrule(::typeof(logabsdet), x::SparseMatrixCSC)
         F = cholesky(x)
         L, D, U, P = SparseInverseSubset.get_ldup(F)
@@ -120,7 +69,7 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
         end
         return Ω, logabsdet_pullback
     end
-    
+
     function rrule(::typeof(logdet), x::SparseMatrixCSC)
         Ω = logdet(x)
         function logdet_pullback(ΔΩ)

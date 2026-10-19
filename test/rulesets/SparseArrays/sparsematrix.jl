@@ -1,3 +1,12 @@
+using ChainRules,
+    ChainRulesCore,
+    ChainRulesTestUtils,
+    FiniteDifferences,
+    LinearAlgebra,
+    Random,
+    SparseArrays,
+    Test
+using ChainRulesTestUtils: _fdm
 
 @testset "sparse(I, J, V, m, n, +)" begin
     m, n = 3, 5
