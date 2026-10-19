@@ -306,7 +306,7 @@ let
             "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
             join(non_transformed_definitions, "\n")
         )
-        # This error() may not play well with Revise. But a wanring @error does, we should change it:
+        # This error() may not play well with Revise. But a warning @error does, we should change it:
         @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
@@ -316,7 +316,7 @@ let
 end
 
 ## power
-# Thes functions need to be defined outside the eval() block.
+# These functions need to be defined outside the eval() block.
 # The special cases they aim to hit are in POWERGRADS in tests.
 _pow_grad_x(x, p, y) = (p * y / x)
 function _pow_grad_x(x::Real, p::Real, y)

@@ -20,23 +20,28 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.allow-failure == true }}
     strategy:
       fail-fast: false
       matrix:
         version:
-          - "lts"  # LTS
+          - "lts"  # Long-term support version
           - "1"    # Latest Release
         os:
           - ubuntu-latest
         arch:
-          - x86
-          - x64
-        exclude:
-          - version: "lts"
+          - default
+        include:
+          - os: ubuntu-latest
+            version: "1"
             arch: x86
+          - os: ubuntu-latest
+            version: "pre"
+            arch: default
+            allow-failure: true
     steps:
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v2
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
