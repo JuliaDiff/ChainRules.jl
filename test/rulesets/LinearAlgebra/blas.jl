@@ -1,3 +1,6 @@
+using ChainRules, ChainRulesTestUtils, LinearAlgebra, Test
+using LinearAlgebra.BLAS
+
 @testset "BLAS" begin
     @testset "dot" begin
         @testset "all entries" begin

@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, Random, Test
+
 # Simple Distributions like object for testing purposes
 struct NormalDistribution
     μ
@@ -6,8 +8,7 @@ end
 Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
 
 @testset "Random" begin
-    rng_types = [MersenneTwister]
-    isdefined(Random, :Xoshiro) && push!(rng_types, getfield(Random, :Xoshiro))
+    rng_types = [MersenneTwister, Xoshiro]
     
     @testset "$Rng" for Rng in rng_types
         @testset "no args" begin
@@ -40,11 +41,8 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             ((Float32,(2,2)), Matrix{<:Float32}),
             ((2,2), Matrix{<:Float64}),
         ]
-        if isdefined(Random, :Xoshiro)
-            Xoshiro = getfield(Random, :Xoshiro)
-            push!(non_differentiables, ((Xoshiro(123),), Float64))
-            push!(non_differentiables, ((Xoshiro(123),2,2), Matrix{<:Float64}))
-        end
+        push!(non_differentiables, ((Xoshiro(123),), Float64))
+        push!(non_differentiables, ((Xoshiro(123), 2, 2), Matrix{<:Float64}))
 
         for (args, xType) in non_differentiables
             x, dΩ = frule((ZeroTangent(), randn(args...)), rand, args...)

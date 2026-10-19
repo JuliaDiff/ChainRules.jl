@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, Test
+
 mutable struct MDemo
     x::Float64
 end
@@ -220,8 +222,10 @@ end
     end
 
     @testset "Logging" begin
-        @test frule((NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f) !== nothing
-        @test rrule(Base.depwarn, "message", :f) !== nothing
+        @test (@test_deprecated "message" frule(
+            (NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f
+        )) !== nothing
+        @test (@test_deprecated "message" rrule(Base.depwarn, "message", :f)) !== nothing
     end
 
     if isdefined(Threads, :_spawn_set_thrpool)
@@ -265,10 +269,7 @@ end
         test_rrule(map, make_two_vec, (4.0, 5.0 + 6im), check_inferred=false)
         test_rrule(map, Multiplier(rand() + im), Tuple(rand(3)), check_inferred=false)
 
-        if VERSION >= v"1.10.0-DEV.1194"
-            # Mismatched lengths were not allowed before 1.10
-            test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
-        end
+        test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
     end
 
     @testset "merge NamedTuple" begin

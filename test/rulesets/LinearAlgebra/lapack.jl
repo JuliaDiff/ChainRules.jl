@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "LAPACK" begin
     @testset "trsyl!" begin
         @testset "T=$T, m=$m, n=$n, transa='$transa', transb='$transb', isgn=$isgn" for
