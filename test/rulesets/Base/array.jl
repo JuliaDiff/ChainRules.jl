@@ -429,7 +429,7 @@ end
     res = imum == maximum ? [0,1,0,0,0,0] : [1,0,0,0,0,0]
     @test res == @inferred unthunk(rrule(imum, [1,2,1,2,1,2])[2](1.0)[2])
 
-    # Structured matrix -- NB the minimum is a structral zero here
+    # Structured matrix -- NB the minimum is a structural zero here
     @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Diagonal
     @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular{Float64}
     @test_skip test_rrule(imum, Diagonal(rand(3) .+ 1)) # MethodError: no method matching zero(::Type{Any}), from fill!(A::SparseArrays.SparseMatrixCSC{Any, Int64}, x::Bool)

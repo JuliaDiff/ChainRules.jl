@@ -22,7 +22,7 @@ end
 # and we don't know whether re-computing `y` is cheap. 
 # (We could check `f` first like `sum(f, x)` does, but checking whether `g` needs `y` is tricky.)
 
-# This rule has `::BroadcastStyle` in part becuase Zygote's generic rule does, to avoid ambiguities.
+# This rule has `::BroadcastStyle` in part because Zygote's generic rule does, to avoid ambiguities.
 # It applies one step later in AD, and all args have `broadcastable(x)` thus many have `Ref(x)`, complicating some tests.
 # But it also means that the lazy rules below do not need `::RuleConfig{>:HasReverseMode}` just for dispatch.
 
