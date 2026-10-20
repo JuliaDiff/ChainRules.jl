@@ -6,8 +6,7 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "julia"
-    directories:
-      - "/"
+    directory: "/"
     schedule:
       interval: "weekly"
     groups:
