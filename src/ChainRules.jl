@@ -3,6 +3,7 @@ module ChainRules
 using Adapt: adapt
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
+using Compat
 using Distributed
 using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
@@ -20,6 +21,8 @@ import ChainRulesCore: rrule, frule
 
 # Experimental:
 using ChainRulesCore: derivatives_given_output
+
+using Compat: stack
 
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
