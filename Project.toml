@@ -1,11 +1,10 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.74.1"
+version = "1.74.2"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
 IrrationalConstants = "92d709cd-6900-40b7-9082-c6be49f344b6"
@@ -21,7 +20,6 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 Adapt = "3.4.0, 4"
 ChainRulesCore = "1.25"
 ChainRulesTestUtils = "1.5"
-Compat = "3.46, 4.2"
 Distributed = "1"
 FiniteDifferences = "0.12.20"
 GPUArraysCore = "0.1.0, 0.2"
@@ -49,3 +47,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["ChainRulesTestUtils", "FiniteDifferences", "JLArrays", "ParallelTestRunner", "Random", "StaticArrays", "Test"]
+
+[workspace]
+projects = ["test"]
