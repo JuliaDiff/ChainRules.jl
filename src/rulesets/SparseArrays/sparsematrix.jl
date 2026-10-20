@@ -29,7 +29,7 @@ function rrule(::typeof(findnz), A::AbstractSparseMatrix)
     m, n = size(A)
 
     function findnz_pullback(Δ)
-        _, _, V̄ = unthunk(Δ)
+        V̄ = unthunk(Δ)[3]
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparse(I, J, V̄, m, n)
     end
@@ -42,7 +42,7 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
     n = length(v)
 
     function findnz_pullback(Δ)
-        _, V̄ = unthunk(Δ)
+        V̄ = unthunk(Δ)[2]
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparsevec(I, V̄, n)
     end
