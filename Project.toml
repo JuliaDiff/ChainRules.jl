@@ -19,34 +19,17 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 [compat]
 Adapt = "3.4.0, 4"
 ChainRulesCore = "1.25"
-ChainRulesTestUtils = "1.5"
 Distributed = "1"
-FiniteDifferences = "0.12.20"
 GPUArraysCore = "0.1.0, 0.2"
 IrrationalConstants = "0.1.1, 0.2"
-JLArrays = "0.1, 0.4"
 LinearAlgebra = "1"
-ParallelTestRunner = "2"
 Random = "1"
 RealDot = "0.1"
 SparseArrays = "1"
 SparseInverseSubset = "0.1"
-StaticArrays = "1.2"
 Statistics = "1"
 StructArrays = "0.6.11, 0.7"
 julia = "1.10"
-
-[extras]
-ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
-FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
-JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
-ParallelTestRunner = "d3525ed8-44d0-4b2c-a655-542cee43accc"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["ChainRulesTestUtils", "FiniteDifferences", "JLArrays", "ParallelTestRunner", "Random", "StaticArrays", "Test"]
 
 [workspace]
 projects = ["test"]
