@@ -7,7 +7,6 @@ using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
-using Random
 using RealDot: realdot
 using StructArrays
 
@@ -50,7 +49,5 @@ include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 include("rulesets/LinearAlgebra/uniformscaling.jl")
-
-include("rulesets/Random/random.jl")
 
 end # module
