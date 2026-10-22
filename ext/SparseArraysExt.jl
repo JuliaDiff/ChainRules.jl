@@ -1,3 +1,13 @@
+module SparseArraysExt
+
+using ChainRulesCore
+using LinearAlgebra
+using SparseArrays
+
+using ChainRules: _diagm_back
+
+import ChainRulesCore: rrule
+
 function rrule(::typeof(sparse), I::AbstractVector, J::AbstractVector, V::AbstractVector, m, n, combine::typeof(+))
     project_V = ProjectTo(V)
     
@@ -113,3 +123,5 @@ function rrule(::typeof(spdiagm), v::AbstractVector)
     end
     return spdiagm(v), spdiagm_pullback
 end
+
+end # module
