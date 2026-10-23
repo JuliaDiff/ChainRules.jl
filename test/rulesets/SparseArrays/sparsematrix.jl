@@ -102,11 +102,33 @@ if Base.USE_GPL_LIBS # these rrules don't work without CHOLMOD from SuiteSparse.
         test_rrule(logdet, A)
         test_rrule(det, A)
 
-        # tridiagonal: the inverse is dense, the cotangent is restricted to the pattern of `T`
-        T = spdiagm(-1 => fill(-1.0, 4), 0 => fill(3.0, 5), 1 => fill(-1.0, 4))
-        test_rrule(logabsdet, T)
-        test_rrule(logdet, T)
-        test_rrule(det, T)
+        # tridiagonal: the inverse is dense, the cotangent is restricted to the pattern of `Tri`
+        Tri = spdiagm(-1 => fill(-1.0, 4), 0 => fill(3.0, 5), 1 => fill(-1.0, 4))
+        test_rrule(logabsdet, Tri)
+        test_rrule(logdet, Tri)
+        test_rrule(det, Tri)
+
+        # complex Hermitian
+        C = sparse(ii, jj, ComplexF64[ones(5); 0.1im; -0.1im])
+        test_rrule(logabsdet, C)
+        test_rrule(logdet, C)
+        test_rrule(det, C)
+    end
+
+    @testset "[log[abs[det]]] SparseMatrixCSC{$T}" for T in (Int, Float32)
+        # like the primal (UMFPACK), the rrules compute in double precision
+        x = sparse(T[2 1 0; 1 2 0; 0 0 3])
+        X = Matrix{Float64}(x)
+        for f in (logabsdet, logdet, det)
+            Ω, pb = rrule(f, x)
+            @test Ω isa typeof(f(x))
+            @test all(Ω .≈ f(x))
+            ΔΩ = f === logabsdet ? Tangent{typeof(Ω)}(1.0, 0.0) : 1.0
+            ∂x = pb(ΔΩ)[2]
+            @test ∂x isa SparseMatrixCSC{Float64}
+            # `inv(X)` has the same sparsity pattern as `x`
+            @test Matrix(∂x) ≈ (f === det ? det(X) : 1) * inv(X)'
+        end
     end
 
     @testset "sparse selected inverse" begin

@@ -69,9 +69,13 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
     # hence of the pullbacks capturing it, inferrable.
     # The `Hermitian` wrapper makes CHOLMOD accept `x` even if explicitly stored zeros make
     # its sparsity pattern asymmetric.
+    # `x` is factorized in (at least) double precision, as by the LU factorization (UMFPACK)
+    # used by `det`, `logdet` and `logabsdet`, such that the primal results agree.
     function _cholesky(x::SparseMatrixCSC)
         x_ishermitian = ishermitian(x)
-        F = cholesky(Hermitian(x_ishermitian ? x : similar(x, 0, 0), :L); check=false)
+        y = x_ishermitian ? x : similar(x, 0, 0)
+        y64 = convert(SparseMatrixCSC{promote_type(eltype(x), Float64)}, y)
+        F = cholesky(Hermitian(y64, :L); check=false)
         return F, x_ishermitian && issuccess(F)
     end
 
@@ -159,12 +163,15 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
                 push!(uncovered, c)
             end
         end
-        for c in uncovered
+        if !isempty(uncovered)
             e = zeros(eltype(vals), size(x, 1))
-            e[c] = 1
-            invx_c = F \ e
-            for k in nzrange(x, c)
-                vals[k] = invx_c[xrows[k]]
+            for c in uncovered
+                e[c] = 1
+                invx_c = F \ e
+                e[c] = 0
+                for k in nzrange(x, c)
+                    vals[k] = invx_c[xrows[k]]
+                end
             end
         end
         return SparseMatrixCSC(size(x)..., copy(SparseArrays.getcolptr(x)), copy(xrows), vals)
@@ -172,7 +179,7 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
 
     function rrule(::typeof(logabsdet), x::SparseMatrixCSC)
         F, success = _cholesky(x)
-        Ω = success ? (real(logdet(F)), one(float(eltype(x)))) : logabsdet(x)
+        Ω = success ? (real(logdet(F)), one(eltype(F))) : logabsdet(x)
         function logabsdet_pullback(ΔΩ)
             _check_posdef(success)
             (Δy, Δsigny) = unthunk(ΔΩ)
