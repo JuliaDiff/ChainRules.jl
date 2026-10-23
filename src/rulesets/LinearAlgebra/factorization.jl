@@ -293,61 +293,60 @@ end
 #####
 
 # TODO:
-# - support correct differential of phase convention when A is hermitian
 # - simplify when A is diagonal
 # - support degenerate matrices (see #144)
 
-function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+# NOTE: if `A` is Hermitian, `eigen` uses the solver for Hermitian matrices. Its eigenvectors
+# are unitary and follow a different phase convention than the eigenvectors of non-Hermitian
+# matrices, so they are only differentiable along Hermitian directions: the rules use the
+# Hermitian part of the (co)tangents of the eigenvectors. The eigenvalues are differentiable
+# in all directions their type admits.
+
+function frule(
+    (_, Ȧ), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...
+) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
-    if ishermitian(A)
-        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
-        return if sortby === nothing
-            frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A))
-        else
-            frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A); sortby=sortby)
-        end
-    end
+    isherm = ishermitian(A)
     F = eigen!(A; kwargs...)
     λ, V = F.values, F.vectors
-    tmp = V \ ΔA
+    tmp = isherm ? V' * ΔA : V \ ΔA
     ∂K = tmp * V
     ∂Kdiag = @view ∂K[diagind(∂K)]
     ∂λ = eltype(λ) <: Real ? real.(∂Kdiag) : copy(∂Kdiag)
+    isherm && hermitianpart!(∂K)
     ∂K ./= transpose(λ) .- λ
     fill!(∂Kdiag, 0)
     ∂V = mul!(tmp, V, ∂K)
-    _eigen_norm_phase_fwd!(∂V, A, V)
+    # `A` is overwritten but the phase convention depends only on its type
+    _eigen_norm_phase_fwd!(∂V, isherm ? Hermitian(A) : A, V)
     ∂F = Tangent{typeof(F)}(values = ∂λ, vectors = ∂V)
     return F, ∂F
 end
 
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
+    isherm = ishermitian(A)
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::Tangent)
+    function eigen_pullback(ΔF)
+        _ΔF = unthunk(ΔF)
+        _ΔF isa AbstractZero && return (NoTangent(), _ΔF)
         λ, V = F.values, F.vectors
-        Δλ, ΔV = ΔF.values, ΔF.vectors
+        Δλ, ΔV = _ΔF.values, _ΔF.vectors
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NoTangent(), Δλ + ΔV)
-        if eltype(λ) <: Real && ishermitian(A)
-            hermA = Hermitian(A)
-            ∂V = ΔV isa AbstractZero ? ΔV : copyto!(similar(ΔV), ΔV)
-            ∂hermA = eigen_rev!(hermA, λ, V, Δλ, ∂V)
-            ∂Atriu = _symherm_back(typeof(hermA), ∂hermA, Symbol(hermA.uplo))
-            ∂A = ∂Atriu isa AbstractTriangular ? triu!(∂Atriu.data) : ∂Atriu
-        elseif ΔV isa AbstractZero
+        if ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
-            ∂A = V' \ ∂K * V'
+            ∂A = (isherm ? V * ∂K : V' \ ∂K) * V'
         else
             ∂V = copyto!(similar(ΔV), ΔV)
-            _eigen_norm_phase_rev!(∂V, A, V)
+            _eigen_norm_phase_rev!(∂V, isherm ? Hermitian(A) : A, V)
             ∂K = V' * ∂V
             ∂K ./= λ' .- conj.(λ)
+            isherm && hermitianpart!(∂K)
             ∂K[diagind(∂K)] .= Δλ
-            ∂A = mul!(∂K, V' \ ∂K, V')
+            ∂A = mul!(∂K, isherm ? V * ∂K : V' \ ∂K, V')
         end
         return NoTangent(), T <: Real ? real(∂A) : ∂A
     end
-    eigen_pullback(Ȳ::AbstractThunk) = eigen_pullback(unthunk(Ȳ))
-    eigen_pullback(ΔF::AbstractZero) = (NoTangent(), ΔF)
     return F, eigen_pullback
 end
 
@@ -408,23 +407,21 @@ end
 ##### `eigvals`
 #####
 
-function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+function frule(
+    (_, Ȧ), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...
+) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
-    if ishermitian(A)
-        λ, ∂λ = frule((ZeroTangent(), Hermitian(ΔA)), eigvals!, Hermitian(A))
-        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
-        _sorteig!_fwd(∂λ, λ, sortby)
+    isherm = ishermitian(A)
+    F = eigen!(A; kwargs...)
+    λ, V = F.values, F.vectors
+    tmp = isherm ? V' * ΔA : V \ ΔA
+    ∂λ = similar(λ)
+    # diag(tmp * V) without computing full matrix product
+    if eltype(∂λ) <: Real
+        broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
     else
-        F = eigen!(A; kwargs...)
-        λ, V = F.values, F.vectors
-        tmp = V \ ΔA
-        ∂λ = similar(λ)
-        # diag(tmp * V) without computing full matrix product
-        if eltype(∂λ) <: Real
-            broadcast!((a, b) -> sum(real ∘ prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
-        else
-            broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
-        end
+        broadcast!((a, b) -> sum(prod, zip(a, b)), ∂λ, eachrow(tmp), eachcol(V))
     end
     return λ, ∂λ
 end
@@ -438,17 +435,6 @@ function rrule(::typeof(eigvals), A::StridedMatrix{T}; kwargs...) where {T<:Unio
         return NoTangent(), ∂A
     end
     return λ, eigvals_pullback
-end
-
-# adapted from LinearAlgebra.sorteig!
-function _sorteig!_fwd(Δλ, λ, sortby)
-    Δλ isa AbstractZero && return (sort!(λ; by=sortby), Δλ)
-    if sortby !== nothing
-        p = sortperm(λ; alg=QuickSort, by=sortby)
-        permute!(λ, p)
-        permute!(Δλ, p)
-    end
-    return (λ, Δλ)
 end
 
 #####
