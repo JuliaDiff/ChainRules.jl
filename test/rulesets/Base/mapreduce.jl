@@ -1,21 +1,26 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, StaticArrays, Test
+
 # for sum(xs, weights) (#522)
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
-const CFG = ChainRulesTestUtils.ADviaRuleConfig()
-
 @testset "Reductions" begin
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
+        test_frule(sum, (rand(2), rand(2)))
+        
+        test_rrule(sum, Tuple(rand(5)))
+        test_rrule(sum, (1.2, 3.4 + 5im))
+        test_rrule(sum, (rand(2)', rand(1,2)))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
-        test_frule(sum, rand(5); fkwargs=(;dims=dims))
-        test_frule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+        @gpu test_frule(sum, rand(5); fkwargs=(;dims=dims))
+        @gpu test_frule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
 
         # Reverse
-        test_rrule(sum, rand(5); fkwargs=(;dims=dims))
-        test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+        @gpu test_rrule(sum, rand(5); fkwargs=(;dims=dims))
+        @gpu test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
 
         # Structured matrices
         test_rrule(sum, rand(5)'; fkwargs=(;dims=dims))
@@ -53,8 +58,8 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         @testset "dims = $dims" for dims in (:, 1)
             @testset "Array{$N, $T}" for N in eachindex(sizes), T in (Float64, ComplexF64)
                 x = randn(T, sizes[1:N]...)
-                test_frule(sum, abs2, x; fkwargs=(;dims=dims))
-                test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
+                @gpu test_frule(sum, abs2, x; fkwargs=(;dims=dims))
+                @gpu test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
             end
 
             # Boolean -- via @non_differentiable, test that this isn't ambiguous
@@ -62,18 +67,25 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         end
     end  # sum abs2
 
+    @testset "sum(f, xs::Tuple)" begin
+        test_rrule(sum, sqrt, Tuple(rand(3)), check_inferred=false)
+    end
+
     @testset "sum(f, xs)" begin
         # This calls back into AD
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
+        test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
         # Complex numbers
+        test_rrule(sum, log, rand(ComplexF64, 5))
         test_rrule(sum, sqrt, rand(ComplexF64, 5))
         test_rrule(sum, abs, rand(ComplexF64, 3, 4))  # complex -> real
 
         # inference fails for array of arrays
         test_rrule(sum, sum, [[2.0, 4.0], [4.0,1.9]]; check_inferred=false)
+        test_rrule(sum, norm, collect.(eachcol(rand(3,4))); check_inferred=false)
         
         # dims kwarg
         test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=1))
@@ -82,11 +94,21 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
 
         test_rrule(sum, abs, @SVector[1.0, -3.0])
 
+        # Make sure the above test both `derivatives_given_output` path and general case:
+        @test ChainRules._uses_input_only(abs, Float32)
+        @test !ChainRules._uses_input_only(cbrt, Float64)
+        @test ChainRules._uses_input_only(log, ComplexF64)
+        @test !ChainRules._uses_input_only(abs, ComplexF64)
+
         # covectors
         x = [-4.0 2.0; 2.0 -1.0]
         test_rrule(sum, inv, x[1, :]')
         test_rrule(sum, inv, x[1:1, :]')
         test_rrule(sum, inv, transpose(view(x, 1, :)))
+        # Cases from https://github.com/JuliaDiff/ChainRules.jl/issues/530
+        test_rrule(sum, log, [1, 2, 3.0]'; fkwargs=(;dims=1))
+        test_rrule(sum, log, [1, 2, 3.0]'; fkwargs=(;dims=2))
+        test_rrule(sum, imag, [1+2im, 3+4.0im]')
 
         # Make sure we preserve type for StaticArrays
         _, pb = rrule(CFG, sum, abs, @SVector[1.0, -3.0])
@@ -102,7 +124,6 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         # ... and Bool produced by function
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
 
-
         # Functions that return a Vector
         # see https://github.com/FluxML/Zygote.jl/issues/1074
         test_rrule(sum, make_two_vec, [1.0, 3.0, 5.0, 7.0])
@@ -110,6 +131,15 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=2))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=1))
         test_rrule(sum, make_two_vec, [1.0 2.0; 3.0 4.0]; fkwargs=(;dims=(3, 4)))
+
+        # arrays of arrays, functions which return a scalar:
+        test_rrule(sum, sum, [[1,2], [3,4], [5,6]]; check_inferred=false)
+        x2345 = [rand(2,3) for _ in 1:4, _ in 1:5]
+        test_rrule(sum, prod, x2345; check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=1), check_inferred=false)
+        test_rrule(sum, sum, x2345; fkwargs=(;dims=(1,2)), check_inferred=false)
+
+        test_rrule(sum, cumprod, [[1,2], [3,4], [5,6]]; check_inferred=false)
     end
 
     # https://github.com/JuliaDiff/ChainRules.jl/issues/522
@@ -127,10 +157,10 @@ const CFG = ChainRulesTestUtils.ADviaRuleConfig()
                 ((3,4), 1), ((3,4), 2), ((3,4), :), ((3,4), [1,2]),
                 ((3,4,1), 1), ((3,2,2), 3), ((3,2,2), 2:3),
                 ]
-                x = randn(T, sz)
-                test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
+                x = rand(T, sz) .+ 1  # no zeros
+                @gpu test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[1] = 0
-                test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
+                @gpu_broken test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[5] = 0
                 test_rrule(prod, x; fkwargs=(dims=dims,), check_inferred=true)
                 x[3] = x[7] = 0  # two zeros along some slice, for any dims
@@ -257,6 +287,7 @@ end
         test_rrule(cumsum, v)
         test_rrule(cumsum, v; fkwargs=(;dims=1))
         test_rrule(cumsum, m; fkwargs=(;dims=2))
+        test_rrule(cumsum, m; fkwargs=(;dims=3))  # trivial
     end
     @testset "cumprod" begin
         v = round.(10 .* randn(9), sigdigits=3)

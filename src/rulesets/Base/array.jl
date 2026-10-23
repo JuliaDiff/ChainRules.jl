@@ -31,7 +31,7 @@ end
 
 @non_differentiable Base.vect()
 
-function frule((_, ẋs...), ::typeof(Base.vect), xs::Number...)
+function frule((_, ẋs...), ::typeof(Base.vect), xs...)
     return Base.vect(xs...), Base.vect(_instantiate_zeros(ẋs, xs)...)
 end
 
@@ -71,13 +71,11 @@ materialises each zero `ẋ` to be `zero(x)`.
 """
 _instantiate_zeros(ẋs, xs) = map(_i_zero, ẋs, xs)
 _i_zero(ẋ, x) = ẋ
-_i_zero(ẋ::AbstractZero, x) = zero(x)
-# Possibly this won't work for partly non-diff arrays, sometihng like `gradient(x -> ["abc", x][end], 1)`
-# may give a MethodError for `zero` but won't be wrong.
+_i_zero(ẋ::AbstractZero, x) = zero_tangent(x)
 
 # Fast paths. Should it also collapse all-Zero cases?
-_instantiate_zeros(ẋs::Tuple{Vararg{<:Number}}, xs) = ẋs
-_instantiate_zeros(ẋs::Tuple{Vararg{<:AbstractArray}}, xs) = ẋs
+_instantiate_zeros(ẋs::Tuple{Vararg{Number}}, xs) = ẋs
+_instantiate_zeros(ẋs::Tuple{Vararg{AbstractArray}}, xs) = ẋs
 _instantiate_zeros(ẋs::AbstractArray{<:Number}, xs) = ẋs
 _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 
@@ -86,7 +84,13 @@ _instantiate_zeros(ẋs::AbstractArray{<:AbstractArray}, xs) = ẋs
 #####
 
 function frule((_, ẏ, ẋ), ::typeof(copyto!), y::AbstractArray, x)
-    return copyto!(y, x), copyto!(ẏ, ẋ)
+    if ẏ isa AbstractZero
+        # it's allowed to have an imutable zero tangent for ẏ as long as ẋ is zero
+        @assert iszero(ẋ)
+    else
+        copyto!(ẏ, ẋ)
+    end
+    return copyto!(y, x), ẏ
 end
 
 function frule((_, ẏ, _, ẋ), ::typeof(copyto!), y::AbstractArray, i::Integer, x, js::Integer...)
@@ -143,18 +147,21 @@ end
 function rrule(::typeof(permutedims), x::AbstractVector)
     project = ProjectTo(x)
     permutedims_pullback_1(dy) = (NoTangent(), project(permutedims(unthunk(dy))))
+    permutedims_pullback_1(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return permutedims(x), permutedims_pullback_1
 end
 
 function rrule(::typeof(permutedims), x::AbstractArray, perm)
     pr = ProjectTo(x)  # projection restores e.g. transpose([1,2,3])
     permutedims_back_2(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    permutedims_back_2(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return permutedims(x, perm), permutedims_back_2
 end
 
 function rrule(::Type{<:PermutedDimsArray}, x::AbstractArray, perm)
     pr = ProjectTo(x)
     permutedims_back_3(dy) = (NoTangent(), pr(permutedims(unthunk(dy), invperm(perm))), NoTangent())
+    permutedims_back_3(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return PermutedDimsArray(x, perm), permutedims_back_3
 end
 
@@ -166,18 +173,19 @@ function frule((_, ẋs), ::typeof(repeat), xs::AbstractArray, cnt...; kw...)
     return repeat(xs, cnt...; kw...), repeat(ẋs, cnt...; kw...)
 end
 
-function rrule(::typeof(repeat), xs::AbstractArray; inner=ntuple(Returns(1), ndims(xs)), outer=ntuple(Returns(1), ndims(xs)))
+function rrule(::typeof(repeat), xs::AbstractArray; inner=nothing, outer=nothing)
 
     project_Xs = ProjectTo(xs)
     S = size(xs)
+    inner_size = inner === nothing ? ntuple(Returns(1), ndims(xs)) : inner
     function repeat_pullback(ȳ)
         dY = unthunk(ȳ)
         Δ′ = zero(xs)
         # Loop through each element of Δ, calculate source dimensions, accumulate into Δ′
         for (dest_idx, val) in pairs(IndexCartesian(), dY)
-            # First, round dest_idx[dim] to nearest gridpoint defined by inner[dim], then
+            # First, round dest_idx[dim] to nearest gridpoint defined by inner_dims[dim], then
             # wrap around based on original size S.
-            src_idx = [mod1(div(dest_idx[dim] - 1, inner[dim]) + 1, S[dim]) for dim in 1:length(S)]
+            src_idx = [mod1(div(dest_idx[dim] - 1, inner_size[dim]) + 1, S[dim]) for dim in 1:length(S)]
             Δ′[src_idx...] += val
         end
         x̄ = project_Xs(Δ′)
@@ -209,10 +217,15 @@ function frule((_, ẋs...), ::typeof(hcat), xs...)
     return hcat(xs...), hcat(_instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
+# All the [hv]cat functions treat anything that's not an array as a scalar. 
+_catsize(x) = ()
+_catsize(x::AbstractArray) = size(x)
+
+function rrule(::typeof(hcat), Xs...)
     Y = hcat(Xs...)  # note that Y always has 1-based indexing, even if X isa OffsetArray
+    Base.require_one_based_indexing(Y)
     ndimsY = Val(ndims(Y))  # this avoids closing over Y, Val() is essential for type-stability
-    sizes = map(size, Xs)   # this avoids closing over Xs
+    sizes = map(_catsize, Xs)   # this avoids closing over Xs
     project_Xs = map(ProjectTo, Xs)
     function hcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -228,15 +241,10 @@ function rrule(::typeof(hcat), Xs::Union{AbstractArray, Number}...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = if ndimsX > 0
-                # Here InplaceableThunk breaks @inferred, removed for now
-                # InplaceableThunk(dX -> dX .+= view(dY, ind...), @thunk(dY[ind...]))
-                dY[ind...]
-            else
-                # This is a hack to perhaps avoid GPU scalar indexing
-                sum(view(dY, ind...))
-            end
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, ind...),
+                @thunk project(@allowscalar dY[ind...])
+            )
         end
         return (NoTangent(), dXs...)
     end
@@ -248,6 +256,8 @@ function frule((_, _, Ȧs), ::typeof(reduce), ::typeof(hcat), As::AbstractVecto
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVecOrMat})
+    Y = reduce(hcat, As)
+    Base.require_one_based_indexing(Y)
     widths = map(A -> size(A,2), As)
     function reduce_hcat_pullback_2(dY)
         hi = Ref(0)
@@ -258,7 +268,7 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
         end
         return (NoTangent(), NoTangent(), dAs)
     end
-    return reduce(hcat, As), reduce_hcat_pullback_2
+    return Y, reduce_hcat_pullback_2
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVector})
@@ -279,10 +289,11 @@ function frule((_, ẋs...), ::typeof(vcat), xs...)
     return vcat(xs...), vcat(_instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
+function rrule(::typeof(vcat), Xs...)
     Y = vcat(Xs...)
+    Base.require_one_based_indexing(Y)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function vcat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -298,13 +309,10 @@ function rrule(::typeof(vcat), Xs::Union{AbstractArray, Number}...)
                     d > ndimsX ? 1 : (:)
                 end
             end
-            dX = if ndimsX > 0
-                # InplaceableThunk(@thunk(dY[ind...]), dX -> dX .+= view(dY, ind...))
-                dY[ind...]
-            else
-                sum(view(dY, ind...))
-            end
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, ind...),
+                @thunk project(@allowscalar dY[ind...])
+            )
         end
         return (NoTangent(), dXs...)
     end
@@ -317,6 +325,7 @@ end
 
 function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVecOrMat})
     Y = reduce(vcat, As)
+    Base.require_one_based_indexing(Y)
     ndimsY = Val(ndims(Y))
     heights = map(A -> size(A,1), As)
     function reduce_vcat_pullback(dY)
@@ -342,11 +351,13 @@ function frule((_, ẋs...), ::typeof(cat), xs...; dims)
     return cat(xs...; dims), cat(_instantiate_zeros(ẋs, xs)...; dims)
 end
 
-function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
+function rrule(::typeof(cat), Xs...; dims)
     Y = cat(Xs...; dims=dims)
-    cdims = dims isa Val ? Int(_val(dims)) : dims isa Integer ? Int(dims) : Tuple(dims)
+    Base.require_one_based_indexing(Y)
+    _cdims = dims isa Val ? _val(dims) : dims
+    cdims = _cdims isa Integer ? Int(_cdims) : Tuple(_cdims)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, Xs)
+    sizes = map(_catsize, Xs)
     project_Xs = map(ProjectTo, Xs)
     function cat_pullback(ȳ)
         dY = unthunk(ȳ)
@@ -357,19 +368,16 @@ function rrule(::typeof(cat), Xs::Union{AbstractArray, Number}...; dims)
                 if d in cdims
                     d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
                 else
-                    d > ndimsX ? 1 : (:)
+                    d > ndimsX ? 1 : 1:sizeX[d]
                 end
             end
             for d in cdims
                 prev[d] += get(sizeX, d, 1)
             end
-            dX = if ndimsX > 0
-                # InplaceableThunk(@thunk(dY[index...]), dX -> dX .+= view(dY, index...))
-                dY[index...]
-            else
-                sum(view(dY, index...))
-            end
-            return project(dX)
+            InplaceableThunk(
+                dX -> dX .+= view(dY, index...),
+                @thunk project(@allowscalar dY[index...])
+            )
         end
         return (NoTangent(), dXs...)
     end
@@ -384,11 +392,11 @@ function frule((_, _, ẋs...), ::typeof(hvcat), rows, xs...)
     return hvcat(rows, xs...), hvcat(rows, _instantiate_zeros(ẋs, xs)...)
 end
 
-function rrule(::typeof(hvcat), rows, values::Union{AbstractArray, Number}...)
+function rrule(::typeof(hvcat), rows, values...)
     Y = hvcat(rows, values...)
     cols = size(Y,2)
     ndimsY = Val(ndims(Y))
-    sizes = map(size, values)
+    sizes = map(_catsize, values)
     project_Vs = map(ProjectTo, values)
     function hvcat_pullback(dY)
         prev = fill(0, 2)
@@ -510,60 +518,12 @@ for findm in (:findmin, :findmax)
 
     @eval function rrule(::typeof($findm), x::AbstractArray; dims=:)
         y, ind = $findm(x; dims=dims)
-        project = ProjectTo(x)
-        # This pullback is a lot like the one for getindex. Ideally they would probably be combined?
         function $findm_pullback((dy, _))  # this accepts e.g. Tangent{Tuple{Float64, Int64}}(4.0, nothing)
             dy isa AbstractZero && return (NoTangent(), NoTangent())
-            x_thunk = @thunk project(_zerolike_writeat(x, unthunk(dy), dims, ind))
-            x_ithunk = InplaceableThunk(x_thunk) do dx
-                if dims isa Colon
-                    view(dx, ind) .= view(dx, ind) .+ Ref(unthunk(dy))
-                else
-                    view(dx, ind) .= view(dx, ind) .+ unthunk(dy)  # this could be .+=, but not on Julia 1.0
-                end
-                dx
-            end
-            return (NoTangent(), x_ithunk)
+            return (NoTangent(), thunked_∇getindex(x, dy, ind),)
         end
         return (y, ind), $findm_pullback
     end
-end
-
-# This function is roughly `setindex!(zero(x), dy, inds...)`:
-
-function _zerolike_writeat(x::AbstractArray{<:Number}, dy, dims, inds...)
-    # It's unfortunate to close over `x`, but `similar(typeof(x), axes(x))` doesn't 
-    # allow `eltype(dy)`, nor does it work for many structured matrices.
-    dx = fill!(similar(x, eltype(dy), axes(x)), 0)
-    view(dx, inds...) .= dy  # possibly 0-dim view, allows dy::Number and dy::Array, and dx::CuArray
-    dx
-end
-function _zerolike_writeat(x::AbstractArray, dy, dims, inds...)
-    # Since we have `x`, we can also handle arrays of arrays.
-    dx = map(zero, x)
-    if dims isa Colon
-        view(dx, inds...) .= Ref(dy)
-    else
-        view(dx, inds...) .= dy
-    end
-    dx
-end
-
-# Allow for second derivatives, by writing rules for `_zerolike_writeat`;
-# these rules are the reason it takes a `dims` argument.
-
-function frule((_, _, dẏ), ::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    return _zerolike_writeat(x, dy, dims, inds...), _zerolike_writeat(x, dẏ, dims, inds...)
-end
-
-function rrule(::typeof(_zerolike_writeat), x, dy, dims, inds...)
-    z = _zerolike_writeat(x, dy, dims, inds...)
-    function _zerolike_writeat_pullback(dz)
-        dx = sum(view(unthunk(dz), inds...); dims=dims)
-        nots = map(_ -> NoTangent(), inds)
-        return (NoTangent(), NoTangent(), dx, NoTangent(), nots...)
-    end
-    return z, _zerolike_writeat_pullback
 end
 
 # These rules for `maximum` pick the same subgradient as `findmax`:
@@ -656,4 +616,31 @@ function _extrema_dims(x, dims)
         return (NoTangent(), x_nothunk)
     end
     return y, extrema_pullback_dims
+end
+
+#####
+##### `stack`
+#####
+
+function frule((_, ẋ), ::typeof(stack), x; dims::Union{Integer, Colon} = :)
+    return stack(x; dims), stack(ẋ; dims)
+end
+
+# Other iterable X also allowed, maybe this should be wider?
+function rrule(::typeof(stack), X::AbstractArray; dims::Union{Integer, Colon} = :)
+    Y = stack(X; dims)
+    sdims = if dims isa Colon
+        N = ndims(Y) - ndims(X)
+        X isa AbstractVector ? ndims(Y) : ntuple(i -> i + N, ndims(X))
+    else
+        dims
+    end
+    project = ProjectTo(X)
+    function stack_pullback(Δ)
+        dY = unthunk(Δ)
+        dY isa AbstractZero && return (NoTangent(), dY)
+        dX = collect(eachslice(dY; dims = sdims))
+        return (NoTangent(), project(reshape(dX, project.axes)))
+    end
+    return Y, stack_pullback
 end

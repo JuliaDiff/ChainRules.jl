@@ -29,7 +29,7 @@ function rrule(::typeof(findnz), A::AbstractSparseMatrix)
     m, n = size(A)
 
     function findnz_pullback(Δ)
-        _, _, V̄ = unthunk(Δ)
+        V̄ = unthunk(Δ)[3]
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparse(I, J, V̄, m, n)
     end
@@ -42,10 +42,74 @@ function rrule(::typeof(findnz), v::AbstractSparseVector)
     n = length(v)
 
     function findnz_pullback(Δ)
-        _, V̄ = unthunk(Δ)
+        V̄ = unthunk(Δ)[2]
         V̄ isa AbstractZero && return (NoTangent(), V̄)
         return NoTangent(), sparsevec(I, V̄, n)
     end
 
     return (I, V), findnz_pullback
+end
+
+if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't have CHOLMOD from SuiteSparse.jl
+    using SparseInverseSubset
+    
+    function rrule(::typeof(logabsdet), x::SparseMatrixCSC)
+        F = cholesky(x)
+        L, D, U, P = SparseInverseSubset.get_ldup(F)
+        Ω = logabsdet(D)
+        function logabsdet_pullback(ΔΩ)
+            (Δy, Δsigny) = ΔΩ
+            (_, signy) = Ω
+            f = signy' * Δsigny
+            imagf = f - real(f)
+            g = real(Δy) + imagf
+            Z, P = sparseinv(F, depermute=true)
+            ∂x = g * Z'
+            return (NoTangent(), ∂x)
+        end
+        return Ω, logabsdet_pullback
+    end
+
+    function rrule(::typeof(logdet), x::SparseMatrixCSC)
+        Ω = logdet(x)
+        function logdet_pullback(ΔΩ)
+            Z, p = sparseinv(x, depermute=true)
+            ∂x = ΔΩ * Z'
+            return (NoTangent(), ∂x)
+        end
+        return Ω, logdet_pullback
+    end
+    
+    function rrule(::typeof(det), x::SparseMatrixCSC)
+        Ω = det(x)
+        function det_pullback(ΔΩ)
+            Z, _ = sparseinv(x, depermute=true)
+            ∂x = Z' * dot(Ω, ΔΩ)
+            return (NoTangent(), ∂x)
+        end
+        return Ω, det_pullback
+    end
+    
+end # rrules that depend on CHOLMOD
+
+function rrule(::typeof(spdiagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(m, n, kv...), spdiagm_pullback
+end
+
+function rrule(::typeof(spdiagm), kv::Pair{<:Integer,<:AbstractVector}...)
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return spdiagm(kv...), spdiagm_pullback
+end
+
+function rrule(::typeof(spdiagm), v::AbstractVector)
+    function spdiagm_pullback(ȳ)
+        return (NoTangent(), diag(unthunk(ȳ)))
+    end
+    return spdiagm(v), spdiagm_pullback
 end

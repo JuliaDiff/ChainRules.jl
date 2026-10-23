@@ -34,6 +34,7 @@
 @non_differentiable circshift!(::AbstractArray{Bool}, ::Any)
 @non_differentiable conj(::AbstractArray{Bool})
 @non_differentiable conj!(::AbstractArray{Bool})
+@non_differentiable cumprod(::AbstractVector{Bool})
 @non_differentiable cumprod(::AbstractArray{Bool})
 @non_differentiable cumprod!(::Any, ::AbstractArray{Bool})
 @non_differentiable cumsum(::AbstractArray{Bool})
@@ -54,7 +55,6 @@
 @non_differentiable invperm(::AbstractArray{Bool})
 @non_differentiable invpermute!(::Any, ::AbstractArray{Bool})
 @non_differentiable mapslices(::Any, ::AbstractArray{Bool})
-@non_differentiable Matrix(::AbstractArray{Bool})
 @non_differentiable ndims(::AbstractArray{Bool})
 @non_differentiable parent(::AbstractArray{Bool})
 @non_differentiable parentindices(::AbstractArray{Bool})
@@ -62,7 +62,7 @@
 @non_differentiable permutedims(::AbstractArray{Bool})
 @non_differentiable permutedims(::AbstractArray{Bool}, ::Any)
 @non_differentiable promote_shape(::AbstractArray{Bool}, ::Any)
-@non_differentiable repeat(::AbstractArray{Bool}, ::Any...)
+@non_differentiable repeat(::AbstractArray{Bool}, ::Integer...)
 @non_differentiable reshape(::AbstractArray{Bool}, ::Any...)
 @non_differentiable reverse(::AbstractArray{Bool}, ::Any...)
 @non_differentiable reverse!(::AbstractArray{Bool}, ::Any...)
@@ -87,11 +87,14 @@
 
 @non_differentiable Array(::AbstractArray{Bool})
 @non_differentiable BitArray(::Any...)
+@non_differentiable BitVector(::Any...)
 @non_differentiable IndexStyle(::AbstractArray{Bool})
 
 #####
 ##### Exported functions, alphabetically
 #####
+
+@non_differentiable (:)(::Any...) # same as the Colon() singleton instance
 
 @non_differentiable abspath(::AbstractString...)
 @non_differentiable all(::Any)
@@ -110,6 +113,7 @@
 @non_differentiable bytesavailable(::Any)
 
 @non_differentiable CartesianIndices(::Any)
+@non_differentiable Channel(::Any...)
 @non_differentiable cd(::AbstractString)
 @non_differentiable chomp(::AbstractString)
 @non_differentiable chop(::AbstractString)
@@ -147,12 +151,15 @@
 @non_differentiable endswith(::AbstractString, ::AbstractString)
 @non_differentiable endswith(::AbstractString, ::Regex)
 @non_differentiable eof(::Any)
+@non_differentiable eps(::Any...)
 @non_differentiable error(::AbstractString)
 @non_differentiable escape_string(::AbstractString)
 @non_differentiable escape_string(::IO, ::AbstractString)
+@non_differentiable eval(::Any...)
 @non_differentiable evalfile(::AbstractString)
 @non_differentiable evalfile(::AbstractString, ::Array{String,1})
 @non_differentiable expanduser(::AbstractString)
+@non_differentiable exponent(::Any)
 
 @non_differentiable fd(::Base.Filesystem.File)
 @non_differentiable fd(::IOStream)
@@ -162,15 +169,18 @@
 @non_differentiable fieldnames(T)
 
 @non_differentiable factorial(n::Integer)
+@non_differentiable binomial(n::Integer, k::Integer)
 
 @non_differentiable findall(::Union{Regex, AbstractString, Function}, ::AbstractString)
 @non_differentiable findall(::Function, ::AbstractArray)
 @non_differentiable findall(::AbstractArray)
 @non_differentiable findfirst(::Union{Regex, AbstractString, Function, AbstractChar}, ::AbstractString)
 @non_differentiable findfirst(::Function, ::Any)
+@non_differentiable findfirst(::Function, ::AbstractString)
 @non_differentiable findfirst(::AbstractArray)
 @non_differentiable findlast(::Union{AbstractString, Function, AbstractChar}, ::AbstractString)
 @non_differentiable findlast(::Function, ::Any)
+@non_differentiable findlast(::Function, ::AbstractString)
 @non_differentiable findlast(::AbstractArray)
 @non_differentiable first(::AbstractChar)
 @non_differentiable first(::Cmd)
@@ -182,6 +192,9 @@
 @non_differentiable floatmax(::Any)
 @non_differentiable floatmin(::Any)
 @non_differentiable flush(::Any)
+@non_differentiable foreach(::Any, ::Tuple{})
+
+@non_differentiable hasmethod(args...)
 
 @non_differentiable gensym(::Symbol)
 @non_differentiable gensym(::String...)
@@ -325,7 +338,6 @@
 
 @non_differentiable occursin(::Regex, ::AbstractString)
 @non_differentiable occursin(::Union{AbstractChar, AbstractString}, ::AbstractString)
-@non_differentiable one(::Any)
 @non_differentiable ones(::Any...)
 @non_differentiable only(::Char)
 @non_differentiable open(::Any)
@@ -342,6 +354,7 @@
 @non_differentiable println(::Any...)
 @non_differentiable process_exited(::Any)
 @non_differentiable process_running(::Any)
+@non_differentiable promote_type(::Type...)
 @non_differentiable pushdisplay(::AbstractDisplay)
 
 @non_differentiable read(::IO)
@@ -354,19 +367,7 @@
 @non_differentiable readuntil(::IO, ::AbstractChar)
 @non_differentiable readuntil(::IO, ::AbstractString)
 @non_differentiable realpath(::AbstractString)
-if isdefined(Base, :redirect_stdio)
-    @non_differentiable Base.redirect_stdio(::Any)
-else
-    @non_differentiable redirect_stderr(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdin(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdout(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-end
+@non_differentiable Base.redirect_stdio(::Any)
 @non_differentiable relpath(::AbstractString, ::AbstractString)
 @non_differentiable relpath(::String)
 @non_differentiable repr(::Any)
@@ -390,6 +391,7 @@ end
 @non_differentiable similar(::Any...)
 @non_differentiable size(::Any)
 @non_differentiable size(::Any, ::Any)
+@non_differentiable sizehint!(::Any...)
 @non_differentiable sizeof(::Any)
 @non_differentiable sleep(::Any)
 @non_differentiable sortperm(::AbstractVector)
@@ -414,6 +416,7 @@ end
 @non_differentiable supertype(::Any)
 @non_differentiable Symbol(::Any...)
 @non_differentiable symlink(::AbstractString, ::AbstractString)
+@non_differentiable summary(::Any)
 
 @non_differentiable take!(::Base.GenericIOBuffer)
 @non_differentiable take!(::IOStream)
@@ -423,13 +426,18 @@ end
 @non_differentiable titlecase(::AbstractString)
 @non_differentiable titlecase(::AbstractChar)
 @non_differentiable touch(::AbstractString)
+@non_differentiable trunc(::Any...)
+@non_differentiable typeintersect(::Any, ::Any)
 @non_differentiable typemax(::Any)
 @non_differentiable typemin(::Any)
 
 @non_differentiable unescape_string(::AbstractString)
 @non_differentiable unescape_string(::IO, ::AbstractString)
+@non_differentiable unique(::AbstractArray{<:Union{Regex, AbstractChar, AbstractString}})
+@non_differentiable unique(::AbstractArray{Symbol})
 @non_differentiable unmark(::IO)
 @non_differentiable unsafe_string(::Cstring)
+@non_differentiable unsafe_trunc(::Any...)
 @non_differentiable uppercase(::AbstractString)
 @non_differentiable uppercase(::AbstractChar)
 @non_differentiable uppercasefirst(::AbstractString)
@@ -442,24 +450,31 @@ end
 @non_differentiable xor(::Any...)
 @non_differentiable typejoin(::Any...)
 
-@non_differentiable zero(::Any)
 @non_differentiable zeros(::Any...)
 
 #####
 ##### Non-exported functions
 #####
 
+@non_differentiable Base.eval(Any...)
 @non_differentiable Base.gc_num()
 @non_differentiable Base.time_ns()
 @non_differentiable Base.typename(::Any)
 @non_differentiable Base.depwarn(::Any...)
-@non_differentiable Base.cumulative_compile_time_ns_before()
-@non_differentiable Base.cumulative_compile_time_ns_after()
+if isdefined(Base, :cumulative_compile_time_ns_before)
+    @non_differentiable Base.cumulative_compile_time_ns_before()
+    @non_differentiable Base.cumulative_compile_time_ns_after()
+elseif isdefined(Base, :cumulative_compile_time_ns)
+    @non_differentiable Base.cumulative_compile_time_ns()
+end
 @non_differentiable Base.time_print(::Any...)
+@non_differentiable Base.OneTo(::Any...)
+@non_differentiable Base.array_summary(::Any)
 
 @non_differentiable Broadcast.combine_styles(::Any...)
 @non_differentiable Broadcast.result_style(::Any)
 @non_differentiable Broadcast.result_style(::Any, ::Any)
+
 
 @non_differentiable Libc.free(::Any)
 @non_differentiable Libc.getpid()
@@ -486,3 +501,6 @@ end
 @non_differentiable Threads.nthreads()
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
+if isdefined(Threads, :_spawn_set_thrpool)
+    @non_differentiable Threads._spawn_set_thrpool(::Task, ::Symbol)
+end

@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "norm functions" begin
 
     # First test the un-exported functions which norm(A,p) calls
@@ -149,6 +151,16 @@
         ȳ = rand_tangent(norm(x, p))
         @test unthunk(rrule(norm, x, p)[2](ȳ)[2]) isa typeof(x)
     end
+    @testset "gpu test norm" begin
+        @gpu test_rrule(norm, rand(2,3).+im)
+
+        @gpu test_rrule(norm, rand(2,3).+im, 1.0)
+        @gpu test_rrule(norm, rand(2,3).+im, 2.0)
+        @gpu test_rrule(norm, rand(2,3).+im, 2.5)
+
+        @gpu_broken test_rrule(norm, rand(2,3), Inf)
+        @gpu_broken test_rrule(norm, rand(2,3), -Inf)
+    end
 
     # Scalar norm(x, p)
     # =================
@@ -175,22 +187,36 @@
             @test back(ȳ) == (NoTangent(), zero(x), ZeroTangent())
             @test back(ZeroTangent()) == (NoTangent(), ZeroTangent(), ZeroTangent())
         end
-    end
+    end  
 end
 
 # normalise(x, p) and normalise(A, p)
 # ===================================
 
 @testset "normalize" begin
-    @testset "x::Vector{$T}" for T in (Float64, ComplexF64)
+    @testset "x::Array{$T}" for T in (Float64, ComplexF64)
         x = randn(T, 3)
         test_rrule(normalize, x)
         @test rrule(normalize, x)[2](ZeroTangent()) === (NoTangent(), ZeroTangent())
+
+        @gpu_broken test_rrule(normalize, rand(T, 3, 4))
+        test_rrule(normalize, adjoint(rand(T, 5)))
+
+        # subnormal norm
+        xsub = fill(T(1e-310), 3)
+        @test rrule(normalize, xsub)[1] ≈ normalize(xsub)
     end
-    @testset "x::Vector{$T}, p=$p" for T in (Float64, ComplexF64),
-        p in (1.0, 2.0, -Inf, Inf, 2.5) # skip p=0, since FD is unstable
+    @testset "x::Array{$T}, p=$p" for T in (Float64, ComplexF64), p in (1.0, 2.0, -Inf, Inf, 2.5)
+    # skip p=0, since FD is unstable
         x = randn(T, 3)
         test_rrule(normalize, x, p)
         @test rrule(normalize, x, p)[2](ZeroTangent()) === (NoTangent(), ZeroTangent(), ZeroTangent())
+
+        @gpu_broken test_rrule(normalize, rand(T, 3, 4), p)
+        test_rrule(normalize, adjoint(rand(T, 5)), p)
+
+        # subnormal norm
+        xsub = fill(T(1e-310), 3)
+        @test rrule(normalize, xsub, p)[1] ≈ normalize(xsub, p)
     end
 end

@@ -33,7 +33,7 @@ _extract_imag(x) = complex(0, imag(x))
 """
     WithSomeZeros{T}
 
-This is a union of LinearAlgebra types, all of which are partly structral zeros,
+This is a union of LinearAlgebra types, all of which are partly structural zeros,
 with a simple backing array given by `parent(x)`. All have methods of `_rewrap`
 to re-create.
 

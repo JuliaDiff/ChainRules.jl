@@ -95,7 +95,7 @@ end
 
 function _diagm_back(p, ȳ)
     k, v = p
-    d = diag(unthunk(ȳ), k)[1:length(v)] # handle if diagonal was smaller than matrix
+    d = diag(unthunk(ȳ), k)[eachindex(v)] # handle if diagonal was smaller than matrix
     return Tangent{typeof(p)}(second = d)
 end
 
@@ -266,4 +266,17 @@ function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
         return (NoTangent(), Diagonal(ȳ .* s))
     end
     return y, logdet_pullback
+end
+
+#####
+##### Tridiagonal
+#####
+
+function rrule(::Type{Tridiagonal}, dl, d, du)
+    y = Tridiagonal(dl, d, du)
+    function Tridiagonal_pullback(ȳ)
+        ∂y = unthunk(ȳ)
+        return (NoTangent(), diag(∂y, -1), diag(∂y), diag(∂y, 1))
+    end
+    return y, Tridiagonal_pullback
 end

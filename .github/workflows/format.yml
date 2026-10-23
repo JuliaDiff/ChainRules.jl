@@ -1,0 +1,32 @@
+name: Format suggestions
+
+on:
+  pull_request:
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: 1
+      - run: |
+          julia  -e 'using Pkg; Pkg.add("JuliaFormatter")'
+          julia  -e 'using JuliaFormatter; format("."; verbose=true)'
+      - uses: reviewdog/action-suggester@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tool_name: JuliaFormatter
+          fail_on_error: true
+          filter_mode: added

@@ -1,7 +1,7 @@
 let
     # Include inside this quote any rules that should have FastMath versions
     # IMPORTANT:
-    # Do not add any rules here for functions that do not have varients in Base.FastMath
+    # Do not add any rules here for functions that do not have variants in Base.FastMath
     # e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
     fastable_ast = quote
         #  Trig-Basics
@@ -78,6 +78,11 @@ let
                 return (NoTangent(), signx * real(ΔΩ))
             end
             return Ω, abs_pullback
+        end
+
+        function ChainRulesCore.derivatives_given_output(Ω, ::typeof(abs), x::Union{Real, Complex})
+            signx = x isa Real ? sign(x) : x / ifelse(iszero(x), one(Ω), Ω)
+            return tuple(tuple(signx))
         end
 
         ## abs2
@@ -162,6 +167,16 @@ let
         @scalar_rule x + y (true, true)
         @scalar_rule x - y (true, -1)
         @scalar_rule x / y (one(x) / y, -(Ω / y))
+        
+        ## many-arg +
+        function frule(Δs, ::typeof(+), x::Number, ys::Number...)
+            +(x, ys...), +(Base.tail(Δs)...)
+        end
+        
+        function rrule(::typeof(+), x::Number, ys::Number...)
+            plus_back(dz) = (NoTangent(), dz, map(Returns(dz), ys)...)
+            +(x, ys...), plus_back
+        end        
 
         ## power
         # literal_pow is in base.jl
@@ -271,6 +286,10 @@ let
             return Ω4, times_pullback4
         end
         rrule(::typeof(*), x::Number) = rrule(identity, x)
+        
+        # This is used to choose a faster path in some broadcasting operations:
+        ChainRulesCore.derivatives_given_output(Ω, ::typeof(*), x::Number, y::Number) = tuple((y', x'))
+        ChainRulesCore.derivatives_given_output(Ω, ::typeof(*), x::Number, y::Number, z::Number) = tuple((y'z', x'z', x'y'))
     end  # fastable_ast
 
     # Rewrite everything to use fast_math functions, including the type-constraints
@@ -287,8 +306,8 @@ let
             "Non-FastMath compatible rules defined in fastmath_able.jl. \n Definitions:\n" *
             join(non_transformed_definitions, "\n")
         )
-        # This error() may not play well with Revise. But a wanring @error does:
-        # @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
+        # This error() may not play well with Revise. But a warning @error does, we should change it:
+        @error "Non-FastMath compatible rules defined in fastmath_able.jl." non_transformed_definitions
     end
 
     eval(fast_ast)
@@ -297,7 +316,7 @@ let
 end
 
 ## power
-# Thes functions need to be defined outside the eval() block.
+# These functions need to be defined outside the eval() block.
 # The special cases they aim to hit are in POWERGRADS in tests.
 _pow_grad_x(x, p, y) = (p * y / x)
 function _pow_grad_x(x::Real, p::Real, y)
