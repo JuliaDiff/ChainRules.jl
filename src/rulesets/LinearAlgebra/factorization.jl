@@ -327,7 +327,7 @@ end
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     isherm = ishermitian(A)
     F = eigen(A; kwargs...)
-    function eigen_pullback(ΔF::ChainRulesCore.AbstractTangent)
+    function eigen_pullback(ΔF)
         _ΔF = unthunk(ΔF)
         _ΔF isa AbstractZero && return (NoTangent(), _ΔF)
         λ, V = F.values, F.vectors
