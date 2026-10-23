@@ -73,9 +73,9 @@ if Base.USE_GPL_LIBS # Don't define rrules for sparse determinants if we don't h
     # used by `det`, `logdet` and `logabsdet`, such that the primal results agree.
     function _cholesky(x::SparseMatrixCSC)
         x_ishermitian = ishermitian(x)
-        y = x_ishermitian ? x : similar(x, 0, 0)
-        y64 = convert(SparseMatrixCSC{promote_type(eltype(x), Float64)}, y)
-        F = cholesky(Hermitian(y64, :L); check=false)
+        Tv = promote_type(eltype(x), Float64)
+        y = x_ishermitian ? convert(SparseMatrixCSC{Tv}, x) : similar(x, Tv, 0, 0)
+        F = cholesky(Hermitian(y, :L); check=false)
         return F, x_ishermitian && issuccess(F)
     end
 
