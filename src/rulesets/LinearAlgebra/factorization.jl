@@ -302,7 +302,9 @@ end
 # Hermitian part of the (co)tangents of the eigenvectors. The eigenvalues are differentiable
 # in all directions their type admits.
 
-function frule((_, Ȧ), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+function frule(
+    (_, Ȧ), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...
+) where {T<:BlasFloat}
     ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
     isherm = ishermitian(A)
@@ -405,7 +407,9 @@ end
 ##### `eigvals`
 #####
 
-function frule((_, Ȧ), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+function frule(
+    (_, Ȧ), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...
+) where {T<:BlasFloat}
     ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     isherm = ishermitian(A)

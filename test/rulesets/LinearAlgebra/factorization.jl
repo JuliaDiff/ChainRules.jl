@@ -368,7 +368,11 @@ end
                     @test ∂F_thunk.vectors == ∂F_ad.vectors
 
                     # eigenvalues are differentiable in all directions their type admits
-                    f_values = eltype(F.values) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
                     @test ∂F_ad.values ≈ jvp(_fdm, f_values, (A, ΔA))
 
                     C = _eigvecs_stabilize_mat(F.vectors)
@@ -387,7 +391,11 @@ end
                     CT = Tangent{typeof(F)}
 
                     # eigenvalues are differentiable in all directions their type admits
-                    f_values = eltype(F.values) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
 
                     @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                         ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
@@ -449,7 +457,8 @@ end
                     λ_ad, ∂λ_ad = frule((ZeroTangent(), copy(ΔA)), eigvals!, copy(A))
                     @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                     @test ∂λ_ad isa typeof(λ)
-                    @test frule((ZeroTangent(), @thunk(copy(ΔA))), eigvals!, copy(A))[2] == ∂λ_ad
+                    @test frule((ZeroTangent(), @thunk(copy(ΔA))), eigvals!, copy(A))[2] ==
+                        ∂λ_ad
                     # eigenvalues are differentiable in all directions their type admits
                     f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
                     @test ∂λ_ad ≈ jvp(_fdm, f, (A, ΔA))
