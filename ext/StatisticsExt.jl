@@ -1,3 +1,10 @@
+module StatisticsExt
+
+using ChainRulesCore
+using Statistics
+
+import ChainRulesCore: rrule
+
 #####
 ##### `mean`
 #####
@@ -80,3 +87,5 @@ function rrule(
     end
     y, std_pullback
 end
+
+end # module

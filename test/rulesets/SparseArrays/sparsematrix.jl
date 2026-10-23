@@ -101,5 +101,77 @@ if Base.USE_GPL_LIBS # these rrules don't work without CHOLMOD from SuiteSparse.
         test_rrule(logabsdet, A)
         test_rrule(logdet, A)
         test_rrule(det, A)
+
+        # tridiagonal: the inverse is dense, the cotangent is restricted to the pattern of `Tri`
+        Tri = spdiagm(-1 => fill(-1.0, 4), 0 => fill(3.0, 5), 1 => fill(-1.0, 4))
+        test_rrule(logabsdet, Tri)
+        test_rrule(logdet, Tri)
+        test_rrule(det, Tri)
+
+        # complex Hermitian
+        C = sparse(ii, jj, ComplexF64[ones(5); 0.1im; -0.1im])
+        test_rrule(logabsdet, C)
+        test_rrule(logdet, C)
+        test_rrule(det, C)
+    end
+
+    @testset "[log[abs[det]]] SparseMatrixCSC{$T}" for T in (Int, Float32)
+        # like the primal (UMFPACK), the rrules compute in double precision
+        x = sparse(T[2 1 0; 1 2 0; 0 0 3])
+        X = Matrix{Float64}(x)
+        for f in (logabsdet, logdet, det)
+            Ω, pb = rrule(f, x)
+            @test Ω isa typeof(f(x))
+            @test all(Ω .≈ f(x))
+            ΔΩ = f === logabsdet ? Tangent{typeof(Ω)}(1.0, 0.0) : 1.0
+            ∂x = pb(ΔΩ)[2]
+            @test ∂x isa SparseMatrixCSC{Float64}
+            # `inv(X)` has the same sparsity pattern as `x`
+            @test Matrix(∂x) ≈ (f === det ? det(X) : 1) * inv(X)'
+        end
+    end
+
+    @testset "sparse selected inverse" begin
+        ext = Base.get_extension(ChainRules, :SparseArraysExt)
+        function test_inv_on_pattern(x, F=first(ext._cholesky(x)))
+            @test issuccess(F)
+            Z = ext._inv_on_pattern(F, x)
+            @test SparseArrays.getcolptr(Z) == SparseArrays.getcolptr(x)
+            @test rowvals(Z) == rowvals(x)
+            rows, cols, vals = findnz(Z)
+            @test vals ≈ inv(Matrix(x))[CartesianIndex.(rows, cols)]
+        end
+
+        n = 200
+        B = sprandn(n, n, 0.02)
+        test_inv_on_pattern(B'B + n * I)
+
+        C = sprandn(ComplexF64, n, n, 0.02)
+        test_inv_on_pattern(sparse(Hermitian(C'C + n * I)))
+
+        # explicitly stored zero in the strict upper triangle, ignored by CHOLMOD
+        test_inv_on_pattern(sparse([1, 2, 3, 4, 1], [1, 2, 3, 4, 4], [2.0, 3, 4, 5, 0.0]))
+
+        # fill-in `L[4, 3] = A[4, 3] - L[4, 1] * L[3, 1] - L[4, 2] * L[3, 2]` cancels exactly
+        # but remains part of the pattern of `L`
+        A = sparse([1, 3, 4, 2, 3, 4, 1, 2, 3, 1, 2, 4], [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4],
+                   [1.0, 1, 1, 1, 1, -1, 1, 1, 3, 1, -1, 3])
+        test_inv_on_pattern(A, cholesky(Hermitian(A, :L); perm=1:4))
+    end
+
+    @testset "[log[abs[det]]] of non-positive-definite SparseMatrixCSC" begin
+        indefinite = sparse([1.0 2; 2 1])
+        nonsymmetric = sparse([2.0 1; 0 2])
+        for x in (indefinite, nonsymmetric)
+            Ω, pb = rrule(logabsdet, x)
+            @test Ω == logabsdet(x)
+            @test_throws ArgumentError pb(Tangent{typeof(Ω)}(1.0, 0.0))
+            for f in (logdet, det)
+                x === indefinite && f === logdet && continue  # `logdet` of a negative det throws
+                Ω, pb = rrule(f, x)
+                @test Ω == f(x)
+                @test_throws ArgumentError pb(1.0)
+            end
+        end
     end
 end

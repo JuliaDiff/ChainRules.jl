@@ -1,3 +1,10 @@
+module RandomExt
+
+using ChainRulesCore
+using Random
+
+import ChainRulesCore: frule, rrule
+
 frule(Δargs, T::Type{<:AbstractRNG}, args...) = T(args...), ZeroTangent()
 
 function rrule(T::Type{<:AbstractRNG}, args...)
@@ -39,3 +46,5 @@ end
 
 @non_differentiable Random.default_rng()
 @non_differentiable Random.default_rng(::Int)
+
+end # module

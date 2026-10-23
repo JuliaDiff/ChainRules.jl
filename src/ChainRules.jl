@@ -3,15 +3,11 @@ module ChainRules
 using Adapt: adapt
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
-using Distributed
 using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
-using Random
 using RealDot: realdot
-using SparseArrays
-using Statistics
 using StructArrays
 
 # Basically everything this package does is overloading these, so we make an exception
@@ -42,10 +38,6 @@ include("rulesets/Base/mapreduce.jl")
 include("rulesets/Base/broadcast.jl")
 include("rulesets/Base/CoreLogging.jl")
 
-include("rulesets/Distributed/nondiff.jl")
-
-include("rulesets/Statistics/statistics.jl")
-
 include("rulesets/LinearAlgebra/nondiff.jl")
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
@@ -57,9 +49,5 @@ include("rulesets/LinearAlgebra/structured.jl")
 include("rulesets/LinearAlgebra/symmetric.jl")
 include("rulesets/LinearAlgebra/factorization.jl")
 include("rulesets/LinearAlgebra/uniformscaling.jl")
-
-include("rulesets/SparseArrays/sparsematrix.jl")
-
-include("rulesets/Random/random.jl")
 
 end # module

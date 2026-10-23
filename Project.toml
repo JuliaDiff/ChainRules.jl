@@ -1,20 +1,27 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.74.2"
+version = "1.75.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
 IrrationalConstants = "92d709cd-6900-40b7-9082-c6be49f344b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RealDot = "c1ae055f-0cd5-4b69-90a6-9a35b1a98df9"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-SparseInverseSubset = "dc90abb0-5640-4711-901d-7e5b23a2fada"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
+
+[weakdeps]
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[extensions]
+DistributedExt = "Distributed"
+RandomExt = "Random"
+SparseArraysExt = "SparseArrays"
+StatisticsExt = "Statistics"
 
 [compat]
 Adapt = "3.4.0, 4"
@@ -26,7 +33,6 @@ LinearAlgebra = "1"
 Random = "1"
 RealDot = "0.1"
 SparseArrays = "1"
-SparseInverseSubset = "0.1"
 Statistics = "1"
 StructArrays = "0.6.11, 0.7"
 julia = "1.10"
