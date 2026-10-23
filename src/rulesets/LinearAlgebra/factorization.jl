@@ -302,7 +302,8 @@ end
 # Hermitian part of the (co)tangents of the eigenvectors. The eigenvalues are differentiable
 # in all directions their type admits.
 
-function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+function frule((_, Ȧ), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
     isherm = ishermitian(A)
     F = eigen!(A; kwargs...)
@@ -332,7 +333,7 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NoTangent(), Δλ + ΔV)
         if ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
-            ∂A = isherm ? V * ∂K * V' : V' \ ∂K * V'
+            ∂A = (isherm ? V * ∂K : V' \ ∂K) * V'
         else
             ∂V = copyto!(similar(ΔV), ΔV)
             _eigen_norm_phase_rev!(∂V, isherm ? Hermitian(A) : A, V)
@@ -340,7 +341,7 @@ function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{
             ∂K ./= λ' .- conj.(λ)
             isherm && hermitianpart!(∂K)
             ∂K[diagind(∂K)] .= Δλ
-            ∂A = isherm ? V * ∂K * V' : mul!(∂K, V' \ ∂K, V')
+            ∂A = mul!(∂K, isherm ? V * ∂K : V' \ ∂K, V')
         end
         return NoTangent(), T <: Real ? real(∂A) : ∂A
     end
@@ -404,7 +405,8 @@ end
 ##### `eigvals`
 #####
 
-function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+function frule((_, Ȧ), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     isherm = ishermitian(A)
     F = eigen!(A; kwargs...)

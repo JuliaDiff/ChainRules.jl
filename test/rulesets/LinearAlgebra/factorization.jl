@@ -363,6 +363,9 @@ end
                     @test ∂F_ad isa Tangent{typeof(F)}
                     @test ∂F_ad.values isa typeof(F.values)
                     @test ∂F_ad.vectors isa typeof(F.vectors)
+                    _, ∂F_thunk = frule((ZeroTangent(), @thunk(copy(ΔA))), eigen!, copy(A))
+                    @test ∂F_thunk.values == ∂F_ad.values
+                    @test ∂F_thunk.vectors == ∂F_ad.vectors
 
                     # eigenvalues are differentiable in all directions their type admits
                     f_values = eltype(F.values) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
@@ -446,6 +449,7 @@ end
                     λ_ad, ∂λ_ad = frule((ZeroTangent(), copy(ΔA)), eigvals!, copy(A))
                     @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                     @test ∂λ_ad isa typeof(λ)
+                    @test frule((ZeroTangent(), @thunk(copy(ΔA))), eigvals!, copy(A))[2] == ∂λ_ad
                     # eigenvalues are differentiable in all directions their type admits
                     f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
                     @test ∂λ_ad ≈ jvp(_fdm, f, (A, ΔA))
