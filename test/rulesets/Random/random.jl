@@ -32,30 +32,6 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
     end
 
     @testset "rand" begin
-        non_differentiables = [
-            ((), Float64),
-            ((MersenneTwister(123),), Float64),
-            ((MersenneTwister(123),2,2), Matrix{<:Float64}),
-            ((Float32,), Float32),
-            ((Float32,2,2), Matrix{<:Float32}),
-            ((Float32,(2,2)), Matrix{<:Float32}),
-            ((2,2), Matrix{<:Float64}),
-        ]
-        push!(non_differentiables, ((Xoshiro(123),), Float64))
-        push!(non_differentiables, ((Xoshiro(123), 2, 2), Matrix{<:Float64}))
-
-        for (args, xType) in non_differentiables
-            x, dΩ = frule((ZeroTangent(), randn(args...)), rand, args...)
-            @test x isa xType
-            @test dΩ isa NoTangent
-
-            x, pb = rrule(rand, args...)
-            @test x isa xType
-            dself, dargs = Iterators.peel(pb(10.0))
-            @test iszero(dself)
-            @test all(darg isa NoTangent for darg in dargs)
-        end
-
         # Make sure that we do *not* have these set as non_differentiable. as they are differentiable
         @test nothing === frule(
             (ZeroTangent(), Tangent{NormalDistribution}(μ=0.5,σ=2.0)),
@@ -63,5 +39,50 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             NormalDistribution(0.1,1.5),
         )
         @test rrule(rand, NormalDistribution(0.1,1.5)) === nothing
+    end
+
+    @testset "randstring" begin
+        for args in ((), (5,), (Xoshiro(123),), (Xoshiro(123), 5), ("ab",), (Xoshiro(123), 'a':'z', 5))
+            s, ds = frule((NoTangent(), map(Returns(NoTangent()), args)...), randstring, args...)
+            @test s isa String
+            @test ds isa NoTangent
+            s, pb = rrule(randstring, args...)
+            @test s isa String
+            @test all(darg isa NoTangent for darg in pb(NoTangent()))
+        end
+    end
+
+    @testset "rand(rng, ::Sampler)" begin
+        rng = Xoshiro(123)
+
+        # Samplers without any differentiable data and samplers for integer ranges are non-differentiable
+        for X in (
+            Float64, Float32, Int, Bool, ComplexF64, BigFloat, "abc", SubString("abc", 2), 'a':'z', ['a', 'b'],
+            1:4, Base.OneTo(4), Int8(1):Int8(4), UInt128(1):UInt128(4), typemin(Int):typemax(Int), big(1):big(4),
+        )
+            sp = Random.Sampler(rng, X, Val(1))
+            x, dx = frule((NoTangent(), NoTangent(), NoTangent()), rand, rng, sp)
+            @test x isa eltype(sp)
+            @test dx isa NoTangent
+            x, pb = rrule(rand, rng, sp)
+            @test x isa eltype(sp)
+            @test all(darg isa NoTangent for darg in pb(1.0))
+
+            A = Vector{eltype(sp)}(undef, 3)
+            spInf = Random.Sampler(rng, X, Val(Inf))
+            Ω, dΩ = frule((NoTangent(), NoTangent(), NoTangent(), NoTangent()), rand!, rng, A, spInf)
+            @test Ω === A
+            @test dΩ isa NoTangent
+            Ω, pb! = rrule(rand!, rng, A, spInf)
+            @test Ω === A
+            @test all(darg isa NoTangent for darg in pb!(ones(3)))
+        end
+
+        # Samplers for collections with possibly differentiable elements are not
+        for X in ([1.0, 2.0], (1.0,), (1.0, 2.0), LinRange(0.0, 1.0, 3), 0.0:0.5:1.0, UnitRange(1.0, 4.0), Dict(1 => 2.0), Set([1.0]))
+            @test rrule(rand, rng, Random.Sampler(rng, X, Val(1))) === nothing
+            @test rrule(rand!, rng, Vector{Any}(undef, 3), Random.Sampler(rng, X, Val(Inf))) === nothing
+        end
+        @test rrule(rand, rng, Random.SamplerRangeNDL(1.5, UInt64(4))) === nothing
     end
 end
