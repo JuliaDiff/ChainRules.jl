@@ -377,6 +377,19 @@ end
 
                     C = _eigvecs_stabilize_mat(F.vectors)
                     @test ∂F_ad.vectors * C ≈ jvp(_fdm, _eigvecs_stable, (A, ΔA))
+
+                    # tangents follow the order of the eigenpairs
+                    _, ∂F_nothing = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=nothing
+                    )
+                    @test ∂F_nothing.values ≈ ∂F_ad.values
+                    @test ∂F_nothing.vectors ≈ ∂F_ad.vectors
+                    F_rev, ∂F_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test F_rev.values == reverse(F.values)
+                    @test ∂F_rev.values ≈ reverse(∂F_ad.values)
+                    @test ∂F_rev.vectors ≈ reverse(∂F_ad.vectors; dims=2)
                 end
 
                 @testset "eigen(::Matrix{$T})" for T in (Float64, ComplexF64)
@@ -414,6 +427,12 @@ end
                         @test ∂A ≈ ∂A_fd
                         @test @maybe_inferred(back(@thunk(∂F))) == (∂self, ∂A)
                     end
+
+                    # cotangents follow the order of the eigenpairs
+                    F_rev, back_rev = rrule(eigen, A; sortby=λ -> -real(λ))
+                    @test F_rev.values == reverse(F.values)
+                    ΔF_rev = CT(; values=reverse(Δλ), vectors=reverse(ΔU; dims=2))
+                    @test back_rev(ΔF_rev)[2] ≈ back(ΔF)[2]
                 end
             end
         end
@@ -462,6 +481,12 @@ end
                     # eigenvalues are differentiable in all directions their type admits
                     f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
                     @test ∂λ_ad ≈ jvp(_fdm, f, (A, ΔA))
+
+                    # tangents follow the order of the eigenvalues
+                    _, ∂λ_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigvals!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test ∂λ_rev ≈ reverse(∂λ_ad)
                 end
 
                 @testset "eigvals(::Matrix{$T})" for T in (Float64, ComplexF64)
@@ -480,6 +505,15 @@ end
 
                     # gradient of `sum ∘ eigvals = tr` (FluxML/Zygote.jl#1369)
                     @test back(ones(eltype(λ), n))[2] ≈ I
+
+                    # imaginary parts of cotangents of real-typed eigenvalues are ignored
+                    if eltype(λ) <: Real
+                        @test back(complex.(Δλ, randn(n)))[2] == ∂A
+                    end
+
+                    # cotangents follow the order of the eigenvalues
+                    _, back_rev = rrule(eigvals, A; sortby=λ -> -real(λ))
+                    @test back_rev(reverse(Δλ))[2] ≈ ∂A
                 end
             end
         end

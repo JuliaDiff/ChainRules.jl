@@ -296,11 +296,10 @@ end
 # - simplify when A is diagonal
 # - support degenerate matrices (see #144)
 
-# NOTE: if `A` is Hermitian, `eigen` uses the solver for Hermitian matrices. Its eigenvectors
-# are unitary and follow a different phase convention than the eigenvectors of non-Hermitian
-# matrices, so they are only differentiable along Hermitian directions: the rules use the
-# Hermitian part of the (co)tangents of the eigenvectors. The eigenvalues are differentiable
-# in all directions their type admits.
+# NOTE: for Hermitian `A`, `eigen` uses the Hermitian solver, whose eigenvectors are unitary
+# but follow a different phase convention. They are only differentiable along Hermitian
+# directions, so their (co)tangents use the Hermitian part of `V' * ΔA * V`. The eigenvalues
+# are differentiable in all directions their type admits.
 
 function frule(
     (_, Ȧ), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...
@@ -318,7 +317,7 @@ function frule(
     ∂K ./= transpose(λ) .- λ
     fill!(∂Kdiag, 0)
     ∂V = mul!(tmp, V, ∂K)
-    # `A` is overwritten but the phase convention depends only on its type
+    # `A` is overwritten but the phase convention depends only on its type and `uplo`
     _eigen_norm_phase_fwd!(∂V, isherm ? Hermitian(A) : A, V)
     ∂F = Tangent{typeof(F)}(values = ∂λ, vectors = ∂V)
     return F, ∂F
@@ -327,11 +326,13 @@ end
 function rrule(::typeof(eigen), A::StridedMatrix{T}; kwargs...) where {T<:Union{Real,Complex}}
     isherm = ishermitian(A)
     F = eigen(A; kwargs...)
+    # cotangents of real-typed eigenvalues are real
+    project_λ = ProjectTo(F.values)
     function eigen_pullback(ΔF)
         _ΔF = unthunk(ΔF)
         _ΔF isa AbstractZero && return (NoTangent(), _ΔF)
         λ, V = F.values, F.vectors
-        Δλ, ΔV = _ΔF.values, _ΔF.vectors
+        Δλ, ΔV = project_λ(_ΔF.values), _ΔF.vectors
         ΔV isa AbstractZero && Δλ isa AbstractZero && return (NoTangent(), Δλ + ΔV)
         if ΔV isa AbstractZero
             ∂K = Diagonal(Δλ)
