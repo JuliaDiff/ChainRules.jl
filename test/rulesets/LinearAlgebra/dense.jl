@@ -1,8 +1,10 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
+
 @testset "dense LinearAlgebra" begin
     @testset "dot" begin
         @testset "Vector{$T}" for T in (Float64, ComplexF64)
-            test_frule(dot, randn(T, 3), randn(T, 3))
-            test_rrule(dot, randn(T, 3), randn(T, 3))
+            @gpu test_frule(dot, randn(T, 3), randn(T, 3))
+            @gpu test_rrule(dot, randn(T, 3), randn(T, 3))
         end
         @testset "Array{$T, 3}" for T in (Float64, ComplexF64)
             test_frule(dot, randn(T, 3, 4, 5), randn(T, 3, 4, 5))
@@ -10,15 +12,15 @@
         end
         @testset "mismatched shapes" begin
            # forward
-           test_frule(dot, randn(3, 5), randn(5, 3))             
-           test_frule(dot, randn(15), randn(5, 3))             
+           @gpu test_frule(dot, randn(3, 5), randn(5, 3))             
+           @gpu test_frule(dot, randn(15), randn(5, 3))             
            # reverse
-           test_rrule(dot, randn(3, 5), randn(5, 3))             
-           test_rrule(dot, randn(15), randn(5, 3))             
+           @gpu test_rrule(dot, randn(3, 5), randn(5, 3))             
+           @gpu test_rrule(dot, randn(15), randn(5, 3))             
         end
         @testset "3-arg dot, Array{$T}" for T in (Float64, ComplexF64)
-            test_frule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
-            test_rrule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
+            @gpu_broken test_frule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
+            @gpu test_rrule(dot, randn(T, 3), randn(T, 3, 4), randn(T, 4))
         end
         permuteddimsarray(A) = PermutedDimsArray(A, (2,1))
         @testset "3-arg dot, $F{$T}" for T in (Float32, ComplexF32), F in (adjoint, permuteddimsarray)
@@ -33,6 +35,22 @@
             # Inference failure due to https://github.com/JuliaDiff/ChainRulesCore.jl/issues/407
             test_rrule(dot, Diagonal(rand(2)), rand(2, 2); check_inferred=false)
         end
+    end
+
+    @testset "mul!" begin
+        test_frule(mul!, rand(4), rand(4, 5), rand(5))
+        test_frule(mul!, rand(3, 3), rand(3, 3), rand(3, 3))
+        test_frule(mul!, rand(3, 3), rand(), rand(3, 3))
+
+        # Rule with α,β::Bool is only visually more complicated:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, true)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, false)
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), false, false)
+
+        # Rule with nontrivial α, β allocates A*B:
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), true, randn())
+        test_frule(mul!, rand(4), rand(4, 5), rand(5), randn(), randn())
     end
 
     @testset "cross" begin
@@ -64,8 +82,7 @@
 
         @testset "$F{Vector{$T}}" for T in (Float64, ComplexF64), F in (Transpose, Adjoint)
             test_frule(pinv, F(randn(T, 3)))
-            check_inferred = VERSION ≥ v"1.5"
-            test_rrule(pinv, F(randn(T, 3)); check_inferred=check_inferred)
+            test_rrule(pinv, F(randn(T, 3)))
 
             # Check types.
             # TODO: Do we need this still?
@@ -104,6 +121,15 @@
                 test_rrule(f, B)
             end
         end
+        @testset "$f(complex determinant)" begin
+            B = randn(ComplexF64, 4, 4)
+            U = exp(B - B')
+            test_frule(f, U)
+            test_rrule(f, U)
+        end
+        @testset "gpu" begin
+            @gpu_broken test_rrule(f, reshape(1:9, 3, 3)+I*pi)
+        end
     end
     @testset "logabsdet(::Matrix{$T})" for T in (Float64, ComplexF64)
         B = randn(T, 4, 4)
@@ -114,8 +140,8 @@
         test_rrule(logabsdet, -B)
     end
     @testset "tr" begin
-        test_frule(tr, randn(4, 4))
-        test_rrule(tr, randn(4, 4))
+        @gpu test_frule(tr, randn(4, 4))
+        @gpu test_rrule(tr, randn(4, 4))
     end
     @testset "sylvester" begin
         @testset "T=$T, m=$m, n=$n" for T in (Float64, ComplexF64), m in (2, 3), n in (1, 3)

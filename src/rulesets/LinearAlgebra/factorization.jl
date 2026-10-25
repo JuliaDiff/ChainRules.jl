@@ -15,45 +15,45 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # for derivations for wide and tall matrices, see
 # https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
 
-const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
-const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
+const CHOLESKY_NoPivot = Union{NoPivot,Val{false}}
+
+# For fixed pivots, the factors are differentiable iff all pivots are nonzero, except
+# possibly the last pivot of square or wide A. `F.info` is the index of the first zero
+# pivot, negated for unpivoted factorizations since JuliaLang/julia#52957
+function _lu_isdifferentiable(F::LU, pivot)
+    m, n = size(F.factors)
+    info = pivot isa NoPivot && VERSION >= v"1.11.0-DEV.1535" ? -F.info : F.info
+    return iszero(info) || (m <= n && info == m)
+end
 
 function frule(
-    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
+    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...
 )
     ΔA = unthunk(Ȧ)
     F = lu!(A, pivot; kwargs...)
-    ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
+    ∂factors = pivot isa RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
     q = min(m, n)
-    if m == n  # square A
-        # minimal allocation computation of
-        # ∂L = L * tril(L \ (P * ΔA) / U, -1)
-        # ∂U = triu(L \ (P * ΔA) / U) * U
-        # ∂factors = ∂L + ∂U
-        L = UnitLowerTriangular(F.factors)
-        U = UpperTriangular(F.factors)
-        rdiv!(∂factors, U)
-        ldiv!(L, ∂factors)
-        ∂L = lmul!(L, tril(∂factors, -1))
-        ∂U = rmul!(triu(∂factors), U)
-        ∂factors .= ∂L .+ ∂U
-    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
-        L = UnitLowerTriangular(F.L)
-        U = F.U
+    if !_lu_isdifferentiable(F, pivot)
+        fill!(∂factors, NaN)
+    elseif m <= n  # square or wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        # with B = L \ (P * ΔA) = [B1 B2]: ∂L = L * S and ∂U = triu(B - S * U) with
+        # S = tril(B1 / U1, -1), which only depends on U1[1:q-1, 1:q-1] (U[q, q] may be 0)
+        L = UnitLowerTriangular(view(F.factors, :, 1:q))
+        U1 = UpperTriangular(view(F.factors, :, 1:q))
         ldiv!(L, ∂factors)
         @views begin
             ∂factors1 = ∂factors[:, 1:q]
             ∂factors2 = ∂factors[:, (q + 1):end]
-            U1 = UpperTriangular(U[:, 1:q])
-            U2 = U[:, (q + 1):end]
+            U2 = F.factors[:, (q + 1):end]
         end
-        rdiv!(∂factors1, U1)
-        ∂L = tril(∂factors1, -1)
-        mul!(∂factors2, ∂L, U2, -1, 1)
-        lmul!(L, ∂L)
-        rmul!(triu!(∂factors1), U1)
-        ∂factors1 .+= ∂L
+        S = copy(∂factors1)
+        @views rdiv!(S[:, 1:(q - 1)], UpperTriangular(F.factors[1:(q - 1), 1:(q - 1)]))
+        tril!(S, -1)
+        mul!(∂factors2, S, U2, -1, 1)
+        ∂factors1 .-= rmul!(copy(S), U1)
+        triu!(∂factors1)
+        ∂factors1 .+= lmul!(L, S)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         L = F.L
         U = UpperTriangular(F.U)
@@ -84,30 +84,28 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
     ∂factors = eltypeA <: Real ? real(Δfactors) : Δfactors
     ∂A = similar(factors)
     q = min(m, n)
-    if m == n  # square A
-        # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
-        L = UnitLowerTriangular(factors)
-        U = UpperTriangular(factors)
-        ∂U = UpperTriangular(∂factors)
-        tril!(copyto!(∂A, ∂factors), -1)
-        lmul!(L', ∂A)
-        copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
-        rdiv!(∂A, U')
-        ldiv!(L', ∂A)
-    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+    if !_lu_isdifferentiable(F, pivot)
+        fill!(∂A, NaN)
+    elseif m <= n  # square or wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        # adjoint of the frule: with T = triu(∂factors) and
+        # ∂S = tril(L' * ∂factors1 - T * U', -1),
+        # ∂A = P' * (L' \ (T + [∂S[:, 1:q-1] / U[1:q-1, 1:q-1]' 0]))
         triu!(copyto!(∂A, ∂factors))
         @views begin
-            factors1 = factors[:, 1:q]
-            U2 = factors[:, (q + 1):end]
+            ∂factors1 = ∂factors[:, 1:q]
             ∂A1 = ∂A[:, 1:q]
             ∂A2 = ∂A[:, (q + 1):end]
-            ∂L = tril(∂factors[:, 1:q], -1)
+            L = UnitLowerTriangular(factors[:, 1:q])
+            U1 = UpperTriangular(factors[:, 1:q])
+            U2 = factors[:, (q + 1):end]
         end
-        L = UnitLowerTriangular(factors1)
-        U1 = UpperTriangular(factors1)
-        triu!(rmul!(∂A1, U1'))
-        ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
-        rdiv!(∂A1, U1')
+        ∂S = lmul!(L', copy(∂factors1))
+        ∂S .-= rmul!(∂A1, U1')  # uses ∂A1 as scratch
+        mul!(∂S, ∂A2, U2', -1, 1)
+        tril!(∂S, -1)
+        @views rdiv!(∂S[:, 1:(q - 1)], UpperTriangular(factors[1:(q - 1), 1:(q - 1)])')
+        triu!(copyto!(∂A1, ∂factors1))
+        ∂A1 .+= ∂S
         ldiv!(L', ∂A)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         tril!(copyto!(∂A, ∂factors), -1)
@@ -125,15 +123,15 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
         ldiv!(L1', ∂A1)
         rdiv!(∂A, U')
     end
-    if pivot isa LU_RowMaximum
+    if pivot isa RowMaximum
         ∂A = ∂A[invperm(F.p), :]
     end
     return NoTangent(), ∂A, NoTangent()
 end
-_lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
-function rrule(
-    ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
-)
+function _lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F)
+    return _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
+end
+function rrule(::typeof(lu), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...)
     m, n = size(A)
     F = lu(A, pivot; kwargs...)
     lu_pullback(ȳ) = _lu_pullback(ȳ, m, n, eltype(A), pivot, F)
@@ -275,6 +273,22 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
 end
 
 #####
+##### `svdvals`
+#####
+
+function rrule(::typeof(svdvals), A::AbstractMatrix{<:Number})
+    F = svd(A)
+    U = F.U
+    Vt = F.Vt
+    project_A = ProjectTo(A)
+    function svdvals_pullback(s̄)
+        S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(unthunk(s̄))
+        return (NoTangent(), project_A(U * S̄ * Vt))
+    end
+    return F.S, svdvals_pullback
+end
+
+#####
 ##### `eigen`
 #####
 
@@ -286,7 +300,7 @@ end
 function frule((_, ΔA), ::typeof(eigen!), A::StridedMatrix{T}; kwargs...) where {T<:BlasFloat}
     ΔA isa AbstractZero && return (eigen!(A; kwargs...), ΔA)
     if ishermitian(A)
-        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
         return if sortby === nothing
             frule((ZeroTangent(), Hermitian(ΔA)), eigen!, Hermitian(A))
         else
@@ -398,7 +412,7 @@ function frule((_, ΔA), ::typeof(eigvals!), A::StridedMatrix{T}; kwargs...) whe
     ΔA isa AbstractZero && return eigvals!(A; kwargs...), ΔA
     if ishermitian(A)
         λ, ∂λ = frule((ZeroTangent(), Hermitian(ΔA)), eigvals!, Hermitian(A))
-        sortby = get(kwargs, :sortby, VERSION ≥ v"1.2.0" ? LinearAlgebra.eigsortby : nothing)
+        sortby = get(kwargs, :sortby, LinearAlgebra.eigsortby)
         _sorteig!_fwd(∂λ, λ, sortby)
     else
         F = eigen!(A; kwargs...)
@@ -441,46 +455,30 @@ end
 ##### `cholesky`
 #####
 
-# these functions are defined outside the rrule because otherwise type inference breaks
-# see https://github.com/JuliaLang/julia/issues/40990
-_cholesky_real_pullback(ΔC::Tangent, full_pb) = return full_pb(ΔC)[1:2]
-function _cholesky_real_pullback(Ȳ::AbstractThunk, full_pb)
-    return _cholesky_real_pullback(unthunk(Ȳ), full_pb)
-end
-function rrule(::typeof(cholesky),
-    A::Union{
-        Real,
-        Diagonal{<:Real},
-        LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal,<:StridedMatrix},
-        StridedMatrix{<:LinearAlgebra.BlasReal}
-    }
-    # Handle not passing in the uplo
-)
-    arg2 = A isa Real ? :U : Val(false)
-    C, full_pb = rrule(cholesky, A, arg2)
-
-    cholesky_pullback(ȳ) = return _cholesky_real_pullback(ȳ, full_pb)
+function rrule(::typeof(cholesky), x::Number, uplo::Symbol)
+    C = cholesky(x, uplo)
+    function cholesky_pullback(ΔC)
+        Ā = real(only(unthunk(ΔC).factors)) / (2 * sign(real(x)) * only(C.factors))
+        return NoTangent(), Ā, NoTangent()
+    end
     return C, cholesky_pullback
 end
 
-function _cholesky_realuplo_pullback(ΔC::Tangent, C)
-    return NoTangent(), ΔC.factors[1, 1] / (2 * C.U[1, 1]), NoTangent()
+function _cholesky_Diagonal_pullback(ΔC, C)
+    Udiag = C.factors.diag
+    ΔUdiag = diag(ΔC.factors)
+    Ādiag = real.(ΔUdiag) ./ (2 .* Udiag)
+    if !issuccess(C)
+        # cholesky computes the factor diagonal from the beginning until it encounters the
+        # first failure. The remainder of the diagonal is then copied from the input.
+        i = findfirst(x -> !isreal(x) || !(real(x) > 0), Udiag)
+        Ādiag[i:end] .= ΔUdiag[i:end]
+    end
+    return NoTangent(), Diagonal(Ādiag), NoTangent()
 end
-_cholesky_realuplo_pullback(Ȳ::AbstractThunk, C) = _cholesky_realuplo_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Real, uplo::Symbol)
-    C = cholesky(A, uplo)
-    cholesky_pullback(ȳ) = _cholesky_realuplo_pullback(ȳ, C)
-    return C, cholesky_pullback
-end
-
-function _cholesky_Diagonal_pullback(ΔC::Tangent, C)
-    Ā = Diagonal(diag(ΔC.factors) .* inv.(2 .* C.factors.diag))
-    return NoTangent(), Ā, NoTangent()
-end
-_cholesky_Diagonal_pullback(Ȳ::AbstractThunk, C) = _cholesky_Diagonal_pullback(unthunk(Ȳ), C)
-function rrule(::typeof(cholesky), A::Diagonal{<:Real}, ::Val{false}; check::Bool=true)
-    C = cholesky(A, Val(false); check=check)
-    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(ȳ, C)
+function rrule(::typeof(cholesky), A::Diagonal{<:Number}, pivot::CHOLESKY_NoPivot; check::Bool=true)
+    C = cholesky(A, pivot; check=check)
+    cholesky_pullback(ȳ) = _cholesky_Diagonal_pullback(unthunk(ȳ), C)
     return C, cholesky_pullback
 end
 
@@ -489,46 +487,56 @@ end
 # Implementation due to Seeger, Matthias, et al. "Auto-differentiating linear algebra."
 function rrule(
     ::typeof(cholesky),
-    A::LinearAlgebra.HermOrSym{<:LinearAlgebra.BlasReal, <:StridedMatrix},
-    ::Val{false};
+    A::LinearAlgebra.RealHermSymComplexHerm{<:Real, <:StridedMatrix},
+    pivot::CHOLESKY_NoPivot;
     check::Bool=true,
 )
-    C = cholesky(A, Val(false); check=check)
-    function _cholesky_HermOrSym_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)) / 2, U.data, Ā)
+    C = cholesky(A, pivot; check=check)
+    function cholesky_HermOrSym_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
+        rmul!(Ā, one(eltype(Ā)) / 2)
         return NoTangent(), _symhermtype(A)(Ā), NoTangent()
     end
-    _cholesky_HermOrSym_pullback(Ȳ::AbstractThunk) = _cholesky_HermOrSym_pullback(unthunk(Ȳ))
-    return C, _cholesky_HermOrSym_pullback
+    return C, cholesky_HermOrSym_pullback
 end
 
 function rrule(
     ::typeof(cholesky),
-    A::StridedMatrix{<:LinearAlgebra.BlasReal},
-    ::Val{false};
+    A::StridedMatrix{<:Union{Real,Complex}},
+    pivot::CHOLESKY_NoPivot;
     check::Bool=true,
 )
-    C = cholesky(A, Val(false); check=check)
-    function _cholesky_Strided_pullback(ΔC::Tangent)
-        Ā, U = _cholesky_pullback_shared_code(C, ΔC)
-        Ā = BLAS.trsm!('R', 'U', 'C', 'N', one(eltype(Ā)), U.data, Ā)
+    C = cholesky(A, pivot; check=check)
+    function cholesky_Strided_pullback(ΔC)
+        Ā = _cholesky_pullback_shared_code(C, unthunk(ΔC))
         idx = diagind(Ā)
         @views Ā[idx] .= real.(Ā[idx]) ./ 2
         return (NoTangent(), UpperTriangular(Ā), NoTangent())
     end
-    _cholesky_Strided_pullback(Ȳ::AbstractThunk) = _cholesky_Strided_pullback(unthunk(Ȳ))
-    return C, _cholesky_Strided_pullback
+    return C, cholesky_Strided_pullback
 end
 
 function _cholesky_pullback_shared_code(C, ΔC)
-    U = C.U
-    Ū = ΔC.U
-    Ā = similar(U.data)
-    Ā = mul!(Ā, Ū, U')
-    Ā = LinearAlgebra.copytri!(Ā, 'U', true)
-    Ā = ldiv!(U, Ā)
-    return Ā, U
+    Δfactors = ΔC.factors
+    Ā = similar(C.factors)
+    if C.uplo === 'U'
+        U = C.U
+        Ū = eltype(U) <: Real ? real(_maybeUpperTri(Δfactors)) : _maybeUpperTri(Δfactors)
+        mul!(Ā, Ū, U')
+        LinearAlgebra.copytri!(Ā, 'U', true)
+        eltype(Ā) <: Real || _realifydiag!(Ā)
+        ldiv!(U, Ā)
+        rdiv!(Ā, U')
+    else  # C.uplo === 'L'
+        L = C.L
+        L̄ = eltype(L) <: Real ? real(_maybeLowerTri(Δfactors)) : _maybeLowerTri(Δfactors)
+        mul!(Ā, L', L̄)
+        LinearAlgebra.copytri!(Ā, 'L', true)
+        eltype(Ā) <: Real || _realifydiag!(Ā)
+        rdiv!(Ā, L)
+        ldiv!(L', Ā)
+    end
+    return Ā
 end
 
 function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
@@ -536,18 +544,86 @@ function rrule(::typeof(getproperty), F::T, x::Symbol) where {T <: Cholesky}
         C = Tangent{T}
         ∂F = if x === :U
             if F.uplo === 'U'
-                C(U=UpperTriangular(Ȳ),)
+                C(factors=_maybeUpperTri(Ȳ),)
             else
-                C(L=LowerTriangular(Ȳ'),)
+                C(factors=_maybeLowerTri(Ȳ'),)
             end
         elseif x === :L
             if F.uplo === 'L'
-                C(L=LowerTriangular(Ȳ),)
+                C(factors=_maybeLowerTri(Ȳ),)
             else
-                C(U=UpperTriangular(Ȳ'),)
+                C(factors=_maybeUpperTri(Ȳ'),)
             end
         end
         return NoTangent(), ∂F, NoTangent()
     end
     return getproperty(F, x), getproperty_cholesky_pullback
+end
+
+_maybeUpperTri(A) = UpperTriangular(A)
+_maybeUpperTri(A::Diagonal) = A
+_maybeLowerTri(A) = LowerTriangular(A)
+_maybeLowerTri(A::Diagonal) = A
+
+# `det` and `logdet` for `Cholesky`
+function rrule(::typeof(det), C::Cholesky)
+    y = det(C)
+    diagF = _diag_view(C.factors)
+    function det_Cholesky_pullback(ȳ)
+        ΔF = Diagonal(_x_divide_conj_y.(2 * ȳ * conj(y), diagF))
+        ΔC = Tangent{typeof(C)}(; factors=ΔF)
+        return NoTangent(), ΔC
+    end
+    return y, det_Cholesky_pullback
+end
+
+function rrule(::typeof(logdet), C::Cholesky)
+    y = logdet(C)
+    diagF = _diag_view(C.factors)
+    function logdet_Cholesky_pullback(ȳ)
+        ΔC = Tangent{typeof(C)}(; factors=Diagonal(_x_divide_conj_y.(2 * ȳ, diagF)))
+        return NoTangent(), ΔC
+    end
+    return y, logdet_Cholesky_pullback
+end
+
+# Return `x / conj(y)`, or a type-stable 0 if `iszero(x)`
+function _x_divide_conj_y(x, y)
+    z = x / conj(y)
+    return iszero(x) ? zero(z) : z
+end
+
+# these rules exists because the primals mutates using `ldiv!` and `rdiv!`
+function rrule(::typeof(\), A::Cholesky, B::AbstractVecOrMat{<:Union{Real,Complex}})
+    U, getproperty_back = rrule(getproperty, A, :U)
+    Z = U' \ B
+    Y = U \ Z
+    project_B = ProjectTo(B)
+    function ldiv_Cholesky_AbsVecOrMat_pullback(ΔY)
+        ∂Z = U' \ ΔY
+        ∂B = U \ ∂Z
+        ∂A = Thunk() do
+            _, Ā = getproperty_back(-add!!(∂Z * Y', Z * ∂B'))
+            return Ā
+        end
+        return NoTangent(), ∂A, project_B(∂B)
+    end
+    return Y, ldiv_Cholesky_AbsVecOrMat_pullback
+end
+
+function rrule(::typeof(/), B::AbstractMatrix{<:Union{Real,Complex}}, A::Cholesky)
+    U, getproperty_back = rrule(getproperty, A, :U)
+    Z = B / U
+    Y = Z / U'
+    project_B = ProjectTo(B)
+    function rdiv_AbstractMatrix_Cholesky_pullback(ΔY)
+        ∂Z = ΔY / U
+        ∂B = ∂Z / U'
+        ∂A = Thunk() do
+            _, Ā = getproperty_back(-add!!(∂Z' * Y, Z' * ∂B))
+            return Ā
+        end
+        return NoTangent(), project_B(∂B), ∂A
+    end
+    return Y, rdiv_AbstractMatrix_Cholesky_pullback
 end

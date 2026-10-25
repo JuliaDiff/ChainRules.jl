@@ -19,6 +19,10 @@ end
 ##### `*`
 #####
 
+frule((_, ΔA, ΔB), ::typeof(*), A, B) = A * B, muladd(ΔA, B, A * ΔB)
+
+frule((_, ΔA, ΔB, ΔC), ::typeof(*), A, B, C) = A*B*C, ΔA*B*C + A*ΔB*C + A*B*ΔC
+
 
 function rrule(
     ::typeof(*),
@@ -42,9 +46,9 @@ end
 # https://github.com/JuliaDiff/ChainRulesCore.jl/issues/411
 function rrule(
     ::typeof(*),
-    A::StridedMatrix{<:CommutativeMulNumber},
-    B::StridedVecOrMat{<:CommutativeMulNumber},
-)
+    A::StridedMatrix{T},
+    B::StridedVecOrMat{T},
+) where {T<:CommutativeMulNumber}
     function times_pullback(ȳ)
         Ȳ = unthunk(ȳ)
         dA = InplaceableThunk(
@@ -88,7 +92,9 @@ function rrule(
 end
 
 
-
+#####
+##### `*` matrix-scalar_rule
+#####
 
 function rrule(
    ::typeof(*), A::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber}
@@ -128,10 +134,86 @@ function rrule(
     return A * B, times_pullback
 end
 
+#####
+##### fused 3-argument *
+#####
+
+using LinearAlgebra: mat_mat_scalar, mat_vec_scalar, StridedMaybeAdjOrTransMat
+
+function rrule(
+    ::typeof(mat_mat_scalar),
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    B::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber,
+)
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+    project_γ = ProjectTo(γ)
+    C = mat_mat_scalar(A, B, γ)
+    function mat_mat_scalar_back(Ȳraw)
+        Ȳ = unthunk(Ȳraw)
+        Athunk = InplaceableThunk(
+            dA -> mul!(dA, Ȳ, B', conj(γ), true),
+            @thunk(project_A(mat_mat_scalar(Ȳ, B', conj(γ)))),
+        )
+        Bthunk = InplaceableThunk(
+            dB -> mul!(dB, A', Ȳ, conj(γ), true),
+            @thunk(project_B(mat_mat_scalar(A', Ȳ, conj(γ)))),
+        )
+        γthunk = @thunk if iszero(γ)
+            # Could save A*B on the forward pass, but it's messy.
+            # This ought to be rare, should guarantee the same type:
+            project_γ(dot(mat_mat_scalar(A, B, oneunit(γ)), Ȳ) / one(γ))
+        else
+            project_γ(dot(C, Ȳ) / conj(γ))
+        end
+        return (NoTangent(), Athunk, Bthunk, γthunk)
+    end
+    return C, mat_mat_scalar_back
+end
+
+function rrule(
+    ::typeof(mat_vec_scalar),
+    A::StridedMaybeAdjOrTransMat{<:CommutativeMulNumber},
+    b::StridedVector{<:CommutativeMulNumber},
+    γ::CommutativeMulNumber,
+)
+    project_A = ProjectTo(A)
+    project_b = ProjectTo(b)
+    project_γ = ProjectTo(γ)
+    y = mat_vec_scalar(A, b, γ)
+    function mat_vec_scalar_back(dy_raw)
+        dy = unthunk(dy_raw)
+        Athunk = InplaceableThunk(
+            dA -> mul!(dA, dy, b', conj(γ), true), @thunk(project_A(*(dy, b', conj(γ))))
+        )
+        Bthunk = InplaceableThunk(
+            db -> mul!(db, A', dy, conj(γ), true), @thunk(project_b(*(A', dy, conj(γ))))
+        )
+        γthunk = @thunk if iszero(γ)
+            project_γ(dot(mat_vec_scalar(A, b, oneunit(γ)), dy))
+        else
+            project_γ(dot(y, dy) / conj(γ))
+        end
+        return (NoTangent(), Athunk, Bthunk, γthunk)
+    end
+    return y, mat_vec_scalar_back
+end
 
 #####
 ##### `muladd`
 #####
+
+function frule(
+    (_, ΔA, ΔB, Δz),
+    ::typeof(muladd),
+    A::AbstractVecOrMat{<:CommutativeMulNumber},
+    B::AbstractVecOrMat{<:CommutativeMulNumber},
+    z::Union{CommutativeMulNumber, AbstractVecOrMat{<:CommutativeMulNumber}}
+)
+    Ω = muladd(A, B, z)
+    return Ω, ΔA * B .+ A * ΔB .+ Δz
+end
 
 function rrule(
         ::typeof(muladd),
@@ -260,25 +342,49 @@ function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:R
     project_B = ProjectTo(B)
 
     Y = A \ B
+
     function backslash_pullback(ȳ)
         Ȳ = unthunk(ȳ)
+
+        Ȳf = Ȳ
+        # Need to ensure Ȳ is an array since since https://github.com/JuliaLang/julia/pull/44358
+        if !isa(Ȳ, AbstractArray)
+            Ȳf = [Ȳ]
+        end
+        Yf = Y
+        # Need to ensure Yf is an array since since https://github.com/JuliaLang/julia/pull/44358
+        if !isa(Y, AbstractArray)
+            Yf = [Y]
+        end
+        #@info "vars" typeof(Ȳ) typeof(Y) typeof(Yf) typeof(A) typeof(B)
         ∂A = @thunk begin
-            B̄ = A' \ Ȳ
+            B̄ = A' \ Ȳf
             Ā = -B̄ * Y'
-            Ā = add!!(Ā, (B - A * Y) * B̄' / A')
-            Ā = add!!(Ā, A' \ Y * (Ȳ' - B̄'A))
+            t = (B - A * Y) * B̄'
+            # Need to ensure t is an array since since https://github.com/JuliaLang/julia/pull/44358
+            if !isa(t, AbstractArray)
+                t = [t]
+            end
+            Ā = add!!(Ā, t / A')
+            Ā = add!!(Ā, A' \ Yf * (Ȳ' - B̄'A))
             project_A(Ā)
         end
-        ∂B = @thunk project_B(A' \ Ȳ)
+        ∂B = @thunk project_B(A' \ Ȳf)
         return NoTangent(), ∂A, ∂B
     end
     return Y, backslash_pullback
-
 end
 
 #####
 ##### `\`, `/` matrix-scalar_rule
 #####
+
+function frule((_, ΔA, Δb), ::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
+    return A/b, ΔA/b - A*(Δb/b^2)
+end
+function frule((_, Δa, ΔB), ::typeof(\), a::CommutativeMulNumber, B::AbstractArray{<:CommutativeMulNumber})
+    return B/a, ΔB/a - B*(Δa/a^2)
+end
 
 function rrule(::typeof(/), A::AbstractArray{<:CommutativeMulNumber}, b::CommutativeMulNumber)
     Y = A/b
@@ -307,6 +413,8 @@ end
 ##### Negation (Unary -)
 #####
 
+frule((_, ΔA), ::typeof(-), A::AbstractArray) = -A, -ΔA
+
 function rrule(::typeof(-), x::AbstractArray)
     function negation_pullback(ȳ)
         return NoTangent(), InplaceableThunk(ā -> ā .-= ȳ, @thunk(-ȳ))
@@ -314,15 +422,33 @@ function rrule(::typeof(-), x::AbstractArray)
     return -x, negation_pullback
 end
 
+#####
+##### Subtraction
+#####
+
+frule((_, Δx, Δy), ::typeof(-), x::AbstractArray, y::AbstractArray) = x - y, Δx - Δy
+
+function rrule(::typeof(-), x::AbstractArray, y::AbstractArray)
+    xproj = ProjectTo(x)
+    yproj = ProjectTo(y)
+    function subtract_pullback(dy_raw)
+        dy = unthunk(dy_raw)  # projs will otherwise unthunk twice
+        return (NoTangent(), xproj(dy), yproj(-dy))
+    end
+    return x - y, subtract_pullback
+end
 
 #####
 ##### Addition (Multiarg `+`)
 #####
 
+frule((_, ΔAs...), ::typeof(+), As::AbstractArray...) = +(As...), +(ΔAs...)
+
 function rrule(::typeof(+), arrs::AbstractArray...)
     y = +(arrs...)
     arr_axs = map(axes, arrs)
-    function add_pullback(dy)
+    function add_pullback(dy_raw)
+        dy = unthunk(dy_raw)  # reshape will otherwise unthunk N times
         return (NoTangent(), map(ax -> reshape(dy, ax), arr_axs)...)
     end
     return y, add_pullback

@@ -1,79 +1,4 @@
-"""
-    Multiplier(x)
-
-Stores a fixed `x` and multiplies by it, especially for testing
-the gradient of higher order functions with respect to `x`.
-```
-julia> map(Multiplier(pi), [1 10 100 1000])
-1×4 Matrix{Float64}:
- 3.14159  31.4159  314.159  3141.59
-
-julia> map(Multiplier(2), [1 10 100], [-1 3 -7])  # two arguments
-1×3 Matrix{Int64}:
- -2  60  -1400
-
-julia> map(Multiplier([1 2; 3 4]), ([5, 6], [7, 8]))  # x isa Matrix
-([17, 39], [23, 53])
-```
-"""
-struct Multiplier{T}
-    x::T
-end
-(m::Multiplier)(y) = m.x * y
-(m::Multiplier)(y, z) = (m.x * y) * z
-
-function ChainRulesCore.rrule(m::Multiplier, y)
-    Multiplier_pullback(dΩ) = (Tangent{typeof(m)}(; x = dΩ * y'), m.x' * dΩ)
-    return m(y), Multiplier_pullback
-end
-function ChainRulesCore.rrule(m::Multiplier, y, z)
-    Multiplier_pullback_3(dΩ) = (
-        Tangent{typeof(m)}(; x = dΩ * (y * z)'),
-        m.x' * dΩ * z', 
-        (m.x * y)' * dΩ,
-    )
-    return m(y, z), Multiplier_pullback_3
-end
-
-"""
-    Counter()
-
-Multiplies its input by number that increments on each call,
-for testing execution order. Has a gradient `rrule` which
-similarly increases by 10 each call, this is *not* the true gradient!
-```
-julia> map(Counter(), [1 1 1 10 10 10])
-1×6 Matrix{Int64}:
- 1  2  3  40  50  60
-```
-"""
-mutable struct Counter
-    n::Int
-    Counter(n=0) = new(n)
-end
-Base.:(==)(a::Counter, b::Counter) = (a.n == b.n)
-(c::Counter)(x) = x * (c.n += 1) 
-(c::Counter)(x, y) = (x + y) * (c.n += 1)
-
-function ChainRulesCore.rrule(c::Counter, x)
-    # False gradient, again just to record sequence of calls:
-    Counter_back(dΩ) = (NoTangent(), dΩ * (c.n += 10))
-    return c(x), Counter_back
-end
-function ChainRulesCore.rrule(c::Counter, x, y)
-    Counter_back_2(dΩ) = (NoTangent(), dΩ * (c.n += 10), dΩ * (c.n += 10))
-    return c(x, y), Counter_back_2
-end
-
-# NoRules - has no rules defined
-struct NoRules; end
-
-"A function that outputs a vector from a scalar for testing"
-make_two_vec(x) = [x, x]
-function ChainRulesCore.rrule(::typeof(make_two_vec), x)
-    make_two_vec_pullback(ȳ) = (NoTangent(), sum(ȳ))
-    return make_two_vec(x), make_two_vec_pullback
-end
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, Test
 
 @testset "test_helpers.jl" begin
 
@@ -87,6 +12,11 @@ end
         test_rrule(Multiplier(1.2), 3.4, 5.6)
         test_rrule(Multiplier(1.0 + 2im), 3.0 + 4im, 5.0 - 6im)
         test_rrule(Multiplier(rand(2,3)), rand(3,4), rand(4,5))
+    end
+    
+    @testset "Divider" begin
+        test_rrule(Divider(2.3), 4.5)
+        test_rrule(Divider(0.2), -3.4)
     end
 
     @testset "Counter" begin
@@ -103,5 +33,20 @@ end
     @testset "make_two_vec" begin
         test_rrule(make_two_vec, 1.5)
     end
+    
+    @testset "fstar, flog" begin
+        test_frule(fstar, 1.2, 3.4 + 5im)
+        test_frule(flog, 6.7)
+        test_frule(flog, 8.9 + im)    
+    end
 
+    @testset "ambiguities" begin
+        @test [] == filter(Test.detect_ambiguities(ChainRules, ChainRulesCore)) do t
+            (t[1].name in [:rrule, Symbol("rrule##kw")])
+        end
+    end
+
+    @testset "method tables" begin
+        test_method_tables()  # Check the global method tables are consistent
+    end
 end

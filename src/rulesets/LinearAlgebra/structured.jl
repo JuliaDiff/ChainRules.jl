@@ -71,21 +71,21 @@ function rrule(::typeof(diag), A::AbstractMatrix)
     end
     return diag(A), diag_pullback
 end
-if VERSION ≥ v"1.3"
-    function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
-        function diag_pullback(ȳ)
-            return (NoTangent(), diagm(size(A)..., k => ȳ), NoTangent())
-        end
-        return diag(A, k), diag_pullback
-    end
 
-    function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
-        function diagm_pullback(ȳ)
-            return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
-        end
-        return diagm(m, n, kv...), diagm_pullback
+function rrule(::typeof(diag), A::AbstractMatrix, k::Integer)
+    function diag_pullback(ȳ)
+        return (NoTangent(), diagm(size(A)..., k => ȳ), NoTangent())
     end
+    return diag(A, k), diag_pullback
 end
+
+function rrule(::typeof(diagm), m::Integer, n::Integer, kv::Pair{<:Integer,<:AbstractVector}...)
+    function diagm_pullback(ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
+    end
+    return diagm(m, n, kv...), diagm_pullback
+end
+
 function rrule(::typeof(diagm), kv::Pair{<:Integer,<:AbstractVector}...)
     function diagm_pullback(ȳ)
         return (NoTangent(), _diagm_back.(kv, Ref(ȳ))...)
@@ -95,7 +95,7 @@ end
 
 function _diagm_back(p, ȳ)
     k, v = p
-    d = diag(unthunk(ȳ), k)[1:length(v)] # handle if diagonal was smaller than matrix
+    d = diag(unthunk(ȳ), k)[eachindex(v)] # handle if diagonal was smaller than matrix
     return Tangent{typeof(p)}(second = d)
 end
 
@@ -266,4 +266,17 @@ function rrule(::typeof(logdet), X::Union{Diagonal, AbstractTriangular})
         return (NoTangent(), Diagonal(ȳ .* s))
     end
     return y, logdet_pullback
+end
+
+#####
+##### Tridiagonal
+#####
+
+function rrule(::Type{Tridiagonal}, dl, d, du)
+    y = Tridiagonal(dl, d, du)
+    function Tridiagonal_pullback(ȳ)
+        ∂y = unthunk(ȳ)
+        return (NoTangent(), diag(∂y, -1), diag(∂y), diag(∂y, 1))
+    end
+    return y, Tridiagonal_pullback
 end

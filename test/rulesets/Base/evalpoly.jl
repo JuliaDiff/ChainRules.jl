@@ -1,4 +1,6 @@
-VERSION ≥ v"1.4" && @testset "evalpoly" begin
+using ChainRules, ChainRulesTestUtils, Test
+
+@testset "evalpoly" begin
     # test fallbacks for when code generation fails
     @testset "fallbacks for $T" for T in (Float64, ComplexF64)
         x, p = randn(T), Tuple(randn(T, 10))
