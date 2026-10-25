@@ -2,9 +2,11 @@
 ##### `mean`
 #####
 
+_denom(x, dims) = size(x, dims)
 _denom(x, dims::Colon) = length(x)
-_denom(x, dims::Integer) = size(x, dims)
-_denom(x, dims) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
+_denom(x, dims::Union{Tuple, AbstractArray}) = mapreduce(i->size(x, i), Base.mul_prod, unique(dims), init=1)
+
+@non_differentiable _denom(::Any, ::Any)  # else Zygote tries to AD unique(::Tuple)
 
 function rrule(::typeof(mean), x::AbstractArray{<:Union{Real,Complex,AbstractArray}}; dims=:)
     y_sum, sum_pullback = rrule(sum, x; dims)
@@ -30,6 +32,18 @@ function rrule(
     end
     return y_sum / n, mean_pullback_f
 end
+
+# Similar to https://github.com/JuliaDiff/ChainRules.jl/issues/522
+# The rule above assumes `f` is callable. Arrays are not, this came up when taking 
+# the mean arrays with weights in StatsBase
+@opt_out ChainRulesCore.rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(mean),
+    x::AbstractArray,
+    wt::AbstractArray{<:Union{Real,Complex,AbstractArray}};
+    dims=:
+)
+
 
 #####
 ##### variance

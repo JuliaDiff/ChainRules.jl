@@ -1,12 +1,21 @@
+using ChainRules, ChainRulesTestUtils, Test
+
 @testset "typeassert" begin
     test_rrule(typeassert, 1.1, Float64)
     test_frule(typeassert, 1.1, Float64)
 end
 
 @testset "ifelse" begin
-    test_rrule(ifelse, true, 1.1, 2.0)
+    # The pullback's return type depends on the runtime value of the condition
+    test_rrule(ifelse, true, 1.1, 2.0; check_inferred=false)
     test_frule(ifelse, false, 1.1, 2.0)
 
     test_rrule(ifelse, true, [1.1], [2.0]; check_inferred=false)
     test_frule(ifelse, false, [1.1], [2.0]; check_inferred=false)
 end
+
+isdefined(Core, :compilerbarrier) && @testset "compilerbarrier" begin
+    test_frule(Core.compilerbarrier, :const, 42.0)
+    test_rrule(Core.compilerbarrier, :const, 42.0) 
+end
+    

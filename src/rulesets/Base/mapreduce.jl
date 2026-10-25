@@ -14,6 +14,17 @@ function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray
     return sum!(y, x), sum!(ẏ, ẋ)
 end
 
+function rrule(::typeof(sum), x::Tuple)
+    project = ProjectTo(x)
+    len = Val(length(x))
+    function sum_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        dx = dy isa AbstractZero ? dy : ntuple(Returns(dy), len)
+        return (NoTangent(), project(dx))
+    end
+    return sum(x), sum_pullback
+end
+
 function rrule(::typeof(sum), x::AbstractArray; dims=:)
     project = ProjectTo(x)
     y = sum(x; dims=dims)
@@ -51,24 +62,15 @@ end
 ##### `sum(f, x)`
 #####
 
-# Can't map over Adjoint/Transpose Vector
-function rrule(
-    config::RuleConfig{>:HasReverseMode},
-    ::typeof(sum),
-    f,
-    xs::Union{Adjoint{<:Number,<:AbstractVector},Transpose{<:Number,<:AbstractVector}};
-    kwargs...
-)
-    op = xs isa Adjoint ? adjoint : transpose
-    # since summing a vector we don't need to worry about dims which simplifies adjointing
-    vector = parent(xs)
-    y, vector_sum_pb = rrule(config, sum, f, vector; kwargs...)
-    function covector_sum_pb(ȳ)
-        s̄um, f̄, v̄ = vector_sum_pb(ȳ)
-        return s̄um, f̄, op(v̄)
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::Tuple) where {F}
+    fxs, unmap = rrule(config, map, f, xs)
+    y, unsum = rrule(config, sum, fxs)
+    function sum_pullback_f(dy)
+        _, dfxs = unsum(dy)
+        _, df, dxs = unmap(dfxs)
+        (NoTangent(), df, dxs)
     end
-
-    return y, covector_sum_pb
+    y, sum_pullback_f
 end
 
 function rrule(
@@ -96,7 +98,8 @@ function rrule(
     # see `f.(xs)` but we don't need the pullbacks. Not implemented at present.)
 
     # In the general case, we need to save all the pullbacks:
-    fx_and_pullbacks = map(xᵢ -> rrule_via_ad(config, f, xᵢ), xs)
+    # (Here `map` or `broadcast` would fail for adjoint vectors.)
+    fx_and_pullbacks = [rrule_via_ad(config, f, xᵢ) for xᵢ in xs]
     y = sum(first, fx_and_pullbacks; dims)
 
     function sum_pullback_f2(dy)
@@ -136,7 +139,7 @@ Works by seeing if the result of `derivatives_given_output(nothing, f, x)` can b
 The method of `derivatives_given_output` usually comes from `@scalar_rule`.
 """
 function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
-    gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
+    gT = Core.Compiler.return_type(derivatives_given_output, Tuple{Nothing, F, xT})
     # Here we must check `<: Number`, to avoid this, the one rule which can return the `nothing`:
     # ChainRules.derivatives_given_output("anything", exp, 1) == (("anything",),)
     return isconcretetype(gT) && gT <: Tuple{Tuple{Number}}
@@ -189,9 +192,9 @@ function rrule(
     return y, sum_abs2_pullback
 end
 
-# Fix dispatch for this pidgeon-hole optimization,
+# Fix dispatch for this pigeonhole optimization,
 # Rules with RuleConfig dispatch with priority over without (regardless of other args).
-# and if we don't specify what do do for one that HasReverseMode then it is ambigious
+# and if we don't specify what do do for one that HasReverseMode then it is ambiguous
 for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
     @eval function rrule(
         ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T}; dims=:,
@@ -205,25 +208,28 @@ end
 #####
 
 function frule((_, xdot), ::typeof(cumsum), x::AbstractArray; dims::Integer)
-    return cumsum(x; dims=dims), cumsum(xdot; dims=dims)
+    return cumsum(x; dims), cumsum(xdot; dims)
 end
 frule(tang, ::typeof(cumsum), x::AbstractVector) = frule(tang, cumsum, x; dims=1)
 
 function frule((_, ydot, xdot), ::typeof(cumsum!), y::AbstractArray, x::AbstractArray; dims::Integer)
-    return cumsum!(y, x; dims=dims), cumsum!(ydot, xdot; dims=dims)
+    return cumsum!(y, x; dims), cumsum!(ydot, xdot; dims)
 end
 frule(t, ::typeof(cumsum!), y::AbstractVector, x::AbstractVector) = frule(t, cumsum!, y, x; dims=1)
 
-function rrule(::typeof(cumsum), x::AbstractArray; dims::Integer)
+function rrule(::typeof(cumsum), x::AbstractArray{T,N}; dims::Integer) where {T,N}
     project = ProjectTo(x)
     function cumsum_pullback(dy)
+        if dims > N  # trivial case, for which reverse fails
+            return (NoTangent(), project(unthunk(dy)))
+        end
         step1 = reverse(unthunk(dy); dims=dims)
-        if ChainRulesCore.is_inplaceable_destination(step1) && VERSION >= v"1.6"
-            step2 = cumsum!(step1, step1; dims=dims)
-            step3 = reverse!(step2; dims=dims)
+        if ChainRulesCore.is_inplaceable_destination(step1)
+            step2 = cumsum!(step1, step1; dims)
+            step3 = reverse!(step2; dims)
         else
-            step2 = cumsum(step1; dims=dims)
-            step3 = reverse(step2; dims=dims)
+            step2 = cumsum(step1; dims)
+            step3 = reverse(step2; dims)
         end
         return (NoTangent(), project(step3))
     end

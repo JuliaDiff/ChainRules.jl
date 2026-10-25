@@ -1,13 +1,18 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Statistics, Test
+
+struct DummyWeights <: AbstractVector{Float64}  # DummyType that looks like StatsBase's Weights types
+end
+
 @testset "mean" begin
     @testset "mean(x)" begin
-        test_rrule(mean, randn(9))
+        @gpu test_rrule(mean, randn(9))
         test_rrule(mean, randn(ComplexF64,2,4))
         test_rrule(mean, transpose(rand(3)))
         test_rrule(mean, [rand(3) for _ in 1:4]; check_inferred=false)
     end
     @testset "with dims kwargs" begin
-        test_rrule(mean, randn(9); fkwargs=(;dims=1))
-        test_rrule(mean, randn(9,4); fkwargs=(;dims=2))
+        @gpu test_rrule(mean, randn(9); fkwargs=(;dims=1))
+        @gpu test_rrule(mean, randn(9,4); fkwargs=(;dims=2))
         test_rrule(mean, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(;dims=2), check_inferred=false)
     end
     @testset "mean(f, x)" begin
@@ -28,11 +33,16 @@
         test_rrule(mean, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(;dims=2))
         test_rrule(mean, sqrt, rand(ComplexF64, 3, 4); fkwargs=(;dims=(1,)))
     end
+
+    @testset "Regression Test against StatsBase-like Weighted Mean" begin
+        # This should return nothing as we have no rule for this. (we opted opt)
+        @test nothing == rrule(ChainRulesTestUtils.TestConfig(), mean, [1.0, 2.0], DummyWeights())
+    end
 end
 
 @testset "variation: $var" for var in (std, var)
-    test_rrule(var, randn(3))
-    test_rrule(var, randn(4, 5); fkwargs=(; corrected=false))
+    @gpu test_rrule(var, randn(3))
+    @gpu test_rrule(var, randn(4, 5); fkwargs=(; corrected=false))
     test_rrule(var, randn(ComplexF64, 6))
     test_rrule(var, Diagonal(randn(6)))
 

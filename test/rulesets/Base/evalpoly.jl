@@ -1,3 +1,4 @@
+using ChainRules, ChainRulesTestUtils, Test
 
 @testset "evalpoly" begin
     # test fallbacks for when code generation fails

@@ -1,8 +1,10 @@
 module ChainRules
 
+using Adapt: adapt
 using Base.Broadcast: materialize, materialize!, broadcasted, Broadcasted, broadcastable
 using ChainRulesCore
-using Compat
+using Distributed
+using GPUArraysCore: AbstractGPUArray, AbstractGPUArrayStyle, @allowscalar
 using IrrationalConstants: logtwo, logten
 using LinearAlgebra
 using LinearAlgebra.BLAS
@@ -10,6 +12,7 @@ using Random
 using RealDot: realdot
 using SparseArrays
 using Statistics
+using StructArrays
 
 # Basically everything this package does is overloading these, so we make an exception
 # to the normal rule of only overload via `ChainRulesCore.rrule`.
@@ -20,6 +23,9 @@ using ChainRulesCore: derivatives_given_output
 
 # numbers that we know commute under multiplication
 const CommutativeMulNumber = Union{Real,Complex}
+
+# StructArrays
+include("unzipped.jl")
 
 include("rulesets/Core/core.jl")
 
@@ -33,9 +39,14 @@ include("rulesets/Base/arraymath.jl")
 include("rulesets/Base/indexing.jl")
 include("rulesets/Base/sort.jl")
 include("rulesets/Base/mapreduce.jl")
+include("rulesets/Base/broadcast.jl")
+include("rulesets/Base/CoreLogging.jl")
+
+include("rulesets/Distributed/nondiff.jl")
 
 include("rulesets/Statistics/statistics.jl")
 
+include("rulesets/LinearAlgebra/nondiff.jl")
 include("rulesets/LinearAlgebra/utils.jl")
 include("rulesets/LinearAlgebra/blas.jl")
 include("rulesets/LinearAlgebra/lapack.jl")

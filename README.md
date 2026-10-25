@@ -2,9 +2,8 @@
 
 # ChainRules
 
-[![CI](https://github.com/JuliaDiff/ChainRules.jl/workflows/CI/badge.svg?branch=master)](https://github.com/JuliaDiff/ChainRules.jl/actions?query=workflow%3ACI)
-[![Travis](https://travis-ci.org/JuliaDiff/ChainRules.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ChainRules.jl)
-[![Coveralls](https://coveralls.io/repos/github/JuliaDiff/ChainRules.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ChainRules.jl?branch=master)
+[![CI](https://github.com/JuliaDiff/ChainRules.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaDiff/ChainRules.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/JuliaDiff/ChainRules.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaDiff/ChainRules.jl)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/ChainRules.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
@@ -13,6 +12,10 @@
 **Docs:**
 [![](https://img.shields.io/badge/docs-master-blue.svg)](https://juliadiff.org/ChainRulesCore.jl/dev)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliadiff.org/ChainRulesCore.jl/stable)
+
+| ⚠️ The ChainRules project is currently seeking a new primary maintainer ⚠️                                                                                                                                                                                                                                                                     |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| See this [Discourse thread](https://discourse.julialang.org/t/chainrules-project-looking-for-a-new-primary-maintainer/115636). We currently have many secondary maintainers and contributors with commit rights, but no one who has committed to leading the efforts. Until this is resolved PRs and issues may not receive timely response. |
 
 The ChainRules package provides a variety of common utilities that can be used by downstream automatic differentiation (AD) tools to define and execute forward-, reverse-, and mixed-mode primitives.
 

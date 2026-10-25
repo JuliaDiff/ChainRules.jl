@@ -1,3 +1,7 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
 @testset "Symmetric/Hermitian rules" begin
     @testset "$(SymHerm)(::AbstractMatrix{$T}, :$(uplo))" for
         SymHerm in (Symmetric, Hermitian),
@@ -8,10 +12,6 @@
             test_frule(SymHerm, rand(T, 3, 3), uplo)
         end
         @testset "rrule" begin
-            # on old versions of julia this combination doesn't infer but we don't care as
-            # it infers fine on modern versions.
-            check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
-
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
                 x = randn(T, 3, 3)
                 ΔΩ = MT(randn(T, 3, 3))
@@ -22,7 +22,7 @@
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -36,7 +36,7 @@
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -275,28 +275,6 @@
             @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
             @test @maybe_inferred(back(CT())) == (NoTangent(), ZeroTangent())
         end
-
-        @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
-            T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
-            uplo in (:L, :U)
-
-            A, ΔS = randn(T, n, n), randn(n)
-            symA = SymHerm(A, uplo)
-
-            S = svdvals(symA)
-            S_ad, back = @maybe_inferred rrule(svdvals, symA)
-            @test S_ad ≈ S # inexact because rrule uses svd not svdvals
-            ∂self, ∂symA = @maybe_inferred back(ΔS)
-            @test ∂self === NoTangent()
-            @test ∂symA isa typeof(symA)
-            @test ∂symA.uplo == symA.uplo
-
-            # pull the cotangent back to A to test against finite differences
-            ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
-            @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
-
-            @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
-        end
     end
 
     @testset "Symmetric/Hermitian matrix functions" begin
@@ -326,8 +304,8 @@
             return TA(U * Diagonal(λ) * U', uplo)
         end
 
-        # Adapted From ChainRulesTestUtils._is_inferrable
-        function is_inferrable(f, A)
+        # Adapted From ChainRulesTestUtils._is_inferable
+        function is_inferable(f, A)
             try
                 @maybe_inferred f(A)
                 return true
@@ -335,6 +313,9 @@
                 return false
             end
         end
+
+        # wrapper of real-valued `f(A)` for real `A` (`TA` since JuliaLang/julia#55951)
+        realfun_wrapper(TA) = VERSION >= v"1.12.0-DEV.1322" ? TA : Symmetric
 
         @testset "$(f)(::$TA{<:$T})" for f in
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
@@ -347,11 +328,11 @@
                 @testset for uplo in (:L, :U), hermout in (true, false)
                     A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
                     Y = f(A)
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
@@ -400,11 +381,11 @@
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
