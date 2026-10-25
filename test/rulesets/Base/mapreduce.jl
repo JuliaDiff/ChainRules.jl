@@ -126,7 +126,7 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
 
         _, pb = rrule(CFG, sum, iszero, randn(5))
-        @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent(),)
+        @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent())
 
         # Functions that return a Vector
         # see https://github.com/FluxML/Zygote.jl/issues/1074
