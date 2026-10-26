@@ -1,57 +1,21 @@
-using Base.Broadcast: broadcastable
 using ChainRules
-using ChainRulesCore
-using ChainRulesTestUtils
-using ChainRulesTestUtils: _fdm
-using Compat: only
-using FiniteDifferences
-using LinearAlgebra
-using LinearAlgebra.BLAS
-using LinearAlgebra: dot
-using Random
-using Statistics
-using Test
+using ParallelTestRunner
 
-Random.seed!(1) # Set seed that all testsets should reset to.
-
-println("Testing ChainRules.jl")
-@testset "ChainRules" begin
-    @testset "rulesets" begin
-        @testset "Base" begin
-            include(joinpath("rulesets", "Base", "nondiff.jl"))
-            include(joinpath("rulesets", "Base", "base.jl"))
-            include(joinpath("rulesets", "Base", "fastmath_able.jl"))
-            include(joinpath("rulesets", "Base", "evalpoly.jl"))
-            include(joinpath("rulesets", "Base", "array.jl"))
-            include(joinpath("rulesets", "Base", "mapreduce.jl"))
-        end
-
-        print(" ")
-
-        @testset "Statistics" begin
-            include(joinpath("rulesets", "Statistics", "statistics.jl"))
-        end
-
-        print(" ")
-
-        @testset "LinearAlgebra" begin
-            include(joinpath("rulesets", "LinearAlgebra", "dense.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "structured.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "factorization.jl"))
-            include(joinpath("rulesets", "LinearAlgebra", "blas.jl"))
-        end
-
-        print(" ")
-
-        @testset "Random" begin
-            include(joinpath("rulesets", "Random", "random.jl"))
-        end
-
-        print(" ")
-
-        @testset "packages" begin
-            include(joinpath("rulesets", "packages", "NaNMath.jl"))
-            include(joinpath("rulesets", "packages", "SpecialFunctions.jl"))
-        end
-    end
+# Shared test helpers are defined once per worker process. This includes some piracy
+# (`Adapt` methods for the mock GPU array), which should only be evaluated once.
+const init_worker_code = quote
+    include($(joinpath(@__DIR__, "testutils.jl")))
 end
+
+# Each test file runs in its own sandbox module and loads the packages it needs itself.
+const init_code = quote
+    using Main.ChainRulesTestHelpers
+end
+
+# Every file under `test/` (except this one) is a test, named by its path, e.g. "rulesets/Base/array".
+# Select tests via `Pkg.test("ChainRules"; test_args=["rulesets/LinearAlgebra"])`,
+# exclude them with a leading `!`, and list all with `test_args=["--list"]`.
+const testsuite = find_tests(@__DIR__)
+delete!(testsuite, "testutils")
+
+runtests(ChainRules, ARGS; testsuite, init_code, init_worker_code)

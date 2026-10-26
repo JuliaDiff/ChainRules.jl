@@ -1,7 +1,9 @@
-# Add tests to the quote for functions with  FastMath varients.
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, Test
+
+# Add tests to the quote for functions with  FastMath variants.
 function jacobian_via_frule(f,z)
-    du_dx, dv_dx = reim(frule((Zero(), 1),f,z)[2])
-    du_dy, dv_dy = reim(frule((Zero(),im),f,z)[2])
+    du_dx, dv_dx = reim(frule((ZeroTangent(), 1),f,z)[2])
+    du_dy, dv_dy = reim(frule((ZeroTangent(),im),f,z)[2])
     return [
         du_dx  du_dy
         dv_dx  dv_dy
@@ -37,6 +39,9 @@ function complex_jacobian_test(f, z)
     @test jacobian_via_fdm(f, z) ≈ jacobian_via_rrule(f, z)
 end
 
+# IMPORTANT:
+# Do not add any tests here for functions that do not have variants in Base.FastMath
+# e.g. do not add `foo` unless `Base.FastMath.foo_fast` exists.
 const FASTABLE_AST = quote
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
@@ -56,17 +61,16 @@ const FASTABLE_AST = quote
         end
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
-                x, Δx, x̄ = randn(T, 3)
-                Δz = (randn(T), randn(T))
+                Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
 
-                frule_test(sincos, (x, Δx))
-                rrule_test(sincos, Δz, (x, x̄))
+                test_frule(sincos, randn(T))
+                test_rrule(sincos, randn(T); output_tangent=Δz)
             end
         end
     end
 
     @testset "exponents" begin
-        for x in (-0.1, 6.4, 0.5 + 0.25im)
+        for x in (-0.1, 7.9, 0.5 + 0.25im)
             test_scalar(inv, x)
 
             test_scalar(exp, x)
@@ -94,21 +98,21 @@ const FASTABLE_AST = quote
                 complex_jacobian_test(f, z)
             end
         end
-        # As per PR #196, angle gives a Zero() pullback for Real z and ΔΩ, rather than
+        # As per PR #196, angle gives a ZeroTangent() pullback for Real z and ΔΩ, rather than
         # the one you'd get from considering the reals as embedded in the complex plane
         # so we need to special case it's tests
         for z ∈ (-4.1-0.02im, 6.4 + 0im, 3 + im)
             complex_jacobian_test(angle, z)
         end
-        @test frule((Zero(), randn()), angle, randn())[2] === Zero()
-        @test rrule(angle, randn())[2](randn())[2]        === Zero()
+        @test frule((ZeroTangent(), randn()), angle, randn())[2] === ZeroTangent()
+        @test rrule(angle, randn())[2](randn())[2] === ZeroTangent()
 
         # test that real primal with complex tangent gives complex tangent
         ΔΩ = randn(ComplexF64)
         for x in (-0.5, 2.0)
             @test isapprox(
-                frule((Zero(), ΔΩ), angle, x)[2],
-                frule((Zero(), ΔΩ), angle, complex(x))[2],
+                frule((ZeroTangent(), ΔΩ), angle, x)[2],
+                frule((ZeroTangent(), ΔΩ), angle, complex(x))[2],
             )
         end
     end
@@ -118,76 +122,122 @@ const FASTABLE_AST = quote
             test_scalar(+, x)
             test_scalar(-, x)
             test_scalar(atan, x)
+            test_scalar(*, x)
         end
     end
 
     @testset "binary functions" begin
         @testset "$f(x, y)" for f in (atan, rem, max, min)
-            x, Δx, x̄ = 10rand(3)
-            y, Δy, ȳ = rand(3)
-            Δz = rand()
-
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))
+            # be careful not to sample near singularities for `rem`
+            base = rand() + 1
+            test_frule(f, (rand(0:10) + .6rand() + .2) * base, base)
+            base = rand() + 1
+            test_rrule(f, (rand(0:10) + .6rand() + .2) * base, base)
         end
 
-        @testset "$f(x::$T, y::$T)" for f in (/, +, -, hypot), T in (Float64, ComplexF64)
-            x, Δx, x̄ = 10rand(T, 3)
-            y, Δy, ȳ = rand(T, 3)
-            Δz = randn(typeof(f(x, y)))
-
-            frule_test(f, (x, Δx), (y, Δy))
-            rrule_test(f, Δz, (x, x̄), (y, ȳ))    
+        @testset "$f(x::$T, y::$T)" for f in (/, +, -, *, hypot), T in (Float64, ComplexF64)
+            test_frule(f, 10rand(T), rand(T))
+            test_rrule(f, 10rand(T), rand(T))
         end
 
-        @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot, ^), T in (Float32, Float64)
+        @testset "$f(x::$T, y::$T) type check" for f in (/, +, -,\, hypot), T in (Float32, Float64)
             x, Δx, x̄ = 10rand(T, 3)
             y, Δy, ȳ = rand(T, 3)
             @assert T == typeof(f(x, y))
             Δz = randn(typeof(f(x, y)))
 
-            @test frule((Zero(), Δx, Δy), f, x, y) isa Tuple{T, T}
+            @test frule((ZeroTangent(), Δx, Δy), f, x, y) isa Tuple{T, T}
             _, ∂x, ∂y = rrule(f, x, y)[2](Δz)
-            @test extern.((∂x, ∂y)) isa Tuple{T, T}
+            @test (∂x, ∂y) isa Tuple{T, T}
 
             if f != hypot
-                # Issue #233                
-                @test frule((Zero(), Δx, Δy), f, x, 2) isa Tuple{T, T}
+                # Issue #233
+                @test frule((ZeroTangent(), Δx, Δy), f, x, 2) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, x, 2)[2](Δz)
-                @test extern.((∂x, ∂y)) isa Tuple{T, T}
-                
-                @test frule((Zero(), Δx, Δy), f, 2, y) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{T, Float64}
+
+                @test frule((ZeroTangent(), Δx, Δy), f, 2, y) isa Tuple{T, T}
                 _, ∂x, ∂y = rrule(f, 2, y)[2](Δz)
-                @test extern.((∂x, ∂y)) isa Tuple{T, T}
+                @test (∂x, ∂y) isa Tuple{Float64, T}
             end
         end
 
-        @testset "^(x::$T, n::$T)" for T in (Float64, ComplexF64)
-            # for real x and n, x must be >0
-            x = T <: Real ? 15rand() : 15randn(ComplexF64)
-            Δx, x̄ = 10rand(T, 2)
-            y, Δy, ȳ = rand(T, 3)
-            Δz = rand(T)
+        @testset "^(x::$T, p::$S)" for T in (Float64, ComplexF64), S in (Float64, ComplexF64)
+            test_frule(^, rand(T) + 3, rand(S) + 3)
+            test_rrule(^, rand(T) + 3, rand(S) + 3)
 
-            frule_test(^, (x, Δx), (y, Δy))
-            rrule_test(^, Δz, (x, x̄), (y, ȳ))
+            # When both x & p are Real, and !(isinteger(p)), 
+            # then x must be positive to avoid a DomainError
+            T <: Real && S <: Real && continue
+            # In other cases, we can test values near zero:
 
-            T <: Real && @testset "discontinuity for ^(x::Real, n::Int) when x ≤ 0" begin
-                # finite differences doesn't work for x < 0, so we check manually
-                x, y = -10rand(T), 3
-                Δx = randn(T)
-                Δy = randn(T)
-                Δz = randn(T)
+            test_frule(^, randn(T), rand(S))
+            test_rrule(^, rand(T), rand(S))
+        end
 
-                @test frule((Zero(), Δx, Δy), ^, x, y)[2] ≈ Δx * y * x^(y - 1)
-                @test frule((Zero(), Δx, Δy), ^, zero(x), y)[2] ≈ 0
-                _, ∂x, ∂y = rrule(^, x, y)[2](Δz)
-                @test ∂x ≈ Δz * y * x^(y - 1)
-                @test ∂y ≈ 0
-                _, ∂x, ∂y = rrule(^, zero(x), y)[2](Δz)
-                @test ∂x ≈ 0
-                @test ∂y ≈ 0
+        # Tests for power functions, at values near to zero.
+        POWERGRADS = [ # (x,p) => (dx,dp)
+        # Some regular points, as sanity checks:
+          (1.0, 2)   => (2.0, 0.0),
+          (2.0, 2)   => (4.0, 2.772588722239781),
+        # At x=0, gradients for x seem clear, 
+        # for p less certain what's best.
+          (0.0, 2)   => (0.0, 0.0),
+          (-0.0, 2)  => (0.0, 0.0),  # probably (-0.0, 0.0) would be ideal
+          (0.0, 1)   => (1.0, 0.0),
+          (-0.0, 1)  => (1.0, 0.0),
+          (0.0, 0)   => (0.0, NaN),
+          (-0.0, 0)  => (0.0, NaN),
+          (0.0, -1)  => (-Inf, NaN),
+          (-0.0, -1) => (-Inf, NaN),
+          (0.0, -2)  => (-Inf, NaN),
+          (-0.0, -2) => (Inf, NaN),
+        # Integer x & p, check no InexactErrors
+          (0, 2)    => (0.0, 0.0),
+          (0, 1)    => (1.0, 0.0),
+          (0, 0)    => (0.0, NaN),
+          (0, -1)   => (-Inf, NaN),
+          (0, -2)   => (-Inf, NaN),
+        # Non-integer powers:
+          (0.0, 0.5)   => (Inf, 0.0),
+          (0.0, 3.5)   => (0.0, 0.0),
+          (0.0, -1.5)  => (-Inf, NaN),
+        ]
+
+        # Non-finite results of FastMath functions are undefined
+        fastmath = (^) !== Base.:^
+        isequal_or_undef(a, b) = (fastmath && !Base.isfinite(a)) || isequal(a, b)
+
+        @testset "$x ^ $p" for ((x,p), (∂x, ∂p)) in POWERGRADS
+            if x isa Integer && p isa Integer && p < 0
+                @test_throws DomainError x^p
+                continue
             end
+            y = x^p
+
+            # Forward
+            y_fwd = frule((1,1,1), ^, x, p)[1]
+            @test isequal_or_undef(y, y_fwd)
+
+            ∂x_fwd = frule((0,1,0), ^, x, p)[2]
+            ∂p_fwd = frule((0,0,1), ^, x, p)[2]
+            @test isequal_or_undef(∂x, ∂x_fwd)
+            if x===0.0 && p===0.5
+                @test_broken isequal(∂p, ∂p_fwd)
+            else
+                @test isequal_or_undef(∂p, ∂p_fwd)
+            end
+
+            ∂x_fwd = frule((0,1,ZeroTangent()), ^, x, p)[2] # easier, strong zero
+            @test isequal_or_undef(∂x, ∂x_fwd)
+
+            # Reverse
+            y_rev = rrule(^, x, p)[1]
+            @test isequal_or_undef(y, y_rev)
+            
+            ∂x_rev, ∂p_rev = unthunk.(rrule(^, x, p)[2](1))[2:3]
+            @test isequal_or_undef(∂x, ∂x_rev)
+            @test isequal_or_undef(∂p, ∂p_rev)
         end
     end
 
@@ -197,16 +247,16 @@ const FASTABLE_AST = quote
                 test_scalar(sign, x)
             end
 
-            @testset "Zero over the point discontinuity" begin
+            @testset "ZeroTangent over the point discontinuity" begin
                 # Can't do finite differencing because we are lying
                 # following the subgradient convention.
 
                 _, pb = rrule(sign, 0.0)
                 _, x̄ = pb(10.5)
-                @test extern(x̄) == 0
+                test_approx(x̄, 0)
 
-                _, ẏ = frule((Zero(), 10.5), sign, 0.0)
-                @test extern(ẏ) == 0
+                _, ẏ = frule((ZeroTangent(), 10.5), sign, 0.0)
+                test_approx(ẏ, 0)
             end
         end
         @testset "complex" begin
@@ -217,9 +267,9 @@ const FASTABLE_AST = quote
                 # complex primal with zero imaginary part
 
                 ż, ΔΩ = randn(ComplexF64, 2)
-                Ω, ∂Ω = frule((Zero(), ż), sign, real(z))
+                Ω, ∂Ω = frule((ZeroTangent(), ż), sign, real(z))
                 @test Ω == sign(real(z))
-                @test ∂Ω ≈ frule((Zero(), ż), sign, real(z) + 0im)[2]
+                @test ∂Ω ≈ frule((ZeroTangent(), ż), sign, real(z) + 0im)[2]
 
                 Ω, pb = rrule(sign, real(z))
                 @test Ω == sign(real(z))
@@ -232,10 +282,10 @@ const FASTABLE_AST = quote
 
                 _, pb = rrule(sign, 0.0 + 0.0im)
                 _, z̄ = pb(randn(ComplexF64))
-                @test extern(z̄) == 0.0 + 0.0im
+                @test z̄ == 0.0 + 0.0im
 
-                _, Ω̇ = frule((Zero(), randn(ComplexF64)), sign, 0.0 + 0.0im)
-                @test extern(Ω̇) == 0.0 + 0.0im
+                _, Ω̇ = frule((ZeroTangent(), randn(ComplexF64)), sign, 0.0 + 0.0im)
+                @test Ω̇ == 0.0 + 0.0im
             end
         end
     end
@@ -245,7 +295,6 @@ end
 @eval @testset "fastmath_able Base functions" begin
     $FASTABLE_AST
 end
-
 
 @eval @testset "fastmath_able FastMath functions" begin
     $(Base.FastMath.make_fastmath(FASTABLE_AST))

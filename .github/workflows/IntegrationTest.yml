@@ -1,0 +1,61 @@
+name: IntegrationTest
+on:
+  push:
+    branches: [main]
+    tags: [v*]
+  pull_request:
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.package.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: [1]
+        os: [ubuntu-latest]
+        package:
+          - {user: dfdx, name: Yota}
+          - {user: FluxML, name: Zygote}
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v3
+      - uses: julia-actions/julia-buildpkg@v1
+      - name: Clone Downstream
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.package.user }}/${{ matrix.package.name }}.jl
+          path: downstream
+      - name: Load this and run the downstream tests
+        shell: julia --project=@temp {0}
+        run: |
+          using Pkg
+          try
+            # force it to use this PR's version of the package
+            Pkg.develop([PackageSpec(path="."), PackageSpec(path="downstream")])  # resolver may fail with main deps
+            Pkg.update()
+            Pkg.test("${{ matrix.package.name }}")  # resolver may fail with test time deps
+          catch err
+            err isa Pkg.Resolve.ResolverError || rethrow()
+            # If we can't resolve that means this is incompatible by SemVer and this is fine
+            # It means we marked this as a breaking change, so we don't need to worry about
+            # Mistakenly introducing a breaking change, as we have intentionally made one
+
+            @info "Not compatible with this release. No problem." exception=err
+            exit(0)  # Exit immediately, as a success
+          end

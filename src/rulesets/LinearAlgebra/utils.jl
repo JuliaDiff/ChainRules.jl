@@ -2,20 +2,22 @@
 # to any particular rule definition
 
 # F .* (X - X'), overwrites X if possible
-function _mulsubtrans!(X::AbstractMatrix{T}, F::AbstractMatrix{T}) where T<:Real
+function _mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractMatrix{<:Real})
+    T = promote_type(eltype(X), eltype(F))
+    Y = (T <: eltype(X)) ? X : similar(X, T)
     k = size(X, 1)
     @inbounds for j = 1:k, i = 1:j  # Iterate the upper triangle
         if i == j
-            X[i,i] = zero(T)
+            Y[i,i] = zero(T)
         else
-            X[i,j], X[j,i] = F[i,j] * (X[i,j] - X[j,i]), F[j,i] * (X[j,i] - X[i,j])
+            Y[i,j], Y[j,i] = F[i,j] * (X[i,j] - X[j,i]), F[j,i] * (X[j,i] - X[i,j])
         end
     end
-    return X
+    return Y
 end
-_mulsubtrans!(X::AbstractZero, F::AbstractZero) = X
-_mulsubtrans!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
-_mulsubtrans!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
+_mulsubtrans!!(X::AbstractZero, F::AbstractZero) = X
+_mulsubtrans!!(X::AbstractZero, F::AbstractMatrix{<:Real}) = X
+_mulsubtrans!!(X::AbstractMatrix{<:Real}, F::AbstractZero) = F
 
 # I - X, overwrites X
 function _eyesubx!(X::AbstractMatrix)
@@ -26,13 +28,37 @@ function _eyesubx!(X::AbstractMatrix)
     return X
 end
 
-# X + Y, overwrites X if possible
-function _add!(X::AbstractVecOrMat, Y::AbstractVecOrMat)
-    @inbounds for i = eachindex(X, Y)
-        X[i] += Y[i]
-    end
-    return X
-end
-_add!(X, Y) = X + Y  # handles all `AbstractZero` overloads
-
 _extract_imag(x) = complex(0, imag(x))
+
+"""
+    WithSomeZeros{T}
+
+This is a union of LinearAlgebra types, all of which are partly structural zeros,
+with a simple backing array given by `parent(x)`. All have methods of `_rewrap`
+to re-create.
+
+This exists to solve a type instability, as broadcasting for instance
+`λ .* Diagonal(rand(3))` gives a dense matrix when `x==Inf`.
+But `withsomezeros_rewrap(x, λ .* parent(x))` is type-stable.
+"""
+WithSomeZeros{T} = Union{
+    Diagonal{T},
+    UpperTriangular{T},
+    UnitUpperTriangular{T},
+    # UpperHessenberg{T},  # doesn't exist in Julia 1.0
+    LowerTriangular{T},
+    UnitLowerTriangular{T},
+}
+for S in [
+    :Diagonal,
+    :UpperTriangular,
+    :UnitUpperTriangular,
+    # :UpperHessenberg,
+    :LowerTriangular,
+    :UnitLowerTriangular,
+]
+    @eval withsomezeros_rewrap(::$S, x) = $S(x)
+end
+
+# Bidiagonal, Tridiagonal have more complicated storage.
+# AdjOrTransUpperOrUnitUpperTriangular would need adjoint(parent(parent()))

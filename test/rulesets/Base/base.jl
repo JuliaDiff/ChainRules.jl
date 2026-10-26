@@ -1,4 +1,36 @@
-@testset "base" begin
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, Test
+
+mutable struct MDemo
+    x::Float64
+end
+
+@testset "base.jl" begin
+    @testset "zero/one" begin
+        @test last(rrule(zero, 0.1)) === last(rrule(one, 0.2f0))
+        for f in [zero, one]
+            for x in [1.0, 1.0im, [10.0+im 11.0-im; 12.0+2im 13.0-3im]]
+                test_frule(f, x)
+                test_rrule(f, x)
+            end
+        end
+        test_frule(zero, [1.0, 2.0, 3.0])
+        test_rrule(zero, [1.0, 2.0, 3.0])
+    end
+    @testset "copysign" begin
+        # don't go too close to zero as the numerics may jump over it yielding wrong results
+        @testset "at $y" for y in (-1.1, 0.1, 100.0)  
+            @testset "at $x" for x in (-1.1, -0.1, 33.0)
+                test_frule(copysign, y, x)
+                test_rrule(copysign, y, x)
+            end
+        end
+    end
+
+    @testset "setfield!" begin
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), :x, 5.0)
+        test_frule(setfield!, MDemo(3.5) ⊢ MutableTangent{MDemo}(; x=2.0), 1, 5.0)
+    end
+    
     @testset "Trig" begin
         @testset "Basics" for x = (Float64(π)-0.01, Complex(π, π/2))
             test_scalar(sec, x)
@@ -43,9 +75,16 @@
             test_scalar(acscd, 1/x)
             test_scalar(acotd, 1/x)
         end
-        
+
         @testset "sinc" for x = (0.0, 0.434, Complex(0.434, 0.25))
             test_scalar(sinc, x)
+        end
+
+        @testset "sincospi" for T in (Float64, ComplexF64)
+            Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
+
+            test_frule(sincospi, randn(T))
+            test_rrule(sincospi, randn(T); output_tangent=Δz)
         end
     end  # Trig
 
@@ -60,6 +99,7 @@
         for x in (-4.1, 6.4, 0.0, 0.0 + 0.0im, 0.5 + 0.25im)
             test_scalar(real, x)
             test_scalar(imag, x)
+            test_scalar(complex, x)
             test_scalar(hypot, x)
             test_scalar(adjoint, x)
         end
@@ -68,115 +108,182 @@
     @testset "Complex" begin
         test_scalar(Complex, randn())
         test_scalar(Complex, randn(ComplexF64))
-        x, ẋ, x̄ = randn(3)
-        y, ẏ, ȳ = randn(3)
-        Δz = randn(ComplexF64)
-        frule_test(Complex, (x, ẋ), (y, ẏ))
-        rrule_test(Complex, Δz, (x, x̄), (y, ȳ))
+
+        test_frule(Complex, randn(), randn(Float32))
+        test_rrule(Complex, randn(), randn(Float32); rtol=1.0e-7, atol=1.0e-7)
     end
 
     @testset "*(x, y) (scalar)" begin
         # This is pretty important so testing it fairly heavily
         test_points = (0.0, -2.1, 3.2, 3.7+2.12im, 14.2-7.1im)
-        @testset "($x) * ($y); (perturbed by: $perturb)" for
-            x in test_points, y in test_points, perturb in test_points
+        @testset "($x) * ($y)" for
+            x in test_points, y in test_points
 
             # ensure all complex if any complex for FiniteDifferences
-            x, y, perturb = Base.promote(x, y, perturb)
+            x, y = Base.promote(x, y)
 
-            # give small off-set so as can't slip in symmetry
-            x̄ = ẋ = 0.5 + perturb
-            ȳ = ẏ = 0.6 + perturb
-            Δz = perturb
+            test_frule(*, x, y)
+            test_rrule(*, x, y)
+        end
+        @testset "*($x, $y, ...)" for x in test_points, y in test_points
+            # This promotion is only for FiniteDifferences, the rules allow mixtures:
+            x, y = Base.promote(x, y)
 
-            frule_test(*, (x, ẋ), (y, ẏ))
-            rrule_test(*, Δz, (x, x̄), (y, ȳ))
+            test_rrule(*, x, y, x+y)
+            test_rrule(*, x, y, 17x, 23y)
+            test_rrule(*, x, y, 7x, 3y, x+y+pi)
         end
     end
 
     @testset "ldexp" begin
-        x, Δx, x̄ = 10rand(3)
-        Δz = rand()
-
         for n in (0,1,20)
-            # TODO: Forward test does not work when parameter is Integer
-            # See: https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/22
-            #frule_test(ldexp, (x, Δx), (n, nothing))
-            rrule_test(ldexp, Δz, (x, x̄), (n, nothing))
+            test_frule(ldexp, 10rand(), n)
+            test_rrule(ldexp, 10rand(), n)
         end
     end
 
     @testset "\\(x::$T, y::$T) (scalar)" for T in (Float64, ComplexF64)
-        x, ẋ, x̄, y, ẏ, ȳ, Δz = randn(T, 7)
-        frule_test(*, (x, ẋ), (y, ẏ))
-        rrule_test(*, Δz, (x, x̄), (y, ȳ))
+        test_frule(*, randn(T), randn(T))
+        test_rrule(*, randn(T), randn(T))
     end
 
     @testset "mod" begin
-        x, Δx, x̄ = 10rand(3)
-        y, Δy, ȳ = rand(3)
-        Δz = rand()
-
-        frule_test(mod, (x, Δx), (y, Δy))
-        rrule_test(mod, Δz, (x, x̄), (y, ȳ))
+        # be careful not to sample near singularities
+        base = rand() + 1
+        test_frule(mod, (rand(0:10) + .6rand() + .2) * base, base)
+        base = rand() + 1
+        test_rrule(mod, (rand(0:10) + .6rand() + .2) * base, base)
     end
 
     @testset "identity" for T in (Float64, ComplexF64)
-        frule_test(identity, (randn(T), randn(T)))
-        frule_test(identity, (randn(T, 4), randn(T, 4)))
-        frule_test(
-            identity,
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
-        )
+        test_frule(identity, randn(T))
+        test_frule(identity, randn(T, 4))
+        test_frule(identity, Tuple(randn(T, 3)))
 
-        rrule_test(identity, randn(T), (randn(T), randn(T)))
-        rrule_test(identity, randn(T, 4), (randn(T, 4), randn(T, 4)))
-        rrule_test(
-            identity, Tuple(randn(T, 3)),
-            (Composite{Tuple}(randn(T, 3)...), Composite{Tuple}(randn(T, 3)...))
-        )
+        test_rrule(identity, randn(T))
+        test_rrule(identity, randn(T, 4))
+        test_rrule(identity, Tuple(randn(T, 3)))
     end
 
     @testset "Constants" for x in (-0.1, 6.4, 1.0+0.5im, -10.0+0im, 0.0+200im)
         test_scalar(one, x)
         test_scalar(zero, x)
     end
-
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        x, Δx, x̄ = 10randn(T, 3)
-        y, Δy, ȳ = randn(T, 3)
-        z, Δz, z̄ = randn(T, 3)
-        Δk = randn(T)
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
+    end
 
-        frule_test(muladd, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(muladd, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    @testset "muladd ZeroTangent" begin
+        test_frule(muladd, 2.0, 3.0, ZeroTangent())
+        test_frule(muladd, 2.0, ZeroTangent(), 4.0)
+        test_frule(muladd, ZeroTangent(), 3.0, 4.0)
+
+        test_rrule(muladd, 2.0, 3.0, ZeroTangent())
+        test_rrule(muladd, 2.0, ZeroTangent(), 4.0)
+        test_rrule(muladd, ZeroTangent(), 3.0, 4.0)
     end
 
     @testset "fma" begin
-        x, Δx, x̄ = 10randn(3)
-        y, Δy, ȳ = randn(3)
-        z, Δz, z̄ = randn(3)
-        Δk = randn()
-
-        frule_test(fma, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(fma, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        test_frule(fma, 10randn(), randn(), randn())
+        test_rrule(fma, 10randn(), randn(), randn())
     end
 
     @testset "clamp"  begin
-        x̄, ȳ, z̄    = randn(3)
-        Δx, Δy, Δz = randn(3)
-        Δk = randn()
+        # to left
+        test_frule(clamp, 1., 2., 3.)
+        test_rrule(clamp, 1., 2., 3.)
 
-        x, y, z = 1., 2., 3.  # to left
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        # in the middle
+        test_frule(clamp, 2.5, 2., 3.)
+        test_rrule(clamp, 2.5, 2., 3.)
 
-        x, y, z = 2.5, 2., 3.  # in the middle
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+        # to right
+        test_frule(clamp, 4., 2., 3.)
+        test_rrule(clamp, 4., 2., 3.)
+    end
 
-        x, y, z = 4., 2., 3.  # to right
-        frule_test(clamp, (x, Δx), (y, Δy), (z, Δz))
-        rrule_test(clamp, Δk, (x, x̄), (y, ȳ), (z, z̄))
+    @testset "rounding" begin
+        for x in (-0.6, -0.2, 0.1, 0.6)
+            # thanks to RoundNearest
+            if 0 > x % 1 > 0.5 || -1 < x % 1 <= 0.5
+                test_scalar(round, x; fdm=backward_fdm(5,1))
+            else
+                test_scalar(round, x; fdm=forward_fdm(5,1))
+            end
+            test_scalar(floor, x; fdm=backward_fdm(5, 1))
+            test_scalar(ceil, x; fdm=forward_fdm(5, 1))
+        end
+    end
+
+    @testset "type" begin
+        @test frule((NoTangent(), NoTangent(), NoTangent()), typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
+        @test rrule(typejoin, Array{Float32,4}, Array{Float32,3}) !== nothing
+    end
+
+    @testset "Logging" begin
+        @test (@test_deprecated "message" frule(
+            (NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f
+        )) !== nothing
+        @test (@test_deprecated "message" rrule(Base.depwarn, "message", :f)) !== nothing
+    end
+
+    if isdefined(Threads, :_spawn_set_thrpool)
+        @testset "Threads" begin
+            f = Threads._spawn_set_thrpool
+            _, ∂y = frule(
+                (NoTangent(), NoTangent(), NoTangent()), f, Task(() -> nothing), :default
+            )
+            @test ∂y isa NoTangent
+            _, back = rrule(f, Task(() -> nothing), :default)
+            @test back(1.0) == (NoTangent(), NoTangent(), NoTangent())
+        end
+    end
+
+    @testset "literal_pow: $x^$p" for x in [-1.5, 0.0, 3.5], p in [2, 3]
+        x == 0 && p < 0 && continue
+        test_frule(Base.literal_pow, ^, x, Val(p))
+        test_rrule(Base.literal_pow, ^, x, Val(p))
+    end
+
+    @testset "Float conversions" begin
+        for f in (float, Float32, Float64, AbstractFloat)
+            test_frule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
+            test_frule(f, 1⊢1.7; rtol=1.0e-3, atol=1.0e-3)
+            test_rrule(f, 1.2; rtol=1.0e-3, atol=1.0e-3)
+
+            # test_rrule doesn't like integers, so test that case manually
+            let y = rand(Int), x = randn()
+                @test rrule(f, y)[2](x)[2] == x
+            end
+        end
+
+        # Make sure that we didn't accidentally define a rule for all DataTypes
+        @test frule(NoRules, 1.0) === nothing
+        @test rrule(NoRules, 1.0) === nothing
+    end
+    
+    @testset "map(f, ::Tuple...)" begin
+        test_rrule(map, identity, (1.0, 2.0), check_inferred=false)
+        test_rrule(map, +, (1.0, 2.0), (3.0, 4.0), check_inferred=false)
+        test_rrule(map, make_two_vec, (4.0, 5.0 + 6im), check_inferred=false)
+        test_rrule(map, Multiplier(rand() + im), Tuple(rand(3)), check_inferred=false)
+
+        test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
+    end
+
+    @testset "merge NamedTuple" begin
+        test_rrule(merge, (; a=1.0), (; b=2.0))
+        test_rrule(merge, (; a=1.0), (; a=2.0))
+    end
+
+    @testset "hypot(x, y, z, xs...)" begin
+        for n in (3, 4)
+            for sig in Iterators.product(ntuple(_->(Float64, ComplexF64), n)...)
+                args = randn.(sig)
+                test_frule(hypot, args...)
+                test_rrule(hypot, args...)
+            end
+        end
     end
 end

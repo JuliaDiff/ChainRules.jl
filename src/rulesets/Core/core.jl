@@ -1,17 +1,48 @@
-@non_differentiable Core.print(::Any)
-@non_differentiable Core.print(::Any, ::Any)
-@non_differentiable Core.print(::Any, ::Any, ::Any)
-@non_differentiable Core.print(::Any, ::Any, ::Any, ::Any)
-@non_differentiable Core.print(::Any, ::Any, ::Any, ::Any, ::Any)
-
-@non_differentiable Core.println(::Any)
-@non_differentiable Core.println(::Any, ::Any)
-@non_differentiable Core.println(::Any, ::Any, ::Any)
-@non_differentiable Core.println(::Any, ::Any, ::Any, ::Any)
-@non_differentiable Core.println(::Any, ::Any, ::Any, ::Any, ::Any)
+@non_differentiable Core.print(::Any...)
+@non_differentiable Core.println(::Any...)
 
 @non_differentiable Core.show(::Any)
 @non_differentiable Core.show(::Any, ::Any)
 
-@non_differentiable Core.apply_type(::Any, ::Any)
+@non_differentiable Core.isdefined(::Any, ::Any)
+@non_differentiable Core.:(<:)(::Any, ::Any)
+
+@non_differentiable Core.apply_type(::Any, ::Any...)
 @non_differentiable Core.typeof(::Any)
+
+if isdefined(Core, :_typevar)
+    @non_differentiable Core._typevar(::Any...)
+end
+if isdefined(Core, :has_free_typevars)
+    @non_differentiable Core.has_free_typevars(::Any)
+end
+@non_differentiable TypeVar(::Any...)
+@non_differentiable UnionAll(::Any, ::Any)
+
+frule((_, ẋ, _), ::typeof(typeassert), x, T) = (typeassert(x, T), ẋ)
+function rrule(::typeof(typeassert), x, T)
+    typeassert_pullback(Δ) = (NoTangent(), Δ, NoTangent())
+    return typeassert(x, T), typeassert_pullback
+end
+
+frule((_, _, ȧ, ḃ), ::typeof(ifelse), c, a, b) = (ifelse(c, a, b), ifelse(c, ȧ, ḃ))
+function rrule(::typeof(ifelse), c, a, b)
+    ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, ZeroTangent()), ifelse(c, ZeroTangent(), Δ))
+    return ifelse(c, a, b), ifelse_pullback
+end
+# ensure type stability for numbers
+function rrule(::typeof(ifelse), c, a::Number, b::Number)
+    ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, zero(Δ)), ifelse(c, zero(Δ), Δ))
+    return ifelse(c, a, b), ifelse_pullback
+end
+
+if isdefined(Core, :compilerbarrier)
+    function ChainRulesCore.frule((_, _, Δ), ::typeof(Core.compilerbarrier), setting, value)
+        return (Core.compilerbarrier(setting, value), Δ)
+    end
+
+    function ChainRulesCore.rrule(::typeof(Core.compilerbarrier), setting, value)
+        compilerbarrier_pullback(Δ) = NoTangent(), NoTangent(), Δ
+        return (Core.compilerbarrier(setting, value), compilerbarrier_pullback)
+    end
+end

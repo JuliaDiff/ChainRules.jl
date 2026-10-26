@@ -1,9 +1,3 @@
-using LinearAlgebra: AbstractTriangular
-
-# Matrix wrapper types that we know are square and are thus potentially invertible. For
-# these we can use simpler definitions for `/` and `\`.
-const SquareMatrix{T} = Union{Diagonal{T},AbstractTriangular{T}}
-
 #####
 ##### `dot`
 #####
@@ -12,11 +6,89 @@ function frule((_, Δx, Δy), ::typeof(dot), x, y)
     return dot(x, y), dot(Δx, y) + dot(x, Δy)
 end
 
-function rrule(::typeof(dot), x, y)
-    function dot_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(y .* ΔΩ'), @thunk(x .* ΔΩ))
+function rrule(::typeof(dot), x::AbstractArray, y::AbstractArray)
+    project_x = ProjectTo(x)
+    project_y = ProjectTo(y)
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
+        x̄ = @thunk(project_x(reshape(y .* ΔΩ', axes(x))))
+        ȳ = @thunk(project_y(reshape(x .* ΔΩ, axes(y))))
+        return (NoTangent(), x̄, ȳ)
     end
     return dot(x, y), dot_pullback
+end
+
+#####
+##### 3-arg `dot`
+#####
+
+function frule((_, Δx, ΔA, Δy), ::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    return dot(x, A, y), dot(Δx, A, y) + dot(x, ΔA, y) + dot(x, A, Δy)
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::AbstractMatrix{<:Number}, y::AbstractVector{<:Number})
+    project_x = ProjectTo(x)
+    project_A = ProjectTo(A)
+    project_y = ProjectTo(y)
+    Ay = A * y
+    z = adjoint(x) * Ay
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
+        dx = @thunk project_x(conj(ΔΩ) .* Ay)
+        dA = @thunk project_A(ΔΩ .* x .* adjoint(y))
+        dy = @thunk project_y(ΔΩ .* (adjoint(A) * x))
+        return (NoTangent(), dx, dA, dy)
+    end
+    dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
+    return z, dot_pullback
+end
+
+function rrule(::typeof(dot), x::AbstractVector{<:Number}, A::Diagonal{<:Number}, y::AbstractVector{<:Number})
+    project_x = ProjectTo(x)
+    project_A = ProjectTo(A)
+    project_y = ProjectTo(y)
+    z = dot(x,A,y)
+    function dot_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
+        dx = @thunk project_x(conj(ΔΩ) .* A.diag .* y)  # A*y is this broadcast, can be fused
+        dA = @thunk project_A(Diagonal(ΔΩ .* x .* conj(y)))  # calculate N not N^2 elements
+        dy = @thunk project_y(ΔΩ .* conj.(A.diag) .* x)
+        return (NoTangent(), dx, dA, dy)
+    end
+    dot_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
+    return z, dot_pullback
+end
+
+#####
+##### `mul!`
+#####
+
+function frule((_, ΔC, ΔA, ΔB), ::typeof(mul!), C::AbstractArray, A, B)
+    mul!(C, A, B) 
+    mul!(ΔC, ΔA, B)
+    mul!(ΔC, A, ΔB, true, true)
+    return C, ΔC
+end
+
+function frule((_, ΔC, ΔA, ΔB), ::typeof(mul!), C::AbstractArray, A, B, α::Bool, β::Bool)
+    #  D = A*B*α + C*β
+    mul!(C, A, B, α, β)
+    # ΔD = ΔA*B*α + ΔC*β  +  A*ΔB*α
+    mul!(ΔC, ΔA, B, α, β)
+    mul!(ΔC, A, ΔB, α, true)
+    return C, ΔC
+end
+
+function frule((_, ΔC, ΔA, ΔB, Δα, Δβ), ::typeof(mul!), C::AbstractArray, A, B, α::Number, β::Number)
+    # This is used twice:
+    AB = A * B
+    # ΔD = ΔC*β + C*Δβ + A*B*Δα  +  ΔA*B*α + A*ΔB*α
+    @. ΔC = ΔC * β + C * Δβ + AB * Δα
+    mul!(ΔC, ΔA, B, α, true)
+    mul!(ΔC, A, ΔB, α, true)
+    # D = A*B*α + C*β
+    @. C = AB * α + C*β  # Must be done last, as C enters above
+    return C, ΔC
 end
 
 #####
@@ -29,29 +101,18 @@ end
 
 # TODO: support complex vectors
 function rrule(::typeof(cross), a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+    project_a = ProjectTo(a)
+    project_b = ProjectTo(b)
     Ω = cross(a, b)
-    function cross_pullback(ΔΩ)
-        return (NO_FIELDS, @thunk(cross(b, ΔΩ)), @thunk(cross(ΔΩ, a)))
+    function cross_pullback(Ω̄)
+        ΔΩ = unthunk(Ω̄)
+        da = @thunk(project_a(cross(b, ΔΩ)))
+        db = @thunk(project_b(cross(ΔΩ, a)))
+        return (NoTangent(), da, db)
     end
     return Ω, cross_pullback
 end
 
-#####
-##### `inv`
-#####
-
-function frule((_, Δx), ::typeof(inv), x::AbstractArray)
-    Ω = inv(x)
-    return Ω, -Ω * Δx * Ω
-end
-
-function rrule(::typeof(inv), x::AbstractArray)
-    Ω = inv(x)
-    function inv_pullback(ΔΩ)
-        return NO_FIELDS, -Ω' * ΔΩ * Ω'
-    end
-    return Ω, inv_pullback
-end
 
 #####
 ##### `det`
@@ -59,8 +120,8 @@ end
 
 function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
-    # TODO Performance optimization: probably there is an efficent
-    # way to compute this trace without during the full compution within
+    # TODO Performance optimization: probably there is an efficient
+    # way to compute this trace without doing the full computation within
     return Ω, Ω * tr(x \ Δx)
 end
 frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
@@ -68,8 +129,8 @@ frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)
 function rrule(::typeof(det), x::Union{Number, AbstractMatrix})
     Ω = det(x)
     function det_pullback(ΔΩ)
-        ∂x = x isa Number ? ΔΩ : Ω * ΔΩ * inv(x)'
-        return (NO_FIELDS, ∂x)
+        ∂x = x isa Number ? ΔΩ : inv(x)' * dot(Ω, ΔΩ)
+        return (NoTangent(), ∂x)
     end
     return Ω, det_pullback
 end
@@ -87,7 +148,7 @@ function rrule(::typeof(logdet), x::Union{Number, StridedMatrix{<:Number}})
     Ω = logdet(x)
     function logdet_pullback(ΔΩ)
         ∂x = x isa Number ? ΔΩ / x' : ΔΩ * inv(x)'
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return Ω, logdet_pullback
 end
@@ -101,8 +162,8 @@ function frule((_, Δx), ::typeof(logabsdet), x::AbstractMatrix)
     (y, signy) = Ω
     b = tr(x \ Δx)
     ∂y = real(b)
-    ∂signy = eltype(x) <: Real ? Zero() : im * imag(b) * signy
-    ∂Ω = Composite{typeof(Ω)}(∂y, ∂signy)
+    ∂signy = eltype(x) <: Real ? ZeroTangent() : im * imag(b) * signy
+    ∂Ω = Tangent{typeof(Ω)}(∂y, ∂signy)
     return Ω, ∂Ω
 end
 
@@ -115,7 +176,7 @@ function rrule(::typeof(logabsdet), x::AbstractMatrix)
         imagf = f - real(f)
         g = real(Δy) + imagf
         ∂x = g * inv(x)'
-        return (NO_FIELDS, ∂x)
+        return (NoTangent(), ∂x)
     end
     return Ω, logabsdet_pullback
 end
@@ -131,23 +192,13 @@ end
 function rrule(::typeof(tr), x)
     # This should really be a FillArray
     # see https://github.com/JuliaDiff/ChainRules.jl/issues/46
+    d = size(x, 1)
     function tr_pullback(ΔΩ)
-        return (NO_FIELDS, Diagonal(fill(ΔΩ, size(x, 1))))
+        return (NoTangent(), Diagonal(fill(ΔΩ, d)))
     end
     return tr(x), tr_pullback
 end
 
-
-#####
-##### `*`
-#####
-
-function rrule(::typeof(*), A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
-    function times_pullback(Ȳ)
-        return (NO_FIELDS, @thunk(Ȳ * B'), @thunk(A' * Ȳ))
-    end
-    return A * B, times_pullback
-end
 
 #####
 ##### `pinv`
@@ -156,24 +207,26 @@ end
 @scalar_rule pinv(x) -(Ω ^ 2)
 
 function frule(
-    (_, Δx),
+    (_, ẋ),
     ::typeof(pinv),
     x::AbstractVector{T},
     tol::Real = 0,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
+    Δx = unthunk(ẋ)
     ∂y′ = sum(abs2, parent(y)) .* Δx .- 2real(y * Δx) .* parent(y)
     ∂y = y isa Transpose ? transpose(∂y′) : adjoint(∂y′)
     return y, ∂y
 end
 
 function frule(
-    (_, Δx),
+    (_, ẋ),
     ::typeof(pinv),
     x::LinearAlgebra.AdjOrTransAbsVec{T},
     tol::Real = 0,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
+    Δx = unthunk(ẋ)
     ∂y = sum(abs2, y) .* vec(Δx') .- 2real(Δx * y) .* y
     return y, ∂y
 end
@@ -182,31 +235,42 @@ end
 # Golub, Gene H., and Victor Pereyra. "The Differentiation of Pseudo-Inverses and Nonlinear
 # Least Squares Problems Whose Variables Separate."
 # SIAM Journal on Numerical Analysis 10(2). (1973). 413-432. doi: 10.1137/0710036
-function frule((_, ΔA), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
+function frule((_, Ȧ), ::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
     m, n = size(A)
     # contract over the largest dimension
+    ΔA = unthunk(Ȧ)
     if m ≤ n
         ∂Y = -Y * (ΔA * Y)
-        _add!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y)) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, Y * (Y' * ΔA') * (I - A * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (ΔA' - Y * (A * ΔA')) * (Y' * Y))  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, Y * (Y' * ΔA') * (I - A * Y))  # Y Y' ΔA' (I - A Y)
     else
         ∂Y = -(Y * ΔA) * Y
-        _add!(∂Y, (I - Y * A) * (ΔA' * Y') * Y) # (I - Y A) ΔA' Y' Y
-        _add!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y)) # Y Y' ΔA' (I - A Y)
+        ∂Y = add!!(∂Y, (I - Y * A) * (ΔA' * Y') * Y)  # (I - Y A) ΔA' Y' Y
+        ∂Y = add!!(∂Y, (Y * Y') * (ΔA' - (ΔA' * A) * Y))  # Y Y' ΔA' (I - A Y)
     end
     return Y, ∂Y
 end
 
 function rrule(
     ::typeof(pinv),
+    x::Union{AbstractVector{T}, LinearAlgebra.AdjOrTransAbsVec{T}},
+) where {T<:Union{Real,Complex}}
+    y, full_pb = rrule(pinv, x, 0)
+    pinv_pullback(Δy) = return full_pb(Δy)[1:2]
+    return y, pinv_pullback
+end
+
+function rrule(
+    ::typeof(pinv),
     x::AbstractVector{T},
-    tol::Real = 0,
+    tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
-    function pinv_pullback(Δy)
+    function pinv_pullback(ȳ)
+        Δy = unthunk(ȳ)
         ∂x = sum(abs2, parent(y)) .* vec(Δy') .- 2real(y * Δy') .* parent(y)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NoTangent(), ∂x, ZeroTangent())
     end
     return y, pinv_pullback
 end
@@ -214,121 +278,119 @@ end
 function rrule(
     ::typeof(pinv),
     x::LinearAlgebra.AdjOrTransAbsVec{T},
-    tol::Real = 0,
+    tol::Real,
 ) where {T<:Union{Real,Complex}}
     y = pinv(x, tol)
-    function pinv_pullback(Δy)
+    function pinv_pullback(ȳ)
+        Δy = ȳ
         ∂x′ = sum(abs2, y) .* Δy .- 2real(y' * Δy) .* y
         ∂x = x isa Transpose ? transpose(conj(∂x′)) : adjoint(∂x′)
-        return (NO_FIELDS, ∂x, Zero())
+        return (NoTangent(), ∂x, ZeroTangent())
     end
     return y, pinv_pullback
 end
 
 function rrule(::typeof(pinv), A::AbstractMatrix{T}; kwargs...) where {T}
     Y = pinv(A; kwargs...)
-    function pinv_pullback(ΔY)
+    function pinv_pullback(Ȳ)
+        ΔY = unthunk(Ȳ)
         m, n = size(A)
         # contract over the largest dimension
         if m ≤ n
             ∂A = (Y' * -ΔY) * Y'
-            _add!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, (Y' * Y) * (ΔY' - (ΔY' * Y) * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (I - A * Y) * (ΔY' * Y) * Y') # (I - A Y) ΔY' Y Y'
         elseif m > n
             ∂A = Y' * (-ΔY * Y')
-            _add!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
-            _add!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
+            ∂A = add!!(∂A, Y' * (Y * ΔY') * (I - Y * A)) # Y' Y ΔY' (I - Y A)
+            ∂A = add!!(∂A, (ΔY' - A * (Y * ΔY')) * (Y * Y')) # (I - A Y) ΔY' Y Y'
         end
-        return (NO_FIELDS, ∂A)
+        return (NoTangent(), ∂A)
     end
     return Y, pinv_pullback
 end
 
 #####
-##### `/`
+##### `sylvester`
 #####
 
-function rrule(::typeof(/), A::AbstractMatrix{<:Real}, B::T) where T<:SquareMatrix{<:Real}
-    Y = A / B
-    function slash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk Ȳ / B'
-        ∂B = @thunk S(-Y' * (Ȳ / B'))
-        return (NO_FIELDS, ∂A, ∂B)
-    end
-    return Y, slash_pullback
+# included because the primal uses `schur`, for which we don't have a rule
+
+function frule(
+    (_, ΔA, ΔB, ΔC),
+    ::typeof(sylvester),
+    A::StridedMatrix{T},
+    B::StridedMatrix{T},
+    C::StridedMatrix{T},
+) where {T<:BlasFloat}
+    RA, QA = schur(A)
+    RB, QB = schur(B)
+    D = QA' * (C * QB)
+    Y, scale = LAPACK.trsyl!('N', 'N', RA, RB, D)
+    Ω = rmul!(QA * (Y * QB'), -inv(scale))
+    ∂D = QA' * (mul!(muladd(ΔA, Ω, ΔC), Ω, ΔB, true, true) * QB)
+    ∂Y, scale2 = LAPACK.trsyl!('N', 'N', RA, RB, ∂D)
+    ∂Ω = rmul!(QA * (∂Y * QB'), -inv(scale2))
+    return Ω, ∂Ω
 end
 
-function rrule(::typeof(/), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Aᵀ, dA_pb = rrule(adjoint, A)
-    Bᵀ, dB_pb = rrule(adjoint, B)
-    Cᵀ, dS_pb = rrule(\, Bᵀ, Aᵀ)
-    C, dC_pb = rrule(adjoint, Cᵀ)
-    function slash_pullback(Ȳ)
-        # Optimization note: dAᵀ, dBᵀ, dC are calculated no matter which partial you want
-        _, dC = dC_pb(Ȳ)
-        _, dBᵀ, dAᵀ = dS_pb(unthunk(dC))
+# included because the primal mutates and uses `schur` and LAPACK
 
-        ∂A = last(dA_pb(unthunk(dAᵀ)))
-        ∂B = last(dA_pb(unthunk(dBᵀ)))
-
-        (NO_FIELDS, ∂A, ∂B)
+function rrule(
+    ::typeof(sylvester), A::StridedMatrix{T}, B::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    RA, QA = schur(A)
+    RB, QB = schur(B)
+    D = QA' * (C * QB)
+    Y, scale = LAPACK.trsyl!('N', 'N', RA, RB, D)
+    Ω = rmul!(QA * (Y * QB'), -inv(scale))
+    function sylvester_pullback(ΔΩ)
+        ∂Ω = T <: Real ? real(ΔΩ) : ΔΩ
+        ∂Y = QA' * (∂Ω * QB)
+        trans = T <: Complex ? 'C' : 'T'
+        ∂D, scale2 = LAPACK.trsyl!(trans, trans, RA, RB, ∂Y)
+        ∂Z = rmul!(QA * (∂D * QB'), -inv(scale2))
+        return NoTangent(), @thunk(∂Z * Ω'), @thunk(Ω' * ∂Z), @thunk(∂Z * inv(scale))
     end
-    return C, slash_pullback
-end
-
-#####
-##### `\`
-#####
-
-function rrule(::typeof(\), A::T, B::AbstractVecOrMat{<:Real}) where T<:SquareMatrix{<:Real}
-    Y = A \ B
-    function backslash_pullback(Ȳ)
-        S = T.name.wrapper
-        ∂A = @thunk S(-(A' \ Ȳ) * Y')
-        ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
-    end
-    return Y, backslash_pullback
-end
-
-function rrule(::typeof(\), A::AbstractVecOrMat{<:Real}, B::AbstractVecOrMat{<:Real})
-    Y = A \ B
-    function backslash_pullback(Ȳ)
-        ∂A = @thunk begin
-            B̄ = A' \ Ȳ
-            Ā = -B̄ * Y'
-            _add!(Ā, (B - A * Y) * B̄' / A')
-            _add!(Ā, A' \ Y * (Ȳ' - B̄'A))
-            Ā
-        end
-        ∂B = @thunk A' \ Ȳ
-        return NO_FIELDS, ∂A, ∂B
-    end
-    return Y, backslash_pullback
-
+    return Ω, sylvester_pullback
 end
 
 #####
-##### `norm`
+##### `lyap`
 #####
 
-function rrule(::typeof(norm), A::AbstractArray{<:Real}, p::Real=2)
-    y = norm(A, p)
-    function norm_pullback(ȳ)
-        u = y^(1-p)
-        ∂A = @thunk ȳ .* u .* abs.(A).^p ./ A
-        ∂p = @thunk ȳ * (u * sum(a->abs(a)^p * log(abs(a)), A) - y * log(y)) / p
-        (NO_FIELDS, ∂A, ∂p)
-    end
-    return y, norm_pullback
+# included because the primal uses `schur`, for which we don't have a rule
+
+function frule(
+    (_, Ȧ, Ċ), ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    ΔA = unthunk(Ȧ)
+    ΔC = unthunk(Ċ)
+    R, Q = schur(A)
+    D = Q' * (C * Q)
+    Y, scale = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, D)
+    Ω = rmul!(Q * (Y * Q'), -inv(scale))
+    ∂D = Q' * (mul!(muladd(ΔA, Ω, ΔC), Ω, ΔA', true, true) * Q)
+    ∂Y, scale2 = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, ∂D)
+    ∂Ω = rmul!(Q * (∂Y * Q'), -inv(scale2))
+    return Ω, ∂Ω
 end
 
-function rrule(::typeof(norm), x::Real, p::Real=2)
-    function norm_pullback(ȳ)
-        ∂x = @thunk ȳ * sign(x)
-        ∂p = @thunk zero(x)  # TODO: should this be Zero()?
-        (NO_FIELDS, ∂x, ∂p)
+# included because the primal mutates and uses `schur` and LAPACK
+
+function rrule(
+    ::typeof(lyap), A::StridedMatrix{T}, C::StridedMatrix{T}
+) where {T<:BlasFloat}
+    R, Q = schur(A)
+    D = Q' * (C * Q)
+    Y, scale = LAPACK.trsyl!('N', T <: Complex ? 'C' : 'T', R, R, D)
+    Ω = rmul!(Q * (Y * Q'), -inv(scale))
+    function lyap_pullback(ΔΩ)
+        ∂Ω = T <: Real ? real(ΔΩ) : ΔΩ
+        ∂Y = Q' * (∂Ω * Q)
+        ∂D, scale2 = LAPACK.trsyl!(T <: Complex ? 'C' : 'T', 'N', R, R, ∂Y)
+        ∂Z = rmul!(Q * (∂D * Q'), -inv(scale2))
+        return NoTangent(), @thunk(mul!(∂Z * Ω', ∂Z', Ω, true, true)), @thunk(∂Z * inv(scale))
     end
-    return norm(x, p), norm_pullback
+    return Ω, lyap_pullback
 end
