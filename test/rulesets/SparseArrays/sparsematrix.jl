@@ -1,3 +1,12 @@
+using ChainRules,
+    ChainRulesCore,
+    ChainRulesTestUtils,
+    FiniteDifferences,
+    LinearAlgebra,
+    Random,
+    SparseArrays,
+    Test
+using ChainRulesTestUtils: _fdm
 
 @testset "sparse(I, J, V, m, n, +)" begin
     m, n = 3, 5
@@ -70,6 +79,8 @@ end
     I, J, V = findnz(A)
     V̄ = rand!(similar(V))
     test_rrule(findnz, A ⊢ dA, output_tangent=(zeros(length(I)), zeros(length(J)), V̄))
+    _, pb = rrule(findnz, A)
+    @test pb(Tangent{typeof((I, J, V))}(@thunk(error()), @thunk(error()), @thunk(V̄)))[2] == sparse(I, J, V̄, 5, 5)
 
     v = sprand(5, 0.5)
     dv = similar(v)
@@ -77,6 +88,8 @@ end
     I, V = findnz(v)
     V̄ = rand!(similar(V))
     test_rrule(findnz, v ⊢ dv, output_tangent=(zeros(length(I)), V̄))
+    _, pb = rrule(findnz, v)
+    @test pb(Tangent{typeof((I, V))}(@thunk(error()), @thunk(V̄)))[2] == sparsevec(I, V̄, 5)
 end
 
 if Base.USE_GPL_LIBS # these rrules don't work without CHOLMOD from SuiteSparse.jl

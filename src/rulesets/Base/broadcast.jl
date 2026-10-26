@@ -22,13 +22,13 @@ end
 # and we don't know whether re-computing `y` is cheap. 
 # (We could check `f` first like `sum(f, x)` does, but checking whether `g` needs `y` is tricky.)
 
-# This rule has `::BroadcastStyle` in part becuase Zygote's generic rule does, to avoid ambiguities.
+# This rule has `::BroadcastStyle` in part because Zygote's generic rule does, to avoid ambiguities.
 # It applies one step later in AD, and all args have `broadcastable(x)` thus many have `Ref(x)`, complicating some tests.
 # But it also means that the lazy rules below do not need `::RuleConfig{>:HasReverseMode}` just for dispatch.
 
 function rrule(cfg::RCR, ::typeof(broadcasted), ::BroadcastStyle, f::F, args::Vararg{Any,N}) where {F,N}
     T = Broadcast.combine_eltypes(f, args)
-    if T === Bool  # TODO use nondifftype here
+    if T === Bool || T === Union{}  # TODO use nondifftype here
         # 1: Trivial case: non-differentiable output, e.g. `x .> 0`
         @debug("split broadcasting trivial", f, T)
         bc_trivial_back(_) = (TRI_NO..., ntuple(Returns(ZeroTangent()), length(args))...)
@@ -48,7 +48,7 @@ end
 # Path 2: This is roughly what `derivatives_given_output` is designed for, should be fast.
 
 function may_bc_derivatives(::Type{T}, f::F, args::Vararg{Any,N}) where {T,F,N}
-    TΔ = Core.Compiler._return_type(derivatives_given_output, Tuple{T, F, map(_eltype, args)...})
+    TΔ = Core.Compiler.return_type(derivatives_given_output, Tuple{T, F, map(_eltype, args)...})
     return isconcretetype(TΔ)
 end
 
@@ -98,7 +98,7 @@ function may_bc_forwards(cfg::C, f::F, arg) where {C,F}
     TA = _eltype(arg)
     TA <: Real || return false
     cfg isa RuleConfig{>:HasForwardsMode} && return true  # allows frule_via_ad
-    TF = Core.Compiler._return_type(frule, Tuple{C, Tuple{NoTangent, TA}, F, TA})
+    TF = Core.Compiler.return_type(frule, Tuple{C, Tuple{NoTangent, TA}, F, TA})
     return isconcretetype(TF) && TF <: Tuple
 end
 

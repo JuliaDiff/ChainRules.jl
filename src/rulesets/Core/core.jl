@@ -13,6 +13,9 @@
 if isdefined(Core, :_typevar)
     @non_differentiable Core._typevar(::Any...)
 end
+if isdefined(Core, :has_free_typevars)
+    @non_differentiable Core.has_free_typevars(::Any)
+end
 @non_differentiable TypeVar(::Any...)
 @non_differentiable UnionAll(::Any, ::Any)
 

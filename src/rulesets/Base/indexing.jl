@@ -262,28 +262,29 @@ end
 # Using Val(dim) here is worth a factor of 2 in this, on Julia 1.8-
 # @btime rrule(eachcol, $([1 2; 3 4]))[2]($([[10, 20], [30, 40]]))
 function ∇eachslice(dys_raw, x::AbstractArray, vd::Val{dim}) where {dim}
-    dys = unthunk(dys_raw)
+    dys = unthunk.(unthunk(dys_raw))
     i1 = findfirst(dy -> dy isa AbstractArray, dys)
     if i1 === nothing  # all slices are Zero!
         return _zero_fill!(similar(x, float(eltype(x)), axes(x)))
     end
-    T = promote_type(eltype(dys[i1]), eltype(x))
+
+    T = Base.promote_eltype(dys...)
     # The whole point of this gradient is that we can allocate one `dx` array:
     dx = similar(x, T, axes(x))
     for i in axes(x, dim)
         slice = selectdim(dx, dim, i)
-        if dys[i] isa AbstractZero
+        dy = dys[i]
+        if dy isa AbstractZero
             _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
         else
-            copyto!(slice, dys[i])
+            copyto!(slice, dy)
         end
     end
     return ProjectTo(x)(dx)
 end
 ∇eachslice(dys::AbstractZero, x::AbstractArray, vd::Val{dim}) where {dim} = dys
 
-_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
-_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+_zero_fill!(dx::AbstractArray) = fill!(dx, zero(eltype(dx)))
 
 function rrule(::typeof(∇eachslice), dys, x, vd::Val)
     function ∇∇eachslice(dz_raw)

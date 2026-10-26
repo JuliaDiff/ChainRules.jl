@@ -1,9 +1,12 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, Test
+
 mutable struct MDemo
     x::Float64
 end
 
 @testset "base.jl" begin
     @testset "zero/one" begin
+        @test last(rrule(zero, 0.1)) === last(rrule(one, 0.2f0))
         for f in [zero, one]
             for x in [1.0, 1.0im, [10.0+im 11.0-im; 12.0+2im 13.0-3im]]
                 test_frule(f, x)
@@ -166,10 +169,9 @@ end
         test_scalar(one, x)
         test_scalar(zero, x)
     end
-
     @testset "muladd(x::$T, y::$T, z::$T)" for T in (Float64, ComplexF64)
-        test_frule(muladd, 10randn(), randn(), randn())
-        test_rrule(muladd, 10randn(), randn(), randn())
+        test_frule(muladd, 10randn(T), randn(T), randn(T))
+        test_rrule(muladd, 10randn(T), randn(T), randn(T))
     end
 
     @testset "muladd ZeroTangent" begin
@@ -220,8 +222,22 @@ end
     end
 
     @testset "Logging" begin
-        @test frule((NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f) !== nothing
-        @test rrule(Base.depwarn, "message", :f) !== nothing
+        @test (@test_deprecated "message" frule(
+            (NoTangent(), NoTangent(), NoTangent()), Base.depwarn, "message", :f
+        )) !== nothing
+        @test (@test_deprecated "message" rrule(Base.depwarn, "message", :f)) !== nothing
+    end
+
+    if isdefined(Threads, :_spawn_set_thrpool)
+        @testset "Threads" begin
+            f = Threads._spawn_set_thrpool
+            _, ∂y = frule(
+                (NoTangent(), NoTangent(), NoTangent()), f, Task(() -> nothing), :default
+            )
+            @test ∂y isa NoTangent
+            _, back = rrule(f, Task(() -> nothing), :default)
+            @test back(1.0) == (NoTangent(), NoTangent(), NoTangent())
+        end
     end
 
     @testset "literal_pow: $x^$p" for x in [-1.5, 0.0, 3.5], p in [2, 3]
@@ -253,9 +269,21 @@ end
         test_rrule(map, make_two_vec, (4.0, 5.0 + 6im), check_inferred=false)
         test_rrule(map, Multiplier(rand() + im), Tuple(rand(3)), check_inferred=false)
 
-        if try map(+, (1,), (2,3)); true catch e; false end
-            # True when https://github.com/JuliaLang/julia/issues/42216 has been fixed
-            test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
+        test_rrule(map, Multiplier(4.5), (6.7, 8.9), (0.1, 0.2, 0.3), check_inferred=false)
+    end
+
+    @testset "merge NamedTuple" begin
+        test_rrule(merge, (; a=1.0), (; b=2.0))
+        test_rrule(merge, (; a=1.0), (; a=2.0))
+    end
+
+    @testset "hypot(x, y, z, xs...)" begin
+        for n in (3, 4)
+            for sig in Iterators.product(ntuple(_->(Float64, ComplexF64), n)...)
+                args = randn.(sig)
+                test_frule(hypot, args...)
+                test_rrule(hypot, args...)
+            end
         end
     end
 end

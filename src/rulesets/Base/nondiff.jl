@@ -34,6 +34,7 @@
 @non_differentiable circshift!(::AbstractArray{Bool}, ::Any)
 @non_differentiable conj(::AbstractArray{Bool})
 @non_differentiable conj!(::AbstractArray{Bool})
+@non_differentiable cumprod(::AbstractVector{Bool})
 @non_differentiable cumprod(::AbstractArray{Bool})
 @non_differentiable cumprod!(::Any, ::AbstractArray{Bool})
 @non_differentiable cumsum(::AbstractArray{Bool})
@@ -80,12 +81,14 @@
 @non_differentiable sum(::AbstractArray{Bool})
 @non_differentiable sum(::Any, ::AbstractArray{Bool})
 @non_differentiable sum(::typeof(abs2), ::AbstractArray{Bool})  # avoids an ambiguity
+@non_differentiable sum(::NTuple{<:Any,Bool})
 @non_differentiable vcat(::AbstractArray{Bool}...)
 @non_differentiable vec(::AbstractArray{Bool})
 @non_differentiable Vector(::AbstractArray{Bool})
 
 @non_differentiable Array(::AbstractArray{Bool})
 @non_differentiable BitArray(::Any...)
+@non_differentiable BitVector(::Any...)
 @non_differentiable IndexStyle(::AbstractArray{Bool})
 
 #####
@@ -157,6 +160,7 @@
 @non_differentiable evalfile(::AbstractString)
 @non_differentiable evalfile(::AbstractString, ::Array{String,1})
 @non_differentiable expanduser(::AbstractString)
+@non_differentiable exponent(::Any)
 
 @non_differentiable fd(::Base.Filesystem.File)
 @non_differentiable fd(::IOStream)
@@ -190,6 +194,8 @@
 @non_differentiable floatmin(::Any)
 @non_differentiable flush(::Any)
 @non_differentiable foreach(::Any, ::Tuple{})
+
+@non_differentiable hasmethod(args...)
 
 @non_differentiable gensym(::Symbol)
 @non_differentiable gensym(::String...)
@@ -362,19 +368,7 @@
 @non_differentiable readuntil(::IO, ::AbstractChar)
 @non_differentiable readuntil(::IO, ::AbstractString)
 @non_differentiable realpath(::AbstractString)
-if isdefined(Base, :redirect_stdio)
-    @non_differentiable Base.redirect_stdio(::Any)
-else
-    @non_differentiable redirect_stderr(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdin(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-    @non_differentiable redirect_stdout(
-        ::Union{IOStream, Base.LibuvStream, Base.DevNull, IOContext},
-    )
-end
+@non_differentiable Base.redirect_stdio(::Any)
 @non_differentiable relpath(::AbstractString, ::AbstractString)
 @non_differentiable relpath(::String)
 @non_differentiable repr(::Any)
@@ -444,6 +438,7 @@ end
 @non_differentiable unique(::AbstractArray{Symbol})
 @non_differentiable unmark(::IO)
 @non_differentiable unsafe_string(::Cstring)
+@non_differentiable unsafe_trunc(::Any...)
 @non_differentiable uppercase(::AbstractString)
 @non_differentiable uppercase(::AbstractChar)
 @non_differentiable uppercasefirst(::AbstractString)
@@ -507,3 +502,6 @@ end
 @non_differentiable Threads.nthreads()
 @non_differentiable Threads.threadid()
 @non_differentiable Threads.threadid(::Task)
+if isdefined(Threads, :_spawn_set_thrpool)
+    @non_differentiable Threads._spawn_set_thrpool(::Task, ::Symbol)
+end

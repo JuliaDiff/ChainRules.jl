@@ -121,7 +121,7 @@ end
 function frule((_, Δx), ::typeof(det), x::AbstractMatrix)
     Ω = det(x)
     # TODO Performance optimization: probably there is an efficient
-    # way to compute this trace without during the full compution within
+    # way to compute this trace without doing the full computation within
     return Ω, Ω * tr(x \ Δx)
 end
 frule((_, Δx), ::typeof(det), x::Number) = (det(x), Δx)

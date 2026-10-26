@@ -9,20 +9,23 @@ end
 
 @non_differentiable Broadcast.broadcastable(::AbstractRNG)
 
-@non_differentiable Random.randexp(::AbstractRNG)
-@non_differentiable Random.randstring(::AbstractRNG)
+@non_differentiable Random.randstring(::Any...)
 
-@non_differentiable rand(::AbstractRNG, ::Random.Sampler)
-@non_differentiable rand(::AbstractRNG, ::Integer...)
-@non_differentiable rand(::Type{<:Real})
-@non_differentiable rand(::Type{<:Real}, ::Tuple)
-@non_differentiable rand(::Type{<:Real}, ::Integer...)
-@non_differentiable rand(::Integer...)
-
-# There are many different 1-3 arg methods, but not varargs
-@non_differentiable rand!(::Any)
-@non_differentiable rand!(::Any, ::Any)
-@non_differentiable rand!(::Any, ::Any, ::Any)
+# Only samplers whose output does not depend on any differentiable data, or that sample from
+# ranges of Base integer types: e.g. not the ones for sampling from arrays, non-integer ranges,
+# tuples, or user-defined types.
+const NonDifferentiableSampler = Union{
+    Random.SamplerType,
+    Random.SamplerTrivial{<:Random.FloatInterval},
+    Random.SamplerBigFloat,
+    Random.SamplerSimple{<:Union{String,SubString{String},AbstractArray{Char}}},
+    Random.SamplerRangeInt{<:Base.BitInteger},
+    Random.SamplerRangeFast,
+    Random.SamplerRangeNDL{<:Any,<:Base.BitInteger},
+    Random.SamplerBigInt,
+}
+@non_differentiable rand(::AbstractRNG, ::NonDifferentiableSampler)
+@non_differentiable rand!(::AbstractRNG, ::AbstractArray, ::NonDifferentiableSampler)
 
 @non_differentiable randexp(::Any...)
 

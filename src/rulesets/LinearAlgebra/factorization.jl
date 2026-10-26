@@ -15,47 +15,45 @@ using LinearAlgebra.BLAS: gemv, gemv!, gemm!, trsm!, axpy!, ger!
 # for derivations for wide and tall matrices, see
 # https://sethaxen.com/blog/2021/02/differentiating-the-lu-decomposition/
 
-const LU_RowMaximum = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum : Val{true}
-const LU_NoPivot = VERSION >= v"1.7.0-DEV.1188" ? NoPivot : Val{false}
+const CHOLESKY_NoPivot = Union{NoPivot,Val{false}}
 
-const CHOLESKY_NoPivot = VERSION >= v"1.8.0-rc1" ? Union{NoPivot, Val{false}} : Val{false}
+# For fixed pivots, the factors are differentiable iff all pivots are nonzero, except
+# possibly the last pivot of square or wide A. `F.info` is the index of the first zero
+# pivot, negated for unpivoted factorizations since JuliaLang/julia#52957
+function _lu_isdifferentiable(F::LU, pivot)
+    m, n = size(F.factors)
+    info = pivot isa NoPivot && VERSION >= v"1.11.0-DEV.1535" ? -F.info : F.info
+    return iszero(info) || (m <= n && info == m)
+end
 
 function frule(
-    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
+    (_, Ȧ), ::typeof(lu!), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...
 )
     ΔA = unthunk(Ȧ)
     F = lu!(A, pivot; kwargs...)
-    ∂factors = pivot isa LU_RowMaximum ? ΔA[F.p, :] : ΔA
+    ∂factors = pivot isa RowMaximum ? ΔA[F.p, :] : ΔA
     m, n = size(∂factors)
     q = min(m, n)
-    if m == n  # square A
-        # minimal allocation computation of
-        # ∂L = L * tril(L \ (P * ΔA) / U, -1)
-        # ∂U = triu(L \ (P * ΔA) / U) * U
-        # ∂factors = ∂L + ∂U
-        L = UnitLowerTriangular(F.factors)
-        U = UpperTriangular(F.factors)
-        rdiv!(∂factors, U)
-        ldiv!(L, ∂factors)
-        ∂L = lmul!(L, tril(∂factors, -1))
-        ∂U = rmul!(triu(∂factors), U)
-        ∂factors .= ∂L .+ ∂U
-    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
-        L = UnitLowerTriangular(F.L)
-        U = F.U
+    if !_lu_isdifferentiable(F, pivot)
+        fill!(∂factors, NaN)
+    elseif m <= n  # square or wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        # with B = L \ (P * ΔA) = [B1 B2]: ∂L = L * S and ∂U = triu(B - S * U) with
+        # S = tril(B1 / U1, -1), which only depends on U1[1:q-1, 1:q-1] (U[q, q] may be 0)
+        L = UnitLowerTriangular(view(F.factors, :, 1:q))
+        U1 = UpperTriangular(view(F.factors, :, 1:q))
         ldiv!(L, ∂factors)
         @views begin
             ∂factors1 = ∂factors[:, 1:q]
             ∂factors2 = ∂factors[:, (q + 1):end]
-            U1 = UpperTriangular(U[:, 1:q])
-            U2 = U[:, (q + 1):end]
+            U2 = F.factors[:, (q + 1):end]
         end
-        rdiv!(∂factors1, U1)
-        ∂L = tril(∂factors1, -1)
-        mul!(∂factors2, ∂L, U2, -1, 1)
-        lmul!(L, ∂L)
-        rmul!(triu!(∂factors1), U1)
-        ∂factors1 .+= ∂L
+        S = copy(∂factors1)
+        @views rdiv!(S[:, 1:(q - 1)], UpperTriangular(F.factors[1:(q - 1), 1:(q - 1)]))
+        tril!(S, -1)
+        mul!(∂factors2, S, U2, -1, 1)
+        ∂factors1 .-= rmul!(copy(S), U1)
+        triu!(∂factors1)
+        ∂factors1 .+= lmul!(L, S)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         L = F.L
         U = UpperTriangular(F.U)
@@ -86,30 +84,28 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
     ∂factors = eltypeA <: Real ? real(Δfactors) : Δfactors
     ∂A = similar(factors)
     q = min(m, n)
-    if m == n  # square A
-        # ∂A = P' * (L' \ (tril(L' * ∂L, -1) + triu(∂U * U')) / U')
-        L = UnitLowerTriangular(factors)
-        U = UpperTriangular(factors)
-        ∂U = UpperTriangular(∂factors)
-        tril!(copyto!(∂A, ∂factors), -1)
-        lmul!(L', ∂A)
-        copyto!(UpperTriangular(∂A), UpperTriangular(∂U * U'))
-        rdiv!(∂A, U')
-        ldiv!(L', ∂A)
-    elseif m < n  # wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+    if !_lu_isdifferentiable(F, pivot)
+        fill!(∂A, NaN)
+    elseif m <= n  # square or wide A, system is [P*A1 P*A2] = [L*U1 L*U2]
+        # adjoint of the frule: with T = triu(∂factors) and
+        # ∂S = tril(L' * ∂factors1 - T * U', -1),
+        # ∂A = P' * (L' \ (T + [∂S[:, 1:q-1] / U[1:q-1, 1:q-1]' 0]))
         triu!(copyto!(∂A, ∂factors))
         @views begin
-            factors1 = factors[:, 1:q]
-            U2 = factors[:, (q + 1):end]
+            ∂factors1 = ∂factors[:, 1:q]
             ∂A1 = ∂A[:, 1:q]
             ∂A2 = ∂A[:, (q + 1):end]
-            ∂L = tril(∂factors[:, 1:q], -1)
+            L = UnitLowerTriangular(factors[:, 1:q])
+            U1 = UpperTriangular(factors[:, 1:q])
+            U2 = factors[:, (q + 1):end]
         end
-        L = UnitLowerTriangular(factors1)
-        U1 = UpperTriangular(factors1)
-        triu!(rmul!(∂A1, U1'))
-        ∂A1 .+= tril!(mul!(lmul!(L', ∂L), ∂A2, U2', -1, 1), -1)
-        rdiv!(∂A1, U1')
+        ∂S = lmul!(L', copy(∂factors1))
+        ∂S .-= rmul!(∂A1, U1')  # uses ∂A1 as scratch
+        mul!(∂S, ∂A2, U2', -1, 1)
+        tril!(∂S, -1)
+        @views rdiv!(∂S[:, 1:(q - 1)], UpperTriangular(factors[1:(q - 1), 1:(q - 1)])')
+        triu!(copyto!(∂A1, ∂factors1))
+        ∂A1 .+= ∂S
         ldiv!(L', ∂A)
     else  # tall A, system is [P1*A; P2*A] = [L1*U; L2*U]
         tril!(copyto!(∂A, ∂factors), -1)
@@ -127,15 +123,15 @@ function _lu_pullback(ΔF::Tangent, m, n, eltypeA, pivot, F)
         ldiv!(L1', ∂A1)
         rdiv!(∂A, U')
     end
-    if pivot isa LU_RowMaximum
+    if pivot isa RowMaximum
         ∂A = ∂A[invperm(F.p), :]
     end
     return NoTangent(), ∂A, NoTangent()
 end
-_lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F) = _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
-function rrule(
-    ::typeof(lu), A::StridedMatrix, pivot::Union{LU_RowMaximum,LU_NoPivot}; kwargs...
-)
+function _lu_pullback(ΔF::AbstractThunk, m, n, eltypeA, pivot, F)
+    return _lu_pullback(unthunk(ΔF), m, n, eltypeA, pivot, F)
+end
+function rrule(::typeof(lu), A::StridedMatrix, pivot::Union{RowMaximum,NoPivot}; kwargs...)
     m, n = size(A)
     F = lu(A, pivot; kwargs...)
     lu_pullback(ȳ) = _lu_pullback(ȳ, m, n, eltype(A), pivot, F)
@@ -274,6 +270,22 @@ function svd_rev(USV::SVD, Ū, s̄, V̄)
     Ā = add!!(Ā, U * add!!(S * FVᵀV̄ * Vt, (S \ V̄') * ImVVᵀ))
 
     return Ā
+end
+
+#####
+##### `svdvals`
+#####
+
+function rrule(::typeof(svdvals), A::AbstractMatrix{<:Number})
+    F = svd(A)
+    U = F.U
+    Vt = F.Vt
+    project_A = ProjectTo(A)
+    function svdvals_pullback(s̄)
+        S̄ = s̄ isa AbstractZero ? s̄ : Diagonal(unthunk(s̄))
+        return (NoTangent(), project_A(U * S̄ * Vt))
+    end
+    return F.S, svdvals_pullback
 end
 
 #####

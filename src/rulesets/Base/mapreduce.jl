@@ -139,7 +139,7 @@ Works by seeing if the result of `derivatives_given_output(nothing, f, x)` can b
 The method of `derivatives_given_output` usually comes from `@scalar_rule`.
 """
 function _uses_input_only(f::F, ::Type{xT}) where {F,xT}
-    gT = Core.Compiler._return_type(derivatives_given_output, Tuple{Nothing, F, xT})
+    gT = Core.Compiler.return_type(derivatives_given_output, Tuple{Nothing, F, xT})
     # Here we must check `<: Number`, to avoid this, the one rule which can return the `nothing`:
     # ChainRules.derivatives_given_output("anything", exp, 1) == (("anything",),)
     return isconcretetype(gT) && gT <: Tuple{Tuple{Number}}
@@ -192,7 +192,7 @@ function rrule(
     return y, sum_abs2_pullback
 end
 
-# Fix dispatch for this pidgeon-hole optimization,
+# Fix dispatch for this pigeonhole optimization,
 # Rules with RuleConfig dispatch with priority over without (regardless of other args).
 # and if we don't specify what do do for one that HasReverseMode then it is ambiguous
 for Config in (RuleConfig, RuleConfig{>:HasReverseMode})

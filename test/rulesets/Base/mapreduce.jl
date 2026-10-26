@@ -1,3 +1,5 @@
+using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, StaticArrays, Test
+
 # for sum(xs, weights) (#522)
 Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
@@ -10,6 +12,9 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, Tuple(rand(5)))
         test_rrule(sum, (1.2, 3.4 + 5im))
         test_rrule(sum, (rand(2)', rand(1,2)))
+
+        # Boolean -- via @non_differentiable
+        test_rrule(sum, (true, false, true))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
@@ -120,7 +125,11 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, sqrt, randn(5) .> 0) 
         test_rrule(sum, sqrt, randn(5,5) .> 0; fkwargs=(;dims=1))
         # ... and Bool produced by function
+        # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/219
         @test_skip test_rrule(sum, iszero, randn(5))  # DimensionMismatch("second dimension of A, 1, does not match length of x, 0")
+
+        _, pb = rrule(CFG, sum, iszero, randn(5))
+        @test pb(1.0) == (NoTangent(), NoTangent(), NoTangent())
 
         # Functions that return a Vector
         # see https://github.com/FluxML/Zygote.jl/issues/1074
