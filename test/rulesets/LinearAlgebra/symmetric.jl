@@ -283,9 +283,10 @@ using ChainRulesTestUtils: _fdm
             U = Matrix(qr(randn(T, n, n)).Q)
             if hermout # f(A) will also be a TA
                 λ = if f in (acos, asin, atanh)
-                    # generate random number between -1 and 0.9. This would be between
+                    # generate random number between -0.9 and 0.9. This would be between
                     # -1 and 1 but we want to avoid domain errors from numerical error
-                    T(1.9) .* rand(real(T), n) .- 1
+                    # and finite differencing (see `rand_matfun_tangent`)
+                    1.8 .* rand(real(T), n) .- 0.9
                 elseif f in (log, sqrt)
                     abs.(randn(real(T), n))
                 elseif f === acosh
@@ -295,12 +296,21 @@ using ChainRulesTestUtils: _fdm
                 end
             else
                 λ = if f === atanh
-                    2 .* rand(real(T), n) .- 1
+                    # see above
+                    1.8 .* rand(real(T), n) .- 0.9
                 else
                     randn(real(T), n)
                 end
             end
             return TA(U * Diagonal(λ) * U', uplo)
+        end
+
+        # generate random tangents of type TA with unit spectral norm
+        # `_fdm` evaluates `f(A + ε * ΔA)` with `|ε| ≤ max_range = 1e-2`, so by Weyl's
+        # inequality the eigenvalues of `A` move by at most 0.01 and stay in the domain of `f`
+        function rand_matfun_tangent(TA, T, n, uplo=:U)
+            ΔA = TA(randn(T, n, n), uplo)
+            return TA(parent(ΔA) ./ opnorm(ΔA), uplo)
         end
 
         # Adapted From ChainRulesTestUtils._is_inferable
@@ -325,7 +335,7 @@ using ChainRulesTestUtils: _fdm
             n = 10
             @testset "frule" begin
                 @testset for uplo in (:L, :U), hermout in (true, false)
-                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
+                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), rand_matfun_tangent(TA, T, n, uplo)
                     Y = f(A)
                     if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
@@ -350,13 +360,13 @@ using ChainRulesTestUtils: _fdm
                     m = div(n, 2)
                     λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
                     A = TA(U * Diagonal(λ) * U')
-                    ΔA = TA(randn(T, n, n))
+                    ΔA = rand_matfun_tangent(TA, T, n)
                     _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
 
                     λ[1:m] .= λ[m+1:2m]
                     A2 = TA(U * Diagonal(λ) * U')
-                    ΔA2 = TA(randn(T, n, n))
+                    ΔA2 = rand_matfun_tangent(TA, T, n)
                     _, ∂Y2 = frule((ZeroTangent(), ΔA2), f, A2)
                     @test parent(∂Y2) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A2.data, ΔA2.data))
                 end
@@ -365,7 +375,7 @@ using ChainRulesTestUtils: _fdm
                     λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
                     λ[2:n] .= 0
                     A = TA(U * Diagonal(λ) * U')
-                    ΔA = TA(randn(T, n, n))
+                    ΔA = rand_matfun_tangent(TA, T, n)
                     _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
                 end
