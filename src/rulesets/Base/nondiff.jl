@@ -81,7 +81,7 @@
 @non_differentiable sum(::AbstractArray{Bool})
 @non_differentiable sum(::Any, ::AbstractArray{Bool})
 @non_differentiable sum(::typeof(abs2), ::AbstractArray{Bool})  # avoids an ambiguity
-@non_differentiable sum(::NTuple{<:Any, Bool})
+@non_differentiable sum(::NTuple{<:Any,Bool})
 @non_differentiable vcat(::AbstractArray{Bool}...)
 @non_differentiable vec(::AbstractArray{Bool})
 @non_differentiable Vector(::AbstractArray{Bool})
