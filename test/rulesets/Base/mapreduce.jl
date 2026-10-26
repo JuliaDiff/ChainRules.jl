@@ -12,6 +12,9 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, Tuple(rand(5)))
         test_rrule(sum, (1.2, 3.4 + 5im))
         test_rrule(sum, (rand(2)', rand(1,2)))
+
+        # Boolean -- via @non_differentiable
+        test_rrule(sum, (true, false, true))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
