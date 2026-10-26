@@ -335,7 +335,8 @@ using ChainRulesTestUtils: _fdm
             n = 10
             @testset "frule" begin
                 @testset for uplo in (:L, :U), hermout in (true, false)
-                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), rand_matfun_tangent(TA, T, n, uplo)
+                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout),
+                    rand_matfun_tangent(TA, T, n, uplo)
                     Y = f(A)
                     if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
