@@ -63,6 +63,12 @@ using ChainRulesTestUtils: _fdm
         ∂x = rrule(f, x)[2](Δx)[2]
         @test ∂x == Δx
         @test ∂x.uplo == x.uplo
+
+        # a `Diagonal` cotangent stays `Diagonal` and agrees with the dense one
+        ΔΩ = Diagonal(randn(ComplexF64, 3))
+        ∂x = rrule(f, x)[2](ΔΩ)[2]
+        @test ∂x isa Diagonal
+        @test ∂x == rrule(f, x)[2](Matrix(ΔΩ))[2]
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention

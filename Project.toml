@@ -18,7 +18,7 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 
 [compat]
 Adapt = "3.4.0, 4"
-ChainRulesCore = "1.26.6"
+ChainRulesCore = "1.26.7"
 Distributed = "1"
 GPUArraysCore = "0.1.0, 0.2"
 IrrationalConstants = "0.1.1, 0.2"
