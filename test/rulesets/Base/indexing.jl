@@ -102,6 +102,7 @@ end
         @test unthunk(dgrad) ≈ Diagonal([0, 2, 0])
         
         test_rrule(getindex, Symmetric(rand(3, 3)), 2, 2; check_inferred=false)  # Infers to Any
+        test_rrule(getindex, Symmetric(rand(3, 3)), 2, 3; check_inferred=false)
         sgrad = rrule(getindex, Symmetric(rand(3, 3)), 2, 3)[2](1.0)[2]
         @test unthunk(sgrad) ≈ [0 0 0; 0 0 1/2; 0 1/2 0]
     end

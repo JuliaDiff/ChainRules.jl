@@ -1,6 +1,6 @@
 name = "ChainRules"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.74.6"
+version = "1.74.7"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -18,7 +18,7 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 
 [compat]
 Adapt = "3.4.0, 4"
-ChainRulesCore = "1.25"
+ChainRulesCore = "1.26.6"
 Distributed = "1"
 GPUArraysCore = "0.1.0, 0.2"
 IrrationalConstants = "0.1.1, 0.2"
