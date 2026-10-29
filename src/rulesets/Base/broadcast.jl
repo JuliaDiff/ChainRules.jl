@@ -335,7 +335,9 @@ _ndims(::Tuple) = 1
 
 function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
     dx = unthunk(dx_raw)
-    val = if N == length(dx)
+    # A tuple of length N ≥ 2 fills the first dimension, so a vector `dx` already has length N.
+    # Checking this statically keeps inference from compiling the (dead) reduction below.
+    val = if dx isa AbstractVector || N == length(dx)
         dx
     else
         sum(dx; dims=2:ndims(dx))
