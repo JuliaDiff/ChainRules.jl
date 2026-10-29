@@ -266,13 +266,13 @@ end
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
                 @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(X)) == (F, ZeroTangent())
 
-                @testset "tangents are real when outputs are" begin
-                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
+                @testset "tangent types match outputs" begin
+                    # hermitian matrices have real eigenvalues (of complex type for complex
+                    # matrices on Julia >= 1.14) and, when real, real eigenvectors
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, Ḟ = frule((ZeroTangent(), Ẋ), eigen!, X)
-                    @test eltype(Ḟ.values) <: Real
-                    T <: Real && @test eltype(Ḟ.vectors) <: Real
+                    F, Ḟ = frule((ZeroTangent(), rand_tangent(X)), eigen!, X)
+                    @test eltype(Ḟ.values) == eltype(F.values)
+                    @test eltype(Ḟ.vectors) == eltype(F.vectors)
                 end
             end
 
@@ -349,9 +349,12 @@ end
                     return F
                 end
 
+                # eigenvectors are only differentiable along Hermitian directions
+                _eigvecs_stable(x) = _eigen_stable(Matrix(hermitianpart(x))).vectors
+
                 n = 10
                 @testset "eigen!(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n)
 
                     F = eigen!(copy(A))
                     @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(A)) == (F, ZeroTangent())
@@ -360,22 +363,39 @@ end
                     @test ∂F_ad isa Tangent{typeof(F)}
                     @test ∂F_ad.values isa typeof(F.values)
                     @test ∂F_ad.vectors isa typeof(F.vectors)
+                    _, ∂F_thunk = frule((ZeroTangent(), @thunk(copy(ΔA))), eigen!, copy(A))
+                    @test ∂F_thunk.values == ∂F_ad.values
+                    @test ∂F_thunk.vectors == ∂F_ad.vectors
 
-                    f = x -> asnt(eigen(Matrix(Hermitian(x))))
-                    ∂F_fd = jvp(_fdm, f, (A, ΔA))
-                    @test ∂F_ad.values ≈ ∂F_fd.values
+                    # eigenvalues are differentiable in all directions their type admits
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
+                    @test ∂F_ad.values ≈ jvp(_fdm, f_values, (A, ΔA))
 
-                    f_stable = x -> asnt(_eigen_stable(Matrix(Hermitian(x))))
-                    F_stable = f_stable(A)
-                    ∂F_stable_fd = jvp(_fdm, f_stable, (A, ΔA))
                     C = _eigvecs_stabilize_mat(F.vectors)
-                    @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
+                    @test ∂F_ad.vectors * C ≈ jvp(_fdm, _eigvecs_stable, (A, ΔA))
+
+                    # tangents follow the order of the eigenpairs
+                    _, ∂F_nothing = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=nothing
+                    )
+                    @test ∂F_nothing.values ≈ ∂F_ad.values
+                    @test ∂F_nothing.vectors ≈ ∂F_ad.vectors
+                    F_rev, ∂F_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test F_rev.values == reverse(F.values)
+                    @test ∂F_rev.values ≈ reverse(∂F_ad.values)
+                    @test ∂F_rev.vectors ≈ reverse(∂F_ad.vectors; dims=2)
                 end
 
                 @testset "eigen(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
-
+                    A = Matrix(Hermitian(randn(T, n, n)))
                     F = eigen(A)
+                    ΔU, Δλ = randn(T, n, n), randn(eltype(F.values), n)
                     ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
                     F_ad, back = rrule(eigen, A)
                     @test F_ad == F
@@ -383,13 +403,20 @@ end
                     C = _eigvecs_stabilize_mat(F.vectors)
                     CT = Tangent{typeof(F)}
 
+                    # eigenvalues are differentiable in all directions their type admits
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
+
                     @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                         ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
                         ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
                         :vectors in nzprops && rmul!(∂F_stable.vectors, C)
 
                         f_stable = function(x)
-                            F_ = _eigen_stable(Matrix(Hermitian(x)))
+                            F_ = (values=f_values(x), vectors=_eigvecs_stable(x))
                             return (; (s => getproperty(F_, s) for s in nzprops)...)
                         end
 
@@ -398,7 +425,14 @@ end
                         @test ∂A isa typeof(A)
                         ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
                         @test ∂A ≈ ∂A_fd
+                        @test @maybe_inferred(back(@thunk(∂F))) == (∂self, ∂A)
                     end
+
+                    # cotangents follow the order of the eigenpairs
+                    F_rev, back_rev = rrule(eigen, A; sortby=λ -> -real(λ))
+                    @test F_rev.values == reverse(F.values)
+                    ΔF_rev = CT(; values=reverse(Δλ), vectors=reverse(ΔU; dims=2))
+                    @test back_rev(ΔF_rev)[2] ≈ back(ΔF)[2]
                 end
             end
         end
@@ -411,12 +445,12 @@ end
                 test_frule(eigvals!, X)
                 @test frule((ZeroTangent(), ZeroTangent()), eigvals!, copy(X))[2] == ZeroTangent()
 
-                @testset "tangents are real when outputs are" begin
-                    # hermitian matrices have real eigenvalues
+                @testset "tangent types match outputs" begin
+                    # hermitian matrices have real eigenvalues (of complex type for complex
+                    # matrices on Julia >= 1.14)
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, λ̇ = frule((ZeroTangent(), Ẋ), eigvals!, X)
-                    @test eltype(λ̇) <: Real
+                    λ, λ̇ = frule((ZeroTangent(), rand_tangent(X)), eigvals!, X)
+                    @test eltype(λ̇) == eltype(λ)
                 end
             end
 
@@ -437,24 +471,49 @@ end
             @testset "hermitian matrices" begin
                 n = 10
                 @testset "eigvals!(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n)
                     λ = eigvals!(copy(A))
                     λ_ad, ∂λ_ad = frule((ZeroTangent(), copy(ΔA)), eigvals!, copy(A))
                     @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                     @test ∂λ_ad isa typeof(λ)
-                    @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(Matrix(Hermitian(A))), (A, ΔA))
+                    @test frule((ZeroTangent(), @thunk(copy(ΔA))), eigvals!, copy(A))[2] ==
+                        ∂λ_ad
+                    # eigenvalues are differentiable in all directions their type admits
+                    f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    @test ∂λ_ad ≈ jvp(_fdm, f, (A, ΔA))
+
+                    # tangents follow the order of the eigenvalues
+                    _, ∂λ_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigvals!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test ∂λ_rev ≈ reverse(∂λ_ad)
                 end
 
                 @testset "eigvals(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(n)
+                    A = Matrix(Hermitian(randn(T, n, n)))
                     λ = eigvals(A)
+                    Δλ = randn(eltype(λ), n)
                     λ_ad, back = rrule(eigvals, A)
                     @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
                     ∂self, ∂A = @maybe_inferred back(Δλ)
                     @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
-                    @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    # eigenvalues are differentiable in all directions their type admits
+                    f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    @test ∂A ≈ j′vp(_fdm, f, Δλ, A)[1]
                     @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+
+                    # gradient of `sum ∘ eigvals = tr` (FluxML/Zygote.jl#1369)
+                    @test back(ones(eltype(λ), n))[2] ≈ I
+
+                    # imaginary parts of cotangents of real-typed eigenvalues are ignored
+                    if eltype(λ) <: Real
+                        @test back(complex.(Δλ, randn(n)))[2] == ∂A
+                    end
+
+                    # cotangents follow the order of the eigenvalues
+                    _, back_rev = rrule(eigvals, A; sortby=λ -> -real(λ))
+                    @test back_rev(reverse(Δλ))[2] ≈ ∂A
                 end
             end
         end
