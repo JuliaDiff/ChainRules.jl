@@ -16,35 +16,17 @@ function rrule(T::Type{<:LinearAlgebra.HermOrSym}, A::AbstractMatrix, uplo)
 end
 
 function frule((_, ΔA), TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
-    return TM(A), TM(_symherm_forward(A, ΔA))
+    ∂A = ProjectTo(A)(unthunk(ΔA))
+    return TM(A), ∂A isa AbstractZero ? ∂A : TM(∂A)
 end
-function frule((_, ΔA), ::Type{Array}, A::LinearAlgebra.HermOrSym)
-    return Array(A), Array(_symherm_forward(A, ΔA))
-end
+frule(Δargs, ::Type{Array}, A::LinearAlgebra.HermOrSym) = frule(Δargs, Matrix, A)
 
 function rrule(TM::Type{<:Matrix}, A::LinearAlgebra.HermOrSym)
-    function Matrix_pullback(Ω̄)
-        ΔΩ = unthunk(Ω̄)
-        TA = _symhermtype(A)
-        T∂A = TA{eltype(ΔΩ),typeof(ΔΩ)}
-        uplo = A.uplo
-        ∂A = T∂A(_symherm_back(typeof(A), ΔΩ, Symbol(uplo)), uplo)
-        return NoTangent(), ∂A
-    end
+    project_A = ProjectTo(A)
+    Matrix_pullback(ΔΩ) = (NoTangent(), project_A(ΔΩ))
     return TM(A), Matrix_pullback
 end
 rrule(::Type{Array}, A::LinearAlgebra.HermOrSym) = rrule(Matrix, A)
-
-# for Ω = Matrix(A::HermOrSym), push forward ΔA to get ∂Ω
-function _symherm_forward(A, Ȧ)
-    ΔA = unthunk(Ȧ)
-    TA = _symhermtype(A)
-    return if typeof(ΔA) <: TA
-        ΔA
-    else
-        TA{eltype(ΔA),typeof(ΔA)}(ΔA, A.uplo)
-    end
-end
 
 # for Ω = HermOrSym(A, uplo), pull back ΔΩ to get ∂A
 @inline function _symherm_back(::Type{T}, Ω̄, uplo::Symbol) where {T}
