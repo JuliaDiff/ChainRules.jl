@@ -13,6 +13,9 @@
 if isdefined(Core, :_typevar)
     @non_differentiable Core._typevar(::Any...)
 end
+if isdefined(Core, :has_free_typevars)
+    @non_differentiable Core.has_free_typevars(::Any)
+end
 @non_differentiable TypeVar(::Any...)
 @non_differentiable UnionAll(::Any, ::Any)
 
@@ -31,4 +34,15 @@ end
 function rrule(::typeof(ifelse), c, a::Number, b::Number)
     ifelse_pullback(Δ) = (NoTangent(), NoTangent(), ifelse(c, Δ, zero(Δ)), ifelse(c, zero(Δ), Δ))
     return ifelse(c, a, b), ifelse_pullback
+end
+
+if isdefined(Core, :compilerbarrier)
+    function ChainRulesCore.frule((_, _, Δ), ::typeof(Core.compilerbarrier), setting, value)
+        return (Core.compilerbarrier(setting, value), Δ)
+    end
+
+    function ChainRulesCore.rrule(::typeof(Core.compilerbarrier), setting, value)
+        compilerbarrier_pullback(Δ) = NoTangent(), NoTangent(), Δ
+        return (Core.compilerbarrier(setting, value), compilerbarrier_pullback)
+    end
 end

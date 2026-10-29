@@ -1,3 +1,7 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Random, Test
+using ChainRulesTestUtils: _fdm
+
 # TODO: move this to FiniteDifferences
 function FiniteDifferences.to_vec(X::LU)
     x_vec, back = to_vec(Matrix(X.factors))
@@ -14,14 +18,6 @@ function FiniteDifferences.to_vec(C::Cholesky)
     end
     return C_vec, cholesky_from_vec
 end
-
-function FiniteDifferences.to_vec(x::Val)
-    Val_from_vec(v) = x
-    return Bool[], Val_from_vec
-end
-
-const LU_ROW_MAXIMUM = VERSION >= v"1.7.0-DEV.1188" ? RowMaximum() : Val(true)
-const LU_NO_PIVOT = VERSION >= v"1.7.0-DEV.1188" ? NoPivot() : Val(false)
 
 # well-conditioned random n×n matrix with elements of type `T` for testing `eigen`
 function rand_eigen(T::Type, n::Int)
@@ -42,43 +38,88 @@ function rand_eigen(T::Type, n::Int)
     return V * Diagonal(λ) / V
 end
 
+# m×n matrix whose LU factorization has an exactly zero last pivot: since |L[i, j]| < 1,
+# partial pivoting keeps the row order, and dyadic entries and power-of-two pivots make
+# the factorization exact
+function lu_singular_last_pivot(m, n)
+    q = min(m, n)
+    L = tril(rand(-3:3, m, q) / 4, -1)
+    L[diagind(L)] .= 1
+    U = triu(rand(-3:3, q, n))
+    U[diagind(U)] = rand((-4, -2, -1, 1, 2, 4), q)
+    U[q, q] = 0
+    return L * U
+end
+
 @testset "Factorizations" begin
     @testset "lu decomposition" begin
         n = 10
         @testset "lu! frule" begin
             @testset "lu!(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                pivot in (RowMaximum(), NoPivot()),
                 m in (7, 10, 13)
 
                 test_frule(lu!, randn(T, m, n), pivot ⊢ NoTangent())
+            end
+            @testset "zero last pivot: lu!(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    RowMaximum(), NoPivot()
+                ),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_frule(lu!, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    ΔA = rand_tangent(A)
+                    _, ∂F = frule((ZeroTangent(), ΔA), lu!, A, pivot; check=false)
+                    @test all(isnan, ∂F.factors)
+                end
             end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
                 ΔAsingular = rand_tangent(Asingular)
                 @test_throws SingularException frule(
-                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), LU_ROW_MAXIMUM
+                    (ZeroTangent(), copy(ΔAsingular)), lu!, copy(Asingular), RowMaximum()
                 )
-                frule((ZeroTangent(), ΔAsingular), lu!, Asingular, LU_ROW_MAXIMUM; check=false)
-                @test true  # above line would have errored if this was not working right
+                _, ∂F = frule(
+                    (ZeroTangent(), ΔAsingular), lu!, Asingular, RowMaximum(); check=false
+                )
+                @test all(isnan, ∂F.factors)  # not differentiable
             end
         end
         @testset "lu rrule" begin
             @testset "lu(A::Matrix{$T}, $pivot) for size(A)=($m, $n)" for
                 T in (Float64, ComplexF64),
-                pivot in (LU_ROW_MAXIMUM, LU_NO_PIVOT),
+                pivot in (RowMaximum(), NoPivot()),
                 m in (7, 10, 13)
 
                 test_rrule(lu, randn(T, m, n), pivot ⊢ NoTangent())
             end
+            @testset "zero last pivot: lu(A, $pivot) for size(A)=($m, $n)" for pivot in (
+                    RowMaximum(), NoPivot()
+                ),
+                m in (7, 10, 13)
+
+                A = lu_singular_last_pivot(m, n)
+                @test iszero(last(diag(lu(A, pivot; check=false).U)))
+                if m <= n
+                    test_rrule(lu, A, pivot ⊢ NoTangent(); fkwargs=(; check=false))
+                else  # not differentiable
+                    F, back = rrule(lu, A, pivot; check=false)
+                    _, ∂A, _ = back(Tangent{typeof(F)}(; factors=rand_tangent(F.factors)))
+                    @test all(isnan, ∂A)
+                end
+            end
             @testset "check=false passed to primal function" begin
                 Asingular = zeros(n, n)
-                F = lu(Asingular, LU_ROW_MAXIMUM; check=false)
-                ΔF = Tangent{typeof(F)}(; U=rand_tangent(F.U), L=rand_tangent(F.L))
-                @test_throws SingularException rrule(lu, Asingular, LU_ROW_MAXIMUM)
-                _, back = rrule(lu, Asingular, LU_ROW_MAXIMUM; check=false)
-                back(ΔF)
-                @test true  # above line would have errored if this was not working right
+                F = lu(Asingular, RowMaximum(); check=false)
+                ΔF = Tangent{typeof(F)}(; factors=rand_tangent(F.factors))
+                @test_throws SingularException rrule(lu, Asingular, RowMaximum())
+                _, back = rrule(lu, Asingular, RowMaximum(); check=false)
+                _, ∂A, _ = back(ΔF)
+                @test all(isnan, ∂A)  # not differentiable
             end
         end
         @testset "LU" begin
@@ -94,67 +135,108 @@ end
             end
             @testset "matrix inverse using LU" begin
                 @testset "inv!(lu(::LU{$T,<:StridedMatrix}))" for T in (Float64,ComplexF64)
-                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), LU_ROW_MAXIMUM))
-                    test_rrule(inv, lu(randn(T, n, n), LU_ROW_MAXIMUM))
+                    test_frule(LinearAlgebra.inv!, lu(randn(T, n, n), RowMaximum()))
+                    test_rrule(inv, lu(randn(T, n, n), RowMaximum()))
                 end
             end
         end
     end
-    @testset "svd" begin
-        for n in [4, 6, 10], m in [3, 5, 9]
-            @testset "($n x $m) svd" begin
-                X = randn(n, m)
-                test_rrule(svd, X; atol=1e-6, rtol=1e-6)
+
+    @testset "singular value decomposition" begin
+        @testset "svd" begin
+            for n in [4, 6, 10], m in [3, 5, 9]
+                @testset "($n x $m) svd" begin
+                    X = randn(n, m)
+                    test_rrule(svd, X; atol=1e-6, rtol=1e-6)
+                end
+            end
+
+            for n in [4, 6, 10], m in [3, 5, 10]
+                @testset "($n x $m) getproperty" begin
+                    X = randn(n, m)
+                    F = svd(X)
+                    rand_adj = adjoint(rand(reverse(size(F.V))...))
+
+                    test_rrule(getproperty, F, :U; check_inferred=false)
+                    test_rrule(getproperty, F, :S; check_inferred=false)
+                    test_rrule(getproperty, F, :Vt; check_inferred=false)
+                    test_rrule(
+                        getproperty, F, :V; check_inferred=false, output_tangent=rand_adj
+                    )
+                end
+            end
+
+            @testset "Thunked inputs" begin
+                X = randn(4, 3)
+                F, dX_pullback = rrule(svd, X)
+                for p in [:U, :S, :V, :Vt]
+                    Y, dF_pullback = rrule(getproperty, F, p)
+                    Ȳ = randn(size(Y)...)
+
+                    _, dF_unthunked, _ = dF_pullback(Ȳ)
+
+                    # helper to let us check how things are stored.
+                    p_access = p == :V ? :Vt : p
+                    backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p_access)
+                    @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
+
+                    dF_thunked = map(f -> Thunk(() -> f), dF_unthunked)
+                    @assert backing_field(dF_thunked, p) isa AbstractThunk
+
+                    dself_thunked, dX_thunked = dX_pullback(dF_thunked)
+                    dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
+                    @test dself_thunked == dself_unthunked
+                    @test dX_thunked == dX_unthunked
+                end
+            end
+
+            @testset "Helper functions" begin
+                X = randn(10, 10)
+                Y = randn(10, 10)
+                @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
+                @test ChainRules._eyesubx!(copy(X)) ≈ I - X
+
+                Z = randn(Float32, 10, 10)
+                result = ChainRules._mulsubtrans!!(copy(Z), Y)
+                @test result ≈ Y .* (Z - Z')
+                @test eltype(result) == Float64
             end
         end
 
-        for n in [4, 6, 10], m in [3, 5, 10]
-            @testset "($n x $m) getproperty" begin
-                X = randn(n, m)
-                F = svd(X)
-                rand_adj = adjoint(rand(reverse(size(F.V))...))
+        @testset "svdvals" begin
+            for n in [4, 6, 10]
+                for m in [3, 5, 9]
+                    @testset "($n x $m) svdvals" begin
+                        X = randn(n, m)
+                        test_rrule(svdvals, X; atol=1e-6, rtol=1e-6)
+                    end
+                end
 
-                test_rrule(getproperty, F, :U; check_inferred=false)
-                test_rrule(getproperty, F, :S; check_inferred=false)
-                test_rrule(getproperty, F, :Vt; check_inferred=false)
-                test_rrule(getproperty, F, :V; check_inferred=false, output_tangent=rand_adj)
+                @testset "rrule for svdvals(::$SymHerm{$T}) ($n x $n, uplo=$uplo)" for SymHerm in
+                                                                                       (
+                        Symmetric, Hermitian
+                    ),
+                    T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
+                    uplo in (:L, :U)
+
+                    A, ΔS = randn(T, n, n), randn(n)
+                    symA = SymHerm(A, uplo)
+
+                    S = svdvals(symA)
+                    S_ad, back = @inferred rrule(svdvals, symA)
+                    @test S_ad ≈ S # inexact because rrule uses svd not svdvals
+                    ∂self, ∂symA = @inferred back(ΔS)
+                    @test ∂self === NoTangent()
+                    @test ∂symA isa typeof(symA)
+                    @test ∂symA.uplo == symA.uplo
+
+                    # pull the cotangent back to A to test against finite differences
+                    ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
+                    @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
+
+                    @test @inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+                end
             end
-        end
-
-        @testset "Thunked inputs" begin
-            X = randn(4, 3)
-            F, dX_pullback = rrule(svd, X)
-            for p in [:U, :S, :V, :Vt]
-                Y, dF_pullback = rrule(getproperty, F, p)
-                Ȳ = randn(size(Y)...)
-
-                _, dF_unthunked, _ = dF_pullback(Ȳ)
-
-                # helper to let us check how things are stored.
-                p_access = p == :V ? :Vt : p
-                backing_field(c, p) = getproperty(ChainRulesCore.backing(c), p_access)
-                @assert !(backing_field(dF_unthunked, p) isa AbstractThunk)
-
-                dF_thunked = map(f->Thunk(()->f), dF_unthunked)
-                @assert backing_field(dF_thunked, p) isa AbstractThunk
-
-                dself_thunked, dX_thunked = dX_pullback(dF_thunked)
-                dself_unthunked, dX_unthunked = dX_pullback(dF_unthunked)
-                @test dself_thunked == dself_unthunked
-                @test dX_thunked == dX_unthunked
-            end
-        end
-
-        @testset "Helper functions" begin
-            X = randn(10, 10)
-            Y = randn(10, 10)
-            @test ChainRules._mulsubtrans!!(copy(X), Y) ≈ Y .* (X - X')
-            @test ChainRules._eyesubx!(copy(X)) ≈ I - X
-
-            Z = randn(Float32, 10, 10)
-            result = ChainRules._mulsubtrans!!(copy(Z), Y)
-            @test result ≈ Y .* (Z - Z')
-            @test eltype(result) == Float64
         end
     end
 
@@ -184,13 +266,13 @@ end
                 @test Ḟ_ad.vectors ≈ Ḟ_fd.vectors
                 @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(X)) == (F, ZeroTangent())
 
-                @testset "tangents are real when outputs are" begin
-                    # hermitian matrices have real eigenvalues and, when real, real eigenvectors
+                @testset "tangent types match outputs" begin
+                    # hermitian matrices have real eigenvalues (of complex type for complex
+                    # matrices on Julia >= 1.14) and, when real, real eigenvectors
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, Ḟ = frule((ZeroTangent(), Ẋ), eigen!, X)
-                    @test eltype(Ḟ.values) <: Real
-                    T <: Real && @test eltype(Ḟ.vectors) <: Real
+                    F, Ḟ = frule((ZeroTangent(), rand_tangent(X)), eigen!, X)
+                    @test eltype(Ḟ.values) == eltype(F.values)
+                    @test eltype(Ḟ.vectors) == eltype(F.vectors)
                 end
             end
 
@@ -267,9 +349,12 @@ end
                     return F
                 end
 
+                # eigenvectors are only differentiable along Hermitian directions
+                _eigvecs_stable(x) = _eigen_stable(Matrix(hermitianpart(x))).vectors
+
                 n = 10
                 @testset "eigen!(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n)
 
                     F = eigen!(copy(A))
                     @test frule((ZeroTangent(), ZeroTangent()), eigen!, copy(A)) == (F, ZeroTangent())
@@ -278,22 +363,39 @@ end
                     @test ∂F_ad isa Tangent{typeof(F)}
                     @test ∂F_ad.values isa typeof(F.values)
                     @test ∂F_ad.vectors isa typeof(F.vectors)
+                    _, ∂F_thunk = frule((ZeroTangent(), @thunk(copy(ΔA))), eigen!, copy(A))
+                    @test ∂F_thunk.values == ∂F_ad.values
+                    @test ∂F_thunk.vectors == ∂F_ad.vectors
 
-                    f = x -> asnt(eigen(Matrix(Hermitian(x))))
-                    ∂F_fd = jvp(_fdm, f, (A, ΔA))
-                    @test ∂F_ad.values ≈ ∂F_fd.values
+                    # eigenvalues are differentiable in all directions their type admits
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
+                    @test ∂F_ad.values ≈ jvp(_fdm, f_values, (A, ΔA))
 
-                    f_stable = x -> asnt(_eigen_stable(Matrix(Hermitian(x))))
-                    F_stable = f_stable(A)
-                    ∂F_stable_fd = jvp(_fdm, f_stable, (A, ΔA))
                     C = _eigvecs_stabilize_mat(F.vectors)
-                    @test ∂F_ad.vectors * C ≈ ∂F_stable_fd.vectors
+                    @test ∂F_ad.vectors * C ≈ jvp(_fdm, _eigvecs_stable, (A, ΔA))
+
+                    # tangents follow the order of the eigenpairs
+                    _, ∂F_nothing = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=nothing
+                    )
+                    @test ∂F_nothing.values ≈ ∂F_ad.values
+                    @test ∂F_nothing.vectors ≈ ∂F_ad.vectors
+                    F_rev, ∂F_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigen!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test F_rev.values == reverse(F.values)
+                    @test ∂F_rev.values ≈ reverse(∂F_ad.values)
+                    @test ∂F_rev.vectors ≈ reverse(∂F_ad.vectors; dims=2)
                 end
 
                 @testset "eigen(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔU, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n), randn(n)
-
+                    A = Matrix(Hermitian(randn(T, n, n)))
                     F = eigen(A)
+                    ΔU, Δλ = randn(T, n, n), randn(eltype(F.values), n)
                     ΔF = Tangent{typeof(F)}(; values=Δλ, vectors=ΔU)
                     F_ad, back = rrule(eigen, A)
                     @test F_ad == F
@@ -301,13 +403,20 @@ end
                     C = _eigvecs_stabilize_mat(F.vectors)
                     CT = Tangent{typeof(F)}
 
+                    # eigenvalues are differentiable in all directions their type admits
+                    f_values = if eltype(F.values) == T
+                        eigvals
+                    else
+                        x -> eigvals(Matrix(hermitianpart(x)))
+                    end
+
                     @testset for nzprops in ([:values], [:vectors], [:values, :vectors])
                         ∂F = CT(; [s => getproperty(ΔF, s) for s in nzprops]...)
                         ∂F_stable = (; [s => copy(getproperty(ΔF, s)) for s in nzprops]...)
                         :vectors in nzprops && rmul!(∂F_stable.vectors, C)
 
                         f_stable = function(x)
-                            F_ = _eigen_stable(Matrix(Hermitian(x)))
+                            F_ = (values=f_values(x), vectors=_eigvecs_stable(x))
                             return (; (s => getproperty(F_, s) for s in nzprops)...)
                         end
 
@@ -316,7 +425,14 @@ end
                         @test ∂A isa typeof(A)
                         ∂A_fd = j′vp(_fdm, f_stable, ∂F_stable, A)[1]
                         @test ∂A ≈ ∂A_fd
+                        @test @maybe_inferred(back(@thunk(∂F))) == (∂self, ∂A)
                     end
+
+                    # cotangents follow the order of the eigenpairs
+                    F_rev, back_rev = rrule(eigen, A; sortby=λ -> -real(λ))
+                    @test F_rev.values == reverse(F.values)
+                    ΔF_rev = CT(; values=reverse(Δλ), vectors=reverse(ΔU; dims=2))
+                    @test back_rev(ΔF_rev)[2] ≈ back(ΔF)[2]
                 end
             end
         end
@@ -329,12 +445,12 @@ end
                 test_frule(eigvals!, X)
                 @test frule((ZeroTangent(), ZeroTangent()), eigvals!, copy(X))[2] == ZeroTangent()
 
-                @testset "tangents are real when outputs are" begin
-                    # hermitian matrices have real eigenvalues
+                @testset "tangent types match outputs" begin
+                    # hermitian matrices have real eigenvalues (of complex type for complex
+                    # matrices on Julia >= 1.14)
                     X = Matrix(Hermitian(randn(T, n, n)))
-                    Ẋ = Matrix(Hermitian(rand_tangent(X)))
-                    _, λ̇ = frule((ZeroTangent(), Ẋ), eigvals!, X)
-                    @test eltype(λ̇) <: Real
+                    λ, λ̇ = frule((ZeroTangent(), rand_tangent(X)), eigvals!, X)
+                    @test eltype(λ̇) == eltype(λ)
                 end
             end
 
@@ -355,24 +471,49 @@ end
             @testset "hermitian matrices" begin
                 n = 10
                 @testset "eigvals!(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), Matrix(Hermitian(randn(T, n, n)))
+                    A, ΔA = Matrix(Hermitian(randn(T, n, n))), randn(T, n, n)
                     λ = eigvals!(copy(A))
                     λ_ad, ∂λ_ad = frule((ZeroTangent(), copy(ΔA)), eigvals!, copy(A))
                     @test λ_ad ≈ λ # inexact because frule uses eigen not eigvals
                     @test ∂λ_ad isa typeof(λ)
-                    @test ∂λ_ad ≈ jvp(_fdm, A -> eigvals(Matrix(Hermitian(A))), (A, ΔA))
+                    @test frule((ZeroTangent(), @thunk(copy(ΔA))), eigvals!, copy(A))[2] ==
+                        ∂λ_ad
+                    # eigenvalues are differentiable in all directions their type admits
+                    f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    @test ∂λ_ad ≈ jvp(_fdm, f, (A, ΔA))
+
+                    # tangents follow the order of the eigenvalues
+                    _, ∂λ_rev = frule(
+                        (ZeroTangent(), copy(ΔA)), eigvals!, copy(A); sortby=λ -> -real(λ)
+                    )
+                    @test ∂λ_rev ≈ reverse(∂λ_ad)
                 end
 
                 @testset "eigvals(::Matrix{$T})" for T in (Float64, ComplexF64)
-                    A, Δλ = Matrix(Hermitian(randn(T, n, n))), randn(n)
+                    A = Matrix(Hermitian(randn(T, n, n)))
                     λ = eigvals(A)
+                    Δλ = randn(eltype(λ), n)
                     λ_ad, back = rrule(eigvals, A)
                     @test λ_ad ≈ λ # inexact because rrule uses eigen not eigvals
                     ∂self, ∂A = @maybe_inferred back(Δλ)
                     @test ∂self === NoTangent()
                     @test ∂A isa typeof(A)
-                    @test ∂A ≈ j′vp(_fdm, A -> eigvals(Matrix(Hermitian(A))), Δλ, A)[1]
+                    # eigenvalues are differentiable in all directions their type admits
+                    f = eltype(λ) == T ? eigvals : x -> eigvals(Matrix(hermitianpart(x)))
+                    @test ∂A ≈ j′vp(_fdm, f, Δλ, A)[1]
                     @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
+
+                    # gradient of `sum ∘ eigvals = tr` (FluxML/Zygote.jl#1369)
+                    @test back(ones(eltype(λ), n))[2] ≈ I
+
+                    # imaginary parts of cotangents of real-typed eigenvalues are ignored
+                    if eltype(λ) <: Real
+                        @test back(complex.(Δλ, randn(n)))[2] == ∂A
+                    end
+
+                    # cotangents follow the order of the eigenvalues
+                    _, back_rev = rrule(eigvals, A; sortby=λ -> -real(λ))
+                    @test back_rev(reverse(Δλ))[2] ≈ ∂A
                 end
             end
         end
@@ -382,55 +523,186 @@ end
     # have fantastic support for this stuff at the minute.
     # also we might be missing some overloads for different tangent-types in the rules
     @testset "cholesky" begin
-        @testset "Real" begin
-            test_rrule(cholesky, 0.8)
-        end
-        @testset "Diagonal{<:Real}" begin
-            D = Diagonal(rand(5) .+ 0.1)
-            C = cholesky(D)
-            test_rrule(
-                cholesky, D ⊢ Diagonal(randn(5)), Val(false);
-                output_tangent=Tangent{typeof(C)}(factors=Diagonal(randn(5)))
-            )
-        end
-
-        X = generate_well_conditioned_matrix(10)
-        V = generate_well_conditioned_matrix(10)
-        F, dX_pullback = rrule(cholesky, X, Val(false))
-        F_1arg, dX_pullback_1arg = rrule(cholesky, X)  # to test not passing the Val(false)
-        @test F == F_1arg
-        @testset "uplo=$p" for p in [:U, :L]
-            Y, dF_pullback = rrule(getproperty, F, p)
-            Ȳ = (p === :U ? UpperTriangular : LowerTriangular)(randn(size(Y)))
-            (dself, dF, dp) = dF_pullback(Ȳ)
-            @test dself === NoTangent()
-            @test dp === NoTangent()
-
-            # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
-            # machinery from FiniteDifferences because that isn't set up to respect
-            # necessary special properties of the input. In the case of the Cholesky
-            # factorization, we need the input to be Hermitian.
-            ΔF = unthunk(dF)
-            _, dX, darg2 = dX_pullback(ΔF)
-            _, dX_1arg = dX_pullback_1arg(ΔF)
-            @test dX == dX_1arg
-            @test darg2 === NoTangent()
-            X̄_ad = dot(unthunk(dX), V)
-            X̄_fd = central_fdm(5, 1)(0.000_001) do ε
-                dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p))
+        @testset "Number" begin
+            @testset "uplo=$uplo" for uplo in (:U, :L)
+                test_rrule(cholesky, 0.8, uplo)
+                test_rrule(cholesky, -0.3, uplo)
+                test_rrule(cholesky, 0.23 + 0im, uplo)
+                test_rrule(cholesky, 0.78 + 0.5im, uplo)
+                test_rrule(cholesky, -0.34 + 0.1im, uplo)
             end
-            @test X̄_ad ≈ X̄_fd rtol=1e-4
+        end
+
+        @testset "Diagonal" begin
+            @testset "Diagonal{<:Real}" begin
+                test_rrule(cholesky, Diagonal([0.3, 0.2, 0.5, 0.6, 0.9]), NoPivot())
+            end
+            @testset "Diagonal{<:Complex}" begin
+                # finite differences in general will produce matrices with non-real
+                # diagonals, which cause factorization to fail. If we turn off the check and
+                # ensure the cotangent is real, then test_rrule still works.
+                D = Diagonal([0.3 + 0im, 0.2, 0.5, 0.6, 0.9])
+                C = cholesky(D)
+                test_rrule(
+                    cholesky,
+                    D,
+                    NoPivot();
+                    output_tangent=Tangent{typeof(C)}(factors=complex(randn(5, 5))),
+                    fkwargs=(; check=false),
+                )
+            end
+            @testset "check has correct default and passed to primal" begin
+                @test_throws Exception rrule(cholesky, Diagonal(-rand(5)), NoPivot())
+                rrule(cholesky, Diagonal(-rand(5)), NoPivot(); check=false)
+            end
+            @testset "failed factorization" begin
+                A = Diagonal(vcat(rand(4), -rand(4), rand(4)))
+                test_rrule(cholesky, A, NoPivot(); fkwargs=(; check=false))
+            end
+        end
+
+        @testset "StridedMatrix" begin
+            @testset "Matrix{$T}" for T in (Float64, ComplexF64)
+                X = generate_well_conditioned_matrix(T, 10)
+                V = generate_well_conditioned_matrix(T, 10)
+                F, dX_pullback = rrule(cholesky, X, NoPivot())
+                @testset "uplo=$p, cotangent eltype=$T" for p in [:U, :L], S in unique([T, complex(T)])
+                    Y, dF_pullback = rrule(getproperty, F, p)
+                    Ȳ = randn(S, size(Y))
+                    (dself, dF, dp) = dF_pullback(Ȳ)
+                    @test dself === NoTangent()
+                    @test dp === NoTangent()
+
+                    # NOTE: We're doing Nabla-style testing here and avoiding using the `j′vp`
+                    # machinery from FiniteDifferences because that isn't set up to respect
+                    # necessary special properties of the input. In the case of the Cholesky
+                    # factorization, we need the input to be Hermitian.
+                    ΔF = unthunk(dF)
+                    _, dX, darg2 = dX_pullback(ΔF)
+                    @test darg2 === NoTangent()
+                    X̄_ad = real(dot(unthunk(dX), V))
+                    X̄_fd = central_fdm(5, 1)(0.000_0001) do ε
+                        real(dot(Ȳ, getproperty(cholesky(X .+ ε .* V), p)))
+                    end
+                    @test X̄_ad ≈ X̄_fd rtol=1e-4
+                end
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Matrix(Symmetric(randn(10, 10)))
+                @test_throws Exception rrule(cholesky, X, NoPivot())
+                rrule(cholesky, X, NoPivot(); check=false)  # just check it doesn't throw
+            end
         end
 
         # Ensure that cotangents of cholesky(::StridedMatrix) and
         # (cholesky ∘ Symmetric)(::StridedMatrix) are equal.
         @testset "Symmetric" begin
-            X_symmetric, sym_back = rrule(Symmetric, X, :U)
-            C, chol_back_sym = rrule(cholesky, X_symmetric, Val(false))
+            X = generate_well_conditioned_matrix(10)
+            F, dX_pullback = rrule(cholesky, X, NoPivot())
+            ΔU = randn(size(X))
+            ΔF = Tangent{typeof(F)}(; factors=ΔU)
 
-            Δ = Tangent{typeof(C)}((U=UpperTriangular(randn(size(X)))))
-            ΔX_symmetric = chol_back_sym(Δ)[2]
-            @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(Δ)[2]
+            @testset for uplo in (:L, :U)
+                X_symmetric, sym_back = rrule(Symmetric, X, uplo)
+                C, chol_back_sym = rrule(cholesky, X_symmetric, NoPivot())
+
+                ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
+                ΔX_symmetric = chol_back_sym(ΔC)[2]
+                if uplo === :U
+                    @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(ΔF)[2]
+                else
+                    @test sym_back(ΔX_symmetric)[2] ≈ dX_pullback(ΔF)[2]'
+                end
+            end
+        end
+
+        # Ensure that cotangents of cholesky(::StridedMatrix) and
+        # (cholesky ∘ Hermitian)(::StridedMatrix) are equal.
+        @testset "Hermitian" begin
+            @testset "Hermitian{$T}" for T in (Float64, ComplexF64)
+                X = generate_well_conditioned_matrix(T, 10)
+                F, dX_pullback = rrule(cholesky, X, NoPivot())
+                ΔU = randn(T, size(X))
+                ΔF = Tangent{typeof(F)}(; factors=ΔU)
+
+                @testset for uplo in (:L, :U)
+                    X_hermitian, herm_back = rrule(Hermitian, X, uplo)
+                    C, chol_back_herm = rrule(cholesky, X_hermitian, NoPivot())
+
+                    ΔC = Tangent{typeof(C)}(; factors=(uplo === :U ? ΔU : ΔU'))
+                    ΔX_hermitian = chol_back_herm(ΔC)[2]
+                    if uplo === :U
+                        @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(ΔF)[2]
+                    else
+                        @test herm_back(ΔX_hermitian)[2] ≈ dX_pullback(ΔF)[2]'
+                    end
+                end
+            end
+            @testset "check has correct default and passed to primal" begin
+                # this will almost certainly be a non-PD matrix
+                X = Hermitian(randn(10, 10))
+                @test_throws Exception rrule(cholesky, X, NoPivot())
+                rrule(cholesky, X, NoPivot(); check=false)
+            end
+        end
+
+        @testset "det and logdet (uplo=$p)" for p in (:U, :L)
+            @testset "$op" for op in (det, logdet)
+                @testset "$T" for T in (Float64, ComplexF64)
+                    n = 5
+                    # rand (not randn) so det will be positive, so logdet will be defined
+                    A = 3 * rand(T, (n, n))
+                    X = Cholesky(A * A' + I, p, 0)
+                    X̄_acc = Tangent{typeof(X)}(; factors=Diagonal(randn(T, n))) # sensitivity is always a diagonal
+                    test_rrule(op, X ⊢ X̄_acc)
+
+                    # return type
+                    _, op_pullback = rrule(op, X)
+                    X̄ = op_pullback(2.7)[2]
+                    @test X̄ isa Tangent{<:Cholesky}
+                    @test X̄.factors isa Diagonal
+
+                    # zero co-tangent
+                    X̄ = op_pullback(0.0)[2]
+                    @test all(iszero, X̄.factors)
+                end
+            end
+
+            @testset "singular ($T)" for T in (Float64, ComplexF64)
+                n = 5
+                L = LowerTriangular(randn(T, (n, n)))
+                L[1, 1] = zero(T)
+                X = cholesky(L * L'; check=false)
+                detX, det_pullback = rrule(det, X)
+                ΔX = det_pullback(rand())[2]
+                @test iszero(detX)
+                @test ΔX.factors isa Diagonal && all(iszero, ΔX.factors)
+            end
+        end
+
+        @testset "\\(::Cholesky, ::AbstractVecOrMat)" begin
+            n = 10
+            for T in (Float64, ComplexF64), sz in (n, (n, 5))
+                A = generate_well_conditioned_matrix(T, n)
+                C = cholesky(A)
+                B = randn(T, sz)
+                # because the rule calls the rrule for getproperty, its rrule is not
+                # completely type-inferable
+                test_rrule(\, C, B; check_inferred=false)
+            end
+        end
+
+        @testset "/(::AbstractMatrix, ::Cholesky)" begin
+            n = 10
+            for T in (Float64, ComplexF64)
+                A = generate_well_conditioned_matrix(T, n)
+                C = cholesky(A)
+                B = randn(T, 5, n)
+                # because the rule calls the rrule for getproperty, its rrule is not
+                # completely type-inferable
+                test_rrule(/, B, C; check_inferred=false)
+            end
         end
     end
 end

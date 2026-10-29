@@ -2,10 +2,37 @@
 # that also have FastMath versions.
 
 @scalar_rule copysign(y, x) (ifelse(signbit(x)!=signbit(y), -one(y), +one(y)), NoTangent())
-
-@scalar_rule one(x) zero(x)
-@scalar_rule zero(x) zero(x)
 @scalar_rule transpose(x) true
+
+# `zero`
+
+function frule((_, _), ::typeof(zero), x)
+    return (zero(x), ZeroTangent())
+end
+
+function rrule(::typeof(zero), x)
+    zero_pullback = Returns((NoTangent(), ZeroTangent()))
+    return (zero(x), zero_pullback)
+end
+
+# `one`
+
+function frule((_, _), ::typeof(one), x)
+    return (one(x), ZeroTangent())
+end
+
+function rrule(::typeof(one), x)
+    one_pullback = Returns((NoTangent(), ZeroTangent()))
+    return (one(x), one_pullback)
+end
+
+
+function ChainRulesCore.frule((_, ȯbj, _, ẋ), ::typeof(setfield!), obj, field, x)
+    ȯbj::MutableTangent
+    y = setfield!(obj, field, x)
+    ẏ = setproperty!(ȯbj, field, ẋ)
+    return y, ẏ
+end
 
 # `adjoint`
 
@@ -72,6 +99,8 @@ function rrule(::Type{T}, x::Number, y::Number) where {T<:Complex}
     return (T(x, y), Complex_pullback)
 end
 
+@scalar_rule complex(x) true
+
 # `hypot`
 
 @scalar_rule hypot(x::Real) sign(x)
@@ -90,8 +119,41 @@ function rrule(::typeof(hypot), z::Complex)
     return (Ω, hypot_pullback)
 end
 
+# Note that `hypot` with two arguments has rules in `fastmath_able.jl`
+
+function frule(
+    (_, Δx, Δy, Δz, Δxs...),
+    ::typeof(hypot),
+    x::Union{Real,Complex},
+    y::Union{Real,Complex},
+    z::Union{Real,Complex},
+    xs::Union{Real,Complex}...,
+)
+    Ω = hypot(x, y, z, xs...)
+    n = ifelse(iszero(Ω), oneunit(Ω), Ω)
+    ∂Ω = sum(map(realdot, (x, y, z, xs...), (Δx, Δy, Δz, Δxs...))) / n
+    return Ω, ∂Ω
+end
+
+function rrule(
+    ::typeof(hypot),
+    x::Union{Real,Complex},
+    y::Union{Real,Complex},
+    z::Union{Real,Complex},
+    xs::Union{Real,Complex}...,
+)
+    Ω = hypot(x, y, z, xs...)
+    function hypot_pullback(ΔΩ)
+        c = real(ΔΩ) / ifelse(iszero(Ω), one(Ω), Ω)
+        return (NoTangent(), c * x, c * y, c * z, map(xi -> c * xi, xs)...)
+    end
+    return (Ω, hypot_pullback)
+end
+
+
 @scalar_rule fma(x, y, z) (y, x, true)
 @scalar_rule muladd(x, y, z) (y, x, true)
+@scalar_rule muladd(x::Union{Number, ZeroTangent}, y::Union{Number, ZeroTangent}, z::Union{Number, ZeroTangent}) (y, x, true)
 @scalar_rule rem2pi(x, r::RoundingMode) (true, NoTangent())
 @scalar_rule(
     mod(x, y),
@@ -171,7 +233,9 @@ function rrule(::typeof(identity), x)
     return (x, identity_pullback)
 end
 
-# rouding related,
+ChainRulesCore.derivatives_given_output(Ω, ::typeof(identity), x) = tuple(tuple(true))
+
+# rounding related,
 # we use `zero` rather than `ZeroTangent()` for scalar, and avoids issues with map etc
 @scalar_rule round(x) zero(x)
 @scalar_rule floor(x) zero(x)
@@ -197,4 +261,86 @@ function rrule(::typeof(Base.literal_pow), ::typeof(^), x::Real, ::Val{3})
     x2 = x * x
     cube_pullback(dy) = (NoTangent(), NoTangent(), ProjectTo(x)(3 * x2 * dy), NoTangent())
     return x2 * x, cube_pullback
+end
+
+#####
+##### `map`
+#####
+
+# Ideally reverse mode should always iterate in reverse order. For `map` and broadcasting
+# this may matter with a stateful `f`, but in general their order isn't guaranteed anyway,
+# so it's unclear how much effort should be spent on that. But `map` on Tuples normally
+# gets unrolled, so perhaps it does guarantee order, and reversing it should be cheap too.
+
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(map), f::F, xs::Tuple...) where {F}
+    length_y = minimum(length, xs)
+    hobbits = ntuple(length_y) do i
+        args = getindex.(xs, i)
+        rrule_via_ad(config, f, args...)
+    end
+    y = map(first, hobbits)
+    num_xs = Val(length(xs))
+    paddings = map(x -> ntuple(Returns(NoTangent()), (length(x) - length_y)), xs)
+    function map_pullback(dy_raw)
+        dy = unthunk(dy_raw)
+        # We want to call the pullbacks in `rrule_via_ad` in reverse sequence to the forward pass:
+        backevals = ntuple(length_y) do i
+            rev_i = length_y - i + 1
+            last(hobbits[rev_i])(dy[rev_i])
+        end |> reverse
+        # This df doesn't infer, could test Base.issingletontype(F), but it's not the only inference problem.
+        df = ProjectTo(f)(sum(first, backevals))
+        # Now unzip that. Because `map` like `zip` should when any `x` stops, some `dx`s may need padding.
+        # Although in fact, `map(+, (1,2), (3,4,5))` is an error... https://github.com/JuliaLang/julia/issues/42216
+        dxs = ntuple(num_xs) do k
+            dx_short = map(bv -> bv[k+1], backevals)
+            ProjectTo(xs[k])((dx_short..., paddings[k]...))  # ProjectTo makes the Tangent for us
+        end
+        return (NoTangent(), df, dxs...)
+    end
+    map_back(dy::AbstractZero) = (NoTangent(), NoTangent(), ntuple(Returns(NoTangent()), num_xs)...)
+    return y, map_pullback
+end
+
+#####
+##### `task_local_storage`
+#####
+
+# Called by `@allowscalar` from GPUArrays
+
+ChainRules.@non_differentiable task_local_storage(key::Any)
+ChainRules.@non_differentiable task_local_storage(key::Any, value::Any)
+
+function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(task_local_storage), body::Function, key, value)
+    y, back = task_local_storage(key, value) do
+        rrule_via_ad(config, body)
+    end
+    function task_local_storage_pullback(dy)
+        dbody = only(back(dy))
+        return (NoTangent(), dbody, NoTangent(), NoTangent())
+    end
+    return y, task_local_storage_pullback
+end
+
+####
+#### merge
+####
+# need to work around inability to return closures from generated functions
+struct MergePullback{T1,T2} end
+(this::MergePullback)(dy::AbstractThunk) = this(unthunk(dy))
+(::MergePullback)(x::AbstractZero) = (NoTangent(), x, x)
+@generated function (::MergePullback{T1,T2})(
+    dy::Tangent
+) where {F1,T1<:NamedTuple{F1},F2,T2<:NamedTuple{F2}}
+    _getproperty_kwexpr(key) = :($key = getproperty(dy, $(Meta.quot(key))))
+    quote
+        dnt1 = Tangent{T1}(; $(map(_getproperty_kwexpr, setdiff(F1, F2))...))
+        dnt2 = Tangent{T2}(; $(map(_getproperty_kwexpr, F2)...))
+        return (NoTangent(), dnt1, dnt2)
+    end
+end
+
+function rrule(::typeof(merge), nt1::T1, nt2::T2) where {T1<:NamedTuple,T2<:NamedTuple}
+    y = merge(nt1, nt2)
+    return y, MergePullback{T1,T2}()
 end

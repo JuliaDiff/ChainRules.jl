@@ -4,7 +4,7 @@
 
 function frule((_, Δx), ::typeof(norm), x)
     y = norm(x)
-    return y, _norm2_forward(x, Δx, norm(x))
+    return y, _norm2_forward(x, Δx, y)
 end
 
 function frule((_, ẋ), ::typeof(norm), x::Number, p::Real)
@@ -257,11 +257,21 @@ end
 ##### `normalize`
 #####
 
-function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
+# `normalize!(y, p)` with precomputed `nrm == norm(y, p)`
+function _normalize!(y, nrm, p::Real=2)
+    if !issubnormal(nrm)
+        rmul!(y, inv(nrm))
+    else
+        normalize!(rmul!(y, inv(floatmin(nrm))), p)
+    end
+    return y
+end
+
+function rrule(::typeof(normalize), x::AbstractArray{<:Number}, p::Real)
     nrm, inner_pullback = rrule(norm, x, p)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
-    LinearAlgebra.__normalize!(y, nrm)
+    _normalize!(y, nrm, p)
     function normalize_pullback(Δy)
         invnrm = pinv(nrm)
         ∂nrm = -dot(y, Δy) * invnrm
@@ -273,11 +283,11 @@ function rrule(::typeof(normalize), x::AbstractVector{<:Number}, p::Real)
     return y, normalize_pullback
 end
 
-function rrule(::typeof(normalize), x::AbstractVector{<:Number})
+function rrule(::typeof(normalize), x::AbstractArray{<:Number})
     nrm = LinearAlgebra.norm2(x)
     Ty = typeof(first(x) / nrm)
     y = copyto!(similar(x, Ty), x)
-    LinearAlgebra.__normalize!(y, nrm)
+    _normalize!(y, nrm)
     function normalize_pullback(ȳ)
         Δy = unthunk(ȳ)
         ∂x = (Δy .- realdot(y, Δy) .* y) .* pinv(nrm)

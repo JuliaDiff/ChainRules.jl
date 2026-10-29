@@ -1,3 +1,13 @@
+using ChainRules,
+    ChainRulesCore,
+    ChainRulesTestUtils,
+    FiniteDifferences,
+    JLArrays,
+    LinearAlgebra,
+    SparseArrays,
+    StaticArrays,
+    Test
+
 @testset "Array constructors" begin
     @testset "undef" begin
     # We can't use test_rrule here (as it's currently implemented) because the elements of
@@ -35,9 +45,16 @@ end
 @testset "vect" begin
     test_rrule(Base.vect)
     @testset "homogeneous type" begin
-        test_rrule(Base.vect, (5.0, ), (4.0, ))
+        test_rrule(Base.vect, (5.0,), (4.0,))
+        test_frule(Base.vect, (5.0,), (4.0,))
         test_rrule(Base.vect, 5.0, 4.0, 3.0)
+        test_frule(Base.vect, 5.0, 4.0, 3.0)
         test_rrule(Base.vect, randn(2, 2), randn(3, 3))
+        test_frule(Base.vect, randn(2, 2), randn(3, 3))
+
+        # Nonnumber types
+        test_frule(Base.vect, (1.0, 2.0), (1.0, 2.0))
+        test_rrule(Base.vect, (1.0, 2.0), (1.0, 2.0))
     end
     @testset "inhomogeneous type" begin
         # fwd
@@ -52,7 +69,7 @@ end
     end
     @testset "_instantiate_zeros" begin
         # This is an internal function also used for `cat` etc.
-        @eval using ChainRules: _instantiate_zeros
+        _instantiate_zeros = ChainRules._instantiate_zeros
         # Check these hit the fast path, unrealistic input so that map would fail:
         @test _instantiate_zeros((true, 2 , 3.0), ()) == (1, 2, 3)
         @test _instantiate_zeros((1:2, [3, 4]), ()) == (1:2, 3:4)
@@ -68,12 +85,12 @@ end
 
 @testset "reshape" begin
     # Forward
-    test_frule(reshape, rand(4, 3), 2, :)
+    @gpu test_frule(reshape, rand(4, 3), 2, :)
     test_frule(reshape, rand(4, 3), axes(rand(6, 2)))
     @test_skip test_frule(reshape, Diagonal(rand(4)), 2, :) # https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/239
 
     # Reverse
-    test_rrule(reshape, rand(4, 5), (2, 10))
+    @gpu test_rrule(reshape, rand(4, 5), (2, 10))
     test_rrule(reshape, rand(4, 5), 2, 10)
     test_rrule(reshape, rand(4, 5), 2, :)
     test_rrule(reshape, rand(4, 5), axes(rand(10, 2)))
@@ -98,14 +115,14 @@ end
 
 @testset "permutedims + PermutedDimsArray" begin
     # Forward
-    test_frule(permutedims, rand(5))
-    test_frule(permutedims, rand(3, 4), (2, 1))
+    @gpu test_frule(permutedims, rand(5))
+    @gpu test_frule(permutedims, rand(3, 4), (2, 1))
     test_frule(permutedims!, rand(4,3), rand(3, 4), (2, 1))
     test_frule(PermutedDimsArray, rand(3, 4, 5), (3, 1, 2))
 
     # Reverse
-    test_rrule(permutedims, rand(5))
-    test_rrule(permutedims, rand(3, 4), (2, 1))
+    @gpu test_rrule(permutedims, rand(5))
+    @gpu test_rrule(permutedims, rand(3, 4), (2, 1))
     test_rrule(permutedims, Diagonal(rand(5)), (2, 1))
     # Note BTW that permutedims(Diagonal(rand(5))) does not use the rule at all
 
@@ -127,16 +144,16 @@ end
     test_rrule(repeat, rand(4, ))
     test_rrule(repeat, rand(4, 5))
     test_rrule(repeat, rand(4, 5); fkwargs = (outer=(1,2),))
-    test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+    @gpu_broken test_rrule(repeat, rand(4, 5); fkwargs = (inner=(1,2), outer=(1,3)))
+    @gpu_broken test_rrule(repeat, rand(4, 5); fkwargs = (outer=2,))
 
-    test_rrule(repeat, rand(4, ), 2)
-    test_rrule(repeat, rand(4, 5), 2)
-    test_rrule(repeat, rand(4, 5), 2, 3)
-    test_rrule(repeat, rand(1,2,3), 2,3,4; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(0,2,3), 2,0,4; check_inferred=VERSION>v"1.6")
-    test_rrule(repeat, rand(1,1,1,1), 2,3,4,5; check_inferred=VERSION>v"1.6")
-    
-    # These need Julia 1.6
+    @gpu test_rrule(repeat, rand(4, ), 2)
+    @gpu test_rrule(repeat, rand(4, 5), 2)
+    @gpu test_rrule(repeat, rand(4, 5), 2, 3)
+    test_rrule(repeat, rand(1, 2, 3), 2, 3, 4)
+    test_rrule(repeat, rand(0, 2, 3), 2, 0, 4)
+    test_rrule(repeat, rand(1, 1, 1, 1), 2, 3, 4, 5)
+
     test_rrule(repeat, rand(4, 5); fkwargs = (inner=(2,4), outer=(1,1,1,3)))
     test_rrule(repeat, rand(1,2,3), 2,3)
     test_rrule(repeat, rand(1,2,3), 2,3,4,2)
@@ -153,20 +170,23 @@ end
     @test rrule(repeat, [1,2,3], 4)[2](ones(12))[2] == [4,4,4]
     @test rrule(repeat, [1,2,3], outer=4)[2](ones(12))[2] == [4,4,4]
 
+    test_rrule(repeat, [true, false], 3)
 end
 
 @testset "hcat" begin
     # forward
-    test_frule(hcat, randn(3, 2), randn(3))
-    test_frule(hcat, randn(), randn(1,3))
+    @gpu test_frule(hcat, randn(3, 2), randn(3))
+    @gpu test_frule(hcat, randn(), randn(1,3))
 
     # reverse
-    test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3))
+    @gpu test_rrule(hcat, randn(3, 2), randn(3), randn(3, 3))
+    @gpu test_rrule(hcat, rand(1,2), rand(), rand(1,3))
     test_rrule(hcat, rand(), rand(1,2), rand(1,2,1))
     test_rrule(hcat, rand(3,1,1,2), rand(3,3,1,2))
 
     # mix types
-    test_rrule(hcat, rand(2, 2), rand(2, 2)')
+    test_rrule(hcat, rand(1, 3), rand(2)')
+    test_rrule(hcat, rand(1), (nothing, rand()), check_inferred=false)
 end
 
 @testset "reduce hcat" begin
@@ -192,20 +212,22 @@ end
 end
 
 @testset "vcat" begin
-
     # forward
     test_frule(vcat, randn(), randn(3), rand())
-    test_frule(vcat, randn(3, 1), randn(3))
+    @gpu test_frule(vcat, randn(3), rand(), randn(3))
+    @gpu test_frule(vcat, randn(3, 1), randn(3))
 
     # reverse
-    test_rrule(vcat, randn(2, 4), randn(1, 4), randn(3, 4))
+    @gpu test_rrule(vcat, randn(3), rand(), randn(3))
+    @gpu test_rrule(vcat, randn(2, 4), randn(1, 4), randn(3, 4))
     test_rrule(vcat, rand(), rand())
     test_rrule(vcat, rand(), rand(3), rand(3,1,1))
     test_rrule(vcat, rand(3,1,2), rand(4,1,2))
 
-
     # mix types
     test_rrule(vcat, rand(2, 2), rand(2, 2)')
+    test_rrule(vcat, rand(), rand() => rand(); check_inferred=false)
+    test_rrule(vcat, rand(3), (rand(), nothing), pi/2; check_inferred=false)
 end
 
 @testset "reduce vcat" begin
@@ -227,12 +249,17 @@ end
     test_frule(cat, rand(), rand(2,3); fkwargs=(dims=(1,2),))
 
     # reverse
-    test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
-    test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
-    test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1,2],))
-    test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1,2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
+    @gpu test_rrule(cat, rand(2, 4), rand(1, 4); fkwargs=(dims=1,))
+    @gpu test_rrule(cat, rand(2, 4), rand(2); fkwargs=(dims=Val(2),))
+    test_rrule(cat, rand(), rand(2, 3); fkwargs=(dims=[1, 2],))
+    test_rrule(cat, rand(1), rand(3, 2, 1); fkwargs=(dims=(1, 2),), check_inferred=false) # infers Tuple{Zero, Vector{Float64}, Any}
+
+    test_rrule(cat, randn(3, 2, 4), randn(3, 2, 4); fkwargs=(dims=Val((1, 2)),)) #678
 
     test_rrule(cat, rand(2, 2), rand(2, 2)'; fkwargs=(dims=1,))
+    # inference on exotic array types
+    test_rrule(cat, @SArray(rand(3, 2, 1)), @SArray(rand(3, 2, 1)); fkwargs=(dims=Val(2),))
+    test_rrule(cat, pi/2, rand(1,3), (4.5,); fkwargs=(;dims=(2,)), check_inferred=false)
 end
 
 @testset "hvcat" begin
@@ -247,6 +274,7 @@ end
 
     # mix types (adjoint and transpose)
     test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3))
+    test_rrule(hvcat, (1,2), rand(2)', (3.4, 5.6), 7.8; check_inferred=false)
 end
 
 @testset "reverse" begin
@@ -255,8 +283,21 @@ end
         @test_skip test_rrule(reverse, Tuple(rand(10)))  # Ambiguity in isapprox, https://github.com/JuliaDiff/ChainRulesTestUtils.jl/issues/229
     end
     @testset "Array" begin
+        # `reverse(::JLArray)` fails with JLArrays < 0.4 (scalar indexing) and with
+        # JLArrays 0.4.2 and GPUArrays 12.1.1, which calls AcceleratedKernels whose kernels
+        # are unavailable on JLArrays' backend (JuliaGPU/GPUArrays.jl#817)
+        jl_has_reverse = try
+            reverse(JLArray([1.0f0, 2.0f0])) isa JLArray
+        catch
+            false
+        end
+
         # Forward
-        test_frule(reverse, rand(5))
+        if jl_has_reverse
+            @gpu test_frule(reverse, rand(5))
+        else
+            @gpu_broken test_frule(reverse, rand(5))
+        end
         test_frule(reverse, rand(5), 2, 4)
         test_frule(reverse, rand(5), fkwargs=(dims=1,))
         test_frule(reverse, rand(3,4), fkwargs=(dims=2,))
@@ -268,7 +309,11 @@ end
         test_frule(reverse!, rand(3,4), fkwargs=(dims=2,))
 
         # Reverse
-        test_rrule(reverse, rand(5))
+        if jl_has_reverse
+            @gpu test_rrule(reverse, rand(5))
+        else
+            @gpu_broken test_rrule(reverse, rand(5))
+        end
         test_rrule(reverse, rand(5), 2, 4)
         test_rrule(reverse, rand(5), fkwargs=(dims=1,))
 
@@ -286,7 +331,7 @@ end
 
 @testset "circshift" begin
     # Forward
-    test_frule(circshift, rand(10), 1)
+    @gpu test_frule(circshift, rand(10), 1)
     test_frule(circshift, rand(10), (1,))
     test_frule(circshift, rand(3,4), (-7,2))
 
@@ -294,7 +339,7 @@ end
     test_frule(circshift!, rand(3,4), rand(3,4), (-7,2))
 
     # Reverse
-    test_rrule(circshift, rand(10), 1)
+    @gpu test_rrule(circshift, rand(10), 1)
     test_rrule(circshift, rand(10) .+ im, -2)
     test_rrule(circshift, rand(10), (1,))
     test_rrule(circshift, rand(3,4), (-7,2))
@@ -344,42 +389,36 @@ end
     @test_skip test_frule(findmin, rand(3,4), output_tangent = (rand(), NoTangent()))
     @test_skip test_frule(findmin, rand(3,4), fkwargs=(dims=1,))
     # These skipped tests might be fixed by https://github.com/JuliaDiff/FiniteDifferences.jl/issues/188
+    # or by https://github.com/JuliaLang/julia/pull/48404
 
     # Reverse
     test_rrule(findmin, rand(10), output_tangent = (rand(), false))
     test_rrule(findmax, rand(10), output_tangent = (rand(), false))
-    test_rrule(findmin, rand(5,3))
-    test_rrule(findmax, rand(5,3))
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
-    @test [0 0; 0 5] == @inferred unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
-    
+    test_rrule(findmin, rand(5,3); check_inferred=false)
+    test_rrule(findmax, rand(5,3); check_inferred=false)
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, nothing))[2])
+    @test [0 0; 0 5] == unthunk(rrule(findmax, [1 2; 3 4])[2]((5.0, NoTangent()))[2])
+
     # Reverse with dims:
     @test [0 0; 5 6] == @inferred unthunk(rrule(findmax, [1 2; 3 4], dims=1)[2](([5 6], nothing))[2])
     @test [5 0; 6 0] == @inferred unthunk(rrule(findmin, [1 2; 3 4], dims=2)[2]((hcat([5,6]), nothing))[2])
     test_rrule(findmin, rand(3,4), fkwargs=(dims=1,), output_tangent = (rand(1,4), NoTangent()))
     test_rrule(findmin, rand(3,4), fkwargs=(dims=2,))
-
-    # Second derivatives
-    test_frule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
-    test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, :, CartesianIndex(2, 2))
-    @test_skip test_rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)]  ⊢ NoTangent())  # MethodError: no method matching isapprox(::Matrix{Float64}, ::Float64; rtol=1.0e-9, atol=1.0e-9)
-    y, bk = rrule(ChainRules._zerolike_writeat, rand(2, 2), 5.0, 1, [CartesianIndex(2, 1) CartesianIndex(2, 2)])
-    @test y == [0 0; 5 5]
-    @test bk([1 2; 3 4]) == (NoTangent(), NoTangent(), [3 4], NoTangent(), NoTangent())
+    test_rrule(findmin, rand(3,4), fkwargs=(dims=(1,2),))
 end
 
 @testset "$imum" for imum in [maximum, minimum]
     # Forward
     test_frule(imum, rand(10))
     test_frule(imum, rand(3,4))
-    test_frule(imum, rand(3,4), fkwargs=(dims=1,))
+    @gpu test_frule(imum, rand(3,4), fkwargs=(dims=1,))
     test_frule(imum, [rand(2) for _ in 1:3])
     test_frule(imum, [rand(2) for _ in 1:3, _ in 1:4]; fkwargs=(dims=1,))
 
     # Reverse
     test_rrule(imum, rand(10))
-    test_rrule(imum, rand(3,4))
-    test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
+    test_rrule(imum, rand(3,4); check_inferred=false)
+    @gpu test_rrule(imum, rand(3,4), fkwargs=(dims=1,))
     test_rrule(imum, rand(3,4,5), fkwargs=(dims=(1,3),))
 
     # Arrays of arrays
@@ -390,7 +429,7 @@ end
     res = imum == maximum ? [0,1,0,0,0,0] : [1,0,0,0,0,0]
     @test res == @inferred unthunk(rrule(imum, [1,2,1,2,1,2])[2](1.0)[2])
 
-    # Structured matrix -- NB the minimum is a structral zero here
+    # Structured matrix -- NB the minimum is a structural zero here
     @test unthunk(rrule(imum, Diagonal(rand(3) .+ 1))[2](5.5)[2]) isa Diagonal
     @test unthunk(rrule(imum, UpperTriangular(rand(3,3) .+ 1))[2](5.5)[2]) isa UpperTriangular{Float64}
     @test_skip test_rrule(imum, Diagonal(rand(3) .+ 1)) # MethodError: no method matching zero(::Type{Any}), from fill!(A::SparseArrays.SparseMatrixCSC{Any, Int64}, x::Bool)
@@ -408,4 +447,30 @@ end
     @test extrema(A, dims=(1,3)) == rrule(extrema, A, dims=(1,3))[1]
     B = hcat(A[:,:,1], A[:,:,1])
     @test extrema(B, dims=2) == rrule(extrema, B, dims=2)[1]
+end
+
+@testset "stack" begin
+    # vector container
+    xs = [rand(3, 4), rand(3, 4)]
+    test_frule(stack, xs)
+    test_frule(stack, xs; fkwargs=(dims=1,))
+
+    test_rrule(stack, xs, check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=2,), check_inferred=false)
+    test_rrule(stack, xs, fkwargs=(dims=3,), check_inferred=false)
+
+    # multidimensional container
+    ms = [rand(2,3) for _ in 1:4, _ in 1:5];
+
+    test_rrule(stack, ms, check_inferred=false)
+    test_rrule(stack, ms, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, ms, fkwargs=(dims=3,), check_inferred=false)
+    
+    # non-array inner objects
+    ts = [Tuple(rand(3)) for _ in 1:4, _ in 1:2];
+
+    test_rrule(stack, ts, check_inferred=false)
+    test_rrule(stack, ts, fkwargs=(dims=1,), check_inferred=false)
+    test_rrule(stack, ts, fkwargs=(dims=2,), check_inferred=false)
 end

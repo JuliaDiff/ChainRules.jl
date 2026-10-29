@@ -1,3 +1,14 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
+# `Adjoint(::Adjoint)` and `Transpose(::Transpose)` throw since JuliaLang/LinearAlgebra.jl#1739
+const DOUBLE_WRAP_ALLOWED = try
+    Adjoint(Adjoint([1.0])) isa Adjoint
+catch
+    false
+end
+
 @testset "Structured Matrices" begin
     @testset "/ and \\ on Square Matrixes" begin
         @testset "//, $T on the RHS" for T in (Diagonal, UpperTriangular, LowerTriangular)
@@ -122,14 +133,18 @@
             @test pb(ȳ_mat) == pb(ȳ_composite)
         end
 
-        @testset "$f(::Adjoint{$T, Vector{$T})" begin
-            a = randn(T, n)'
-            test_rrule(f, a; output_tangent=randn(T, n))
+        if f !== Adjoint || DOUBLE_WRAP_ALLOWED
+            @testset "$f(::Adjoint{$T, Vector{$T})" begin
+                a = randn(T, n)'
+                test_rrule(f, a; output_tangent=randn(T, n))
+            end
         end
 
-        @testset "$f(::Transpose{$T, Vector{$T})" begin
-            a = transpose(randn(T, n))
-            test_rrule(f, a; output_tangent=randn(T, n))
+        if f !== Transpose || DOUBLE_WRAP_ALLOWED
+            @testset "$f(::Transpose{$T, Vector{$T})" begin
+                a = transpose(randn(T, n))
+                test_rrule(f, a; output_tangent=randn(T, n))
+            end
         end
     end
     @testset "$T" for T in (UpperTriangular, LowerTriangular)
@@ -148,7 +163,7 @@
         @testset "$op" for op in (det, logdet)
             @testset "$T" for T in (Float64, ComplexF64)
                 n = 5
-                # rand (not randn) so det will be postive, so logdet will be defined
+                # rand (not randn) so det will be positive, so logdet will be defined
                 X = S(3*rand(T, (n, n)) .+ 1)
                 X̄_acc = Diagonal(rand(T, (n, n)))  # sensitivity is always a diagonal for these types
                 test_rrule(op, X ⊢ X̄_acc)
@@ -160,5 +175,9 @@
                 @test X̄ isa Diagonal
             end
         end
+    end
+
+    @testset "Tridiagonal" begin
+        test_rrule(Tridiagonal, [1.0, 4.0], [2.0, 3.0, 4.0], [5.0, 3.0])
     end
 end

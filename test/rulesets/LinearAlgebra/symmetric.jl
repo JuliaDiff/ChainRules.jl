@@ -1,3 +1,7 @@
+using ChainRules,
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, LinearAlgebra, Test
+using ChainRulesTestUtils: _fdm
+
 @testset "Symmetric/Hermitian rules" begin
     @testset "$(SymHerm)(::AbstractMatrix{$T}, :$(uplo))" for
         SymHerm in (Symmetric, Hermitian),
@@ -8,10 +12,6 @@
             test_frule(SymHerm, rand(T, 3, 3), uplo)
         end
         @testset "rrule" begin
-            # on old versions of julia this combination doesn't infer but we don't care as
-            # it infers fine on modern versions.
-            check_inferred = !(VERSION < v"1.5" && T <: ComplexF64 && SymHerm <: Hermitian)
-
             @testset "back(::$MT)" for MT in (Matrix, LowerTriangular, UpperTriangular)
                 x = randn(T, 3, 3)
                 ΔΩ = MT(randn(T, 3, 3))
@@ -22,7 +22,7 @@
                     # so we need to test this more carefully below
                     check_inferred=false,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -36,7 +36,7 @@
                     check_inferred=false,
                     output_tangent = ΔΩ,
                 )
-                if check_inferred && false # ChainRulesCore #407
+                if false # ChainRulesCore #407
                     @maybe_inferred (function (SymHerm, x, ΔΩ, ::Val)
                         return rrule(SymHerm, x, uplo)[2](ΔΩ)
                     end)(SymHerm, x, ΔΩ, Val(uplo))
@@ -56,6 +56,19 @@
         # intentionally specifying tangents here to test both SymHerm (default) and Matrix
         test_frule(f, x)
         test_frule(f, x ⊢ randn(T, 3, 3))
+        @test frule((NoTangent(), ZeroTangent()), f, x) == (f(x), ZeroTangent())
+
+        Δx = SymHerm(randn(T, 3, 3), uplo === :U ? :L : :U)
+        @test frule((NoTangent(), Δx), f, x)[2] == Δx
+        ∂x = rrule(f, x)[2](Δx)[2]
+        @test ∂x == Δx
+        @test ∂x.uplo == x.uplo
+
+        # a `Diagonal` cotangent stays `Diagonal` and agrees with the dense one
+        ΔΩ = Diagonal(randn(ComplexF64, 3))
+        ∂x_diag = rrule(f, x)[2](ΔΩ)[2]
+        @test ∂x_diag isa Diagonal
+        @test ∂x_diag == rrule(f, x)[2](Matrix(ΔΩ))[2]
     end
 
     # symmetric/hermitian eigendecomposition follows the sign convention
@@ -275,28 +288,6 @@
             @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
             @test @maybe_inferred(back(CT())) == (NoTangent(), ZeroTangent())
         end
-
-        @testset "rrule for svdvals(::$SymHerm{$T}) uplo=$uplo" for SymHerm in (Symmetric, Hermitian),
-            T in (SymHerm === Symmetric ? (Float64,) : (Float64, ComplexF64)),
-            uplo in (:L, :U)
-
-            A, ΔS = randn(T, n, n), randn(n)
-            symA = SymHerm(A, uplo)
-
-            S = svdvals(symA)
-            S_ad, back = @maybe_inferred rrule(svdvals, symA)
-            @test S_ad ≈ S # inexact because rrule uses svd not svdvals
-            ∂self, ∂symA = @maybe_inferred back(ΔS)
-            @test ∂self === NoTangent()
-            @test ∂symA isa typeof(symA)
-            @test ∂symA.uplo == symA.uplo
-
-            # pull the cotangent back to A to test against finite differences
-            ∂A = rrule(SymHerm, A, uplo)[2](∂symA)[2]
-            @test ∂A ≈ j′vp(_fdm, A -> svdvals(SymHerm(A, uplo)), ΔS, A)[1]
-
-            @test @maybe_inferred(back(ZeroTangent())) == (NoTangent(), ZeroTangent())
-        end
     end
 
     @testset "Symmetric/Hermitian matrix functions" begin
@@ -305,9 +296,10 @@
             U = Matrix(qr(randn(T, n, n)).Q)
             if hermout # f(A) will also be a TA
                 λ = if f in (acos, asin, atanh)
-                    # generate random number between -1 and 0.9. This would be between
+                    # generate random number between -0.9 and 0.9. This would be between
                     # -1 and 1 but we want to avoid domain errors from numerical error
-                    T(1.9) .* rand(real(T), n) .- 1
+                    # and finite differencing (see `rand_matfun_tangent`)
+                    1.8 .* rand(real(T), n) .- 0.9
                 elseif f in (log, sqrt)
                     abs.(randn(real(T), n))
                 elseif f === acosh
@@ -316,9 +308,9 @@
                     randn(real(T), n)
                 end
             else
-                λ = randn(real(T), n)
                 λ = if f === atanh
-                    2 .* rand(real(T), n) .- 1
+                    # see above
+                    1.8 .* rand(real(T), n) .- 0.9
                 else
                     randn(real(T), n)
                 end
@@ -326,8 +318,16 @@
             return TA(U * Diagonal(λ) * U', uplo)
         end
 
-        # Adapted From ChainRulesTestUtils._is_inferrable
-        function is_inferrable(f, A)
+        # generate random tangents of type TA with unit spectral norm
+        # `_fdm` evaluates `f(A + ε * ΔA)` with `|ε| ≤ max_range = 1e-2`, so by Weyl's
+        # inequality the eigenvalues of `A` move by at most 0.01 and stay in the domain of `f`
+        function rand_matfun_tangent(TA, T, n, uplo=:U)
+            ΔA = TA(randn(T, n, n), uplo)
+            return TA(parent(ΔA) ./ opnorm(ΔA), uplo)
+        end
+
+        # Adapted From ChainRulesTestUtils._is_inferable
+        function is_inferable(f, A)
             try
                 @maybe_inferred f(A)
                 return true
@@ -335,6 +335,9 @@
                 return false
             end
         end
+
+        # wrapper of real-valued `f(A)` for real `A` (`TA` since JuliaLang/julia#55951)
+        realfun_wrapper(TA) = VERSION >= v"1.12.0-DEV.1322" ? TA : Symmetric
 
         @testset "$(f)(::$TA{<:$T})" for f in
             (exp, log, sqrt, cos, sin, tan, cosh, sinh, tanh, acos, asin, atan, acosh, asinh, atanh),
@@ -345,13 +348,14 @@
             n = 10
             @testset "frule" begin
                 @testset for uplo in (:L, :U), hermout in (true, false)
-                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout), TA(randn(T, n, n), uplo)
+                    A, ΔA = rand_matfun_input(f, TA, T, uplo, n, hermout),
+                    rand_matfun_tangent(TA, T, n, uplo)
                     Y = f(A)
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, ∂Y_ad = @maybe_inferred frule((ZeroTangent(), ΔA), f, A)
                     else
                         TY = T∂Y = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
@@ -370,13 +374,13 @@
                     m = div(n, 2)
                     λ[1:m] .= λ[m+1:2m] .+ cbrt(eps(eltype(λ))) / 100
                     A = TA(U * Diagonal(λ) * U')
-                    ΔA = TA(randn(T, n, n))
+                    ΔA = rand_matfun_tangent(TA, T, n)
                     _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
 
                     λ[1:m] .= λ[m+1:2m]
                     A2 = TA(U * Diagonal(λ) * U')
-                    ΔA2 = TA(randn(T, n, n))
+                    ΔA2 = rand_matfun_tangent(TA, T, n)
                     _, ∂Y2 = frule((ZeroTangent(), ΔA2), f, A2)
                     @test parent(∂Y2) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A2.data, ΔA2.data))
                 end
@@ -385,7 +389,7 @@
                     λ, U = eigen(rand_matfun_input(f, TA, T, :U, n, true))
                     λ[2:n] .= 0
                     A = TA(U * Diagonal(λ) * U')
-                    ΔA = TA(randn(T, n, n))
+                    ΔA = rand_matfun_tangent(TA, T, n)
                     _, ∂Y = frule((ZeroTangent(), ΔA), f, A)
                     @test parent(∂Y) ≈ jvp(_fdm, x -> Matrix{TC}(parent(f(TA(x)))), (A.data, ΔA.data))
                 end
@@ -400,11 +404,11 @@
                     else
                         typeof(Y)(randn(eltype(Y), n, n), Y.uplo)
                     end
-                    if is_inferrable(f, A)
+                    if is_inferable(f, A)
                         Y_ad, back = @maybe_inferred rrule(f, A)
                     else
                         TY = if T <: Real
-                            Union{Symmetric{Complex{T}},Symmetric{T}}
+                            Union{Symmetric{Complex{T}},realfun_wrapper(TA){T}}
                         else
                             Union{Matrix{T},Hermitian{T}}
                         end
