@@ -132,7 +132,7 @@ julia> unzip(((1,2), (30,40), (500,600)))
 function unzip(xs::Tuple)
     x1 = first(xs)
     x1 isa Tuple || throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
-    return ntuple(i -> map(Get(i), xs),length(x1))
+    return unzip(xs, Val(length(x1)))
 end
 
 struct Get{i} end
