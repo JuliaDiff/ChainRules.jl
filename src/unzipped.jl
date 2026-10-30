@@ -122,17 +122,27 @@ end
 """
     unzip(t)
 
-Also works on a tuple of tuples:
+Also works on a non-empty tuple of tuples of equal length:
 
 ```jldoctest
 julia> unzip(((1,2), (30,40), (500,600)))
 ((1, 30, 500), (2, 40, 600))
 ```
 """
+unzip(xs::Tuple{Vararg{NTuple{N,Any}}}) where {N} = unzip(xs, Val(N))
+function unzip(::Tuple{})
+    return throw(
+        ArgumentError("unzip cannot determine the number of components of an empty tuple")
+    )
+end
 function unzip(xs::Tuple)
-    x1 = first(xs)
-    x1 isa Tuple || throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
-    return ntuple(i -> map(Get(i), xs),length(x1))
+    all(x -> x isa Tuple, xs) ||
+        throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
+    return throw(
+        DimensionMismatch(
+            lazy"unzip requires tuples of equal length, got lengths $(map(length, xs))"
+        ),
+    )
 end
 
 struct Get{i} end
