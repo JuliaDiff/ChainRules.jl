@@ -131,11 +131,18 @@ julia> unzip(((1,2), (30,40), (500,600)))
 """
 unzip(xs::Tuple{Vararg{NTuple{N,Any}}}) where {N} = unzip(xs, Val(N))
 function unzip(::Tuple{})
-    throw(ArgumentError("unzip cannot determine the number of components of an empty tuple"))
+    return throw(
+        ArgumentError("unzip cannot determine the number of components of an empty tuple")
+    )
 end
 function unzip(xs::Tuple)
-    all(x -> x isa Tuple, xs) || throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
-    throw(DimensionMismatch("unzip requires tuples of equal length, got lengths $(map(length, xs))"))
+    all(x -> x isa Tuple, xs) ||
+        throw(ArgumentError("unzip only accepts arrays or tuples of tuples"))
+    return throw(
+        DimensionMismatch(
+            lazy"unzip requires tuples of equal length, got lengths $(map(length, xs))"
+        ),
+    )
 end
 
 struct Get{i} end
