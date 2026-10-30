@@ -201,6 +201,12 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
             @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
         end
+        @testset "unbroadcast tuple with vector cotangent" begin
+            dx = Tangent{Tuple{Float64, Float64}}(3.0, 4.0)
+            @test ChainRules.unbroadcast((1.0, 2.0), [3.0, 4.0]) == dx
+            @test ChainRules.unbroadcast((1.0, 2.0), Any[3.0, 4.0]) == dx  # abstract eltype, reduction not compiled
+            @test ChainRules.unbroadcast((1.0, 2.0), [1.0 2.0; 1.5 2.5]) == dx  # trailing dimensions still summed
+        end
         @testset "unbroadcast with Matrix{Tangent}" begin  # https://github.com/JuliaDiff/ChainRules.jl/issues/708
             x = Base.Fix1.(*, 1:3.0)
             dx1 = [Tangent{Base.Fix1}(; x = i/2) for i in 1:3, _ in 1:1]
