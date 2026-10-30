@@ -27,9 +27,18 @@ using ChainRules: unzip_broadcast, unzip #, unzip_map
         @test fun(tuple, (1,2,3), [4,5,6]) == ([1, 2, 3], [4, 5, 6])  # mix tuple & vector
     end
 
-    @testset "unzip tuple of tuples is inferred" begin
+    @testset "unzip tuple of tuples" begin
         @test @inferred(unzip(((1, 2.0), (3, 4.0)))) == ((1, 3), (2.0, 4.0))
+        @test @inferred(unzip(((1,), (2,)))) == ((1, 2),)
+        @test @inferred(unzip(((), ()))) == ()
         @test @inferred(unzip_broadcast(x -> (x, 2x), (1, 2.0))) == ((1, 2.0), (2, 4.0))
+
+        @test_throws ArgumentError unzip(())
+        @test_throws ArgumentError unzip((1, (2, 3)))
+        @test_throws ArgumentError unzip(((1, 2), [3, 4]))
+        @test_throws ArgumentError unzip(((1, 2), 3))
+        @test_throws DimensionMismatch unzip(((1, 2), (3,)))
+        @test_throws DimensionMismatch unzip(((1,), (2, 3)))
     end
 
     @testset "rrules" begin
