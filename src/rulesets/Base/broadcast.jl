@@ -2,6 +2,11 @@ using Base.Broadcast: Broadcast, broadcasted, Broadcasted, BroadcastStyle
 const RCR = RuleConfig{>:HasReverseMode}
 const TRI_NO = (NoTangent(), NoTangent(), NoTangent())
 
+# The cotangent of a tuple-valued broadcast is a `Tangent` (`Tangent{Any}` from Zygote). Broadcasting
+# over that would `collect` it into a `Vector`, losing the element types, so use its backing tuple.
+_bc_cotangent(dys::Tangent{<:Any, <:Tuple}) = ChainRulesCore.backing(dys)
+_bc_cotangent(dys) = dys
+
 function rrule(::typeof(copy), bc::Broadcasted)
     uncopy(Δ) = (NoTangent(), Δ)
     return copy(bc), uncopy
@@ -59,7 +64,7 @@ function split_bc_derivatives(f::F, arg) where {F}
     @debug("split broadcasting derivative", f)
     ys = f.(arg)
     function bc_one_back(dys)  # For f.(x) we do not need StructArrays / unzip at all
-        delta = broadcast(unthunk(dys), ys, arg) do dy, y, a
+        delta = broadcast(_bc_cotangent(unthunk(dys)), ys, arg) do dy, y, a
             das = only(derivatives_given_output(y, f, a))
             dy * conj(only(das))  # possibly this * should be made nan-safe.
         end
@@ -72,7 +77,7 @@ function split_bc_derivatives(f::F, args::Vararg{Any,N}) where {F,N}
     @debug("split broadcasting derivatives", f, N)
     ys = f.(args...)
     function bc_many_back(dys)
-        deltas = unzip_broadcast(unthunk(dys), ys, args...) do dy, y, as...
+        deltas = unzip_broadcast(_bc_cotangent(unthunk(dys)), ys, args...) do dy, y, as...
             das = only(derivatives_given_output(y, f, as...))
             map(da -> dy * conj(da), das)  # possibly this * should be made nan-safe.
         end
@@ -110,7 +115,7 @@ function split_bc_inner(frule_fun::R, cfg::RuleConfig, f::F, arg) where {R,F}
         frule_fun(cfg, (NoTangent(), one(a)), f, a)
     end
     function back_forwards(dys)
-        delta = broadcast(ydots, unthunk(dys), arg) do ydot, dy, a
+        delta = broadcast(ydots, _bc_cotangent(unthunk(dys)), arg) do ydot, dy, a
             ProjectTo(a)(conj(ydot) * dy)  # possibly this * should be made nan-safe.
         end
         return (TRI_NO..., ProjectTo(arg)(delta))
@@ -129,7 +134,7 @@ function split_bc_pullbacks(cfg::RCR, f::F, args::Vararg{Any,N}) where {F,N}
         rrule_via_ad(cfg, f, a...)
     end
     function back_generic(dys)
-        deltas = unzip_broadcast(backs, dys) do back, dy  # (could be map, sizes match)
+        deltas = unzip_broadcast(backs, _bc_cotangent(dys)) do back, dy  # (could be map, sizes match)
             map(unthunk, back(dy))
         end
         dargs = map(unbroadcast, args, Base.tail(deltas))

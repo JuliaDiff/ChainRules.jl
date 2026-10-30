@@ -197,6 +197,20 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test y3 == ()
             @test bk3(Tangent{Tuple{}}()) == (NoTangent(), NoTangent(), NoTangent(), ZeroTangent(), ZeroTangent())
         end
+        @testset "tuple broadcast with Tangent{Any} cotangent" begin
+            # Zygote passes the cotangent of a tuple as `Tangent{Any}`, which broadcasting used to
+            # `collect` into a `Vector`, losing the element types.
+            x = (1.0, 2.0f0)
+            y2, bk2 = rrule(CFG, copy∘broadcasted, BT1, log, x)  # split 2
+            dx2 = @inferred bk2(Tangent{Any}(1.0, 1.0f0))
+            @test dx2[4] isa Tangent{typeof(x), typeof(x)}
+            @test all(ChainRulesCore.backing(dx2[4]) .≈ (1.0, 0.5))
+
+            y4, bk4 = rrule(CFG, copy∘broadcasted, BT1, sin∘cos, x)  # split 4
+            dx4 = bk4(Tangent{Any}(1.0, 1.0f0))
+            @test dx4[4] isa Tangent{typeof(x), typeof(x)}
+            @test all(ChainRulesCore.backing(dx4[4]) .≈ (-cos(cos(1.0)) * sin(1.0), -cos(cos(2.0f0)) * sin(2.0f0)))
+        end
         @testset "unbroadcast with NTuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/pull/661
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
             @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
