@@ -277,6 +277,54 @@ end
     test_rrule(hvcat, (1,2), rand(2)', (3.4, 5.6), 7.8; check_inferred=false)
 end
 
+@testset "reduce cat & hvcat: thunked cotangents" begin
+    # Unthunking recomputes the array, so the pullbacks must do so only once, not per input.
+    plain(dY) = dY
+    thunk(dY) = @thunk(copy(dY))
+    inplaceable(dY) = InplaceableThunk(dx -> dx .+= dY, @thunk(copy(dY)))
+    allocs(back, dY) = (back(dY); @allocated back(dY))
+
+    cases = [
+        ("reduce vcat, vectors", rrule(reduce, vcat, [rand(3), rand(2), rand(4)])),
+        ("reduce vcat, matrices", rrule(reduce, vcat, [rand(2, 4), rand(1, 4), rand(3, 4)])),
+        ("reduce vcat, mixed", rrule(reduce, vcat, AbstractVecOrMat[rand(4, 1), rand(4)])),
+        ("reduce hcat, vectors", rrule(reduce, hcat, [rand(3) for _ in 1:4])),
+        ("reduce hcat, matrices", rrule(reduce, hcat, [rand(3, 2), rand(3, 1), rand(3, 3)])),
+        ("reduce hcat, mixed", rrule(reduce, hcat, AbstractVecOrMat[rand(4, 2), rand(4)])),
+        ("hvcat", rrule(hvcat, (2, 1), rand(), rand(1, 1), rand(2, 2))),
+    ]
+    @testset "$name" for (name, (Y, back)) in cases
+        dY = rand(size(Y)...)
+        expected = back(plain(dY))
+        @test back(thunk(dY)) == expected
+        @test back(inplaceable(dY)) == expected
+    end
+
+    @testset "cost does not grow with the number of inputs" begin
+        n = 1600
+        for (name, red, As) in [
+            ("vcat, vectors", vcat, [rand(10) for _ in 1:n]),
+            ("vcat, matrices", vcat, [rand(10, 2) for _ in 1:n]),
+            ("hcat, vectors", hcat, [rand(10) for _ in 1:n]),
+            ("hcat, matrices", hcat, [rand(10, 2) for _ in 1:n]),
+        ]
+            Y, back = rrule(reduce, red, As)
+            dY = rand(size(Y)...)
+            # Unthunking once per input would allocate `n` times `sizeof(Y)`.
+            @testset "$name, $(nameof(mk))" for mk in (thunk, inplaceable)
+                @test allocs(back, mk(dY)) < 10 * sizeof(Y)
+            end
+        end
+
+        As = [rand(10) for _ in 1:200]
+        Y, back = rrule(hvcat, (200,), As...)
+        dY = rand(size(Y)...)
+        @testset "hvcat, $(nameof(mk))" for mk in (thunk, inplaceable)
+            @test allocs(back, mk(dY)) < 10 * sizeof(Y)
+        end
+    end
+end
+
 @testset "reverse" begin
     @testset "Tuple" begin
         test_frule(reverse, Tuple(rand(10)))
