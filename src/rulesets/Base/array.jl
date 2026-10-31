@@ -259,7 +259,8 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
     Y = reduce(hcat, As)
     Base.require_one_based_indexing(Y)
     widths = map(A -> size(A,2), As)
-    function reduce_hcat_pullback_2(dY)
+    function reduce_hcat_pullback_2(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
         dAs = map(widths) do w
             lo = hi[]+1
@@ -273,7 +274,8 @@ end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVector})
     axe = axes(As,1)
-    function reduce_hcat_pullback_1(dY)
+    function reduce_hcat_pullback_1(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
         dAs = map(_ -> dY[:, hi[]+=1], axe)
         return (NoTangent(), NoTangent(), dAs)
@@ -328,7 +330,8 @@ function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVe
     Base.require_one_based_indexing(Y)
     ndimsY = Val(ndims(Y))
     heights = map(A -> size(A,1), As)
-    function reduce_vcat_pullback(dY)
+    function reduce_vcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
         dAs = map(heights) do z
             lo = hi[]+1
@@ -398,7 +401,8 @@ function rrule(::typeof(hvcat), rows, values...)
     ndimsY = Val(ndims(Y))
     sizes = map(_catsize, values)
     project_Vs = map(ProjectTo, values)
-    function hvcat_pullback(dY)
+    function hvcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         prev = fill(0, 2)
         dXs = map(project_Vs, sizes) do project, sizeX
             ndimsX = length(sizeX)
