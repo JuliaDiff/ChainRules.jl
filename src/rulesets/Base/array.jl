@@ -50,7 +50,8 @@ function rrule(
 ) where {N}
     projects = map(ProjectTo, X)
     function vect_pullback(ȳ)
-        X̄ = ntuple(n -> projects[n](ȳ[n]), N)
+        dY = unthunk(ȳ)
+        X̄ = ntuple(n -> projects[n](dY[n]), N)
         return (NoTangent(), X̄...)
     end
     return Base.vect(X...), vect_pullback
@@ -58,7 +59,10 @@ end
 
 # Data is unmodified, so no need to project.
 function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
-    vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
+    function vect_pullback(ȳ)
+        dY = unthunk(ȳ)
+        return (NoTangent(), ntuple(n -> dY[n], N)...)
+    end
     return Base.vect(X...), vect_pullback
 end
 
@@ -418,7 +422,10 @@ function rrule(::typeof(hvcat), rows, values...)
                 prev[2] = 0
                 prev[1] += get(sizeX, 1, 1)
             end
-            project(dY[index...])
+            InplaceableThunk(
+                dX -> dX .+= view(dY, index...),
+                @thunk project(@allowscalar dY[index...])
+            )
         end
         return (NoTangent(), NoTangent(), dXs...)
     end
