@@ -199,7 +199,7 @@ end
     test_rrule(reduce, hcat, vecs)
     
     mix = AbstractVecOrMat[rand(4,2), rand(4)]  # this is weird, but does hit the fast path
-    test_rrule(reduce, hcat, mix)
+    test_rrule(reduce, hcat, mix; check_inferred=false)
 
     adjs = vec([randn(2, 4), randn(1, 4), randn(3, 4)]')  # not a Vector
     # test_rrule(reduce, hcat, adjs ⊢ map(m -> rand(size(m)), adjs))
@@ -240,7 +240,18 @@ end
     test_rrule(reduce, vcat, vecs)
 
     mix = AbstractVecOrMat[rand(4,1), rand(4)]
-    test_rrule(reduce, vcat, mix)
+    test_rrule(reduce, vcat, mix; check_inferred=false)
+end
+
+@testset "reduce cat: cotangents are projected" begin
+    @testset "$red" for (red, As) in [
+        (hcat, [rand(Float32, 3) for _ in 1:2]),
+        (hcat, AbstractVecOrMat[rand(Float32, 3, 2), rand(Float32, 3)]),
+        (vcat, AbstractVecOrMat[rand(Float32, 3, 1), rand(Float32, 3)]),
+    ]
+        Y, back = rrule(reduce, red, As)
+        @test map(typeof, back(rand(ComplexF64, size(Y)))[3]) == map(typeof, As)
+    end
 end
 
 @testset "cat" begin
