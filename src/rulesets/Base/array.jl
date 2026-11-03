@@ -413,7 +413,7 @@ function rrule(::typeof(hvcat), rows, values...)
         dXs = map(project_Vs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             index = ntuple(ndimsY) do d
-                if d in (1, 2)
+                if d <= 2
                     d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
                 else
                     d > ndimsX ? 1 : (:)
