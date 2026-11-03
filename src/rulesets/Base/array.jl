@@ -50,7 +50,8 @@ function rrule(
 ) where {N}
     projects = map(ProjectTo, X)
     function vect_pullback(ȳ)
-        X̄ = ntuple(n -> projects[n](ȳ[n]), N)
+        dY = unthunk(ȳ)
+        X̄ = ntuple(n -> projects[n](dY[n]), N)
         return (NoTangent(), X̄...)
     end
     return Base.vect(X...), vect_pullback
@@ -58,7 +59,10 @@ end
 
 # Data is unmodified, so no need to project.
 function rrule(::typeof(Base.vect), X::Vararg{Any,N}) where {N}
-    vect_pullback(ȳ) = (NoTangent(), ntuple(n -> ȳ[n], N)...)
+    function vect_pullback(ȳ)
+        dY = unthunk(ȳ)
+        return (NoTangent(), ntuple(n -> dY[n], N)...)
+    end
     return Base.vect(X...), vect_pullback
 end
 
@@ -259,12 +263,14 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
     Y = reduce(hcat, As)
     Base.require_one_based_indexing(Y)
     widths = map(A -> size(A,2), As)
-    function reduce_hcat_pullback_2(dY)
+    project_As = ProjectTo.(As)
+    function reduce_hcat_pullback_2(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
-        dAs = map(widths) do w
+        dAs = map(project_As, widths) do project, w
             lo = hi[]+1
             hi[] += w
-            dY[:, lo:hi[]]
+            project(dY[:, lo:hi[]])
         end
         return (NoTangent(), NoTangent(), dAs)
     end
@@ -272,10 +278,11 @@ function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVe
 end
 
 function rrule(::typeof(reduce), ::typeof(hcat), As::AbstractVector{<:AbstractVector})
-    axe = axes(As,1)
-    function reduce_hcat_pullback_1(dY)
+    project_As = ProjectTo.(As)
+    function reduce_hcat_pullback_1(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
-        dAs = map(_ -> dY[:, hi[]+=1], axe)
+        dAs = map(project -> project(dY[:, hi[]+=1]), project_As)
         return (NoTangent(), NoTangent(), dAs)
     end
     return reduce(hcat, As), reduce_hcat_pullback_1
@@ -328,13 +335,15 @@ function rrule(::typeof(reduce), ::typeof(vcat), As::AbstractVector{<:AbstractVe
     Base.require_one_based_indexing(Y)
     ndimsY = Val(ndims(Y))
     heights = map(A -> size(A,1), As)
-    function reduce_vcat_pullback(dY)
+    project_As = ProjectTo.(As)
+    function reduce_vcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         hi = Ref(0)
-        dAs = map(heights) do z
+        dAs = map(project_As, heights) do project, z
             lo = hi[]+1
             hi[] += z
             ind = ntuple(d -> d==1 ? (lo:hi[]) : (:), ndimsY)
-            dY[ind...]
+            project(dY[ind...])
         end
         return (NoTangent(), NoTangent(), dAs)
     end
@@ -398,12 +407,13 @@ function rrule(::typeof(hvcat), rows, values...)
     ndimsY = Val(ndims(Y))
     sizes = map(_catsize, values)
     project_Vs = map(ProjectTo, values)
-    function hvcat_pullback(dY)
+    function hvcat_pullback(ȳ)
+        dY = unthunk(ȳ)
         prev = fill(0, 2)
         dXs = map(project_Vs, sizes) do project, sizeX
             ndimsX = length(sizeX)
             index = ntuple(ndimsY) do d
-                if d in (1, 2)
+                if d <= 2
                     d > ndimsX ? (prev[d]+1) : (prev[d]+1:prev[d]+sizeX[d])
                 else
                     d > ndimsX ? 1 : (:)
@@ -414,7 +424,10 @@ function rrule(::typeof(hvcat), rows, values...)
                 prev[2] = 0
                 prev[1] += get(sizeX, 1, 1)
             end
-            project(dY[index...])
+            InplaceableThunk(
+                dX -> dX .+= view(dY, index...),
+                @thunk project(@allowscalar dY[index...])
+            )
         end
         return (NoTangent(), NoTangent(), dXs...)
     end
