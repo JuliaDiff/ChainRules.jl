@@ -168,7 +168,8 @@ end
 
 # Can't multiply though sqrt in acosh because of negative complex case for x
 @scalar_rule acosh(x) inv(sqrt(x - 1) * sqrt(x + 1))
-# Factorized `(1 - x) * (1 + x)` avoids cancellation for `|x|` close to 1
+# `(1 - x) * (1 + x)` avoids cancellation in `1 - x ^ 2` for `|x|` close to 1
+# (Goldberg (1991), "What Every Computer Scientist Should Know About Floating-Point Arithmetic")
 @scalar_rule acoth(x) inv((1 - x) * (1 + x))
 @scalar_rule acsch(x) -(inv(x ^ 2 * sqrt(1 + x ^ -2)))
 @scalar_rule acsch(x::Real) -(inv(abs(x) * sqrt(1 + x ^ 2)))
