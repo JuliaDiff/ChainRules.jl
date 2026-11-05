@@ -63,9 +63,29 @@ const FASTABLE_AST = quote
         @testset "Accuracy" begin
             setprecision(BigFloat, 256) do
                 for (f, df, xs) in (
-                    (tanh, x -> sech(x)^2, (0.5, 4.0, 14.0, 25.0, -25.0, ComplexF64(14, 0.3), ComplexF64(30, 1))),
-                    (asin, x -> inv(sqrt(1 - x^2)), (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9))),
-                    (acos, x -> -inv(sqrt(1 - x^2)), (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9))),
+                    (
+                        tanh,
+                        x -> sech(x)^2,
+                        (
+                            0.5,
+                            4.0,
+                            14.0,
+                            25.0,
+                            -25.0,
+                            ComplexF64(14, 0.3),
+                            ComplexF64(30, 1),
+                        ),
+                    ),
+                    (
+                        asin,
+                        x -> inv(sqrt(1 - x^2)),
+                        (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9)),
+                    ),
+                    (
+                        acos,
+                        x -> -inv(sqrt(1 - x^2)),
+                        (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9)),
+                    ),
                 )
                     @testset "$f($x)" for x in xs
                         _, ẏ = frule((NoTangent(), one(x)), f, x)

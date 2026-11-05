@@ -76,8 +76,16 @@ end
                     (asech, x -> -inv(x * sqrt(1 - x^2)), (1 - 1e-8, ComplexF64(1, 1e-9))),
                     (asind, x -> inv(deg2rad(sqrt(1 - x^2))), (1 - 1e-8, -1 + 1e-8)),
                     (acosd, x -> -inv(deg2rad(sqrt(1 - x^2))), (1 - 1e-8, -1 + 1e-8)),
-                    (asecd, x -> inv(deg2rad(abs(x) * sqrt(x^2 - 1))), (1 + 1e-8, -1 - 1e-8)),
-                    (acscd, x -> -inv(deg2rad(abs(x) * sqrt(x^2 - 1))), (1 + 1e-8, -1 - 1e-8)),
+                    (
+                        asecd,
+                        x -> inv(deg2rad(abs(x) * sqrt(x^2 - 1))),
+                        (1 + 1e-8, -1 - 1e-8),
+                    ),
+                    (
+                        acscd,
+                        x -> -inv(deg2rad(abs(x) * sqrt(x^2 - 1))),
+                        (1 + 1e-8, -1 - 1e-8),
+                    ),
                     (asec, x -> inv(abs(x) * sqrt(x^2 - 1)), (1 + 1e-8, -1 - 1e-8)),
                     (acsc, x -> -inv(abs(x) * sqrt(x^2 - 1)), (1 + 1e-8, -1 - 1e-8)),
                 )
