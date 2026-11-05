@@ -38,11 +38,12 @@ let
         # Trig-Hyperbolic
         @scalar_rule cosh(x) sinh(x)
         @scalar_rule sinh(x) cosh(x)
-        @scalar_rule tanh(x) 1 - Ω ^ 2
+        # `1 - Ω ^ 2` cancels catastrophically for large `|x|` (DiffRules.jl#102)
+        @scalar_rule tanh(x) abs(real(x)) < 1 ? 1 - Ω ^ 2 : sech(x) ^ 2
 
         # Trig- Inverses
-        @scalar_rule acos(x) -(inv(sqrt(1 - x ^ 2)))
-        @scalar_rule asin(x) inv(sqrt(1 - x ^ 2))
+        @scalar_rule acos(x) -inv(sqrt((1 - x) * (1 + x)))
+        @scalar_rule asin(x) inv(sqrt((1 - x) * (1 + x)))
         @scalar_rule atan(x) inv(1 + x ^ 2)
 
         # Trig-Multivariate
