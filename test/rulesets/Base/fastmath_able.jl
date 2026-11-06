@@ -340,12 +340,12 @@ end
     $(Base.FastMath.make_fastmath(FASTABLE_AST))
 end
 
-# Not part of `FASTABLE_AST`: `hypot_fast` does not guard against overflow and underflow
 @testset "atan(y, x) for large and small arguments" begin
     setprecision(BigFloat, 256) do
-        @testset "atan($y, $x)" for (y, x) in
-                                    ((1e-200, 1e-200), (1e200, 3e200), (-1e-170, 3e-170))
-            _, pb = rrule(atan, y, x)
+        @testset "$f($y, $x)" for f in (atan, Base.FastMath.atan_fast),
+            (y, x) in ((1e-200, 1e-200), (1e200, 3e200), (-1e-170, 3e-170))
+
+            _, pb = rrule(f, y, x)
             _, ȳ, x̄ = pb(1.0)
             u = big(x)^2 + big(y)^2
             @test ȳ ≈ big(x) / u rtol = 4eps()

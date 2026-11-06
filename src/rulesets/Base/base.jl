@@ -175,8 +175,8 @@ end
 @scalar_rule acsch(x::Real) -(inv(abs(x) * sqrt(1 + x ^ 2)))
 @scalar_rule asech(x) -inv(x * sqrt((1 - x) * (1 + x)))
 @scalar_rule asinh(x) inv(sqrt(x ^ 2 + 1))
-# `hypot` avoids overflow of `x ^ 2` for large `|x|`
-@scalar_rule asinh(x::Real) inv(hypot(x, 1))
+# if `x ^ 2` overflows, `1 / |x|` is exact up to rounding
+@scalar_rule asinh(x::Real) (x2=x ^ 2; isfinite(x2) ? inv(sqrt(x2 + 1)) : inv(abs(x)))
 # `(1 + ix) * (1 - ix)` avoids cancellation in `1 + x ^ 2` near `x = ±i`;
 # `ix` is constructed explicitly since `im * x` loses the sign of zero
 @scalar_rule asinh(x::Complex) @setup(ix=Complex(-imag(x), real(x))) inv(
