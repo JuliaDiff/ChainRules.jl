@@ -52,7 +52,7 @@ let
         # Trig-Multivariate
         # scaling by `max(|x|, |y|)` avoids overflow and underflow of `x ^ 2 + y ^ 2`
         @scalar_rule atan(y, x) @setup(
-            s = max(abs(x), abs(y)), xs = x / s, ys = y / s, v = xs ^ 2 + ys ^ 2
+            s=max(abs(x), abs(y)), xs=x / s, ys=y / s, v=xs ^ 2 + ys ^ 2
         ) (xs / v / s, -ys / v / s)
         @scalar_rule sincos(x) @setup((sinx, cosx)=Ω) cosx -sinx
 
