@@ -179,7 +179,9 @@ end
 @scalar_rule asinh(x::Real) inv(hypot(x, 1))
 # `(1 + ix) * (1 - ix)` avoids cancellation in `1 + x ^ 2` near `x = ±i`;
 # `ix` is constructed explicitly since `im * x` loses the sign of zero
-@scalar_rule asinh(x::Complex) @setup(ix = Complex(-imag(x), real(x))) inv(sqrt((1 + ix) * (1 - ix)))
+@scalar_rule asinh(x::Complex) @setup(ix=Complex(-imag(x), real(x))) inv(
+    sqrt((1 + ix) * (1 - ix))
+)
 @scalar_rule atanh(x) inv((1 - x) * (1 + x))
 
 

@@ -51,8 +51,8 @@ let
 
         # Trig-Multivariate
         # `hypot` avoids overflow and underflow of `x ^ 2 + y ^ 2`
-        @scalar_rule atan(y, x) @setup(h = hypot(x, y)) (x / h / h, -y / h / h)
-        @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
+        @scalar_rule atan(y, x) @setup(h=hypot(x, y)) (x / h / h, -y / h / h)
+        @scalar_rule sincos(x) @setup((sinx, cosx)=Ω) cosx -sinx
 
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)
