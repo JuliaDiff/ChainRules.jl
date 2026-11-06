@@ -46,9 +46,12 @@ let
         @scalar_rule acos(x) -inv(sqrt((1 - x) * (1 + x)))
         @scalar_rule asin(x) inv(sqrt((1 - x) * (1 + x)))
         @scalar_rule atan(x) inv(1 + x ^ 2)
+        # `(1 + im * x) * (1 - im * x)` avoids cancellation in `1 + x ^ 2` near `x = ±i`
+        @scalar_rule atan(x::Complex) inv((1 + im * x) * (1 - im * x))
 
         # Trig-Multivariate
-        @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
+        # `hypot` avoids overflow and underflow of `x ^ 2 + y ^ 2`
+        @scalar_rule atan(y, x) @setup(h = hypot(x, y)) (x / h / h, -y / h / h)
         @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
 
         # exponents

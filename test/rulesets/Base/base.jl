@@ -97,6 +97,24 @@ end
             end
         end
 
+        # finite differencing is not accurate enough to detect cancellation near x = ±i
+        @testset "Inverse accuracy near x = ±i and for large |x|" begin
+            setprecision(BigFloat, 256) do
+                zs = (ComplexF64(1e-9, 1 - 1e-8), ComplexF64(-1e-9, -1 + 1e-8))
+                for (f, df, xs) in (
+                    (asinh, x -> inv(sqrt(1 + x^2)), (zs..., 1e200, -1e200)),
+                    (acot, x -> -inv(1 + x^2), zs),
+                    (atand, x -> inv(deg2rad(1 + x^2)), zs),
+                    (acotd, x -> -inv(deg2rad(1 + x^2)), zs),
+                )
+                    @testset "$f($x)" for x in xs
+                        _, ẏ = frule((NoTangent(), one(x)), f, x)
+                        @test ẏ ≈ df(big(x)) rtol = 4eps()
+                    end
+                end
+            end
+        end
+
         @testset "Inverse degrees" for x = (0.5, Complex(0.5, 0.25))
             test_scalar(asind, x)
             test_scalar(acosd, x)

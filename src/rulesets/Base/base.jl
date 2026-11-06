@@ -175,17 +175,25 @@ end
 @scalar_rule acsch(x::Real) -(inv(abs(x) * sqrt(1 + x ^ 2)))
 @scalar_rule asech(x) -inv(x * sqrt((1 - x) * (1 + x)))
 @scalar_rule asinh(x) inv(sqrt(x ^ 2 + 1))
+# `hypot` avoids overflow of `x ^ 2` for large `|x|`
+@scalar_rule asinh(x::Real) inv(hypot(x, 1))
+# `(1 + ix) * (1 - ix)` avoids cancellation in `1 + x ^ 2` near `x = ±i`;
+# `ix` is constructed explicitly since `im * x` loses the sign of zero
+@scalar_rule asinh(x::Complex) @setup(ix = Complex(-imag(x), real(x))) inv(sqrt((1 + ix) * (1 - ix)))
 @scalar_rule atanh(x) inv((1 - x) * (1 + x))
 
 
 @scalar_rule acosd(x) -inv(deg2rad(sqrt((1 - x) * (1 + x))))
 @scalar_rule acotd(x) -inv(deg2rad(1 + x ^ 2))
+# `(1 + im * x) * (1 - im * x)` avoids cancellation in `1 + x ^ 2` near `x = ±i`
+@scalar_rule acotd(x::Complex) -inv(deg2rad((1 + im * x) * (1 - im * x)))
 @scalar_rule acscd(x) -inv(deg2rad(x^2 * sqrt(1 - x ^ -2)))
 @scalar_rule acscd(x::Real) -inv(deg2rad(abs(x) * sqrt((x - 1) * (x + 1))))
 @scalar_rule asecd(x) inv(deg2rad(x ^ 2 * sqrt(1 - x ^ -2)))
 @scalar_rule asecd(x::Real) inv(deg2rad(abs(x) * sqrt((x - 1) * (x + 1))))
 @scalar_rule asind(x) inv(deg2rad(sqrt((1 - x) * (1 + x))))
 @scalar_rule atand(x) inv(deg2rad(1 + x ^ 2))
+@scalar_rule atand(x::Complex) inv(deg2rad((1 + im * x) * (1 - im * x)))
 
 @scalar_rule cot(x) -((1 + Ω ^ 2))
 @scalar_rule coth(x) -(csch(x) ^ 2)
@@ -198,6 +206,7 @@ end
 @scalar_rule sech(x) -(tanh(x)) * Ω
 
 @scalar_rule acot(x) -(inv(1 + x ^ 2))
+@scalar_rule acot(x::Complex) -inv((1 + im * x) * (1 - im * x))
 @scalar_rule acsc(x) -(inv(x ^ 2 * sqrt(1 - x ^ -2)))
 @scalar_rule acsc(x::Real) -inv(abs(x) * sqrt((x - 1) * (x + 1)))
 @scalar_rule asec(x) inv(x ^ 2 * sqrt(1 - x ^ -2))

@@ -86,6 +86,11 @@ const FASTABLE_AST = quote
                         x -> -inv(sqrt(1 - x^2)),
                         (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9)),
                     ),
+                    (
+                        atan,
+                        x -> inv(1 + x^2),
+                        (ComplexF64(1e-9, 1 - 1e-8), ComplexF64(-1e-9, -1 + 1e-8)),
+                    ),
                 )
                     @testset "$f($x)" for x in xs
                         _, ẏ = frule((NoTangent(), one(x)), f, x)
@@ -333,4 +338,17 @@ end
 
 @eval @testset "fastmath_able FastMath functions" begin
     $(Base.FastMath.make_fastmath(FASTABLE_AST))
+end
+
+# Not part of `FASTABLE_AST`: `hypot_fast` does not guard against overflow and underflow
+@testset "atan(y, x) for large and small arguments" begin
+    setprecision(BigFloat, 256) do
+        @testset "atan($y, $x)" for (y, x) in ((1e-200, 1e-200), (1e200, 3e200), (-1e-170, 3e-170))
+            _, pb = rrule(atan, y, x)
+            _, ȳ, x̄ = pb(1.0)
+            u = big(x)^2 + big(y)^2
+            @test ȳ ≈ big(x) / u rtol = 4eps()
+            @test x̄ ≈ -big(y) / u rtol = 4eps()
+        end
+    end
 end
