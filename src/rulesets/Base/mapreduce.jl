@@ -2,19 +2,21 @@
 ##### `sum(x)`
 #####
 
-function frule((_, ẋ), ::typeof(sum), x::Tuple)
-    return sum(x), sum(ẋ)
+function frule((_, ẋ), ::typeof(sum), x::Tuple; init=_InitialValue())
+    y = init === _InitialValue() ? sum(x) : sum(x; init=init)
+    return y, sum(ẋ)
 end
 
-function frule((_, ẋ), ::typeof(sum), x; dims=:)
-    return sum(x; dims=dims), sum(ẋ; dims=dims)
+function frule((_, ẋ), ::typeof(sum), x; dims=:, init=_InitialValue())
+    y = init === _InitialValue() ? sum(x; dims=dims) : sum(x; dims=dims, init=init)
+    return y, sum(ẋ; dims=dims)
 end
 
-function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray)
-    return sum!(y, x), sum!(ẏ, ẋ)
+function frule((_, ẏ, ẋ), ::typeof(sum!), y::AbstractArray, x::AbstractArray; init=true)
+    return sum!(y, x; init=init), sum!(ẏ, ẋ; init=init)
 end
 
-function rrule(::typeof(sum), x::Tuple)
+function rrule(::typeof(sum), x::Tuple; init=_InitialValue())
     project = ProjectTo(x)
     len = Val(length(x))
     function sum_pullback(dy_raw)
@@ -22,12 +24,13 @@ function rrule(::typeof(sum), x::Tuple)
         dx = dy isa AbstractZero ? dy : ntuple(Returns(dy), len)
         return (NoTangent(), project(dx))
     end
-    return sum(x), sum_pullback
+    y = init === _InitialValue() ? sum(x) : sum(x; init=init)
+    return y, sum_pullback
 end
 
-function rrule(::typeof(sum), x::AbstractArray; dims=:)
+function rrule(::typeof(sum), x::AbstractArray; dims=:, init=_InitialValue())
     project = ProjectTo(x)
-    y = sum(x; dims=dims)
+    y = init === _InitialValue() ? sum(x; dims=dims) : sum(x; dims=dims, init=init)
     function sum_pullback(dy_raw)
         dy = unthunk(dy_raw)
         x_thunk = InplaceableThunk(
@@ -62,9 +65,22 @@ end
 ##### `sum(f, x)`
 #####
 
-function rrule(config::RuleConfig{>:HasReverseMode}, ::typeof(sum), f::F, xs::Tuple) where {F}
+function rrule(
+    config::RuleConfig{>:HasReverseMode},
+    ::typeof(sum),
+    f::F,
+    xs::Tuple;
+    init=_InitialValue(),
+) where {F}
     fxs, unmap = rrule(config, map, f, xs)
-    y, unsum = rrule(config, sum, fxs)
+    # Do not forward the `_InitialValue()` sentinel: the `rrule` for `sum(fxs)`
+    # may be `@non_differentiable` (e.g. `NTuple{Bool}`), which forwards all
+    # keywords to `sum`, and `sum` rejects the sentinel.
+    y, unsum = if init === _InitialValue()
+        rrule(config, sum, fxs)
+    else
+        rrule(config, sum, fxs; init=init)
+    end
     function sum_pullback_f(dy)
         _, dfxs = unsum(dy)
         _, df, dxs = unmap(dfxs)
@@ -79,6 +95,7 @@ function rrule(
     f::F,
     xs::AbstractArray{T};
     dims = :,
+    init = _InitialValue(),
 ) where {F,T}
     project = ProjectTo(xs)
 
@@ -91,7 +108,8 @@ function rrule(
             end
             return (NoTangent(), NoTangent(), project(dxs))
         end
-        return sum(f, xs; dims), sum_pullback_f1
+        y = init === _InitialValue() ? sum(f, xs; dims) : sum(f, xs; dims, init=init)
+        return y, sum_pullback_f1
     end
 
     # (There is an intermediate case, where `derivatives_given_output` needs to
@@ -100,7 +118,11 @@ function rrule(
     # In the general case, we need to save all the pullbacks:
     # (Here `map` or `broadcast` would fail for adjoint vectors.)
     fx_and_pullbacks = [rrule_via_ad(config, f, xᵢ) for xᵢ in xs]
-    y = sum(first, fx_and_pullbacks; dims)
+    y = if init === _InitialValue()
+        sum(first, fx_and_pullbacks; dims)
+    else
+        sum(first, fx_and_pullbacks; dims, init=init)
+    end
 
     function sum_pullback_f2(dy)
         # For arrays of arrays, we ought to protect the element against broadcasting:
@@ -162,9 +184,11 @@ function frule(
     ::typeof(abs2),
     x::AbstractArray{T};
     dims=:,
+    init=_InitialValue(),
 ) where {T<:Union{Real,Complex}}
     ẋ = unthunk(Δx)
-    y = sum(abs2, x; dims=dims)
+    y = init === _InitialValue() ? sum(abs2, x; dims=dims) :
+        sum(abs2, x; dims=dims, init=init)
     ∂y = if dims isa Colon
         2 * realdot(x, ẋ)
     else
@@ -180,8 +204,10 @@ function rrule(
     ::typeof(abs2),
     x::AbstractArray{T};
     dims=:,
+    init=_InitialValue(),
 ) where {T<:Union{Real,Complex}}
-    y = sum(abs2, x; dims=dims)
+    y = init === _InitialValue() ? sum(abs2, x; dims=dims) :
+        sum(abs2, x; dims=dims, init=init)
     function sum_abs2_pullback(ȳ)
         x_thunk = InplaceableThunk(
             dx -> dx .+= 2 .* real.(ȳ) .* x,
@@ -197,9 +223,17 @@ end
 # and if we don't specify what do do for one that HasReverseMode then it is ambiguous
 for Config in (RuleConfig, RuleConfig{>:HasReverseMode})
     @eval function rrule(
-        ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T}; dims=:,
+        ::$Config, ::typeof(sum), ::typeof(abs2), x::AbstractArray{T};
+        dims=:, init=_InitialValue(),
     ) where {T<:Union{Real,Complex}}
-        return rrule(sum, abs2, x; dims=dims)
+        # Do not forward the `_InitialValue()` sentinel: the `rrule` this
+        # dispatches to may be `@non_differentiable` (e.g. `AbstractArray{Bool}`),
+        # which forwards all keywords to `sum`, and `sum` rejects the sentinel.
+        return if init === _InitialValue()
+            rrule(sum, abs2, x; dims=dims)
+        else
+            rrule(sum, abs2, x; dims=dims, init=init)
+        end
     end
 end
 

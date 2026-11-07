@@ -15,6 +15,10 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
         # Boolean -- via @non_differentiable
         test_rrule(sum, (true, false, true))
+
+        # `init` keyword (#868), non-differentiable like in `foldl`
+        test_frule(sum, Tuple(rand(5)); fkwargs=(; init=rand()))
+        test_rrule(sum, Tuple(rand(5)); fkwargs=(; init=rand()))
     end
     @testset "sum(x; dims=$dims)" for dims in (:, 2, (1,3))
         # Forward
@@ -24,6 +28,18 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         # Reverse
         @gpu test_rrule(sum, rand(5); fkwargs=(;dims=dims))
         @gpu test_rrule(sum, rand(ComplexF64, 2,3,4); fkwargs=(;dims=dims))
+
+        # `init` keyword (#868)
+        # NOTE: `init` must match the input precision. The plain `test_*`
+        # calls run in Float64, where finite differences are exact to 1e-9;
+        # a Float32 `init` would make `sum` round its output to Float32
+        # (e.g. `sum(x; dims=2, init=0.5f0)` is `x .+ 0.5f0`), which finite
+        # differences cannot resolve to 1e-9. The `@gpu` comparisons below
+        # downcast inputs to Float32, so they use a Float32 `init` instead.
+        test_frule(sum, rand(5); fkwargs=(;dims=dims, init=rand()))
+        test_rrule(sum, rand(5); fkwargs=(;dims=dims, init=rand()))
+        @gpu frule((NoTangent(), rand(5)), sum, rand(5); dims=dims, init=rand(Float32))
+        @gpu rrule(sum, rand(5); dims=dims, init=rand(Float32))
 
         # Structured matrices
         test_rrule(sum, rand(5)'; fkwargs=(;dims=dims))
@@ -54,6 +70,26 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
     @testset "sum!(y, x)" begin
         test_frule(sum!, rand(3), rand(3, 5))
         test_frule(sum!, rand(ComplexF64, 1, 4), rand(3, 4))
+
+        # `init` keyword (#868): `init=false` accumulates into `y`
+        test_frule(sum!, rand(3), rand(3, 5); fkwargs=(; init=true))
+        test_frule(sum!, rand(3), rand(3, 5); fkwargs=(; init=false))
+    end
+
+    @testset "sum with init (#868)" begin
+        # Examples from #868: these threw `MethodError` before the fix
+        @test frule((NoTangent(), ones(3)), sum, [1.0, 2.0, 3.0]; init=0.0) == (6.0, 3.0)
+        @test rrule(sum, [1.0, 2.0, 3.0]; init=0.0)[1] == 6.0
+        @test frule((NoTangent(), ones(3)), sum, [1.0, 2.0, 3.0]; init=10.0) == (16.0, 3.0)
+        @test rrule(sum, [1.0, 2.0, 3.0]; init=10.0)[1] == 16.0
+        # `sum!` with `init=false` accumulates the tangent into `ẏ`
+        y, ẏ = [10.0, 20.0], [1.0, 2.0]
+        @test frule((NoTangent(), ẏ, ones(2, 2)), sum!, y, [1.0 2.0; 3.0 4.0]; init=false) ==
+            ([13.0, 27.0], [3.0, 4.0])
+        # Bool-valued `f` over a Tuple: `sum(fxs)` hits `@non_differentiable`,
+        # which forwards keywords to `sum` -- the `init` sentinel must not leak
+        @test rrule(CFG, sum, x -> x > 0, (1.0, 2.0, 3.0))[1] == 3
+        @test rrule(CFG, sum, x -> x > 0, (1.0, 2.0, 3.0); init=10)[1] == 13
     end
 
     @testset "sum abs2" begin
@@ -63,6 +99,13 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
                 x = randn(T, sizes[1:N]...)
                 @gpu test_frule(sum, abs2, x; fkwargs=(;dims=dims))
                 @gpu test_rrule(sum, abs2, x; fkwargs=(;dims=dims))
+
+                # `init` keyword (#868) -- same precision split as above:
+                # plain tests in Float64, GPU comparisons in Float32
+                test_frule(sum, abs2, x; fkwargs=(;dims=dims, init=rand()))
+                test_rrule(sum, abs2, x; fkwargs=(;dims=dims, init=rand()))
+                @gpu frule((NoTangent(), NoTangent(), x), sum, abs2, x; dims=dims, init=rand(Float32))
+                @gpu rrule(sum, abs2, x; dims=dims, init=rand(Float32))
             end
 
             # Boolean -- via @non_differentiable, test that this isn't ambiguous
@@ -72,6 +115,9 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
     @testset "sum(f, xs::Tuple)" begin
         test_rrule(sum, sqrt, Tuple(rand(3)), check_inferred=false)
+
+        # `init` keyword (#868)
+        test_rrule(sum, sqrt, Tuple(rand(3)); fkwargs=(; init=rand()), check_inferred=false)
     end
 
     @testset "sum(f, xs)" begin
@@ -79,6 +125,12 @@ struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
         test_rrule(sum, abs, [-4.0, 2.0, 2.0])
         test_rrule(sum, log, rand(3, 4) .+ 1)
         test_rrule(sum, cbrt, randn(5))
+
+        # `init` keyword (#868): fast path (`abs`) and general path (`cbrt`)
+        test_rrule(sum, abs, [-4.0, 2.0, 2.0]; fkwargs=(; init=rand()))
+        test_rrule(sum, cbrt, randn(5); fkwargs=(; init=rand()))
+        test_rrule(sum, abs, [-2.0 4.0; 5.0 1.9]; fkwargs=(; dims=1, init=rand()))
+        test_rrule(sum, cbrt, randn(5); fkwargs=(; dims=1, init=rand()))
         test_rrule(sum, Multiplier(2.0), [2.0, 4.0, 8.0])
 
         # Complex numbers
