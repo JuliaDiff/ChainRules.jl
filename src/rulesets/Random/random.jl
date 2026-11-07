@@ -26,6 +26,8 @@ const NonDifferentiableSampler = Union{
 }
 @non_differentiable rand(::AbstractRNG, ::NonDifferentiableSampler)
 @non_differentiable rand!(::AbstractRNG, ::AbstractArray, ::NonDifferentiableSampler)
+# GPUArrays and CUDA implement this directly, without a sampler
+@non_differentiable rand!(::AbstractRNG, ::AbstractArray)
 
 @non_differentiable randexp(::Any...)
 
