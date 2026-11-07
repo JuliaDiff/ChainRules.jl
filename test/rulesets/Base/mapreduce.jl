@@ -5,6 +5,11 @@ Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
 @testset "Reductions" begin
+    @testset "sum(::Generator) falls back to AD" begin
+        xs = (x + 1.0 for x in 1:3)
+        @test frule((NoTangent(), ZeroTangent()), sum, xs) === nothing
+    end
+
     @testset "sum(::Tuple)" begin
         test_frule(sum, Tuple(rand(5)))
         test_frule(sum, (rand(2), rand(2)))
