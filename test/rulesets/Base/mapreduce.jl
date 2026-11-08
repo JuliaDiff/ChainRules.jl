@@ -5,9 +5,16 @@ Base.sum(xs::AbstractArray, weights::AbstractArray) = dot(xs, weights)
 struct SumRuleConfig <: RuleConfig{Union{HasReverseMode}} end
 
 @testset "Reductions" begin
-    @testset "sum(::Generator) falls back to AD" begin
+    @testset "sum falls back to AD for unsupported inputs" begin
         xs = (x + 1.0 for x in 1:3)
-        @test frule((NoTangent(), ZeroTangent()), sum, xs) === nothing
+        dxs = Tangent{typeof(xs)}(f=NoTangent(), iter=NoTangent())
+        @test frule((NoTangent(), dxs), sum, xs) === nothing
+
+        @test frule((NoTangent(), 1.0), sum, 2.0) === nothing
+
+        nt = (a=1.0, b=2.0)
+        dnt = Tangent{typeof(nt)}(a=1.0, b=2.0)
+        @test frule((NoTangent(), dnt), sum, nt) === nothing
     end
 
     @testset "sum(::Tuple)" begin
