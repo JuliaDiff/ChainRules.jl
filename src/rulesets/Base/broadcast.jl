@@ -2,8 +2,9 @@ using Base.Broadcast: Broadcast, broadcasted, Broadcasted, BroadcastStyle
 const RCR = RuleConfig{>:HasReverseMode}
 const TRI_NO = (NoTangent(), NoTangent(), NoTangent())
 
-# The cotangent of a tuple-valued broadcast is a `Tangent` (`Tangent{Any}` from Zygote). Broadcasting
-# over that would `collect` it into a `Vector`, losing the element types, so use its backing tuple.
+# The cotangent of a tuple-valued broadcast can be a `Tangent` (`Tangent{Any}` from Zygote).
+# Broadcast over its backing tuple, since broadcasting over a `Tangent` either loses the element
+# types or throws.
 _bc_cotangent(dys::Tangent{<:Any, <:Tuple}) = ChainRulesCore.backing(dys)
 _bc_cotangent(dys) = dys
 
@@ -191,7 +192,7 @@ end
 function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::NumericOrBroadcast)
     @debug("broadcasting: times")
     function bc_times_back(Δraw)
-        Δ = unthunk(Δraw)
+        Δ = _bc_cotangent(unthunk(Δraw))
         return (NoTangent(), NoTangent(), _back_star(x, y, Δ), _back_star(y, x, Δ))
     end
     return broadcasted(*, x, y), bc_times_back
@@ -217,7 +218,7 @@ end
 function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x::NumericOrBroadcast, ::Val{2})
     @debug("broadcasting: square")
     function bc_square_back(dy_raw)
-        dx = @thunk ProjectTo(x)(2 .* unthunk(dy_raw) .* conj.(x))
+        dx = @thunk ProjectTo(x)(2 .* _bc_cotangent(unthunk(dy_raw)) .* conj.(x))
         return (NoTangent(), NoTangent(), NoTangent(), dx, NoTangent())
     end
     return broadcasted(Base.literal_pow, ^, x, Val(2)), bc_square_back
@@ -228,7 +229,7 @@ function rrule(::typeof(broadcasted), ::typeof(/), x::NumericOrBroadcast, y::Num
     # z = broadcast(/, x, y)
     z = broadcasted(/, x, y)
     function bc_divide_back(dz_raw)
-        dz = unthunk(dz_raw)
+        dz = _bc_cotangent(unthunk(dz_raw))
         dx = @thunk unbroadcast(x, dz ./ conj.(y))
         # dy = @thunk -LinearAlgebra.dot(z, dz) / conj(y)  # the reason to be eager is to allow dot here
         dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast
@@ -299,7 +300,7 @@ rrule(::typeof(broadcasted), ::typeof(real), x::AbstractArray{<:Real}) = rrule(i
 
 function rrule(::typeof(broadcasted), ::typeof(imag), x::NumericOrBroadcast)
     @debug("broadcasting: imag")
-    bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(unthunk(dz))))
+    bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(_bc_cotangent(unthunk(dz)))))
     return broadcasted(imag, x), bc_imag_back
 end
 rrule(::typeof(broadcasted), ::typeof(imag), x::Number) = rrule(imag, x) |> _prepend_zero
