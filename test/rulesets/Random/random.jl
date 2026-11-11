@@ -1,4 +1,4 @@
-using ChainRules, ChainRulesCore, Random, Test
+using ChainRules, ChainRulesCore, JLArrays, Random, Test
 
 # Simple Distributions like object for testing purposes
 struct NormalDistribution
@@ -6,6 +6,10 @@ struct NormalDistribution
     σ
 end
 Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
+
+# RNG that, like GPUArrays and CUDA, implements `rand!(rng, A)` without a sampler
+struct DirectRNG <: AbstractRNG end
+Random.rand!(::DirectRNG, A::Array) = fill!(A, 0.5)
 
 @testset "Random" begin
     rng_types = [MersenneTwister, Xoshiro]
@@ -120,5 +124,20 @@ Random.rand(d::NormalDistribution) = d.μ + d.σ*randn()
             ) === nothing
         end
         @test rrule(rand, rng, Random.SamplerRangeNDL(1.5, UInt64(4))) === nothing
+    end
+
+    @testset "rand!(rng, A)" begin
+        for (rng, A) in (
+            (Xoshiro(123), zeros(3)),
+            (Xoshiro(123), JLArray(zeros(Float32, 3))),  # GPUArrays: no sampler
+            (DirectRNG(), zeros(3)),
+        )
+            Ω, dΩ = frule((NoTangent(), NoTangent(), NoTangent()), rand!, rng, A)
+            @test Ω === A
+            @test dΩ isa NoTangent
+            Ω, pb! = rrule(rand!, rng, A)
+            @test Ω === A
+            @test all(darg isa NoTangent for darg in pb!(ones(3)))
+        end
     end
 end

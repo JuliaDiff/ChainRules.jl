@@ -199,7 +199,7 @@ end
     test_rrule(reduce, hcat, vecs)
     
     mix = AbstractVecOrMat[rand(4,2), rand(4)]  # this is weird, but does hit the fast path
-    test_rrule(reduce, hcat, mix)
+    test_rrule(reduce, hcat, mix; check_inferred=false)
 
     adjs = vec([randn(2, 4), randn(1, 4), randn(3, 4)]')  # not a Vector
     # test_rrule(reduce, hcat, adjs ⊢ map(m -> rand(size(m)), adjs))
@@ -240,7 +240,18 @@ end
     test_rrule(reduce, vcat, vecs)
 
     mix = AbstractVecOrMat[rand(4,1), rand(4)]
-    test_rrule(reduce, vcat, mix)
+    test_rrule(reduce, vcat, mix; check_inferred=false)
+end
+
+@testset "reduce cat: cotangents are projected" begin
+    @testset "$red" for (red, As) in [
+        (hcat, [rand(Float32, 3) for _ in 1:2]),
+        (hcat, AbstractVecOrMat[rand(Float32, 3, 2), rand(Float32, 3)]),
+        (vcat, AbstractVecOrMat[rand(Float32, 3, 1), rand(Float32, 3)]),
+    ]
+        Y, back = rrule(reduce, red, As)
+        @test map(typeof, back(rand(ComplexF64, size(Y)))[3]) == map(typeof, As)
+    end
 end
 
 @testset "cat" begin
@@ -275,6 +286,33 @@ end
     # mix types (adjoint and transpose)
     test_rrule(hvcat, 1, rand(3)', transpose(rand(3)) ⊢ rand(1,3))
     test_rrule(hvcat, (1,2), rand(2)', (3.4, 5.6), 7.8; check_inferred=false)
+end
+
+@testset "thunked cotangents are unthunked once" begin
+    # Unthunking recomputes the array, so the pullbacks must do so only once, not per input.
+    cases = [
+        ("reduce vcat, vectors", rrule(reduce, vcat, [rand(3), rand(2), rand(4)])),
+        ("reduce vcat, matrices", rrule(reduce, vcat, [rand(2, 4), rand(1, 4), rand(3, 4)])),
+        ("reduce vcat, mixed", rrule(reduce, vcat, AbstractVecOrMat[rand(4, 1), rand(4)])),
+        ("reduce hcat, vectors", rrule(reduce, hcat, [rand(3) for _ in 1:4])),
+        ("reduce hcat, matrices", rrule(reduce, hcat, [rand(3, 2), rand(3, 1), rand(3, 3)])),
+        ("reduce hcat, mixed", rrule(reduce, hcat, AbstractVecOrMat[rand(4, 2), rand(4)])),
+        ("hvcat", rrule(hvcat, (2, 1), rand(), rand(1, 1), rand(2, 2))),
+        ("vect, uniform", rrule(Base.vect, (1.0,), (2.0,))),
+        ("vect, projected", rrule(Base.vect, 1.0, 2f0, 3)),
+        ("vect, any", rrule(Base.vect, :a, 1.0)),
+    ]
+    @testset "$name" for (name, (Y, back)) in cases
+        dY = rand(size(Y)...)
+        expected = map(unthunk, back(dY))
+        n = Ref(0)
+        counted() = (n[] += 1; copy(dY))
+        for dȲ in (@thunk(counted()), InplaceableThunk(dx -> dx .+= dY, @thunk(counted())))
+            n[] = 0
+            @test map(unthunk, back(dȲ)) == expected
+            @test n[] == 1
+        end
+    end
 end
 
 @testset "reverse" begin
