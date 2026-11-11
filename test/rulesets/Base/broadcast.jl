@@ -102,6 +102,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand(3) .+ 2im)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand() + 3im)
             test_rrule(copy∘broadcasted, *, rand() + im, rand(3) .+ 4im)
+            test_rrule(copy ∘ broadcasted, *, rand(), rand(3) .+ im)  # projects the cotangent of the real scalar
 
             @test_skip test_rrule(copy∘broadcasted, *, im, rand(3))  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
             @test_skip test_rrule(copy∘broadcasted, *, rand(3), im)  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
@@ -129,6 +130,7 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @gpu test_rrule(copy ∘ broadcasted, /, rand(3), rand())
             @gpu test_rrule(copy ∘ broadcasted, /, rand(3) .+ im, rand() + 3im)
             test_rrule(copy ∘ broadcasted, /, Tuple(rand(3)), rand())
+            test_rrule(copy ∘ broadcasted, /, rand(3) .+ im, rand())  # projects the cotangent of the real scalar
         end
         @testset "identity etc" begin
             test_rrule(copy∘broadcasted, identity, rand(3))
@@ -251,15 +253,15 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test dxd == Tangent{typeof(x)}(0.5, 0.5f0)
             @test dyd ≈ -0.75
             xc = (1.0 + 2im, 3.0 - 1im)
-            @test unthunk(rrule(CFG, copy ∘ broadcasted, real, xc)[2](dy)[3]) ==
+            @test rrule(CFG, copy ∘ broadcasted, real, xc)[2](dy)[3] ==
                 Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
-            @test unthunk(rrule(CFG, copy ∘ broadcasted, imag, xc)[2](dy)[3]) ==
+            @test rrule(CFG, copy ∘ broadcasted, imag, xc)[2](dy)[3] ==
                 Tangent{typeof(xc)}(1.0im, 1.0im)
             dyc = Tangent{Any}(1.0 + 1im, 2.0 - 1im)
-            @test unthunk(rrule(CFG, copy ∘ broadcasted, conj, xc)[2](dyc)[3]) ==
+            @test rrule(CFG, copy ∘ broadcasted, conj, xc)[2](dyc)[3] ==
                 Tangent{typeof(xc)}(1.0 - 1im, 2.0 + 1im)
-            # e.g. from `real.(conj.(x))`, where the outer rule returns a `Tuple` cotangent
-            @test unthunk(rrule(CFG, copy ∘ broadcasted, conj, xc)[2]((1.0, 1.0))[3]) ==
+            # Zygote passes the cotangent of the outer rule in e.g. `real.(conj.(x))` on as a `Tuple`
+            @test rrule(CFG, copy ∘ broadcasted, conj, xc)[2]((1.0, 1.0))[3] ==
                 Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
             @test rrule(CFG, copy ∘ broadcasted, -, x)[2]((1.0, 1.0f0))[3] ==
                 Tangent{typeof(x)}(-1.0, -1.0f0)

@@ -199,7 +199,7 @@ function rrule(::typeof(broadcasted), ::typeof(*), x::NumericOrBroadcast, y::Num
     return broadcasted(*, x, y), bc_times_back
 end
 _back_star(x, y, Δ) = @thunk unbroadcast(x, Δ .* conj.(y))  # this case probably isn't better than generic
-_back_star(x::Number, y, Δ) = @thunk LinearAlgebra.dot(y, Δ)  # ... but this is why the rule exists
+_back_star(x::Number, y, Δ) = @thunk unbroadcast(x, LinearAlgebra.dot(y, Δ))  # ... but this is why the rule exists
 _back_star(x::Bool, y, Δ) = NoTangent()
 _back_star(x::Complex{Bool}, y, Δ) = NoTangent()  # e.g. for fun.(im.*x)
 
@@ -219,7 +219,7 @@ end
 function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x::NumericOrBroadcast, ::Val{2})
     @debug("broadcasting: square")
     function bc_square_back(dy_raw)
-        dx = ProjectTo(x)(2 .* _bc_cotangent(unthunk(dy_raw)) .* conj.(x))
+        dx = unbroadcast(x, 2 .* _bc_cotangent(unthunk(dy_raw)) .* conj.(x))
         return (NoTangent(), NoTangent(), NoTangent(), dx, NoTangent())
     end
     return broadcasted(Base.literal_pow, ^, x, Val(2)), bc_square_back
@@ -233,7 +233,11 @@ function rrule(::typeof(broadcasted), ::typeof(/), x::NumericOrBroadcast, y::Num
         dz = _bc_cotangent(unthunk(dz_raw))
         dx = @thunk unbroadcast(x, dz ./ conj.(y))
         # dy = @thunk -LinearAlgebra.dot(z, dz) / conj(y)  # the reason to be eager is to allow dot here
-        dy = @thunk -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y)  # complete sum is fast
+        # complete sum is fast
+        dy = @thunk unbroadcast(
+            y,
+            -sum(Broadcast.instantiate(broadcasted(*, broadcasted(conj, z), dz))) / conj(y),
+        )
         return (NoTangent(), NoTangent(), dx, dy)
     end
     return z, bc_divide_back
@@ -300,9 +304,11 @@ end
 function rrule(::typeof(broadcasted), ::typeof(real), x::NumericOrBroadcast)
     @debug("broadcasting: real")
     bc_real_back(dz) =
-        (NoTangent(), NoTangent(), unbroadcast(x, real.(_bc_cotangent(unthunk(dz)))))
+        (NoTangent(), NoTangent(), unbroadcast(x, _real(_bc_cotangent(unthunk(dz)))))
     return broadcasted(real, x), bc_real_back
 end
+_real(dz) = real(dz)  # doesn't copy a real array
+_real(dz::Tuple) = real.(dz)
 rrule(::typeof(broadcasted), ::typeof(real), x::Number) = rrule(real, x) |> _prepend_zero
 rrule(::typeof(broadcasted), ::typeof(real), x::AbstractArray{<:Real}) = rrule(identity, x) |> _prepend_zero
 
