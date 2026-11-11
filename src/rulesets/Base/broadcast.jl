@@ -168,7 +168,7 @@ const NumericOrBroadcast = Union{Number, AbstractArray{<:Number}, NTuple{<:Any,N
 function rrule(::typeof(broadcasted), ::typeof(+), xs::NumericOrBroadcast...)
     @debug("broadcasting: plus", length(xs))
     function bc_plus_back(dy_raw)
-        dy = unthunk(dy_raw)
+        dy = _bc_cotangent(unthunk(dy_raw))
         return (NoTangent(), NoTangent(), map(x -> unbroadcast(x, dy), xs)...)  # no copies, this may return dx2 === dx3
     end
     return broadcasted(+, xs...), bc_plus_back
@@ -177,7 +177,7 @@ end
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast, y::NumericOrBroadcast)
     @debug("broadcasting: minus 2")
     function bc_minus_back(dz_raw)
-        dz = unthunk(dz_raw)
+        dz = _bc_cotangent(unthunk(dz_raw))
         return (NoTangent(), NoTangent(), @thunk(unbroadcast(x, dz)), @thunk(-unbroadcast(y, dz)))
     end
     return broadcasted(-, x, y), bc_minus_back
@@ -185,7 +185,7 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(-), x::NumericOrBroadcast)
     @debug("broadcasting: minus 1")
-    bc_minus_back(dy) = (NoTangent(), NoTangent(), @thunk -unthunk(dy))
+    bc_minus_back(dy) = (NoTangent(), NoTangent(), unbroadcast(x, .-_bc_cotangent(unthunk(dy))))
     return broadcasted(-, x), bc_minus_back
 end
 
@@ -218,7 +218,7 @@ end
 function rrule(::typeof(broadcasted), ::typeof(Base.literal_pow), ::typeof(^), x::NumericOrBroadcast, ::Val{2})
     @debug("broadcasting: square")
     function bc_square_back(dy_raw)
-        dx = @thunk ProjectTo(x)(2 .* _bc_cotangent(unthunk(dy_raw)) .* conj.(x))
+        dx = ProjectTo(x)(2 .* _bc_cotangent(unthunk(dy_raw)) .* conj.(x))
         return (NoTangent(), NoTangent(), NoTangent(), dx, NoTangent())
     end
     return broadcasted(Base.literal_pow, ^, x, Val(2)), bc_square_back
@@ -263,14 +263,14 @@ rrule(::typeof(broadcasted), ::typeof(identity), x::Number) = rrule(identity, x)
 
 function rrule(::typeof(broadcasted), ::Type{T}, x::NumericOrBroadcast) where {T<:Number}
     @debug("broadcasting: type", T)
-    bc_type_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_type_back(dz) = (NoTangent(), NoTangent(), unbroadcast(x, _bc_cotangent(unthunk(dz))))
     return broadcasted(T, x), bc_type_back
 end
 rrule(::typeof(broadcasted), ::Type{T}, x::Number) where {T<:Number} = rrule(T, x) |> _prepend_zero
 
 function rrule(::typeof(broadcasted), ::typeof(float), x::NumericOrBroadcast)
     @debug("broadcasting: float")
-    bc_float_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_float_back(dz) = (NoTangent(), NoTangent(), unbroadcast(x, _bc_cotangent(unthunk(dz))))
     return broadcasted(float, x), bc_float_back
 end
 rrule(::typeof(broadcasted), ::typeof(float), x::Number) = rrule(float, x) |> _prepend_zero
@@ -280,7 +280,7 @@ rrule(::typeof(broadcasted), ::typeof(float), x::Number) = rrule(float, x) |> _p
 for conj in [:conj, :adjoint]  # identical as we know eltype <: Number
     @eval begin
         function rrule(::typeof(broadcasted), ::typeof($conj), x::NumericOrBroadcast)
-            bc_conj_back(dx) = (NoTangent(), NoTangent(), conj(unthunk(dx)))
+            bc_conj_back(dx) = (NoTangent(), NoTangent(), unbroadcast(x, conj.(_bc_cotangent(unthunk(dx)))))
             return broadcasted($conj, x), bc_conj_back
         end
         rrule(::typeof(broadcasted), ::typeof($conj), x::Number) = rrule($conj, x) |> _prepend_zero
@@ -292,7 +292,7 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(real), x::NumericOrBroadcast)
     @debug("broadcasting: real")
-    bc_real_back(dz) = (NoTangent(), NoTangent(), @thunk(real(unthunk(dz))))
+    bc_real_back(dz) = (NoTangent(), NoTangent(), unbroadcast(x, real.(_bc_cotangent(unthunk(dz)))))
     return broadcasted(real, x), bc_real_back
 end
 rrule(::typeof(broadcasted), ::typeof(real), x::Number) = rrule(real, x) |> _prepend_zero
@@ -300,7 +300,7 @@ rrule(::typeof(broadcasted), ::typeof(real), x::AbstractArray{<:Real}) = rrule(i
 
 function rrule(::typeof(broadcasted), ::typeof(imag), x::NumericOrBroadcast)
     @debug("broadcasting: imag")
-    bc_imag_back(dz) = (NoTangent(), NoTangent(), @thunk(im .* real.(_bc_cotangent(unthunk(dz)))))
+    bc_imag_back(dz) = (NoTangent(), NoTangent(), unbroadcast(x, im .* real.(_bc_cotangent(unthunk(dz)))))
     return broadcasted(imag, x), bc_imag_back
 end
 rrule(::typeof(broadcasted), ::typeof(imag), x::Number) = rrule(imag, x) |> _prepend_zero
@@ -312,7 +312,7 @@ end
 
 function rrule(::typeof(broadcasted), ::typeof(complex), x::NumericOrBroadcast)
     @debug("broadcasting: complex")
-    bc_complex_back(dz) = (NoTangent(), NoTangent(), @thunk(unbroadcast(x, unthunk(dz))))
+    bc_complex_back(dz) = (NoTangent(), NoTangent(), unbroadcast(x, _bc_cotangent(unthunk(dz))))
     return broadcasted(complex, x), bc_complex_back
 end
 rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |> _prepend_zero

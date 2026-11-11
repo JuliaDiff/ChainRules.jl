@@ -141,11 +141,15 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
         @testset "complex" begin
             test_rrule(copy∘broadcasted, conj, rand(3))
             test_rrule(copy∘broadcasted, conj, rand(3) .+ im)
+            test_rrule(copy∘broadcasted, conj, Tuple(rand(3)))
+            test_rrule(copy∘broadcasted, conj, Tuple(rand(3) .+ im .* rand.()))
             test_rrule(copy∘broadcasted, adjoint, rand(3))
             test_rrule(copy∘broadcasted, adjoint, rand(3) .+ im)
 
             test_rrule(copy∘broadcasted, real, rand(3))
             test_rrule(copy∘broadcasted, real, rand(3) .+ im)
+            test_rrule(copy∘broadcasted, real, Tuple(rand(3)))
+            test_rrule(copy∘broadcasted, real, Tuple(rand(3) .+ im .* rand.()))
 
             test_rrule(copy∘broadcasted, imag, rand(3))
             test_rrule(copy∘broadcasted, imag, rand(3) .+ im .* rand.())
@@ -230,11 +234,32 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test dx3[4] isa Tangent{typeof(x3), typeof(x3)}
             @test all(ChainRulesCore.backing(dx3[4]) .≈ (1.0, 0.5))
 
-            dy = Tangent{Any}(1.0, 1.0f0)  # fused rules
-            @test unthunk(rrule(CFG, copy∘broadcasted, *, x, 2.0)[2](dy)[3]) isa Tangent{typeof(x)}
-            @test unthunk(rrule(CFG, copy∘broadcasted, Base.literal_pow, ^, x, Val(2))[2](dy)[4]) isa Tangent{typeof(x)}
-            @test unthunk(rrule(CFG, copy∘broadcasted, /, x, 2.0)[2](dy)[3]) isa Tangent{typeof(x)}
-            @test unthunk(rrule(CFG, copy∘broadcasted, imag, x)[2](dy)[3]) isa Tangent{typeof(x)}
+            # Fused rules
+            dy = Tangent{Any}(1.0, 1.0f0)
+            _, _, dxt, dyt = map(unthunk, rrule(CFG, copy∘broadcasted, *, x, 2.0)[2](dy))
+            @test dxt == Tangent{typeof(x)}(2.0, 2.0f0)
+            @test dyt ≈ 3.0
+            _, _, _, dxs, _ = map(unthunk, rrule(CFG, copy∘broadcasted, Base.literal_pow, ^, x, Val(2))[2](dy))
+            @test dxs == Tangent{typeof(x)}(2.0, 4.0f0)
+            _, _, dxd, dyd = map(unthunk, rrule(CFG, copy∘broadcasted, /, x, 2.0)[2](dy))
+            @test dxd == Tangent{typeof(x)}(0.5, 0.5f0)
+            @test dyd ≈ -0.75
+            xc = (1.0 + 2im, 3.0 - 1im)
+            @test unthunk(rrule(CFG, copy∘broadcasted, real, xc)[2](dy)[3]) == Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
+            @test unthunk(rrule(CFG, copy∘broadcasted, imag, xc)[2](dy)[3]) == Tangent{typeof(xc)}(1.0im, 1.0im)
+            dyc = Tangent{Any}(1.0 + 1im, 2.0 - 1im)
+            @test unthunk(rrule(CFG, copy∘broadcasted, conj, xc)[2](dyc)[3]) == Tangent{typeof(xc)}(1.0 - 1im, 2.0 + 1im)
+            # e.g. from `real.(conj.(x))`, where the outer rule returns a `Tuple` cotangent
+            @test unthunk(rrule(CFG, copy∘broadcasted, conj, xc)[2]((1.0, 1.0))[3]) == Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
+            @test rrule(CFG, copy∘broadcasted, -, x)[2]((1.0, 1.0f0))[3] == Tangent{typeof(x)}(-1.0, -1.0f0)
+
+            # Lazy arguments, e.g. from `float.(real.(x))`
+            xl = broadcasted(real, x)
+            @test unthunk(rrule(broadcasted, +, xl, 1.0)[2](dy)[3]) == (1.0, 1.0f0)
+            @test unthunk(rrule(broadcasted, -, xl, 1.0)[2](dy)[3]) == (1.0, 1.0f0)
+            @test rrule(broadcasted, float, xl)[2](dy)[3] == (1.0, 1.0f0)
+            @test rrule(broadcasted, Float32, xl)[2](dy)[3] == (1.0, 1.0f0)
+            @test rrule(broadcasted, complex, xl)[2](dy)[3] == (1.0, 1.0f0)
         end
         @testset "unbroadcast with NTuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/pull/661
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
