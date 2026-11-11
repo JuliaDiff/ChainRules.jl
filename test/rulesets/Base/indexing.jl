@@ -1,5 +1,9 @@
 using ChainRules,
-    ChainRulesCore, ChainRulesTestUtils, GPUArraysCore, JLArrays, LinearAlgebra, Test
+    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, GPUArraysCore, JLArrays,
+    LinearAlgebra, Test
+
+# Otherwise the struct fallback also perturbs the index field
+FiniteDifferences.to_vec(x::ChainRules.OneElement) = to_vec(collect(x))
 
 struct FooTwoField
     x::Float64
@@ -180,6 +184,30 @@ end
         y3, bk3 = rrule(getindex, x_23_gpu, 1, [1,1,2])  # slow path, copy to CPU
         @test Array(y3) == Array(x_23_gpu)[1, [1,1,2]]
         @test unthunk(bk3(jl(ones(3)))[2]) == jl([2 1 0; 0 0 0])
+    end
+
+    @testset "add! agrees with unthunk" begin
+        function test_add!(x, dy, inds...; acc=zero(x))
+            dx = rrule(getindex, x, inds...)[2](dy)[2]
+            @test dx.add!(copy(acc)) == acc + unthunk(dx)
+        end
+        x, x32 = [1.0, 2.0, 3.0], Float32[1, 2, 3]
+        test_add!(x, 1.0 + 2.0im, 1)
+        test_add!(x, [1.0im, 2.0im], 1:2)
+        test_add!(x32, 0.1, 2; acc=zeros(3))
+        test_add!(x32, [0.1, 0.2], 2:3; acc=zeros(3))
+        test_add!(x32, [0.5, 0.25, 1.0], [2, 2, 1])
+        test_add!(Diagonal(rand(3)), [1.0, 2.0, 3.0], 2, :; acc=zeros(3, 3))
+        test_add!(Symmetric(rand(3, 3)), 1.0, 2, 3; acc=zeros(3, 3))
+        xs, acc = [Float32[1, 2], Float32[3, 4]], [zeros(2), zeros(2)]
+        test_add!(xs, [0.1, 0.2], 2; acc)
+        test_add!(xs, [[0.1, 0.2], [0.3, 0.4]], 1:2; acc)
+
+        @test unthunk(rrule(getindex, x32, 2)[2](0.1)[2]) isa ChainRules.OneElement{Float32}
+
+        x_gpu = jl(Float32[1 2 3; 4 5 6])
+        dx = rrule(getindex, x_gpu, :, 2)[2](jl([0.1, 0.2]))[2]
+        @test dx.add!(jl(zeros(2, 3))) == jl(Float64[0 0.1f0 0; 0 0.2f0 0])
     end
 
     @testset "getindex(::Array{<:AbstractGPUArray})" begin

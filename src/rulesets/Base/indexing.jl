@@ -65,9 +65,37 @@ end
 
 function thunked_∇getindex(x, dy, inds...)
     return InplaceableThunk(
-        dx -> ∇getindex!(dx, unthunk(dy), Base.to_indices(x, inds)...),
+        dx -> _∇getindex_add!(dx, x, unthunk(dy), inds...),
         @thunk(∇getindex(x, unthunk(dy), inds...)),
     )
+end
+
+# Same as `add!!(dx, ∇getindex(x, dy, inds...))`, but only touches `dx[inds...]` when it can.
+function _∇getindex_add!(dx, x, dy, inds...)
+    dy_proj = _project_getindex(x, dy, inds...)
+    dy_proj === nothing && return add!!(dx, ∇getindex(x, dy, inds...))
+    dy_proj isa AbstractZero && return dx
+    return ∇getindex!(dx, dy_proj, Base.to_indices(x, inds)...)
+end
+_∇getindex_add!(dx, x, dy::AbstractZero, inds...) = dx
+
+"""
+    _project_getindex(x, dy, inds...)
+
+Applies to `dy` the part of `ProjectTo(x)` acting on `x[inds...]`, or returns `nothing`
+if `ProjectTo(x)` doesn't act elementwise (e.g. for `Diagonal` or `Symmetric`).
+"""
+function _project_getindex(x::AbstractArray, dy, inds...)
+    if eltype(x) <: Number
+        project = ProjectTo(x)
+        project isa ProjectTo{AbstractArray} || return nothing
+        dy isa AbstractArray || return project.element(dy)
+        return ProjectTo{AbstractArray}(; element=project.element, axes=axes(dy))(dy)
+    elseif x isa Array
+        # one projector per element, so avoid `ProjectTo(x)` which costs O(length(x))
+        return ProjectTo(x[inds...])(dy)
+    end
+    return nothing
 end
 
 """
@@ -82,8 +110,8 @@ function ∇getindex(x::AbstractArray{T,N}, dy, inds...) where {T,N}
     # leaving just Int / AbstractVector of Int
     plain_inds = Base.to_indices(x, inds)
     dx = if plain_inds isa NTuple{N, Int} && T<:Number
-        # scalar indexing
-        OneElement(dy, plain_inds, axes(x))
+        # scalar indexing. Projecting `dy` first keeps `ProjectTo(x)` from materializing `dx`.
+        OneElement(something(_project_getindex(x, dy, inds...), dy), plain_inds, axes(x))
     else  # some from slicing (potentially noncontigous)
         dx = _setindex_zero(x, dy, plain_inds...)
         ∇getindex!(dx, dy, plain_inds...)
