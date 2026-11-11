@@ -67,6 +67,54 @@ end
             test_scalar(acoth, x + 1)
         end
 
+        # finite differencing is not accurate enough to detect cancellation near |x| = 1
+        @testset "Inverse accuracy near |x| = 1" begin
+            setprecision(BigFloat, 256) do
+                for (f, df, xs) in (
+                    (atanh, x -> inv(1 - x^2), (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9))),
+                    (acoth, x -> inv(1 - x^2), (1 + 1e-8, -1 - 1e-8, ComplexF64(1, 1e-9))),
+                    (asech, x -> -inv(x * sqrt(1 - x^2)), (1 - 1e-8, ComplexF64(1, 1e-9))),
+                    (asind, x -> inv(deg2rad(sqrt(1 - x^2))), (1 - 1e-8, -1 + 1e-8)),
+                    (acosd, x -> -inv(deg2rad(sqrt(1 - x^2))), (1 - 1e-8, -1 + 1e-8)),
+                    (
+                        asecd,
+                        x -> inv(deg2rad(abs(x) * sqrt(x^2 - 1))),
+                        (1 + 1e-8, -1 - 1e-8),
+                    ),
+                    (
+                        acscd,
+                        x -> -inv(deg2rad(abs(x) * sqrt(x^2 - 1))),
+                        (1 + 1e-8, -1 - 1e-8),
+                    ),
+                    (asec, x -> inv(abs(x) * sqrt(x^2 - 1)), (1 + 1e-8, -1 - 1e-8)),
+                    (acsc, x -> -inv(abs(x) * sqrt(x^2 - 1)), (1 + 1e-8, -1 - 1e-8)),
+                )
+                    @testset "$f($x)" for x in xs
+                        _, ẏ = frule((NoTangent(), one(x)), f, x)
+                        @test ẏ ≈ df(big(x)) rtol = 4eps()
+                    end
+                end
+            end
+        end
+
+        # finite differencing is not accurate enough to detect cancellation near x = ±i
+        @testset "Inverse accuracy near x = ±i and for large |x|" begin
+            setprecision(BigFloat, 256) do
+                zs = (ComplexF64(1e-9, 1 - 1e-8), ComplexF64(-1e-9, -1 + 1e-8))
+                for (f, df, xs) in (
+                    (asinh, x -> inv(sqrt(1 + x^2)), (zs..., 1e200, -1e200)),
+                    (acot, x -> -inv(1 + x^2), zs),
+                    (atand, x -> inv(deg2rad(1 + x^2)), zs),
+                    (acotd, x -> -inv(deg2rad(1 + x^2)), zs),
+                )
+                    @testset "$f($x)" for x in xs
+                        _, ẏ = frule((NoTangent(), one(x)), f, x)
+                        @test ẏ ≈ df(big(x)) rtol = 4eps()
+                    end
+                end
+            end
+        end
+
         @testset "Inverse degrees" for x = (0.5, Complex(0.5, 0.25))
             test_scalar(asind, x)
             test_scalar(acosd, x)

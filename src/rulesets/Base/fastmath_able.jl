@@ -38,16 +38,23 @@ let
         # Trig-Hyperbolic
         @scalar_rule cosh(x) sinh(x)
         @scalar_rule sinh(x) cosh(x)
-        @scalar_rule tanh(x) 1 - Ω ^ 2
+        # `1 - Ω ^ 2` cancels catastrophically for large `|x|` (DiffRules.jl#102)
+        @scalar_rule tanh(x) abs(real(x)) < 1 ? 1 - Ω ^ 2 : sech(x) ^ 2
 
         # Trig- Inverses
-        @scalar_rule acos(x) -(inv(sqrt(1 - x ^ 2)))
-        @scalar_rule asin(x) inv(sqrt(1 - x ^ 2))
+        # `(1 - x) * (1 + x)` avoids cancellation in `1 - x ^ 2` for `|x|` close to 1 (see `acoth` in base.jl)
+        @scalar_rule acos(x) -inv(sqrt((1 - x) * (1 + x)))
+        @scalar_rule asin(x) inv(sqrt((1 - x) * (1 + x)))
         @scalar_rule atan(x) inv(1 + x ^ 2)
+        # `(1 + im * x) * (1 - im * x)` avoids cancellation in `1 + x ^ 2` near `x = ±i`
+        @scalar_rule atan(x::Complex) inv((1 + im * x) * (1 - im * x))
 
         # Trig-Multivariate
-        @scalar_rule atan(y, x) @setup(u = x ^ 2 + y ^ 2) (x / u, -y / u)
-        @scalar_rule sincos(x) @setup((sinx, cosx) = Ω) cosx -sinx
+        # scaling by `max(|x|, |y|)` avoids overflow and underflow of `x ^ 2 + y ^ 2`
+        @scalar_rule atan(y, x) @setup(
+            s=max(abs(x), abs(y)), xs=x / s, ys=y / s, v=xs ^ 2 + ys ^ 2
+        ) (xs / v / s, -ys / v / s)
+        @scalar_rule sincos(x) @setup((sinx, cosx)=Ω) cosx -sinx
 
         # exponents
         @scalar_rule cbrt(x) inv(3 * Ω ^ 2)

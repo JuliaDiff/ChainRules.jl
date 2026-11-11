@@ -59,6 +59,46 @@ const FASTABLE_AST = quote
             test_scalar(acos, x)
             test_scalar(atan, x)
         end
+        # finite differencing is not accurate enough to detect cancellation
+        @testset "Accuracy" begin
+            setprecision(BigFloat, 256) do
+                for (f, df, xs) in (
+                    (
+                        tanh,
+                        x -> sech(x)^2,
+                        (
+                            0.5,
+                            4.0,
+                            14.0,
+                            25.0,
+                            -25.0,
+                            ComplexF64(14, 0.3),
+                            ComplexF64(30, 1),
+                        ),
+                    ),
+                    (
+                        asin,
+                        x -> inv(sqrt(1 - x^2)),
+                        (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9)),
+                    ),
+                    (
+                        acos,
+                        x -> -inv(sqrt(1 - x^2)),
+                        (1 - 1e-8, -1 + 1e-8, ComplexF64(1, 1e-9)),
+                    ),
+                    (
+                        atan,
+                        x -> inv(1 + x^2),
+                        (ComplexF64(1e-9, 1 - 1e-8), ComplexF64(-1e-9, -1 + 1e-8)),
+                    ),
+                )
+                    @testset "$f($x)" for x in xs
+                        _, ẏ = frule((NoTangent(), one(x)), f, x)
+                        @test ẏ ≈ df(big(x)) rtol = 4eps()
+                    end
+                end
+            end
+        end
         @testset "Multivariate" begin
             @testset "sincos(x::$T)" for T in (Float64, ComplexF64)
                 Δz = Tangent{Tuple{T,T}}(randn(T), randn(T))
@@ -298,4 +338,18 @@ end
 
 @eval @testset "fastmath_able FastMath functions" begin
     $(Base.FastMath.make_fastmath(FASTABLE_AST))
+end
+
+@testset "atan(y, x) for large and small arguments" begin
+    setprecision(BigFloat, 256) do
+        @testset "$f($y, $x)" for f in (atan, Base.FastMath.atan_fast),
+            (y, x) in ((1e-200, 1e-200), (1e200, 3e200), (-1e-170, 3e-170))
+
+            _, pb = rrule(f, y, x)
+            _, ȳ, x̄ = pb(1.0)
+            u = big(x)^2 + big(y)^2
+            @test ȳ ≈ big(x) / u rtol = 4eps()
+            @test x̄ ≈ -big(y) / u rtol = 4eps()
+        end
+    end
 end

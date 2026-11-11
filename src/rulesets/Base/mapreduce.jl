@@ -6,7 +6,7 @@ function frule((_, ẋ), ::typeof(sum), x::Tuple)
     return sum(x), sum(ẋ)
 end
 
-function frule((_, ẋ), ::typeof(sum), x; dims=:)
+function frule((_, ẋ), ::typeof(sum), x::AbstractArray; dims=:)
     return sum(x; dims=dims), sum(ẋ; dims=dims)
 end
 
