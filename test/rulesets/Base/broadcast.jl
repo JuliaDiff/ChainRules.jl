@@ -201,11 +201,30 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
             @test ChainRules.unbroadcast(broadcasted(-, (1, 2), 3), (4, 5)) == (4, 5)  # earlier, called ndims(::Tuple)
         end
-        @testset "unbroadcast tuple with vector cotangent" begin
-            dx = Tangent{Tuple{Float64, Float64}}(3.0, 4.0)
-            @test ChainRules.unbroadcast((1.0, 2.0), [3.0, 4.0]) == dx
-            @test ChainRules.unbroadcast((1.0, 2.0), Any[3.0, 4.0]) == dx  # abstract eltype, reduction not compiled
-            @test ChainRules.unbroadcast((1.0, 2.0), [1.0 2.0; 1.5 2.5]) == dx  # trailing dimensions still summed
+        @testset "unbroadcast tuple" begin
+            x = (1.0, 2.0)
+            dx = Tangent{typeof(x)}(3.0, 4.0)
+            @test @inferred(ChainRules.unbroadcast(x, [3.0, 4.0])) == dx
+            @test ChainRules.unbroadcast(x, Any[3.0, 4.0]) == dx  # not inferable: the eltype may be a zero
+            @test @inferred(ChainRules.unbroadcast(x, [3.0; 4.0;;])) == dx
+            @test @inferred(ChainRules.unbroadcast(x, [1.0 2.0; 1.5 2.5])) == dx
+            @test @inferred(
+                ChainRules.unbroadcast(x, reshape([1.0, 2.0, 2.0, 2.0], 2, 1, 2))
+            ) == dx
+            @test @inferred(ChainRules.unbroadcast(x, (3.0, 4.0))) == dx
+            @test @inferred(ChainRules.unbroadcast(x, Tangent{Any}(3.0, 4.0))) == dx
+            @test @inferred(ChainRules.unbroadcast(x, @thunk([3.0, 4.0]))) == dx
+            @test @inferred(ChainRules.unbroadcast(x, ZeroTangent())) == ZeroTangent()
+            @test @inferred(ChainRules.unbroadcast(x, @thunk(ZeroTangent()))) ==
+                ZeroTangent()
+            @test @inferred(ChainRules.unbroadcast([1.0, 2.0], @thunk(ZeroTangent()))) ==
+                ZeroTangent()
+            @test @inferred(ChainRules.unbroadcast(x, [ZeroTangent(), ZeroTangent()])) ==
+                NoTangent()
+            @test_throws DimensionMismatch ChainRules.unbroadcast(x, [3.0, 4.0, 5.0])
+            @test_throws DimensionMismatch ChainRules.unbroadcast(
+                x, [1.0 2.0; 1.5 2.5; 0.0 0.0]
+            )
         end
         @testset "unbroadcast with Matrix{Tangent}" begin  # https://github.com/JuliaDiff/ChainRules.jl/issues/708
             x = Base.Fix1.(*, 1:3.0)
