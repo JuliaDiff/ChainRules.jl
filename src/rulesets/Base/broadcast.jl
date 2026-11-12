@@ -337,7 +337,8 @@ function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
     val = _sum_trailing_dims(unthunk(dx_raw))
     val isa AbstractZero && return val
     n = length(val)
-    n == N || throw(DimensionMismatch(lazy"cotangent of length $n for a tuple of length $N"))
+    n == N ||
+        throw(DimensionMismatch(lazy"cotangent of length $n for a tuple of length $N"))
     eltype(val) <: AbstractZero && return NoTangent()
     return ProjectTo(x)(Tuple{Vararg{Any,N}}(val)) # Tangent
 end
