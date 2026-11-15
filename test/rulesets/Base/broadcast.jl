@@ -92,13 +92,17 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             @gpu test_rrule(copy∘broadcasted, -, rand(3))
             test_rrule(copy∘broadcasted, -, Tuple(rand(3)))
 
-            @gpu test_rrule(copy∘broadcasted, *, rand(3), rand(3))
-            @gpu test_rrule(copy∘broadcasted, *, rand(3), rand())
-            @gpu test_rrule(copy∘broadcasted, *, rand(), rand(3))
+            @gpu test_rrule(copy ∘ broadcasted, *, rand(3), rand(3))
+            @gpu test_rrule(copy ∘ broadcasted, *, rand(3), rand())
+            @gpu test_rrule(copy ∘ broadcasted, *, rand(), rand(3))
+            test_rrule(copy ∘ broadcasted, *, Tuple(rand(3)), rand())
+            test_rrule(copy ∘ broadcasted, *, rand(), Tuple(rand(3)))
+            test_rrule(copy ∘ broadcasted, *, Tuple(rand(3)), Tuple(rand(3)))
 
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand(3) .+ 2im)
             test_rrule(copy∘broadcasted, *, rand(3) .+ im, rand() + 3im)
             test_rrule(copy∘broadcasted, *, rand() + im, rand(3) .+ 4im)
+            test_rrule(copy ∘ broadcasted, *, rand(), rand(3) .+ im)  # projects the cotangent of the real scalar
 
             @test_skip test_rrule(copy∘broadcasted, *, im, rand(3))  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
             @test_skip test_rrule(copy∘broadcasted, *, rand(3), im)  # MethodError: no method matching randn(::Random._GLOBAL_RNG, ::Type{Complex{Bool}})
@@ -119,11 +123,14 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
                 # GPU error from dot(x::JLArray{Float32, 1}, y::JLArray{ComplexF32, 2})
             end
 
-            @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3), Val(2))
-            @gpu test_rrule(copy∘broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
+            @gpu test_rrule(copy ∘ broadcasted, Base.literal_pow, ^, rand(3), Val(2))
+            @gpu test_rrule(copy ∘ broadcasted, Base.literal_pow, ^, rand(3) .+ im, Val(2))
+            test_rrule(copy ∘ broadcasted, Base.literal_pow, ^, Tuple(rand(3)), Val(2))
 
-            @gpu test_rrule(copy∘broadcasted, /, rand(3), rand())
-            @gpu test_rrule(copy∘broadcasted, /, rand(3) .+ im, rand() + 3im)
+            @gpu test_rrule(copy ∘ broadcasted, /, rand(3), rand())
+            @gpu test_rrule(copy ∘ broadcasted, /, rand(3) .+ im, rand() + 3im)
+            test_rrule(copy ∘ broadcasted, /, Tuple(rand(3)), rand())
+            test_rrule(copy ∘ broadcasted, /, rand(3) .+ im, rand())  # projects the cotangent of the real scalar
         end
         @testset "identity etc" begin
             test_rrule(copy∘broadcasted, identity, rand(3))
@@ -134,16 +141,22 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             test_rrule(copy∘broadcasted, float, rand(3))
         end
         @testset "complex" begin
-            test_rrule(copy∘broadcasted, conj, rand(3))
-            test_rrule(copy∘broadcasted, conj, rand(3) .+ im)
-            test_rrule(copy∘broadcasted, adjoint, rand(3))
-            test_rrule(copy∘broadcasted, adjoint, rand(3) .+ im)
+            test_rrule(copy ∘ broadcasted, conj, rand(3))
+            test_rrule(copy ∘ broadcasted, conj, rand(3) .+ im)
+            test_rrule(copy ∘ broadcasted, conj, Tuple(rand(3)))
+            test_rrule(copy ∘ broadcasted, conj, Tuple(rand(3) .+ im .* rand.()))
+            test_rrule(copy ∘ broadcasted, adjoint, rand(3))
+            test_rrule(copy ∘ broadcasted, adjoint, rand(3) .+ im)
 
-            test_rrule(copy∘broadcasted, real, rand(3))
-            test_rrule(copy∘broadcasted, real, rand(3) .+ im)
+            test_rrule(copy ∘ broadcasted, real, rand(3))
+            test_rrule(copy ∘ broadcasted, real, rand(3) .+ im)
+            test_rrule(copy ∘ broadcasted, real, Tuple(rand(3)))
+            test_rrule(copy ∘ broadcasted, real, Tuple(rand(3) .+ im .* rand.()))
 
-            test_rrule(copy∘broadcasted, imag, rand(3))
-            test_rrule(copy∘broadcasted, imag, rand(3) .+ im .* rand.())
+            test_rrule(copy ∘ broadcasted, imag, rand(3))
+            test_rrule(copy ∘ broadcasted, imag, rand(3) .+ im .* rand.())
+            test_rrule(copy ∘ broadcasted, imag, Tuple(rand(3)))
+            test_rrule(copy ∘ broadcasted, imag, Tuple(rand(3) .+ im .* rand.()))
 
             test_rrule(copy∘broadcasted, complex, rand(3))
         end
@@ -196,6 +209,70 @@ BT1 = Broadcast.BroadcastStyle(Tuple)
             y3, bk3 = rrule(CFG, copy∘broadcasted, BT1, atan, (), ())
             @test y3 == ()
             @test bk3(Tangent{Tuple{}}()) == (NoTangent(), NoTangent(), NoTangent(), ZeroTangent(), ZeroTangent())
+        end
+        @testset "tuple broadcast with Tangent{Any} cotangent" begin
+            x = (1.0, 2.0f0)
+            y2, bk2 = rrule(CFG, copy ∘ broadcasted, BT1, log, x)  # split 2
+            dx2 = @inferred bk2(Tangent{Any}(1.0, 1.0f0))
+            @test dx2[4] isa Tangent{typeof(x),typeof(x)}
+            @test all(ChainRulesCore.backing(dx2[4]) .≈ (1.0, 0.5))
+
+            y4, bk4 = rrule(CFG, copy ∘ broadcasted, BT1, sin ∘ cos, x)  # split 4
+            dx4 = bk4(Tangent{Any}(1.0, 1.0f0))
+            @test dx4[4] isa Tangent{typeof(x),typeof(x)}
+            @test all(
+                ChainRulesCore.backing(dx4[4]) .≈
+                (-cos(cos(1.0)) * sin(1.0), -cos(cos(2.0f0)) * sin(2.0f0)),
+            )
+
+            @test bk2(@thunk(Tangent{Any}(1.0, 1.0f0))) == dx2
+            @test bk4(@thunk(Tangent{Any}(1.0, 1.0f0))) == dx4
+
+            _, bkm = rrule(CFG, copy ∘ broadcasted, BT1, atan, x, x)  # split 2, several arguments
+            dxm = @inferred bkm(Tangent{Any}(1.0, 1.0f0))
+            @test dxm[4] isa Tangent{typeof(x),typeof(x)}
+            @test dxm[5] isa Tangent{typeof(x),typeof(x)}
+
+            x3 = (1.0, 2.0)  # split 3 needs a concrete eltype
+            _, bk3 = rrule(CFG, copy ∘ broadcasted, BT1, flog, x3)
+            dx3 = bk3(Tangent{Any}(1.0, 1.0))
+            @test dx3[4] isa Tangent{typeof(x3),typeof(x3)}
+            @test all(ChainRulesCore.backing(dx3[4]) .≈ (1.0, 0.5))
+
+            # Fused rules
+            dy = Tangent{Any}(1.0, 1.0f0)
+            _, _, dxt, dyt = map(unthunk, rrule(CFG, copy ∘ broadcasted, *, x, 2.0)[2](dy))
+            @test dxt == Tangent{typeof(x)}(2.0, 2.0f0)
+            @test dyt ≈ 3.0
+            _, _, _, dxs, _ = map(
+                unthunk,
+                rrule(CFG, copy ∘ broadcasted, Base.literal_pow, ^, x, Val(2))[2](dy),
+            )
+            @test dxs == Tangent{typeof(x)}(2.0, 4.0f0)
+            _, _, dxd, dyd = map(unthunk, rrule(CFG, copy ∘ broadcasted, /, x, 2.0)[2](dy))
+            @test dxd == Tangent{typeof(x)}(0.5, 0.5f0)
+            @test dyd ≈ -0.75
+            xc = (1.0 + 2im, 3.0 - 1im)
+            @test rrule(CFG, copy ∘ broadcasted, real, xc)[2](dy)[3] ==
+                Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
+            @test rrule(CFG, copy ∘ broadcasted, imag, xc)[2](dy)[3] ==
+                Tangent{typeof(xc)}(1.0im, 1.0im)
+            dyc = Tangent{Any}(1.0 + 1im, 2.0 - 1im)
+            @test rrule(CFG, copy ∘ broadcasted, conj, xc)[2](dyc)[3] ==
+                Tangent{typeof(xc)}(1.0 - 1im, 2.0 + 1im)
+            # Zygote passes the cotangent of the outer rule in e.g. `real.(conj.(x))` on as a `Tuple`
+            @test rrule(CFG, copy ∘ broadcasted, conj, xc)[2]((1.0, 1.0))[3] ==
+                Tangent{typeof(xc)}(1.0 + 0im, 1.0 + 0im)
+            @test rrule(CFG, copy ∘ broadcasted, -, x)[2]((1.0, 1.0f0))[3] ==
+                Tangent{typeof(x)}(-1.0, -1.0f0)
+
+            # Lazy arguments, e.g. from `float.(real.(x))`
+            xl = broadcasted(real, x)
+            @test unthunk(rrule(broadcasted, +, xl, 1.0)[2](dy)[3]) == (1.0, 1.0f0)
+            @test unthunk(rrule(broadcasted, -, xl, 1.0)[2](dy)[3]) == (1.0, 1.0f0)
+            @test rrule(broadcasted, float, xl)[2](dy)[3] == (1.0, 1.0f0)
+            @test rrule(broadcasted, Float32, xl)[2](dy)[3] == (1.0, 1.0f0)
+            @test rrule(broadcasted, complex, xl)[2](dy)[3] == (1.0, 1.0f0)
         end
         @testset "unbroadcast with NTuple" begin  # https://github.com/JuliaDiff/ChainRules.jl/pull/661
             @test ChainRules.unbroadcast((1, 2, [3]), [4, 5, [6]]) isa Tangent   # earlier, NTuple demanded same type
