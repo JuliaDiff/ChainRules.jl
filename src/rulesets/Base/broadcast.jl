@@ -320,6 +320,7 @@ rrule(::typeof(broadcasted), ::typeof(complex), x::Number) = rrule(complex, x) |
 
 function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
     dx = unthunk(dx_raw)
+    dx isa AbstractZero && return dx
     N = _ndims(dx)
     if length(x) == length(dx)
         ProjectTo(x)(dx)  # handles trivial reshapes, offsets, structured matrices, row vectors
@@ -328,22 +329,24 @@ function unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx_raw)
         ProjectTo(x)(sum(dx; dims))
     end
 end
-unbroadcast(x::Base.AbstractArrayOrBroadcasted, dx::AbstractZero) = dx
 
 _ndims(x) = ndims(x)
 _ndims(::Tuple) = 1
 
 function unbroadcast(x::T, dx_raw) where {T<:Tuple{Vararg{Any,N}}} where {N}
-    dx = unthunk(dx_raw)
-    val = if N == length(dx)
-        dx
-    else
-        sum(dx; dims=2:ndims(dx))
-    end
+    val = _sum_trailing_dims(unthunk(dx_raw))
+    val isa AbstractZero && return val
+    n = length(val)
+    n == N ||
+        throw(DimensionMismatch(lazy"cotangent of length $n for a tuple of length $N"))
     eltype(val) <: AbstractZero && return NoTangent()
     return ProjectTo(x)(Tuple{Vararg{Any,N}}(val)) # Tangent
 end
-unbroadcast(x::Tuple, dx::AbstractZero) = dx
+
+# A tuple only spans the first dimension of a broadcast
+_sum_trailing_dims(dx::AbstractVector) = dx
+_sum_trailing_dims(dx::AbstractArray) = sum(dx; dims=2:ndims(dx))
+_sum_trailing_dims(dx) = dx  # e.g. `Tuple`, `Tangent{<:Any,<:Tuple}`
 
 # zero(::Tangent) is some Zero, which means sum(dx; dims) fails unless you do this:
 function Base.reducedim_init(
@@ -381,7 +384,6 @@ unbroadcast(x::Base.RefValue, dx::AbstractZero) = dx
 
 unbroadcast(::Bool, dx) = NoTangent()
 unbroadcast(::AbstractArray{Bool}, dx) = NoTangent()
-unbroadcast(::AbstractArray{Bool}, dx::AbstractZero) = dx  # ambiguity
 unbroadcast(::Val, dx) = NoTangent()
 
 function unbroadcast(f::Function, df)
