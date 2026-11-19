@@ -1,6 +1,11 @@
 using ChainRules,
-    ChainRulesCore, ChainRulesTestUtils, FiniteDifferences, GPUArraysCore, JLArrays,
-    LinearAlgebra, Test
+    ChainRulesCore,
+    ChainRulesTestUtils,
+    FiniteDifferences,
+    GPUArraysCore,
+    JLArrays,
+    LinearAlgebra,
+    Test
 
 # Otherwise the struct fallback also perturbs the index field
 FiniteDifferences.to_vec(x::ChainRules.OneElement) = to_vec(collect(x))
