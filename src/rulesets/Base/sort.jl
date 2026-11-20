@@ -92,7 +92,7 @@ function rrule(::typeof(unique), x::AbstractArray{<:Number}; dims=:)
         end
         mask = isequal.(permutedims(ys), xs)  # unique([0.0, -0.0, NaN, NaN])
         mask .= (mask .== cumsum(mask, dims=1) .== true)  # this implements  findfirst(mask; dims=1)
-        keep = map(I -> I[1], findall(mask))
+        keep = map(I -> I[1], findall(mask))::Vector{Int}  # `eachslice` is not inferred
         if dims isa Colon
             # The function `∇getindex` allows second derivatives.
             dx = reshape(∇getindex(vec(x), vec(dy), keep), axes_x) ## TODO understand again why vec!
