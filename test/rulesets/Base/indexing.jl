@@ -189,6 +189,17 @@ end
         dxs_gpu = unthunk(back(jl([1.0]))[2])
         @test dxs_gpu == [jl([1.0])]
     end
+
+    @testset "∇getindex! does not allocate" begin
+        function allocs_∇getindex!(dx, dy, inds::Vararg{Any,N}) where {N}
+            ChainRules.∇getindex!(dx, dy, inds...)  # compile
+            return @allocated ChainRules.∇getindex!(dx, dy, inds...)
+        end
+        dx = zeros(3, 4)
+        @test allocs_∇getindex!(dx, rand(3), Base.to_indices(dx, (:, 2))...) == 0
+        @test allocs_∇getindex!(dx, rand(2, 2), 2:3, 1:2) == 0
+        @test allocs_∇getindex!(dx, 1.0, 2, 3) == 0
+    end
 end
 
 # first & tail handled by getfield rules
