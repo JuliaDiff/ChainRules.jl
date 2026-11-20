@@ -65,9 +65,26 @@ end
 
 function thunked_∇getindex(x, dy, inds...)
     return InplaceableThunk(
-        dx -> ∇getindex!(dx, unthunk(dy), Base.to_indices(x, inds)...),
+        dx -> ∇getindex_add!(dx, x, unthunk(dy), inds...),
         @thunk(∇getindex(x, unthunk(dy), inds...)),
     )
+end
+
+# `add!!(dx, ∇getindex(x, dy, inds...))`, only touching `dx[inds...]` if the projection is elementwise
+function ∇getindex_add!(dx, x, dy, inds::Vararg{Any,N}) where {N}
+    if ProjectTo(x) isa ProjectTo{AbstractArray}
+        plain_inds = Base.to_indices(x, inds)
+        return ∇getindex!(dx, _project_getindex(x, dy, plain_inds...), plain_inds...)
+    else
+        return add!!(dx, ∇getindex(x, dy, inds...))
+    end
+end
+
+# Projects `dy` onto `x[inds...]`, which also checks its shape
+_project_getindex(x, dy, inds...) = ProjectTo(@views x[inds...])(dy)
+# Avoids scalar indexing, e.g. of GPU arrays
+function _project_getindex(x::AbstractArray{<:Number}, dy, inds::Integer...)
+    return ProjectTo(view(x, inds...))(dy)[]
 end
 
 """
@@ -85,8 +102,13 @@ function ∇getindex(x::AbstractArray{T,N}, dy, inds...) where {T,N}
         # scalar indexing
         OneElement(dy, plain_inds, axes(x))
     else  # some from slicing (potentially noncontigous)
-        dx = _setindex_zero(x, dy, plain_inds...)
-        ∇getindex!(dx, dy, plain_inds...)
+        # also checks that `dy` has the shape of the slice, instead of broadcasting it
+        dy_proj = _project_getindex(x, dy, plain_inds...)
+        if dy_proj isa AbstractZero
+            dy_proj
+        else
+            ∇getindex!(_setindex_zero(x, dy_proj, plain_inds...), dy_proj, plain_inds...)
+        end
     end
     return ProjectTo(x)(dx)  # since we have x, may as well do this inside, not in rules
 end

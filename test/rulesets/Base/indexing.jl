@@ -200,6 +200,54 @@ end
         @test allocs_∇getindex!(dx, rand(2, 2), 2:3, 1:2) == 0
         @test allocs_∇getindex!(dx, 1.0, 2, 3) == 0
     end
+
+    @testset "add! agrees with unthunk" begin
+        function test_add!(x, dy, inds...; f=getindex, acc=zero(x))
+            dx = rrule(f, x, inds...)[2](dy)[2]
+            @test dx.add!(copy(acc)) == acc + unthunk(dx)
+        end
+
+        x, x32 = [1.0, 2.0, 3.0], Float32[1, 2, 3]
+        # projection to real numbers
+        test_add!(x, 1.0 + 2.0im, 1)
+        test_add!(x, [1.0im, 2.0im], 1:2)
+        test_add!(x, fill(1.0 + 2.0im), 2; f=view)
+        test_add!(x, [1.0im, 2.0im], 1:2; f=view)
+        # projection to Float32, with exactly representable values for repeated indices
+        test_add!(x32, 0.1, 2; acc=zeros(3))
+        test_add!(x32, [0.1, 0.2], 2:3; acc=zeros(3))
+        test_add!(x32, [0.5, 0.25, 1.0], [2, 2, 1]; acc=zeros(3))
+        test_add!(x32, [0.1, 0.2], [true, false, true]; acc=zeros(3))
+        test_add!(rand(Float32, 2, 3), 0.1, CartesianIndex(2, 3); acc=zeros(2, 3))
+        test_add!(rand(Float32, 2, 3), 0.1, 5; acc=zeros(2, 3))  # linear index
+        # zero cotangents
+        test_add!(x, @thunk(ZeroTangent()), 2)
+        test_add!(x, @thunk(ZeroTangent()), 1:2)
+        test_add!(x, [ZeroTangent(), ZeroTangent()], 1:2)
+        # structured arrays
+        test_add!(Diagonal(rand(3)), [1.0, 2.0, 3.0], 2, :; acc=zeros(3, 3))
+        test_add!(Symmetric(rand(3, 3)), 1.0, 2, 3; acc=zeros(3, 3))
+        # arrays of arrays
+        xs, acc = [Float32[1, 2], Float32[3, 4]], [zeros(2), zeros(2)]
+        test_add!(xs, [0.1, 0.2], 2; acc)
+        test_add!(xs, [[0.1, 0.2], [0.3, 0.4]], 1:2; acc)
+        # GPU arrays: broadcasting, and copying to the CPU for repeated indices
+        x_gpu = jl(Float32[1 2 3; 4 5 6])
+        test_add!(x_gpu, jl([0.1, 0.2]), :, 2; acc=jl(zeros(2, 3)))
+        test_add!(x_gpu, jl([0.5, 0.25, 1.0]), 1, jl([2, 2, 1]); acc=jl(zeros(2, 3)))
+        # scalar index of a GPU array, without scalar indexing
+        (_, ind), back = rrule(findmax, x_gpu)
+        dx = back(Tangent{Any}(0.1 + 2.0im, NoTangent()))[2]
+        @test dx.add!(jl(zeros(2, 3))) == jl([0 0 0; 0 0 Float64(0.1f0)])
+    end
+
+    @testset "cotangent must match the slice" begin
+        for dy in ([0.5], 0.5, [0.1, 0.2])
+            dx = rrule(getindex, rand(3), 1:3)[2](dy)[2]
+            @test_throws DimensionMismatch unthunk(dx)
+            @test_throws DimensionMismatch dx.add!(zeros(3))
+        end
+    end
 end
 
 # first & tail handled by getfield rules
