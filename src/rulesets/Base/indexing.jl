@@ -147,7 +147,7 @@ function ∇getindex!(dx::AbstractArray, dy, inds::Integer...)
     @views dx[inds...] += dy
     return dx
 end
-function ∇getindex!(dx::AbstractArray, dy, inds...)
+function ∇getindex!(dx::AbstractArray, dy, inds::Vararg{Any,N}) where {N}  # force specialization
     view(dx, inds...) .+= dy
     return dx
 end
@@ -176,7 +176,7 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
     return dx
 end
-function ∇getindex!(dx::AbstractGPUArray, dy, inds::Union{Integer, AbstractUnitRange, Base.Slice}...)
+function ∇getindex!(dx::AbstractGPUArray, dy, inds::Vararg{Union{Integer, AbstractUnitRange, Base.Slice},N}) where {N}
     view(dx, inds...) .+= dy
     return dx
 end
