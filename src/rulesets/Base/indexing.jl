@@ -176,7 +176,9 @@ function ∇getindex!(dx::AbstractGPUArray, dy, inds::Integer...)
     view(dx, inds...) .+= Ref(dy)
     return dx
 end
-function ∇getindex!(dx::AbstractGPUArray, dy, inds::Vararg{Union{Integer, AbstractUnitRange, Base.Slice},N}) where {N}
+function ∇getindex!(
+    dx::AbstractGPUArray, dy, inds::Vararg{Union{Integer,AbstractUnitRange,Base.Slice},N}
+) where {N}
     view(dx, inds...) .+= dy
     return dx
 end
