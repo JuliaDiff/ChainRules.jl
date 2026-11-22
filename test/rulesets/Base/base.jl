@@ -310,6 +310,15 @@ end
         @test frule(NoRules, 1.0) === nothing
         @test rrule(NoRules, 1.0) === nothing
     end
+
+    @testset "oftype" begin
+        for (x, y) in ((1.0, 2.5), (1.0f0, 2.5), (1.0im, 2.5))
+            test_frule(oftype, x, y; rtol=1.0e-3, atol=1.0e-3)
+            test_rrule(oftype, x, y; rtol=1.0e-3, atol=1.0e-3)
+        end
+        @test rrule(oftype, 1.0, 2)[2](3.0) === (NoTangent(), ZeroTangent(), 3.0)
+        @test rrule(oftype, 1.0, 2.0 + 0im)[2](3.0) === (NoTangent(), ZeroTangent(), 3.0 + 0im)
+    end
     
     @testset "map(f, ::Tuple...)" begin
         test_rrule(map, identity, (1.0, 2.0), check_inferred=false)

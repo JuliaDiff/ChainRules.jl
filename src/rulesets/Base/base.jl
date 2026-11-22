@@ -62,6 +62,17 @@ end
 @scalar_rule Float32(x::Real) true
 @scalar_rule AbstractFloat(x::Real) true
 
+# `oftype`
+# Base's `oftype` branches on `y isa typeof(x)`, which defeats inference of Zygote's pullback.
+
+frule((_, _, ẏ), ::typeof(oftype), x::Number, y::Number) = (oftype(x, y), ProjectTo(x)(ẏ))
+
+function rrule(::typeof(oftype), x::Number, y::Number)
+    project_y = ProjectTo(y)
+    oftype_pullback(Ω̄) = (NoTangent(), ZeroTangent(), project_y(Ω̄))
+    return oftype(x, y), oftype_pullback
+end
+
 # `imag`
 
 @scalar_rule imag(x::Real) ZeroTangent()
