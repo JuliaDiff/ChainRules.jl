@@ -25,12 +25,12 @@ function rrule(::typeof(partialsort), xs::AbstractVector, k::Union{Integer,Ordin
     return ys, partialsort_pullback
 end
 
-function frule((_, ẋs), ::typeof(sort), xs::AbstractVector; kw...)
+function frule((_, ẋs), ::typeof(sort), xs::AbstractArray; kw...)
     inds = sortperm(xs; kw...)
     return xs[inds], ẋs[inds]
 end
 
-function rrule(::typeof(sort), xs::AbstractVector; kwargs...)
+function rrule(::typeof(sort), xs::AbstractArray; kwargs...)
     inds = sortperm(xs; kwargs...)
     ys = xs[inds]
 

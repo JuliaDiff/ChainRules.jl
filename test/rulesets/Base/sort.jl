@@ -9,6 +9,18 @@ using ChainRules, ChainRulesCore, ChainRulesTestUtils, LinearAlgebra, Test
         # rev
         test_rrule(sort, a)
         test_rrule(sort, a; fkwargs=(;rev=true))
+
+        if VERSION ≥ v"1.9"
+            a = rand(5, 4)
+            for dims in (1, 2)
+                # fwd
+                test_frule(sort, a; fkwargs=(;dims))
+                test_frule(sort, a; fkwargs=(;dims, rev=true))
+                # rev
+                test_rrule(sort, a; fkwargs=(;dims))
+                test_rrule(sort, a; fkwargs=(;dims, rev=true))
+            end
+        end
     end
     @testset "partialsort" begin
         a = rand(10)
